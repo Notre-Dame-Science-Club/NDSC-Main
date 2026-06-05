@@ -13,6 +13,8 @@ type Executive = {
   email: string
   whatsapp: string
   instagram_url: string
+  github_url: string
+  x_url: string
   display_order: number
   session_year: string
   is_active: boolean
@@ -21,12 +23,13 @@ type Executive = {
 const PANELS = [
   { value: 'committee', label: 'Executive Committee' },
   { value: 'moderators', label: 'Chief Patron & Moderators' },
+  { value: 'former_moderators', label: 'Former Moderators' },
 ]
 
 const empty = {
   full_name: '', position: '', panel: 'committee', dept: '',
   photo_url: '', facebook_url: '', linkedin_url: '',
-  email: '', whatsapp: '', instagram_url: '',
+  email: '', whatsapp: '', instagram_url: '', github_url: '', x_url: '',
   display_order: 0, session_year: '2025-26', is_active: true,
 }
 
@@ -36,6 +39,9 @@ export default function AdminExecutivesPage() {
   const [editing, setEditing] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const [uploading, setUploading] = useState(false)
+  const [uploadProgress, setUploadProgress] = useState(0)
+  const [uploadError, setUploadError] = useState('')
+  const [cropMode, setCropMode] = useState<'cover' | 'contain' | 'top' | 'center'>('top')
   const [msg, setMsg] = useState('')
   const [msgOk, setMsgOk] = useState(true)
   const [filterPanel, setFilterPanel] = useState('committee')
@@ -53,14 +59,49 @@ export default function AdminExecutivesPage() {
   const uploadPhoto = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
+
+    // File size check — max 4.5 MB
+    if (file.size > 4.5 * 1024 * 1024) {
+      setUploadError(`File too large: ${(file.size / 1024 / 1024).toFixed(1)} MB. Maximum allowed is 4.5 MB.`)
+      return
+    }
+
+    setUploadError('')
     setUploading(true)
+    setUploadProgress(0)
+
     const fd = new FormData()
     fd.append('file', file)
     fd.append('folder', 'executives')
-    const res = await fetch('/api/admin/upload', { method: 'POST', body: fd })
-    const data = await res.json()
-    if (data.url) setForm((f: any) => ({ ...f, photo_url: data.url }))
-    setUploading(false)
+
+    // XHR for progress
+    const xhr = new XMLHttpRequest()
+    xhr.upload.addEventListener('progress', (ev) => {
+      if (ev.lengthComputable) {
+        setUploadProgress(Math.round((ev.loaded / ev.total) * 100))
+      }
+    })
+
+    xhr.addEventListener('load', () => {
+      try {
+        const data = JSON.parse(xhr.responseText)
+        if (data.url) setForm((f: any) => ({ ...f, photo_url: data.url }))
+        else setUploadError(data.error || 'Upload failed')
+      } catch {
+        setUploadError('Upload failed')
+      }
+      setUploading(false)
+      setUploadProgress(0)
+    })
+
+    xhr.addEventListener('error', () => {
+      setUploadError('Network error. Try again.')
+      setUploading(false)
+      setUploadProgress(0)
+    })
+
+    xhr.open('POST', '/api/admin/upload')
+    xhr.send(fd)
   }
 
   const save = async () => {
@@ -111,6 +152,8 @@ export default function AdminExecutivesPage() {
       email: item.email || '',
       whatsapp: item.whatsapp || '',
       instagram_url: item.instagram_url || '',
+      github_url: item.github_url || '',
+      x_url: item.x_url || '',
       display_order: item.display_order || 0,
       session_year: item.session_year || '2025-26',
       is_active: item.is_active,
@@ -198,19 +241,56 @@ export default function AdminExecutivesPage() {
           {/* Photo Upload */}
           <div className="md:col-span-2">
             <label className={lbl} style={{ color: '#6a8faf' }}>Photo</label>
-            <button onClick={() => photoRef.current?.click()}
+
+            {/* Crop mode selector */}
+            <div className="flex gap-2 mb-2 flex-wrap">
+              {(['top', 'center', 'cover', 'contain'] as const).map(mode => (
+                <button key={mode} type="button" onClick={() => setCropMode(mode)}
+                  className="px-3 py-1 rounded text-xs font-bold border transition-all"
+                  style={{
+                    background: cropMode === mode ? 'rgba(0,212,255,0.2)' : 'transparent',
+                    borderColor: cropMode === mode ? '#00d4ff' : '#0f2a4a',
+                    color: cropMode === mode ? '#00d4ff' : '#6a8faf',
+                  }}>
+                  {mode === 'top' ? '👤 Face (Top)' : mode === 'center' ? '⊙ Center' : mode === 'cover' ? '⛶ Fill' : '⊡ Fit'}
+                </button>
+              ))}
+              <span className="text-xs self-center" style={{ color: '#6a8faf' }}>Max: 4.5 MB</span>
+            </div>
+
+            <button onClick={() => { setUploadError(''); photoRef.current?.click() }}
+              disabled={uploading}
               className="w-full py-2.5 rounded-lg text-sm border-dashed border-2 mb-2 transition-all"
-              style={{ borderColor: '#0f2a4a', color: '#6a8faf' }}>
-              {uploading ? '⏳ Uploading...' : '📷 Upload Photo'}
+              style={{ borderColor: uploading ? '#00d4ff' : '#0f2a4a', color: uploading ? '#00d4ff' : '#6a8faf' }}>
+              {uploading ? `⏳ Uploading... ${uploadProgress}%` : '📷 Upload Photo'}
             </button>
+
+            {/* Progress bar */}
+            {uploading && (
+              <div className="w-full rounded-full overflow-hidden mb-2" style={{ height: '4px', background: 'rgba(255,255,255,0.06)' }}>
+                <div className="h-full rounded-full transition-all duration-200"
+                  style={{ width: `${uploadProgress}%`, background: 'linear-gradient(90deg, #00d4ff, #0099cc)' }} />
+              </div>
+            )}
+
+            {/* Error */}
+            {uploadError && (
+              <p className="text-xs mb-2 font-medium" style={{ color: '#ff7070' }}>⚠️ {uploadError}</p>
+            )}
+
             <input ref={photoRef} type="file" accept="image/*" className="hidden"
               onChange={uploadPhoto} />
+
             {form.photo_url && (
               <div className="flex items-center gap-3">
                 <img src={form.photo_url} alt="preview"
-                  className="w-16 h-16 object-cover rounded-lg" />
-                <button onClick={() => setForm({ ...form, photo_url: '' })}
-                  className="text-xs" style={{ color: '#ff5050' }}>Remove</button>
+                  className="w-16 h-20 rounded-lg"
+                  style={{ objectFit: cropMode === 'contain' ? 'contain' : 'cover', objectPosition: cropMode === 'top' ? 'top' : 'center' }} />
+                <div>
+                  <p className="text-xs mb-1" style={{ color: '#6a8faf' }}>Preview ({cropMode})</p>
+                  <button onClick={() => setForm({ ...form, photo_url: '' })}
+                    className="text-xs" style={{ color: '#ff5050' }}>Remove</button>
+                </div>
               </div>
             )}
           </div>
@@ -254,6 +334,22 @@ export default function AdminExecutivesPage() {
               value={form.instagram_url}
               onChange={e => setForm({ ...form, instagram_url: e.target.value })}
               placeholder="https://instagram.com/..." />
+          </div>
+
+          <div>
+            <label className={lbl} style={{ color: '#6a8faf' }}>GitHub URL</label>
+            <input className={inp} style={s}
+              value={form.github_url || ''}
+              onChange={e => setForm({ ...form, github_url: e.target.value })}
+              placeholder="https://github.com/..." />
+          </div>
+
+          <div>
+            <label className={lbl} style={{ color: '#6a8faf' }}>X (Twitter) URL</label>
+            <input className={inp} style={s}
+              value={form.x_url || ''}
+              onChange={e => setForm({ ...form, x_url: e.target.value })}
+              placeholder="https://x.com/..." />
           </div>
 
           <div className="flex items-center gap-2">
