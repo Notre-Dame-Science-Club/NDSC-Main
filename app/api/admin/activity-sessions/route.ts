@@ -1,0 +1,144 @@
+import { supabaseAdmin } from '@/lib/supabase'
+import { NextRequest, NextResponse } from 'next/server'
+import { cookies } from 'next/headers'
+
+async function isAdmin() {
+  const cookieStore = await cookies()
+  return !!cookieStore.get('admin_session')
+}
+
+export async function GET(req: NextRequest) {
+  const { searchParams } = new URL(req.url)
+  const version_id = searchParams.get('version_id')
+  const type_id = searchParams.get('type_id')
+  const slug = searchParams.get('slug')
+
+  if (slug) {
+    const { data, error } = await supabaseAdmin
+      .from('activity_sessions')
+      .select('*')
+      .eq('slug', slug)
+      .single()
+    if (error) return NextResponse.json({ error: error.message }, { status: 400 })
+    return NextResponse.json(data)
+  }
+
+  if (version_id) {
+    const { data, error } = await supabaseAdmin
+      .from('activity_sessions')
+      .select('*')
+      .eq('activity_version_id', version_id)
+      .order('session_date', { ascending: false })
+    if (error) return NextResponse.json({ error: error.message }, { status: 400 })
+    return NextResponse.json(data ?? [])
+  }
+
+  if (type_id) {
+    const { data, error } = await supabaseAdmin
+      .from('activity_sessions')
+      .select('*')
+      .eq('activity_type_id', type_id)
+      .order('session_date', { ascending: false })
+    if (error) return NextResponse.json({ error: error.message }, { status: 400 })
+    return NextResponse.json(data ?? [])
+  }
+
+  // No filter — return all
+  const { data, error } = await supabaseAdmin
+    .from('activity_sessions')
+    .select('*')
+    .order('session_date', { ascending: false })
+  if (error) return NextResponse.json({ error: error.message }, { status: 400 })
+  return NextResponse.json(data ?? [])
+}
+
+export async function POST(req: NextRequest) {
+  if (!await isAdmin()) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const body = await req.json()
+
+  // auto slug
+  let slug = body.slug
+  if (!slug && body.title) {
+    slug = body.title
+      .toLowerCase()
+      .replace(/[^a-z0-9\s-]/g, '')
+      .replace(/\s+/g, '-')
+      .slice(0, 60) + '-' + Date.now()
+  }
+
+  const insertData: any = {
+    title: body.title,
+    slug,
+    description: body.description || '',
+    cover_image_url: body.cover_image_url || '',
+    youtube_url: body.youtube_url || '',
+    pdf_url: body.pdf_url || '',
+    gallery_urls: body.gallery_urls || [],
+    is_published: body.is_published ?? false,
+    location: body.location || '',
+    session_date: body.session_date || null,
+  }
+
+  // activity_type_id — সবসময় required
+  if (body.activity_type_id || body.type_id) {
+    insertData.activity_type_id = body.activity_type_id || body.type_id
+  }
+
+  // version optional
+  if (body.activity_version_id || body.version_id) {
+    insertData.activity_version_id = body.activity_version_id || body.version_id
+    // version থেকেও type_id নাও যদি না থাকে
+    if (!insertData.activity_type_id) {
+      const { data: ver } = await supabaseAdmin
+        .from('activity_versions')
+        .select('activity_type_id')
+        .eq('id', insertData.activity_version_id)
+        .single()
+      if (ver) insertData.activity_type_id = ver.activity_type_id
+    }
+  }
+  
+  // type direct (version ছাড়া)
+  if (body.activity_type_id || body.type_id) {
+    insertData.activity_type_id = body.activity_type_id || body.type_id
+  }
+
+  const { data, error } = await supabaseAdmin
+    .from('activity_sessions')
+    .insert(insertData)
+    .select()
+    .single()
+  if (error) return NextResponse.json({ error: error.message }, { status: 400 })
+  return NextResponse.json(data)
+}
+
+export async function PUT(req: NextRequest) {
+  if (!await isAdmin()) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const body = await req.json()
+  const { id, ...rest } = body
+
+  const updateData: any = { ...rest }
+  if (rest.version_id) { updateData.activity_version_id = rest.version_id; delete updateData.version_id }
+  if (rest.type_id) { updateData.activity_type_id = rest.type_id; delete updateData.type_id }
+  if (rest.session_date) updateData.event_date = rest.session_date
+
+  const { data, error } = await supabaseAdmin
+    .from('activity_sessions')
+    .update(updateData)
+    .eq('id', id)
+    .select()
+    .single()
+  if (error) return NextResponse.json({ error: error.message }, { status: 400 })
+  return NextResponse.json(data)
+}
+
+export async function DELETE(req: NextRequest) {
+  if (!await isAdmin()) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const { id } = await req.json()
+  const { error } = await supabaseAdmin
+    .from('activity_sessions')
+    .delete()
+    .eq('id', id)
+  if (error) return NextResponse.json({ error: error.message }, { status: 400 })
+  return NextResponse.json({ success: true })
+}
