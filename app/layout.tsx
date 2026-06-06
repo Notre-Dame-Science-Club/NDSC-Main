@@ -27,8 +27,14 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en">
-      <body>
+    <html lang="en" suppressHydrationWarning>
+      <body suppressHydrationWarning>
+        <script dangerouslySetInnerHTML={{__html: `
+          (function(){
+            var t = localStorage.getItem('ndsc-theme') || 'dark';
+            if(t === 'light') document.documentElement.setAttribute('data-theme','light');
+          })();
+        `}} />
         <Navbar />
         <main>{children}</main>
         <Footer />
