@@ -31,12 +31,12 @@ const STATS = [
 ];
 
 const DEPTS = [
-  { name: "Administration", icon: "/images/admininstration-icon.png", color: "#00d4ff",  desc: "Ensures smooth operation and management. Coordinates planning, logistics and execution of events." },
-  { name: "Project",        icon: "/images/project.png",              color: "#34d399",  desc: "Conducts scientific research and innovation-based projects. Encourages experimentation." },
-  { name: "Publication",    icon: "/images/publication.png",          color: "#a78bfa",  desc: "Publishes wall magazines, AUDRI journal. Promotes scientific writing and creative expression." },
-  { name: "ICT",            icon: "/images/ict.png",                  color: "#f87171",  desc: "Handles digital media, website management and emerging technology workshops." },
-  { name: "LWS",            icon: "/images/lws.png",                  color: "#f59e0b",  desc: "Life & Welfare Science — biology, environment and health oriented activities." },
-  { name: "Quiz",           icon: "/images/quiz.png",                 color: "#60a5fa",  desc: "Hosts Q-League, BrainRain, Scienceophile. NDC Blue, NDC Green & NDC Gold quiz teams." },
+  { name: "Administration", icon: "/images/admininstration-icon.png", color: "#00d4ff",  bg: "rgba(0,212,255,0.07)",  border: "rgba(0,212,255,0.28)",  desc: "Ensures smooth operation and management. Coordinates planning, logistics and execution of events." },
+  { name: "Project",        icon: "/images/project.png",              color: "#34d399",  bg: "rgba(52,211,153,0.07)", border: "rgba(52,211,153,0.28)", desc: "Conducts scientific research and innovation-based projects. Encourages experimentation." },
+  { name: "Publication",    icon: "/images/publication.png",          color: "#a78bfa",  bg: "rgba(167,139,250,0.07)",border: "rgba(167,139,250,0.28)",desc: "Publishes wall magazines, AUDRI journal. Promotes scientific writing and creative expression." },
+  { name: "ICT",            icon: "/images/ict.png",                  color: "#f87171",  bg: "rgba(248,113,113,0.07)",border: "rgba(248,113,113,0.28)",desc: "Handles digital media, website management and emerging technology workshops." },
+  { name: "LWS",            icon: "/images/lws.png",                  color: "#f59e0b",  bg: "rgba(245,158,11,0.07)", border: "rgba(245,158,11,0.28)", desc: "Life & Welfare Science — biology, environment and health oriented activities." },
+  { name: "Quiz",           icon: "/images/quiz.png",                 color: "#60a5fa",  bg: "rgba(96,165,250,0.07)", border: "rgba(96,165,250,0.28)", desc: "Hosts Q-League, BrainRain, Scienceophile. NDC Blue, NDC Green & NDC Gold quiz teams." },
 ];
 
 /* ════════════════════════════════════════════════════════════
@@ -53,38 +53,78 @@ function formatDate(d: string | null) {
 }
 
 /* ════════════════════════════════════════════════════════════
-   LETTER ANIMATION HOOK
+   LETTER ANIMATION HOOK — slide in from left, loop, scroll-aware
 ════════════════════════════════════════════════════════════ */
 function LetterAnim({
-  text, className = "", style = {}, tag = "span", delay = 0, loop = false, loopInterval = 5000,
+  text, className = "", style = {}, tag = "span", delay = 0, loop = true, loopInterval = 4000,
+  slideDir = "left",
 }: {
   text: string; className?: string; style?: React.CSSProperties;
   tag?: "span" | "h1" | "h2" | "h3" | "p" | "div";
   delay?: number; loop?: boolean; loopInterval?: number;
+  slideDir?: "left" | "up" | "right";
 }) {
-  const [visible, setVisible] = useState(false);
+  const [phase, setPhase] = useState<"in" | "hold" | "out" | "hidden">("hidden");
   const [key, setKey] = useState(0);
   const ref = useRef<HTMLElement>(null);
+  const inView = useRef(false);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const HOLD_MS = 3000;   // visible for 3s
+  const OUT_MS  = 700;    // exit anim duration
+  const IN_MS   = 600;    // enter anim duration
+  const GAP_MS  = 400;    // gap between out and next in
+
+  const runCycle = useCallback(() => {
+    if (!inView.current) return;
+    setKey(k => k + 1);
+    setPhase("in");
+    timerRef.current = setTimeout(() => {
+      setPhase("hold");
+      timerRef.current = setTimeout(() => {
+        setPhase("out");
+        timerRef.current = setTimeout(() => {
+          setPhase("hidden");
+          timerRef.current = setTimeout(() => {
+            if (inView.current) runCycle();
+          }, GAP_MS);
+        }, OUT_MS);
+      }, HOLD_MS);
+    }, IN_MS);
+  }, []);
 
   useEffect(() => {
     const el = ref.current;
     if (!el) return;
     const obs = new IntersectionObserver(
-      ([entry]) => { if (entry.isIntersecting) { setVisible(true); obs.disconnect(); } },
+      ([entry]) => {
+        if (entry.isIntersecting && !inView.current) {
+          inView.current = true;
+          runCycle();
+        } else if (!entry.isIntersecting) {
+          inView.current = false;
+          if (timerRef.current) clearTimeout(timerRef.current);
+          setPhase("hidden");
+        }
+      },
       { threshold: 0.1 }
     );
     obs.observe(el);
-    return () => obs.disconnect();
-  }, []);
-
-  useEffect(() => {
-    if (!loop || !visible) return;
-    const t = setInterval(() => setKey(k => k + 1), loopInterval);
-    return () => clearInterval(t);
-  }, [loop, visible, loopInterval]);
+    return () => { obs.disconnect(); if (timerRef.current) clearTimeout(timerRef.current); };
+  }, [runCycle]);
 
   const letters = text.split("");
   const Tag = tag as React.ElementType;
+
+  const getTransform = (visible: boolean, i: number) => {
+    if (visible) return "none";
+    if (slideDir === "left")  return `translateX(-${18 + i * 2}px) rotate(-4deg)`;
+    if (slideDir === "right") return `translateX(${18 + i * 2}px) rotate(4deg)`;
+    return `translateY(20px) rotate(8deg)`;
+  };
+
+  const isVisible = phase === "in" || phase === "hold";
+  const isOut     = phase === "out";
 
   return (
     <Tag ref={ref} className={className} style={style}>
@@ -94,11 +134,15 @@ function LetterAnim({
           style={{
             display: "inline-block",
             whiteSpace: ch === " " ? "pre" : undefined,
-            opacity: visible ? 1 : 0,
-            transform: visible ? "none" : "translateY(20px) rotate(8deg)",
-            transition: visible
-              ? `opacity 0.45s cubic-bezier(0.22,1,0.36,1) ${delay + i * 0.03}s, transform 0.45s cubic-bezier(0.22,1,0.36,1) ${delay + i * 0.03}s`
-              : "none",
+            opacity: isOut ? 0 : isVisible ? 1 : 0,
+            transform: isOut
+              ? (slideDir === "left" ? `translateX(${14 + i}px) rotate(3deg)` : slideDir === "right" ? `translateX(-${14 + i}px)` : `translateY(-14px)`)
+              : isVisible ? "none" : getTransform(false, i),
+            transition: isOut
+              ? `opacity ${OUT_MS}ms ease ${i * 0.012}s, transform ${OUT_MS}ms ease ${i * 0.012}s`
+              : isVisible
+                ? `opacity 0.5s cubic-bezier(0.22,1,0.36,1) ${delay + i * 0.028}s, transform 0.5s cubic-bezier(0.22,1,0.36,1) ${delay + i * 0.028}s`
+                : "none",
           }}
         >{ch}</span>
       ))}
@@ -107,8 +151,69 @@ function LetterAnim({
 }
 
 /* ════════════════════════════════════════════════════════════
-   DEEP SPACE + GALAXY BACKGROUND
+   LOOPING PARAGRAPH — fades out every 4s then fades back in
 ════════════════════════════════════════════════════════════ */
+function LoopingP({ children, className = "", style = {}, delay = 0 }: {
+  children: React.ReactNode; className?: string; style?: React.CSSProperties; delay?: number;
+}) {
+  const [visible, setVisible] = useState(false);
+  const [phase, setPhase] = useState<"in" | "hold" | "out">("out");
+  const ref = useRef<HTMLParagraphElement>(null);
+  const inView = useRef(false);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const HOLD_MS = 4000;
+  const FADE_MS = 600;
+
+  const cycle = useCallback(() => {
+    if (!inView.current) return;
+    setPhase("in");
+    timerRef.current = setTimeout(() => {
+      setPhase("hold");
+      timerRef.current = setTimeout(() => {
+        setPhase("out");
+        timerRef.current = setTimeout(() => {
+          if (inView.current) cycle();
+        }, FADE_MS + 200);
+      }, HOLD_MS);
+    }, FADE_MS);
+  }, []);
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const obs = new IntersectionObserver(([entry]) => {
+      if (entry.isIntersecting && !inView.current) {
+        inView.current = true;
+        setTimeout(cycle, delay * 1000);
+      } else if (!entry.isIntersecting) {
+        inView.current = false;
+        if (timerRef.current) clearTimeout(timerRef.current);
+        setPhase("out");
+      }
+    }, { threshold: 0.1 });
+    obs.observe(el);
+    return () => { obs.disconnect(); if (timerRef.current) clearTimeout(timerRef.current); };
+  }, [cycle, delay]);
+
+  const isVisible = phase === "in" || phase === "hold";
+  return (
+    <p
+      ref={ref}
+      className={className}
+      style={{
+        ...style,
+        opacity: isVisible ? 1 : 0,
+        transform: isVisible ? "none" : "translateY(8px)",
+        transition: `opacity ${FADE_MS}ms ease, transform ${FADE_MS}ms ease`,
+      }}
+    >
+      {children}
+    </p>
+  );
+}
+
+
 function GalaxyCanvas() {
   const ref = useRef<HTMLCanvasElement>(null);
   useEffect(() => {
@@ -467,36 +572,37 @@ function AtomCanvas3D({ size = 340 }: { size?: number }) {
    3D LOGO RING (hero right side)
 ════════════════════════════════════════════════════════════ */
 function LogoOrbit() {
+  // Desktop: 513px (380 * 1.35), mobile keeps 300px
   return (
-    <div className="logo-float relative flex items-center justify-center" style={{ width: 380, height: 380 }}>
+    <div className="logo-float logo-orbit-wrap relative flex items-center justify-center">
       {/* Outer ring */}
-      <div className="absolute rounded-full" style={{ width: 380, height: 380, border: "1px dashed rgba(0,212,255,0.16)", animation: "spinSlow 70s linear infinite" }}>
+      <div className="absolute rounded-full logo-ring-outer" style={{ border: "1px dashed rgba(0,212,255,0.16)", animation: "spinSlow 70s linear infinite" }}>
         {[0, 72, 144, 216, 288].map((deg, i) => (
-          <div key={i} style={{ position: "absolute", top: "50%", left: "50%", width: i % 2 === 0 ? 8 : 4, height: i % 2 === 0 ? 8 : 4, borderRadius: "50%", background: i % 2 === 0 ? "var(--blue)" : "rgba(0,212,255,0.4)", boxShadow: i % 2 === 0 ? "0 0 12px var(--blue)" : "none", transform: `rotate(${deg}deg) translateX(189px) translateY(-50%)` }} />
+          <div key={i} className="logo-dot-outer" style={{ position: "absolute", top: "50%", left: "50%", width: i % 2 === 0 ? 8 : 4, height: i % 2 === 0 ? 8 : 4, borderRadius: "50%", background: i % 2 === 0 ? "var(--blue)" : "rgba(0,212,255,0.4)", boxShadow: i % 2 === 0 ? "0 0 12px var(--blue)" : "none", transform: `rotate(${deg}deg) translateX(var(--orbit-outer-r)) translateY(-50%)` }} />
         ))}
       </div>
       {/* Mid ring */}
-      <div className="absolute rounded-full" style={{ width: 300, height: 300, top: "50%", left: "50%", marginTop: -150, marginLeft: -150, border: "1px solid rgba(0,212,255,0.22)", animation: "spinSlow 40s linear infinite reverse" }}>
+      <div className="absolute rounded-full logo-ring-mid" style={{ top: "50%", left: "50%", border: "1px solid rgba(0,212,255,0.22)", animation: "spinSlow 40s linear infinite reverse" }}>
         {[60, 180, 300].map((deg, i) => (
-          <div key={i} style={{ position: "absolute", top: "50%", left: "50%", width: 5, height: 5, borderRadius: "50%", background: "rgba(0,212,255,0.65)", boxShadow: "0 0 8px rgba(0,212,255,0.8)", transform: `rotate(${deg}deg) translateX(149px) translateY(-50%)` }} />
+          <div key={i} className="logo-dot-mid" style={{ position: "absolute", top: "50%", left: "50%", width: 5, height: 5, borderRadius: "50%", background: "rgba(0,212,255,0.65)", boxShadow: "0 0 8px rgba(0,212,255,0.8)", transform: `rotate(${deg}deg) translateX(var(--orbit-mid-r)) translateY(-50%)` }} />
         ))}
       </div>
       {/* Inner ring */}
-      <div className="absolute rounded-full" style={{ width: 240, height: 240, top: "50%", left: "50%", marginTop: -120, marginLeft: -120, border: "1px solid rgba(167,139,250,0.18)", animation: "spinSlow 25s linear infinite" }} />
+      <div className="absolute rounded-full logo-ring-inner" style={{ top: "50%", left: "50%", border: "1px solid rgba(167,139,250,0.18)", animation: "spinSlow 25s linear infinite" }} />
       {/* Core */}
-      <div className="absolute rounded-full overflow-hidden flex items-center justify-center" style={{ width: 218, height: 218, top: "50%", left: "50%", marginTop: -109, marginLeft: -109, background: "radial-gradient(circle at 38% 32%, rgba(0,50,90,0.92), rgba(0,4,12,0.97))", animation: "borderCycle 3.5s ease infinite", border: "2px solid rgba(0,212,255,0.45)" }}>
+      <div className="absolute rounded-full overflow-hidden flex items-center justify-center logo-core" style={{ top: "50%", left: "50%", background: "radial-gradient(circle at 38% 32%, rgba(0,50,90,0.92), rgba(0,4,12,0.97))", animation: "borderCycle 3.5s ease infinite", border: "2px solid rgba(0,212,255,0.45)" }}>
         <div className="absolute left-0 right-0" style={{ height: 2, top: 0, background: "linear-gradient(90deg,transparent,rgba(0,212,255,0.55),transparent)", animation: "scanV 2.8s linear infinite" }} />
-        <Image src="/images/logo-2.0.png" alt="NDSC" width={170} height={170} className="object-contain relative z-10" style={{ filter: "drop-shadow(0 0 24px rgba(0,212,255,0.7))", animation: "spinSlow 30s linear infinite" }} priority />
+        <Image src="/images/logo-2.0.png" alt="NDSC" width={230} height={230} className="object-contain relative z-10 logo-img" style={{ filter: "drop-shadow(0 0 24px rgba(0,212,255,0.7))", animation: "spinSlow 30s linear infinite" }} priority />
       </div>
       {/* Arc text */}
-      <svg className="absolute inset-0 w-full h-full pointer-events-none" viewBox="0 0 380 380">
-        <defs><path id="arcHero" d="M 50,190 A 140,140 0 1,1 330,190" /></defs>
+      <svg className="absolute inset-0 w-full h-full pointer-events-none" viewBox="0 0 513 513">
+        <defs><path id="arcHero" d="M 67,256 A 189,189 0 1,1 446,256" /></defs>
         <text fontSize="9" letterSpacing="5.5" fill="rgba(0,212,255,0.3)" fontFamily="'Share Tech Mono',monospace" textAnchor="middle">
           <textPath href="#arcHero" startOffset="50%">SCIENCE IN HUMAN WELFARE • 1955–2025 •</textPath>
         </text>
       </svg>
       {/* 70yr badge */}
-      <div className="absolute rounded-full flex items-center justify-center" style={{ width: 68, height: 68, bottom: 22, right: 14, background: "rgba(2,8,16,0.97)", border: "2px solid var(--blue)", boxShadow: "0 0 24px rgba(0,212,255,0.5)", animation: "pulse 2.5s ease infinite" }}>
+      <div className="absolute rounded-full flex items-center justify-center logo-badge" style={{ background: "rgba(2,8,16,0.97)", border: "2px solid var(--blue)", boxShadow: "0 0 24px rgba(0,212,255,0.5)", animation: "pulse 2.5s ease infinite" }}>
         <div className="text-center leading-none">
           <p className="font-black" style={{ fontFamily: "'Orbitron',sans-serif", color: "var(--blue)", fontSize: 20 }}>70</p>
           <p style={{ fontSize: 7, letterSpacing: "0.2em", color: "var(--muted)", textTransform: "uppercase" }}>YRS</p>
@@ -576,25 +682,26 @@ function PioneerSection() {
   return (
     <section className="relative z-10 py-20 sm:py-28" style={{ background: "var(--bg)" }}>
       <div className="max-w-7xl mx-auto px-4 sm:px-6">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 lg:gap-16 items-start">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-10 items-start">
           {/* LEFT — founder image */}
           <div className="reveal flex flex-col items-center lg:items-start">
             <div
               className="pioneer-img-wrap relative rounded-2xl overflow-hidden"
               style={{
-                width: "100%", maxWidth: 360,
-                aspectRatio: "3/4",
+                width: "100%", maxWidth: 400,
+                aspectRatio: "4/5",
                 border: "1.5px solid rgba(0,212,255,0.25)",
                 background: "var(--card)",
                 boxShadow: "0 0 60px rgba(0,212,255,0.1)",
               }}
             >
               {founder?.photo_url ? (
-                <Image src={founder.photo_url} alt={founder.full_name} fill className="object-contain" />
+                /* LINE 593 — replace founder.photo_url with your Hostinger image URL if DB is empty */
+                <Image src={founder.photo_url} alt={founder.full_name} fill className="object-cover object-top" />
               ) : (
-                <div className="absolute inset-0 flex items-center justify-center" style={{ background: "linear-gradient(135deg,rgba(0,212,255,0.08),rgba(0,40,80,0.5))" }}>
-                  <span style={{ color: "rgba(0,212,255,0.3)", fontSize: 48, fontFamily: "'Orbitron',sans-serif" }}>FR.</span>
-                </div>
+                /* FALLBACK LINE — set src below to your Hostinger URL for Fr. Timm's photo */
+                <Image src="/images/fr-timm.jpg" alt="Fr. Richard William Timm, C.S.C." fill className="object-cover object-top"
+                  onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
               )}
               <div className="absolute bottom-0 left-0 right-0 p-4 text-center" style={{ background: "linear-gradient(to top, rgba(2,8,16,0.95), transparent)" }}>
                 <p className="font-bold text-sm" style={{ color: "var(--white)", fontFamily: "'Poppins',sans-serif" }}>
@@ -616,17 +723,18 @@ function PioneerSection() {
               className="font-black mb-6 leading-tight"
               style={{ fontSize: "clamp(1.5rem, 3vw, 2.2rem)", fontFamily: "'Poppins',sans-serif", fontWeight: 800, color: "var(--white)" }}
               delay={0.1}
+              slideDir="left"
             />
             <div className="space-y-4 text-sm leading-[1.95]" style={{ color: "var(--muted)", fontFamily: "'Poppins',sans-serif" }}>
-              <p>
+              <LoopingP delay={0.5}>
                 Notre Dame Science Club, also known as <strong style={{ color: "var(--white)" }}>NDSC</strong>, is the most promising, versatile, and eminent co-curricular activities club of Notre Dame College, Dhaka. It began its inception in <strong style={{ color: "var(--blue)" }}>1955</strong> with a singular mission — to ignite a passion for science among students. It holds the proud distinction of being the <strong style={{ color: "var(--blue)" }}>pioneer science club of the Indian Subcontinent</strong>.
-              </p>
-              <p>
+              </LoopingP>
+              <LoopingP delay={1.2}>
                 Holding the noble motto &ldquo;Science in Human Welfare,&rdquo; the eminent scientist <strong style={{ color: "var(--white)" }}>Fr. Richard William Timm, C.S.C.</strong> inaugurated the flag of NDSC on September 18, 1955, alongside 19 founding student members.
-              </p>
-              <p>
+              </LoopingP>
+              <LoopingP delay={2.0}>
                 The NDSC has a long history of inspiring its followers to rediscover their innate passion for science by serving as the country&apos;s <strong style={{ color: "var(--white)" }}>oldest and most prestigious scientific club</strong>. NDSC provides necessary guidelines to budding scientists and is the trailblazer in spreading scientific awareness among the people.
-              </p>
+              </LoopingP>
             </div>
             <Link
               href="/about#about-article"
@@ -655,18 +763,16 @@ function LeadersSection() {
       .then(r => r.json())
       .then((data: Executive[]) => {
         if (!Array.isArray(data)) return;
-        const mod = data.find(e =>
-          e.position?.toLowerCase().includes("moderator") ||
-          e.panel?.toLowerCase() === "moderator"
-        );
-        const gsExec = data.find(e =>
-          (e.position?.toLowerCase().includes("general secretary") ||
-           e.position?.toLowerCase().includes("gs")) &&
-          e.session_year === "2025-26"
-        ) || data.find(e =>
+        // Find current moderator — look for panel="moderator" first, else position match
+        const mod = data.find(e => e.panel?.toLowerCase() === "moderator")
+          || data.find(e => e.position?.toLowerCase().includes("moderator"));
+        // Find GS: prefer session_year 2025-26, then 25-26, then latest
+        const gsAll = data.filter(e =>
           e.position?.toLowerCase().includes("general secretary") ||
           e.position?.toLowerCase().includes("gs")
         );
+        const gsExec = gsAll.find(e => e.session_year === "2025-26" || e.session_year === "25-26")
+          || gsAll[0];
         if (mod) setModerator(mod);
         if (gsExec) setGs(gsExec);
       })
@@ -694,7 +800,7 @@ function LeadersSection() {
       <div className="max-w-5xl mx-auto px-4 sm:px-6">
         <div className="text-center mb-14">
           <div className="flex justify-center"><SectionLabel>Leadership</SectionLabel></div>
-          <LetterAnim text="Voice of Our Leaders" tag="h2" className="font-black reveal" style={{ fontSize: "clamp(1.6rem,3.5vw,2.4rem)", fontFamily: "'Poppins',sans-serif", fontWeight: 800 }} delay={0.05} />
+          <LetterAnim text="Voice of Our Leaders" tag="h2" className="font-black reveal" style={{ fontSize: "clamp(1.6rem,3.5vw,2.4rem)", fontFamily: "'Poppins',sans-serif", fontWeight: 800 }} delay={0.05} slideDir="right" />
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {leaders.map(({ exec, key, role, staticImg, staticName }) => {
@@ -717,7 +823,7 @@ function LeadersSection() {
                   </div>
                 </div>
                 <div className="flex-1">
-                  <p className="text-sm leading-relaxed italic line-clamp-4" style={{ color: "var(--muted)", fontFamily: "'Poppins',sans-serif" }}>
+          <p className="text-sm leading-relaxed italic line-clamp-4" style={{ color: "var(--muted)", fontFamily: "'Poppins',sans-serif" }}>
                     &ldquo;{q.full}&rdquo;
                   </p>
                 </div>
@@ -815,7 +921,7 @@ function ActivitiesCarousel() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6">
         <div className="text-center mb-14">
           <div className="flex justify-center"><SectionLabel>Recent</SectionLabel></div>
-          <LetterAnim text="Our Activities" tag="h2" className="font-black reveal" style={{ fontSize: "clamp(1.8rem,4vw,2.8rem)", fontFamily: "'Poppins',sans-serif", fontWeight: 800 }} />
+          <LetterAnim text="Our Activities" tag="h2" className="font-black reveal" style={{ fontSize: "clamp(1.8rem,4vw,2.8rem)", fontFamily: "'Poppins',sans-serif", fontWeight: 800 }} slideDir="up" />
           <p className="text-xs mt-3 reveal" style={{ color: "var(--muted)", fontFamily: "'Share Tech Mono',monospace", letterSpacing: "0.2em" }}>
             SWIPE · DRAG · USE ARROWS · AUTO-ADVANCES
           </p>
@@ -946,8 +1052,9 @@ function ScienceMediaSection() {
   return (
     <section className="relative z-10 py-16 sm:py-20" style={{ background: "var(--bg2)" }}>
       <div className="max-w-7xl mx-auto px-4 sm:px-6">
-        <SectionLabel>Media</SectionLabel>
-        <LetterAnim text={title} tag="h2" className="font-black mb-10 reveal" style={{ fontSize: "clamp(1.6rem,3vw,2.2rem)", fontFamily: "'Poppins',sans-serif", fontWeight: 800 }} />
+        <div className="text-center mb-10">
+          <div className="flex justify-center"><SectionLabel>Media</SectionLabel></div>
+          <LetterAnim text={title} tag="h2" className="font-black reveal" style={{ fontSize: "clamp(1.6rem,3vw,2.2rem)", fontFamily: "'Poppins',sans-serif", fontWeight: 800 }} slideDir="right" /></div>
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
           <div className="lg:col-span-2 rounded-xl overflow-hidden border" style={{ borderColor: "var(--border)", aspectRatio: "16/9" }}>
             <iframe width="100%" height="100%" src={`https://www.youtube.com/embed/${activeId}`} title="NDSC" frameBorder="0" allowFullScreen />
@@ -997,10 +1104,25 @@ function AudriCTA() {
           style={{ borderColor: "var(--blue)", background: "linear-gradient(135deg,rgba(0,212,255,0.04),rgba(0,119,255,0.04))" }}>
           <div className="flex-1">
             <SectionLabel>Annual Magazine</SectionLabel>
-            <LetterAnim text="অদ্রি (AUDRI)" tag="h2" className="font-black mb-3" style={{ fontSize: "clamp(1.6rem,3vw,2.2rem)", fontFamily: "'Poppins',sans-serif", fontWeight: 800 }} />
-            <p className="text-sm leading-relaxed mb-6" style={{ color: "var(--muted)", fontFamily: "'Poppins',sans-serif" }}>
+            {/* Bengali title uses a web-safe Bengali font stack */}
+            <div className="mb-3">
+              <LetterAnim
+                text="AUDRI"
+                tag="h2"
+                className="font-black"
+                style={{ fontSize: "clamp(1.6rem,3vw,2.2rem)", fontFamily: "'Poppins',sans-serif", fontWeight: 800 }}
+                slideDir="right"
+              />
+              <p className="font-semibold mt-1" style={{
+                fontSize: "clamp(1.1rem,2vw,1.5rem)",
+                fontFamily: "'Noto Serif Bengali', 'Kalpurush', 'SolaimanLipi', 'Hind Siliguri', serif",
+                color: "var(--blue)",
+                fontWeight: 700,
+              }}>অদ্রি</p>
+            </div>
+            <LoopingP className="text-sm leading-relaxed mb-6" style={{ color: "var(--muted)", fontFamily: "'Poppins',sans-serif" }}>
               Annual science publication — articles on Quantum Entanglement, CRISPR, Neural Networks, and more.
-            </p>
+            </LoopingP>
             <Link href="/publication" className="btn-primary inline-flex items-center gap-2 px-6 py-3 font-bold text-sm tracking-widest rounded-xl" style={{ fontFamily: "'Poppins',sans-serif" }}>
               <BookOpen size={15} /> Read AUDRI
             </Link>
@@ -1047,6 +1169,23 @@ export default function HomePage() {
   return (
     <>
       <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Serif+Bengali:wght@400;600;700&display=swap');
+
+        /* ── Logo Orbit Responsive ─────────────────── */
+        .logo-orbit-wrap { --s: 513px; width: var(--s); height: var(--s); }
+        .logo-ring-outer { width: var(--s); height: var(--s); --orbit-outer-r: calc(var(--s)/2 - 1px); }
+        .logo-ring-mid   { width: calc(var(--s)*0.79); height: calc(var(--s)*0.79); margin-top: calc(var(--s)*-0.395); margin-left: calc(var(--s)*-0.395); --orbit-mid-r: calc(var(--s)*0.392); }
+        .logo-ring-inner { width: calc(var(--s)*0.63); height: calc(var(--s)*0.63); margin-top: calc(var(--s)*-0.315); margin-left: calc(var(--s)*-0.315); }
+        .logo-core { width: calc(var(--s)*0.574); height: calc(var(--s)*0.574); margin-top: calc(var(--s)*-0.287); margin-left: calc(var(--s)*-0.287); }
+        .logo-img  { width: calc(var(--s)*0.448) !important; height: calc(var(--s)*0.448) !important; }
+        .logo-badge { width: 68px; height: 68px; bottom: calc(var(--s)*0.053); right: calc(var(--s)*0.034); }
+        /* Desktop: shift right by 3rem */
+        @media (min-width: 1024px) { .logo-float { margin-right: -3rem; } }
+        /* Mobile: shrink to 300px */
+        @media (max-width: 768px) {
+          .logo-orbit-wrap { --s: 300px; }
+        }
+
         /* ── Keyframes ─────────────────────────────── */
         @keyframes spinSlow    { from{transform:rotate(0deg);}to{transform:rotate(360deg);} }
         @keyframes pulse       { 0%,100%{opacity:.55;}50%{opacity:1;} }
@@ -1240,32 +1379,57 @@ export default function HomePage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6">
           <div className="text-center mb-14">
             <div className="flex justify-center"><SectionLabel>Structure</SectionLabel></div>
-            <LetterAnim text="Our Departments" tag="h2" className="font-black reveal" style={{ fontSize: "clamp(1.8rem,4vw,2.8rem)", fontFamily: "'Poppins',sans-serif", fontWeight: 800 }} />
+            <LetterAnim text="Our Departments" tag="h2" className="font-black reveal" style={{ fontSize: "clamp(1.8rem,4vw,2.8rem)", fontFamily: "'Poppins',sans-serif", fontWeight: 800 }} slideDir="left" />
             <p className="text-sm mt-3 max-w-xl mx-auto reveal" style={{ color: "var(--muted)", fontFamily: "'Poppins',sans-serif" }}>Click on a department to learn more.</p>
           </div>
           <div className="grid grid-cols-2 md:grid-cols-3 gap-5 sm:gap-6">
             {DEPTS.map((d, i) => (
               <button key={d.name} onClick={() => setDeptModal(d)}
-                className="reveal dept-card group flex flex-col items-center gap-4 p-6 sm:p-8 rounded-3xl border"
-                style={{ borderColor: "var(--border)", background: "var(--card)", animationDelay: `${i * 0.07}s` }}
-                onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = d.color; }}
-                onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = "var(--border)"; }}>
+                className="reveal dept-card group relative flex flex-col items-center gap-4 p-6 sm:p-8 rounded-3xl overflow-hidden text-left"
+                style={{
+                  background: d.bg,
+                  border: `1px solid ${d.border}`,
+                  animationDelay: `${i * 0.07}s`,
+                  transition: "transform 0.3s, box-shadow 0.3s, border-color 0.3s",
+                }}
+                onMouseEnter={e => {
+                  const el = e.currentTarget as HTMLElement;
+                  el.style.boxShadow = `0 8px 32px ${d.color}33, 0 0 0 1px ${d.color}66`;
+                  el.style.transform = "translateY(-6px)";
+                }}
+                onMouseLeave={e => {
+                  const el = e.currentTarget as HTMLElement;
+                  el.style.boxShadow = "none";
+                  el.style.transform = "none";
+                }}>
+                {/* Glow corner */}
+                <div className="absolute top-0 right-0 w-24 h-24 rounded-full pointer-events-none"
+                  style={{ background: `radial-gradient(circle at top right, ${d.color}22, transparent 70%)` }} />
+                {/* Number badge */}
+                <div className="absolute top-4 right-4 font-black opacity-20 pointer-events-none"
+                  style={{ fontFamily: "'Orbitron',sans-serif", color: d.color, fontSize: "2rem", lineHeight: 1 }}>
+                  {String(i + 1).padStart(2, "0")}
+                </div>
                 <div className="relative w-20 h-20 sm:w-24 sm:h-24 transition-transform group-hover:scale-110 duration-300">
+                  {/* DEPT ICONS from Hostinger — replace icon paths in DEPTS array above with your Hostinger URLs */}
                   <Image src={d.icon} alt={d.name} fill className="object-contain" style={{ filter: `drop-shadow(0 0 10px ${d.color})` }} />
                 </div>
                 <p className="text-base sm:text-lg font-bold tracking-wide text-center" style={{ fontFamily: "'Poppins',sans-serif", color: d.color }}>{d.name}</p>
                 <p className="text-xs text-center line-clamp-2 px-2" style={{ color: "var(--muted)", fontFamily: "'Poppins',sans-serif" }}>{d.desc}</p>
+                {/* Bottom bar */}
+                <div className="absolute bottom-0 left-0 right-0 h-0.5 opacity-0 group-hover:opacity-100 transition-opacity duration-300"
+                  style={{ background: `linear-gradient(90deg, transparent, ${d.color}, transparent)` }} />
               </button>
             ))}
           </div>
         </div>
       </section>
 
-      {/* ══════ SCIENCE MEDIA ════════════════════════════════ */}
-      <ScienceMediaSection />
-
       {/* ══════ ACTIVITIES CAROUSEL ══════════════════════════ */}
       <ActivitiesCarousel />
+
+      {/* ══════ SCIENCE MEDIA ════════════════════════════════ */}
+      <ScienceMediaSection />
 
       {/* ══════ AUDRI CTA ════════════════════════════════════ */}
       <AudriCTA />
@@ -1279,7 +1443,7 @@ export default function HomePage() {
         </div>
         <div className="max-w-3xl mx-auto px-4 sm:px-6 relative z-10">
           <div className="flex justify-center"><SectionLabel>Join Us</SectionLabel></div>
-          <LetterAnim text="Be Part of the Legacy" tag="h2" className="font-black mb-5 reveal" style={{ fontSize: "clamp(2rem,5vw,3.5rem)", fontFamily: "'Poppins',sans-serif", fontWeight: 800 }} />
+          <LetterAnim text="Be Part of the Legacy" tag="h2" className="font-black mb-5 reveal" style={{ fontSize: "clamp(2rem,5vw,3.5rem)", fontFamily: "'Poppins',sans-serif", fontWeight: 800 }} slideDir="up" />
           <p className="text-sm sm:text-base leading-relaxed mb-8 reveal" style={{ color: "var(--muted)", fontFamily: "'Poppins',sans-serif" }}>
             Join thousands of science enthusiasts. Participate in olympiads, workshops, and events.
           </p>
