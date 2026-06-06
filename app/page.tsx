@@ -1,54 +1,514 @@
 "use client";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { Trophy, BookOpen, Quote, Play, ChevronRight } from "lucide-react";
+import { Trophy, BookOpen, ChevronRight, ChevronLeft } from "lucide-react";
 
-/* ══════════════════════════════════════════════════════════
-   ATOM CANVAS
-══════════════════════════════════════════════════════════ */
-function AtomCanvas() {
+/* ════════════════════════════════════════════════════════════
+   TYPES
+════════════════════════════════════════════════════════════ */
+type ActivitySession = {
+  id: string; title: string; slug: string;
+  cover_image_url: string | null; session_date: string | null;
+  youtube_url?: string | null;
+  activity_types: { name: string; slug: string } | null;
+};
+type MediaVideo = { id: string; title: string; youtube_url: string; display_order: number };
+type Executive = {
+  id: string; full_name: string; position: string; panel: string;
+  photo_url: string | null; session_year?: string;
+  quote?: string; link?: string;
+};
+
+/* ════════════════════════════════════════════════════════════
+   STATIC DATA
+════════════════════════════════════════════════════════════ */
+const STATS = [
+  { num: "70+",    label: "Years of Legacy" },
+  { num: "20,000+", label: "Members & Alumni" },
+  { num: "1,000+", label: "Workshops & Sessions" },
+  { num: "1st",   label: "Science Club in S. Asia" },
+];
+
+const DEPTS = [
+  { name: "Administration", icon: "/images/admininstration-icon.png", color: "#00d4ff",  desc: "Ensures smooth operation and management. Coordinates planning, logistics and execution of events." },
+  { name: "Project",        icon: "/images/project.png",              color: "#34d399",  desc: "Conducts scientific research and innovation-based projects. Encourages experimentation." },
+  { name: "Publication",    icon: "/images/publication.png",          color: "#a78bfa",  desc: "Publishes wall magazines, AUDRI journal. Promotes scientific writing and creative expression." },
+  { name: "ICT",            icon: "/images/ict.png",                  color: "#f87171",  desc: "Handles digital media, website management and emerging technology workshops." },
+  { name: "LWS",            icon: "/images/lws.png",                  color: "#f59e0b",  desc: "Life & Welfare Science — biology, environment and health oriented activities." },
+  { name: "Quiz",           icon: "/images/quiz.png",                 color: "#60a5fa",  desc: "Hosts Q-League, BrainRain, Scienceophile. NDC Blue, NDC Green & NDC Gold quiz teams." },
+];
+
+/* ════════════════════════════════════════════════════════════
+   HELPERS
+════════════════════════════════════════════════════════════ */
+function extractYouTubeId(url: string): string {
+  const m = url?.match(/(?:v=|youtu\.be\/|embed\/)([a-zA-Z0-9_-]{11})/);
+  return m ? m[1] : url;
+}
+
+function formatDate(d: string | null) {
+  if (!d) return "";
+  return new Date(d).toLocaleDateString("en-BD", { day: "numeric", month: "short", year: "numeric" });
+}
+
+/* ════════════════════════════════════════════════════════════
+   LETTER ANIMATION HOOK
+════════════════════════════════════════════════════════════ */
+function LetterAnim({
+  text, className = "", style = {}, tag = "span", delay = 0, loop = false, loopInterval = 5000,
+}: {
+  text: string; className?: string; style?: React.CSSProperties;
+  tag?: "span" | "h1" | "h2" | "h3" | "p" | "div";
+  delay?: number; loop?: boolean; loopInterval?: number;
+}) {
+  const [visible, setVisible] = useState(false);
+  const [key, setKey] = useState(0);
+  const ref = useRef<HTMLElement>(null);
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const obs = new IntersectionObserver(
+      ([entry]) => { if (entry.isIntersecting) { setVisible(true); obs.disconnect(); } },
+      { threshold: 0.1 }
+    );
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, []);
+
+  useEffect(() => {
+    if (!loop || !visible) return;
+    const t = setInterval(() => setKey(k => k + 1), loopInterval);
+    return () => clearInterval(t);
+  }, [loop, visible, loopInterval]);
+
+  const letters = text.split("");
+  const Tag = tag as React.ElementType;
+
+  return (
+    <Tag ref={ref} className={className} style={style}>
+      {letters.map((ch, i) => (
+        <span
+          key={`${key}-${i}`}
+          style={{
+            display: "inline-block",
+            whiteSpace: ch === " " ? "pre" : undefined,
+            opacity: visible ? 1 : 0,
+            transform: visible ? "none" : "translateY(20px) rotate(8deg)",
+            transition: visible
+              ? `opacity 0.45s cubic-bezier(0.22,1,0.36,1) ${delay + i * 0.03}s, transform 0.45s cubic-bezier(0.22,1,0.36,1) ${delay + i * 0.03}s`
+              : "none",
+          }}
+        >{ch}</span>
+      ))}
+    </Tag>
+  );
+}
+
+/* ════════════════════════════════════════════════════════════
+   DEEP SPACE + GALAXY BACKGROUND
+════════════════════════════════════════════════════════════ */
+function GalaxyCanvas() {
   const ref = useRef<HTMLCanvasElement>(null);
   useEffect(() => {
     const canvas = ref.current;
     if (!canvas) return;
     const ctx = canvas.getContext("2d")!;
-    let W = 340, H = 340, t = 0, animId: number;
-    const resize = () => { W = canvas.width = canvas.offsetWidth; H = canvas.height = canvas.offsetHeight; };
-    window.addEventListener("resize", resize); resize();
-    const draw = () => {
-      ctx.clearRect(0, 0, W, H);
-      const cx = W / 2, cy = H / 2, R = Math.min(W, H) * 0.38;
-      const ng = ctx.createRadialGradient(cx, cy, 0, cx, cy, R * 0.18);
-      ng.addColorStop(0, "rgba(0,212,255,0.9)"); ng.addColorStop(0.5, "rgba(0,119,255,0.5)"); ng.addColorStop(1, "rgba(0,212,255,0)");
-      ctx.beginPath(); ctx.arc(cx, cy, R * 0.18, 0, Math.PI * 2); ctx.fillStyle = ng; ctx.fill();
-      [
-        { tilt: 0, speed: 1.0, color: "rgba(0,212,255,0.5)" },
-        { tilt: Math.PI / 3, speed: 1.4, color: "rgba(0,119,255,0.4)" },
-        { tilt: -Math.PI / 3, speed: 0.7, color: "rgba(167,139,250,0.4)" },
-      ].forEach(({ tilt, speed, color }, oi) => {
-        ctx.save(); ctx.translate(cx, cy); ctx.rotate(tilt);
-        ctx.beginPath(); ctx.ellipse(0, 0, R, R * 0.35, 0, 0, Math.PI * 2);
-        ctx.strokeStyle = color; ctx.lineWidth = 0.8; ctx.setLineDash([4, 6]); ctx.stroke(); ctx.setLineDash([]);
-        const angle = t * speed + (oi * Math.PI * 2) / 3;
-        const ex = Math.cos(angle) * R, ey = Math.sin(angle) * R * 0.35;
-        const eg = ctx.createRadialGradient(ex, ey, 0, ex, ey, 10);
-        eg.addColorStop(0, "rgba(0,212,255,1)"); eg.addColorStop(0.4, "rgba(0,150,255,0.7)"); eg.addColorStop(1, "rgba(0,212,255,0)");
-        ctx.beginPath(); ctx.arc(ex, ey, 10, 0, Math.PI * 2); ctx.fillStyle = eg; ctx.fill();
-        ctx.beginPath(); ctx.arc(ex, ey, 3.5, 0, Math.PI * 2); ctx.fillStyle = "#fff"; ctx.fill();
+    let animId: number, W = 0, H = 0, t = 0;
+
+    interface Star { x: number; y: number; r: number; tw: number; vx: number; vy: number; bright: boolean }
+    interface Particle { x: number; y: number; vx: number; vy: number; r: number; life: number; maxLife: number; color: string }
+
+    let stars: Star[] = [];
+    let particles: Particle[] = [];
+
+    const resize = () => {
+      W = canvas.width = window.innerWidth;
+      H = canvas.height = window.innerHeight;
+      stars = [];
+      for (let i = 0; i < 320; i++) {
+        stars.push({
+          x: Math.random() * W, y: Math.random() * H,
+          r: Math.random() * 1.6 + 0.15,
+          tw: Math.random() * Math.PI * 2,
+          vx: (Math.random() - 0.5) * 0.04,
+          vy: (Math.random() - 0.5) * 0.04,
+          bright: Math.random() < 0.12,
+        });
+      }
+    };
+    resize();
+    window.addEventListener("resize", resize);
+
+    // Nebula blobs
+    const nebulae = [
+      { cx: 0.15, cy: 0.2,  rx: 380, ry: 200, color: "rgba(0,100,200,0.055)" },
+      { cx: 0.85, cy: 0.25, rx: 300, ry: 180, color: "rgba(0,200,255,0.04)" },
+      { cx: 0.5,  cy: 0.55, rx: 420, ry: 240, color: "rgba(0,50,120,0.038)" },
+      { cx: 0.25, cy: 0.75, rx: 260, ry: 140, color: "rgba(80,0,180,0.03)" },
+      { cx: 0.75, cy: 0.7,  rx: 300, ry: 160, color: "rgba(0,180,120,0.025)" },
+    ];
+
+    const drawNebula = (nx: number, ny: number, rx: number, ry: number, color: string) => {
+      const g = ctx.createRadialGradient(nx, ny, 0, nx, ny, Math.max(rx, ry));
+      g.addColorStop(0, color);
+      g.addColorStop(1, "transparent");
+      ctx.save();
+      ctx.scale(1, ry / rx);
+      ctx.fillStyle = g;
+      ctx.beginPath();
+      ctx.arc(nx, ny * (rx / ry), rx, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    };
+
+    // Galaxy spiral arms
+    const drawGalaxy = (cx: number, cy: number, maxR: number, rotation: number, alpha: number) => {
+      const arms = 3, pointsPerArm = 120;
+      for (let arm = 0; arm < arms; arm++) {
+        const armAngle = (arm / arms) * Math.PI * 2 + rotation;
+        for (let p = 0; p < pointsPerArm; p++) {
+          const frac = p / pointsPerArm;
+          const r = frac * maxR;
+          const angle = armAngle + frac * Math.PI * 3.2 + t * 0.008;
+          const spread = frac * maxR * 0.18 * (Math.random() - 0.5);
+          const x = cx + (r + spread) * Math.cos(angle);
+          const y = cy + (r + spread) * Math.sin(angle) * 0.42;
+          const a = alpha * (1 - frac) * 0.9;
+          if (a < 0.002) continue;
+          ctx.beginPath();
+          ctx.arc(x, y, frac < 0.1 ? 1.2 : 0.6, 0, Math.PI * 2);
+          ctx.fillStyle = arm === 0
+            ? `rgba(0,212,255,${a})`
+            : arm === 1 ? `rgba(100,180,255,${a})` : `rgba(180,100,255,${a * 0.7})`;
+          ctx.fill();
+        }
+      }
+    };
+
+    // Blackhole with accretion disk
+    const drawBlackhole = (bx: number, by: number, br: number) => {
+      // Event horizon
+      const bh = ctx.createRadialGradient(bx, by, 0, bx, by, br);
+      bh.addColorStop(0, "rgba(0,0,0,1)");
+      bh.addColorStop(0.6, "rgba(0,0,4,0.95)");
+      bh.addColorStop(1, "rgba(0,0,8,0)");
+      ctx.beginPath();
+      ctx.arc(bx, by, br, 0, Math.PI * 2);
+      ctx.fillStyle = bh;
+      ctx.fill();
+
+      // Accretion disk rings
+      for (let ring = 0; ring < 5; ring++) {
+        const rr = br * (1.4 + ring * 0.4);
+        const intensity = (1 - ring / 5) * 0.22;
+        ctx.save();
+        ctx.translate(bx, by);
+        ctx.scale(1, 0.3);
+        ctx.beginPath();
+        ctx.arc(0, 0, rr, 0, Math.PI * 2);
+        const ag = ctx.createRadialGradient(0, 0, rr * 0.85, 0, 0, rr * 1.15);
+        const hue = ring < 2 ? `rgba(255,${140 + ring * 30},0,${intensity})` : `rgba(0,212,255,${intensity * 0.6})`;
+        ag.addColorStop(0, "transparent");
+        ag.addColorStop(0.5, hue);
+        ag.addColorStop(1, "transparent");
+        ctx.strokeStyle = hue;
+        ctx.lineWidth = 2 + ring;
+        ctx.globalAlpha = 0.7;
+        ctx.stroke();
+        ctx.globalAlpha = 1;
         ctx.restore();
-      });
-      t += 0.018; animId = requestAnimationFrame(draw);
+      }
+
+      // Lensing glow
+      const lg = ctx.createRadialGradient(bx, by, br * 0.8, bx, by, br * 3);
+      lg.addColorStop(0, "rgba(0,180,255,0.08)");
+      lg.addColorStop(0.4, "rgba(0,100,200,0.04)");
+      lg.addColorStop(1, "transparent");
+      ctx.beginPath(); ctx.arc(bx, by, br * 3, 0, Math.PI * 2);
+      ctx.fillStyle = lg; ctx.fill();
+    };
+
+    // Electromagnetic wave
+    const drawEMWave = (ox: number, oy: number, len: number, amp: number, freq: number, phase: number, color: string) => {
+      ctx.beginPath();
+      ctx.moveTo(ox, oy);
+      for (let x = 0; x < len; x += 2) {
+        const y = oy + amp * Math.sin((x / len) * Math.PI * freq * 2 + phase + t * 1.2);
+        ctx.lineTo(ox + x, y);
+      }
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 1.2;
+      ctx.globalAlpha = 0.18;
+      ctx.stroke();
+      ctx.globalAlpha = 1;
+    };
+
+    // Shooting stars
+    const shooters: { x: number; y: number; vx: number; vy: number; life: number; maxLife: number }[] = [];
+    const spawnShooter = () => {
+      shooters.push({ x: Math.random() * W, y: Math.random() * H * 0.5, vx: 6 + Math.random() * 8, vy: 2 + Math.random() * 4, life: 0, maxLife: 50 + Math.random() * 30 });
+    };
+    let nextShooter = 120;
+
+    const draw = () => {
+      t += 0.012;
+      ctx.clearRect(0, 0, W, H);
+
+      // BG gradient
+      const bg = ctx.createLinearGradient(0, 0, 0, H);
+      bg.addColorStop(0, "#000306");
+      bg.addColorStop(0.3, "#010a18");
+      bg.addColorStop(0.65, "#020c20");
+      bg.addColorStop(1, "#000204");
+      ctx.fillStyle = bg;
+      ctx.fillRect(0, 0, W, H);
+
+      // Nebulae
+      nebulae.forEach(n => drawNebula(n.cx * W, n.cy * H, n.rx, n.ry, n.color));
+
+      // Galaxy
+      drawGalaxy(W * 0.72, H * 0.28, Math.min(W, H) * 0.32, t * 0.003, 0.9);
+      drawGalaxy(W * 0.18, H * 0.65, Math.min(W, H) * 0.18, -t * 0.004 + 1.2, 0.5);
+
+      // Blackhole
+      drawBlackhole(W * 0.88, H * 0.78, 38);
+
+      // Stars
+      for (const s of stars) {
+        s.x += s.vx; s.y += s.vy;
+        if (s.x < 0) s.x = W; if (s.x > W) s.x = 0;
+        if (s.y < 0) s.y = H; if (s.y > H) s.y = 0;
+        s.tw += 0.012;
+        const ao = s.bright ? 0.5 + 0.5 * Math.abs(Math.sin(s.tw)) : 0.25 + 0.35 * Math.abs(Math.sin(s.tw));
+        ctx.beginPath();
+        ctx.arc(s.x, s.y, s.bright ? s.r * 1.4 : s.r, 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(${180 + Math.round(75 * ao)},${220 + Math.round(35 * ao)},255,${ao})`;
+        ctx.fill();
+        if (s.bright) {
+          const sg = ctx.createRadialGradient(s.x, s.y, 0, s.x, s.y, s.r * 5);
+          sg.addColorStop(0, `rgba(0,212,255,${ao * 0.25})`);
+          sg.addColorStop(1, "transparent");
+          ctx.beginPath(); ctx.arc(s.x, s.y, s.r * 5, 0, Math.PI * 2);
+          ctx.fillStyle = sg; ctx.fill();
+        }
+      }
+
+      // EM waves across screen
+      drawEMWave(W * 0.05, H * 0.4, W * 0.4, 18, 3, 0, "rgba(0,212,255,1)");
+      drawEMWave(W * 0.55, H * 0.55, W * 0.4, 14, 4, Math.PI, "rgba(100,180,255,1)");
+      drawEMWave(W * 0.1,  H * 0.7,  W * 0.3, 10, 5, 0.5, "rgba(180,100,255,1)");
+
+      // Shooting stars
+      nextShooter--;
+      if (nextShooter <= 0) { spawnShooter(); nextShooter = 80 + Math.random() * 160; }
+      for (let i = shooters.length - 1; i >= 0; i--) {
+        const sh = shooters[i];
+        sh.x += sh.vx; sh.y += sh.vy; sh.life++;
+        if (sh.life > sh.maxLife) { shooters.splice(i, 1); continue; }
+        const prog = sh.life / sh.maxLife;
+        const alpha = prog < 0.3 ? prog / 0.3 : 1 - (prog - 0.3) / 0.7;
+        const tail = 80;
+        const grad = ctx.createLinearGradient(sh.x - sh.vx * (tail / sh.vx), sh.y - sh.vy * (tail / sh.vx), sh.x, sh.y);
+        grad.addColorStop(0, "transparent");
+        grad.addColorStop(1, `rgba(180,230,255,${alpha * 0.9})`);
+        ctx.beginPath();
+        ctx.moveTo(sh.x - sh.vx * 12, sh.y - sh.vy * 12);
+        ctx.lineTo(sh.x, sh.y);
+        ctx.strokeStyle = grad; ctx.lineWidth = 1.5; ctx.stroke();
+        ctx.beginPath(); ctx.arc(sh.x, sh.y, 1.5, 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(255,255,255,${alpha})`; ctx.fill();
+      }
+
+      // Water ripple lower half
+      const waterTop = H * 0.62, rows = 80, rowH = (H - waterTop) / rows;
+      const ripples = [
+        { cx: 0.5, cy: 0.78, amp: 16, freq: 0.013, speed: 0.65 },
+        { cx: 0.25, cy: 0.88, amp: 9, freq: 0.02, speed: 0.45 },
+        { cx: 0.75, cy: 0.82, amp: 11, freq: 0.016, speed: 0.55 },
+      ];
+      for (let row = 0; row < rows; row++) {
+        const y = waterTop + row * rowH, depth = row / rows;
+        const cols = Math.max(6, Math.round(55 - depth * 38)), segW = W / cols;
+        for (let col = 0; col < cols; col++) {
+          const x = col * segW; let wave = 0;
+          for (const rp of ripples) {
+            const dx = x / W - rp.cx, dy = (y / H - rp.cy) * 2;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+            wave += rp.amp * Math.sin(dist * W * rp.freq - t * rp.speed) * Math.exp(-dist * 3.5);
+          }
+          wave *= (1 - depth);
+          const intensity = Math.max(0, Math.sin(wave * 0.3 + t * 0.4) * 0.5 + 0.5);
+          const alpha = (0.03 + intensity * 0.14) * (1 - depth * 0.85);
+          ctx.fillStyle = `rgba(${Math.round(intensity * 18)},${Math.round(55 + intensity * 130 - depth * 35)},${Math.round(110 + intensity * 130 - depth * 28)},${alpha})`;
+          ctx.fillRect(x, y + wave * depth * 0.25, segW + 1, rowH + 1);
+        }
+      }
+      const horizGrad = ctx.createLinearGradient(0, 0, W, 0);
+      horizGrad.addColorStop(0, "transparent");
+      horizGrad.addColorStop(0.3, "rgba(0,200,255,0.14)");
+      horizGrad.addColorStop(0.5, "rgba(0,212,255,0.24)");
+      horizGrad.addColorStop(0.7, "rgba(0,200,255,0.14)");
+      horizGrad.addColorStop(1, "transparent");
+      ctx.fillStyle = horizGrad;
+      ctx.fillRect(0, waterTop - 1, W, 3 + Math.sin(t * 0.5) * 1);
+
+      // Vignette
+      const vig = ctx.createRadialGradient(W / 2, H / 2, H * 0.2, W / 2, H / 2, H * 0.9);
+      vig.addColorStop(0, "transparent");
+      vig.addColorStop(1, "rgba(0,0,0,0.62)");
+      ctx.fillStyle = vig; ctx.fillRect(0, 0, W, H);
+
+      animId = requestAnimationFrame(draw);
     };
     draw();
     return () => { cancelAnimationFrame(animId); window.removeEventListener("resize", resize); };
   }, []);
-  return <canvas ref={ref} className="absolute pointer-events-none z-[1] opacity-30" style={{ width: 320, height: 320, top: "10%", right: "2%" }} />;
+  return <canvas ref={ref} className="fixed inset-0 w-full h-full pointer-events-none z-0" />;
 }
 
-/* ══════════════════════════════════════════════════════════
+/* ════════════════════════════════════════════════════════════
+   3D ATOM CANVAS
+════════════════════════════════════════════════════════════ */
+function AtomCanvas3D({ size = 340 }: { size?: number }) {
+  const ref = useRef<HTMLCanvasElement>(null);
+  useEffect(() => {
+    const canvas = ref.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d")!;
+    let t = 0, animId: number;
+    const W = size, H = size;
+    canvas.width = W; canvas.height = H;
+
+    const draw = () => {
+      ctx.clearRect(0, 0, W, H);
+      const cx = W / 2, cy = H / 2;
+      const R = W * 0.42;
+
+      // Nucleus glow
+      const ng = ctx.createRadialGradient(cx, cy, 0, cx, cy, R * 0.16);
+      ng.addColorStop(0, "rgba(0,212,255,1)");
+      ng.addColorStop(0.4, "rgba(0,100,255,0.7)");
+      ng.addColorStop(1, "rgba(0,212,255,0)");
+      ctx.beginPath(); ctx.arc(cx, cy, R * 0.16, 0, Math.PI * 2);
+      ctx.fillStyle = ng; ctx.fill();
+
+      // Nucleus particles
+      for (let n = 0; n < 4; n++) {
+        const na = (n / 4) * Math.PI * 2 + t * 0.5;
+        const nr = R * 0.07;
+        const nx = cx + nr * Math.cos(na), ny = cy + nr * Math.sin(na) * 0.6;
+        ctx.beginPath(); ctx.arc(nx, ny, 3.5, 0, Math.PI * 2);
+        ctx.fillStyle = n % 2 === 0 ? "rgba(0,212,255,0.9)" : "rgba(255,180,0,0.9)";
+        ctx.fill();
+      }
+
+      // Orbital planes
+      const orbitals = [
+        { tilt: 0,             tiltY: 0.32, speed: 1.0,  color: "rgba(0,212,255,0.55)",  eColor: "rgba(0,212,255,1)" },
+        { tilt: Math.PI/3,     tiltY: 0.28, speed: 1.55, color: "rgba(0,130,255,0.4)",   eColor: "rgba(80,180,255,1)" },
+        { tilt: -Math.PI/3,    tiltY: 0.26, speed: 0.72, color: "rgba(167,100,255,0.4)", eColor: "rgba(200,150,255,1)" },
+        { tilt: Math.PI/2,     tiltY: 0.22, speed: 1.2,  color: "rgba(0,255,180,0.3)",   eColor: "rgba(0,255,180,0.9)" },
+      ];
+
+      orbitals.forEach(({ tilt, tiltY, speed, color, eColor }, oi) => {
+        ctx.save();
+        ctx.translate(cx, cy);
+        ctx.rotate(tilt);
+
+        // Orbit ellipse
+        ctx.beginPath();
+        ctx.ellipse(0, 0, R, R * tiltY, 0, 0, Math.PI * 2);
+        ctx.strokeStyle = color; ctx.lineWidth = 0.9; ctx.stroke();
+
+        // Electron
+        const angle = t * speed + (oi * Math.PI * 2) / orbitals.length;
+        const ex = Math.cos(angle) * R;
+        const ey = Math.sin(angle) * R * tiltY;
+
+        // Electron trail
+        for (let tr = 1; tr <= 8; tr++) {
+          const ta = angle - tr * 0.18;
+          const tx2 = Math.cos(ta) * R, ty2 = Math.sin(ta) * R * tiltY;
+          ctx.beginPath(); ctx.arc(tx2, ty2, 3.5 - tr * 0.35, 0, Math.PI * 2);
+          ctx.fillStyle = eColor.replace("1)", `${(1 - tr / 9) * 0.4})`);
+          ctx.fill();
+        }
+
+        // Electron glow
+        const eg = ctx.createRadialGradient(ex, ey, 0, ex, ey, 12);
+        eg.addColorStop(0, eColor);
+        eg.addColorStop(0.4, eColor.replace("1)", "0.5)"));
+        eg.addColorStop(1, "rgba(0,0,0,0)");
+        ctx.beginPath(); ctx.arc(ex, ey, 12, 0, Math.PI * 2);
+        ctx.fillStyle = eg; ctx.fill();
+        ctx.beginPath(); ctx.arc(ex, ey, 4, 0, Math.PI * 2);
+        ctx.fillStyle = "#fff"; ctx.fill();
+        ctx.restore();
+      });
+
+      t += 0.022;
+      animId = requestAnimationFrame(draw);
+    };
+    draw();
+    return () => cancelAnimationFrame(animId);
+  }, [size]);
+  return (
+    <canvas
+      ref={ref}
+      style={{ width: size, height: size, opacity: 0.88 }}
+      className="pointer-events-none"
+    />
+  );
+}
+
+/* ════════════════════════════════════════════════════════════
+   3D LOGO RING (hero right side)
+════════════════════════════════════════════════════════════ */
+function LogoOrbit() {
+  return (
+    <div className="logo-float relative flex items-center justify-center" style={{ width: 380, height: 380 }}>
+      {/* Outer ring */}
+      <div className="absolute rounded-full" style={{ width: 380, height: 380, border: "1px dashed rgba(0,212,255,0.16)", animation: "spinSlow 70s linear infinite" }}>
+        {[0, 72, 144, 216, 288].map((deg, i) => (
+          <div key={i} style={{ position: "absolute", top: "50%", left: "50%", width: i % 2 === 0 ? 8 : 4, height: i % 2 === 0 ? 8 : 4, borderRadius: "50%", background: i % 2 === 0 ? "var(--blue)" : "rgba(0,212,255,0.4)", boxShadow: i % 2 === 0 ? "0 0 12px var(--blue)" : "none", transform: `rotate(${deg}deg) translateX(189px) translateY(-50%)` }} />
+        ))}
+      </div>
+      {/* Mid ring */}
+      <div className="absolute rounded-full" style={{ width: 300, height: 300, top: "50%", left: "50%", marginTop: -150, marginLeft: -150, border: "1px solid rgba(0,212,255,0.22)", animation: "spinSlow 40s linear infinite reverse" }}>
+        {[60, 180, 300].map((deg, i) => (
+          <div key={i} style={{ position: "absolute", top: "50%", left: "50%", width: 5, height: 5, borderRadius: "50%", background: "rgba(0,212,255,0.65)", boxShadow: "0 0 8px rgba(0,212,255,0.8)", transform: `rotate(${deg}deg) translateX(149px) translateY(-50%)` }} />
+        ))}
+      </div>
+      {/* Inner ring */}
+      <div className="absolute rounded-full" style={{ width: 240, height: 240, top: "50%", left: "50%", marginTop: -120, marginLeft: -120, border: "1px solid rgba(167,139,250,0.18)", animation: "spinSlow 25s linear infinite" }} />
+      {/* Core */}
+      <div className="absolute rounded-full overflow-hidden flex items-center justify-center" style={{ width: 218, height: 218, top: "50%", left: "50%", marginTop: -109, marginLeft: -109, background: "radial-gradient(circle at 38% 32%, rgba(0,50,90,0.92), rgba(0,4,12,0.97))", animation: "borderCycle 3.5s ease infinite", border: "2px solid rgba(0,212,255,0.45)" }}>
+        <div className="absolute left-0 right-0" style={{ height: 2, top: 0, background: "linear-gradient(90deg,transparent,rgba(0,212,255,0.55),transparent)", animation: "scanV 2.8s linear infinite" }} />
+        <Image src="/images/logo-2.0.png" alt="NDSC" width={170} height={170} className="object-contain relative z-10" style={{ filter: "drop-shadow(0 0 24px rgba(0,212,255,0.7))", animation: "spinSlow 30s linear infinite" }} priority />
+      </div>
+      {/* Arc text */}
+      <svg className="absolute inset-0 w-full h-full pointer-events-none" viewBox="0 0 380 380">
+        <defs><path id="arcHero" d="M 50,190 A 140,140 0 1,1 330,190" /></defs>
+        <text fontSize="9" letterSpacing="5.5" fill="rgba(0,212,255,0.3)" fontFamily="'Share Tech Mono',monospace" textAnchor="middle">
+          <textPath href="#arcHero" startOffset="50%">SCIENCE IN HUMAN WELFARE • 1955–2025 •</textPath>
+        </text>
+      </svg>
+      {/* 70yr badge */}
+      <div className="absolute rounded-full flex items-center justify-center" style={{ width: 68, height: 68, bottom: 22, right: 14, background: "rgba(2,8,16,0.97)", border: "2px solid var(--blue)", boxShadow: "0 0 24px rgba(0,212,255,0.5)", animation: "pulse 2.5s ease infinite" }}>
+        <div className="text-center leading-none">
+          <p className="font-black" style={{ fontFamily: "'Orbitron',sans-serif", color: "var(--blue)", fontSize: 20 }}>70</p>
+          <p style={{ fontSize: 7, letterSpacing: "0.2em", color: "var(--muted)", textTransform: "uppercase" }}>YRS</p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ════════════════════════════════════════════════════════════
    HERO TICKER
-══════════════════════════════════════════════════════════ */
+════════════════════════════════════════════════════════════ */
 function HeroTicker() {
   const [settings, setSettings] = useState<Record<string, string>>({});
   useEffect(() => {
@@ -56,7 +516,7 @@ function HeroTicker() {
   }, []);
   if (!settings.last_event_label && !settings.next_event_label) return null;
   return (
-    <div className="flex flex-wrap gap-3 mt-1" style={{ animation: "tickerIn 0.6s ease both", animationDelay: "1s" }}>
+    <div className="flex flex-wrap gap-3 mt-1" style={{ animation: "fadeUp 0.7s ease 1.1s both" }}>
       {settings.last_event_label && (
         <a href={settings.last_event_url || "/activities"} className="ticker-pill">
           <span style={{ color: "var(--muted)" }}>◷</span>{settings.last_event_label}
@@ -72,9 +532,492 @@ function HeroTicker() {
   );
 }
 
-/* ══════════════════════════════════════════════════════════
+/* ════════════════════════════════════════════════════════════
+   SECTION LABEL
+════════════════════════════════════════════════════════════ */
+function SectionLabel({ children }: { children: React.ReactNode }) {
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", marginBottom: "0.5rem", fontFamily: "'Share Tech Mono',monospace", fontSize: "0.72rem", letterSpacing: "0.35em", color: "var(--blue)", textTransform: "uppercase" }}>
+      <span style={{ display: "inline-block", width: 28, height: 1, background: "var(--blue)", flexShrink: 0 }} />
+      {children}
+    </div>
+  );
+}
+
+/* ════════════════════════════════════════════════════════════
+   REVEAL HOOK
+════════════════════════════════════════════════════════════ */
+function useReveal() {
+  useEffect(() => {
+    const obs = new IntersectionObserver(
+      (entries) => entries.forEach(e => { if (e.isIntersecting) { e.target.classList.add("visible"); obs.unobserve(e.target); } }),
+      { threshold: 0.08, rootMargin: "-20px" }
+    );
+    document.querySelectorAll(".reveal").forEach(el => obs.observe(el));
+    return () => obs.disconnect();
+  }, []);
+}
+
+/* ════════════════════════════════════════════════════════════
+   PIONEER / ABOUT SECTION
+════════════════════════════════════════════════════════════ */
+function PioneerSection() {
+  const [founder, setFounder] = useState<Executive | null>(null);
+
+  useEffect(() => {
+    fetch("/api/executives?panel=founder")
+      .then(r => r.json())
+      .then((d: Executive[]) => {
+        if (Array.isArray(d) && d.length > 0) setFounder(d[0]);
+      })
+      .catch(() => {});
+  }, []);
+
+  return (
+    <section className="relative z-10 py-20 sm:py-28" style={{ background: "var(--bg)" }}>
+      <div className="max-w-7xl mx-auto px-4 sm:px-6">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 lg:gap-16 items-start">
+          {/* LEFT — founder image */}
+          <div className="reveal flex flex-col items-center lg:items-start">
+            <div
+              className="pioneer-img-wrap relative rounded-2xl overflow-hidden"
+              style={{
+                width: "100%", maxWidth: 360,
+                aspectRatio: "3/4",
+                border: "1.5px solid rgba(0,212,255,0.25)",
+                background: "var(--card)",
+                boxShadow: "0 0 60px rgba(0,212,255,0.1)",
+              }}
+            >
+              {founder?.photo_url ? (
+                <Image src={founder.photo_url} alt={founder.full_name} fill className="object-contain" />
+              ) : (
+                <div className="absolute inset-0 flex items-center justify-center" style={{ background: "linear-gradient(135deg,rgba(0,212,255,0.08),rgba(0,40,80,0.5))" }}>
+                  <span style={{ color: "rgba(0,212,255,0.3)", fontSize: 48, fontFamily: "'Orbitron',sans-serif" }}>FR.</span>
+                </div>
+              )}
+              <div className="absolute bottom-0 left-0 right-0 p-4 text-center" style={{ background: "linear-gradient(to top, rgba(2,8,16,0.95), transparent)" }}>
+                <p className="font-bold text-sm" style={{ color: "var(--white)", fontFamily: "'Poppins',sans-serif" }}>
+                  {founder?.full_name || "Fr. Richard William Timm, C.S.C."}
+                </p>
+                <p className="text-xs mt-0.5" style={{ color: "var(--blue)", fontFamily: "'Share Tech Mono',monospace", letterSpacing: "0.2em" }}>
+                  FOUNDER · 1955
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* RIGHT — article */}
+          <div className="reveal flex flex-col" style={{ animationDelay: "0.15s" }}>
+            <SectionLabel>Who We Are</SectionLabel>
+            <LetterAnim
+              text="Indian-Sub Continent's Pioneer Science Club"
+              tag="h2"
+              className="font-black mb-6 leading-tight"
+              style={{ fontSize: "clamp(1.5rem, 3vw, 2.2rem)", fontFamily: "'Poppins',sans-serif", fontWeight: 800, color: "var(--white)" }}
+              delay={0.1}
+            />
+            <div className="space-y-4 text-sm leading-[1.95]" style={{ color: "var(--muted)", fontFamily: "'Poppins',sans-serif" }}>
+              <p>
+                Notre Dame Science Club, also known as <strong style={{ color: "var(--white)" }}>NDSC</strong>, is the most promising, versatile, and eminent co-curricular activities club of Notre Dame College, Dhaka. It began its inception in <strong style={{ color: "var(--blue)" }}>1955</strong> with a singular mission — to ignite a passion for science among students. It holds the proud distinction of being the <strong style={{ color: "var(--blue)" }}>pioneer science club of the Indian Subcontinent</strong>.
+              </p>
+              <p>
+                Holding the noble motto &ldquo;Science in Human Welfare,&rdquo; the eminent scientist <strong style={{ color: "var(--white)" }}>Fr. Richard William Timm, C.S.C.</strong> inaugurated the flag of NDSC on September 18, 1955, alongside 19 founding student members.
+              </p>
+              <p>
+                The NDSC has a long history of inspiring its followers to rediscover their innate passion for science by serving as the country&apos;s <strong style={{ color: "var(--white)" }}>oldest and most prestigious scientific club</strong>. NDSC provides necessary guidelines to budding scientists and is the trailblazer in spreading scientific awareness among the people.
+              </p>
+            </div>
+            <Link
+              href="/about#about-article"
+              className="mt-6 self-start flex items-center gap-2 text-xs font-bold tracking-widest group"
+              style={{ color: "var(--blue)", fontFamily: "'Share Tech Mono',monospace", letterSpacing: "0.25em" }}
+            >
+              READ MORE
+              <ChevronRight size={14} className="group-hover:translate-x-1 transition-transform" />
+            </Link>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+/* ════════════════════════════════════════════════════════════
+   VOICE OF LEADERS — dynamic from executives DB
+════════════════════════════════════════════════════════════ */
+function LeadersSection() {
+  const [moderator, setModerator] = useState<Executive | null>(null);
+  const [gs, setGs] = useState<Executive | null>(null);
+
+  useEffect(() => {
+    fetch("/api/executives")
+      .then(r => r.json())
+      .then((data: Executive[]) => {
+        if (!Array.isArray(data)) return;
+        const mod = data.find(e =>
+          e.position?.toLowerCase().includes("moderator") ||
+          e.panel?.toLowerCase() === "moderator"
+        );
+        const gsExec = data.find(e =>
+          (e.position?.toLowerCase().includes("general secretary") ||
+           e.position?.toLowerCase().includes("gs")) &&
+          e.session_year === "2025-26"
+        ) || data.find(e =>
+          e.position?.toLowerCase().includes("general secretary") ||
+          e.position?.toLowerCase().includes("gs")
+        );
+        if (mod) setModerator(mod);
+        if (gsExec) setGs(gsExec);
+      })
+      .catch(() => {});
+  }, []);
+
+  const STATIC_QUOTES: Record<string, { full: string; link: string }> = {
+    moderator: {
+      full: "Notre Dame Science Club, since its founding in 1955 by the eminent scientist Fr. Richard William Timm, C.S.C., has exemplified the spirit of scientific curiosity and service to humanity. The club's motto — 'Science in Human Welfare' — is not merely a slogan but a living commitment that guides every activity, publication, and event we organize.",
+      link: "/about#moderator",
+    },
+    gs: {
+      full: "Notre Dame Science Club has always been more than just a club — it is a family, a community of dreamers and doers. Through national olympiads, weekly workshops, Science Sundays, research projects, and innovative STEM activities, NDSC nurtures young minds to become future scientists, innovators, and leaders.",
+      link: "/about#gs",
+    },
+  };
+
+  const leaders = [
+    { exec: moderator, key: "moderator", role: "Faculty Moderator", staticImg: "/images/Titas-sir.jpg", staticName: "Dr. Vincent Titas Rozario" },
+    { exec: gs,        key: "gs",        role: "General Secretary",  staticImg: "/images/panel-26/gs.jpg", staticName: "Fahim Faisal Arnob" },
+  ];
+
+  return (
+    <section className="relative z-10 py-20 sm:py-24" style={{ background: "var(--bg2)" }}>
+      <div className="max-w-5xl mx-auto px-4 sm:px-6">
+        <div className="text-center mb-14">
+          <div className="flex justify-center"><SectionLabel>Leadership</SectionLabel></div>
+          <LetterAnim text="Voice of Our Leaders" tag="h2" className="font-black reveal" style={{ fontSize: "clamp(1.6rem,3.5vw,2.4rem)", fontFamily: "'Poppins',sans-serif", fontWeight: 800 }} delay={0.05} />
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {leaders.map(({ exec, key, role, staticImg, staticName }) => {
+            const q = STATIC_QUOTES[key];
+            const img = exec?.photo_url || staticImg;
+            const name = exec?.full_name || staticName;
+            return (
+              <div key={key} className="reveal rounded-2xl border p-6 sm:p-8 flex flex-col" style={{ borderColor: "rgba(0,212,255,0.18)", background: "rgba(0,212,255,0.025)", animationDelay: key === "gs" ? "0.1s" : "0s" }}>
+                <div className="flex items-center gap-4 mb-5">
+                  <div className="relative shrink-0 rounded-full overflow-hidden" style={{ width: 80, height: 80, border: "2.5px solid var(--blue)" }}>
+                    {img ? <Image src={img} alt={name} fill className="object-cover" /> : (
+                      <div className="w-full h-full flex items-center justify-center" style={{ background: "var(--card)" }}>
+                        <span style={{ color: "var(--blue)", fontSize: 24, fontFamily: "'Orbitron',sans-serif" }}>{name[0]}</span>
+                      </div>
+                    )}
+                  </div>
+                  <div>
+                    <p className="font-bold text-sm" style={{ color: "var(--white)", fontFamily: "'Poppins',sans-serif" }}>{name}</p>
+                    <p className="text-xs font-semibold mt-0.5" style={{ color: "var(--blue)", fontFamily: "'Share Tech Mono',monospace", letterSpacing: "0.15em" }}>{role}</p>
+                  </div>
+                </div>
+                <div className="flex-1">
+                  <p className="text-sm leading-relaxed italic line-clamp-4" style={{ color: "var(--muted)", fontFamily: "'Poppins',sans-serif" }}>
+                    &ldquo;{q.full}&rdquo;
+                  </p>
+                </div>
+                <Link href={q.link} className="mt-5 text-xs font-bold tracking-widest self-start flex items-center gap-1.5 group" style={{ color: "var(--blue)", fontFamily: "'Share Tech Mono',monospace", letterSpacing: "0.2em" }}>
+                  READ MORE <ChevronRight size={12} className="group-hover:translate-x-0.5 transition-transform" />
+                </Link>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+/* ════════════════════════════════════════════════════════════
+   DEPT MODAL
+════════════════════════════════════════════════════════════ */
+function DeptModal({ dept, onClose }: { dept: typeof DEPTS[0]; onClose: () => void }) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "rgba(0,0,0,0.88)" }} onClick={onClose}>
+      <div className="relative w-full max-w-sm rounded-2xl border p-8 text-center" style={{ borderColor: dept.color, background: "var(--bg2)" }} onClick={e => e.stopPropagation()}>
+        <button onClick={onClose} className="absolute top-4 right-4 text-xs font-bold" style={{ color: "var(--muted)" }}>✕</button>
+        <div className="w-20 h-20 mx-auto mb-4 relative">
+          <Image src={dept.icon} alt={dept.name} fill className="object-contain" style={{ filter: `drop-shadow(0 0 12px ${dept.color})` }} />
+        </div>
+        <h3 className="text-xl font-black mb-3" style={{ color: dept.color, fontFamily: "'Poppins',sans-serif" }}>{dept.name}</h3>
+        <p className="text-sm leading-relaxed" style={{ color: "var(--muted)", fontFamily: "'Poppins',sans-serif" }}>{dept.desc}</p>
+        <Link href="/about#departments" onClick={onClose} className="inline-block mt-5 px-5 py-2 rounded-lg text-xs font-black tracking-widest border" style={{ borderColor: dept.color, color: dept.color }}>
+          Learn More →
+        </Link>
+      </div>
+    </div>
+  );
+}
+
+/* ════════════════════════════════════════════════════════════
+   ACTIVITIES CAROUSEL — dynamic, auto-advance
+════════════════════════════════════════════════════════════ */
+function ActivitiesCarousel() {
+  const [sessions, setSessions] = useState<ActivitySession[]>([]);
+  const [current, setCurrent] = useState(0);
+  const [activityTypes, setActivityTypes] = useState<{ id: string; name: string; slug: string }[]>([]);
+  const [isPaused, setIsPaused] = useState(false);
+  const startX = useRef(0);
+  const isDragging = useRef(false);
+  const autoRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    fetch("/api/activity-sessions-public").then(r => r.json()).then(d => { if (Array.isArray(d)) setSessions(d); });
+    fetch("/api/activity-types-public").then(r => r.json()).then(d => { if (Array.isArray(d)) setActivityTypes(d); });
+  }, []);
+
+  const total = sessions.length;
+  const next = useCallback(() => setCurrent(c => (c + 1) % total), [total]);
+  const prev = useCallback(() => setCurrent(c => (c - 1 + total) % total), [total]);
+
+  // Auto-advance every 2.8s
+  useEffect(() => {
+    if (isPaused || total === 0) return;
+    const id = setInterval(next, 2800);
+    autoRef.current = id;
+    return () => clearInterval(id);
+  }, [isPaused, total, next]);
+
+  const onPointerDown = (e: React.PointerEvent) => { startX.current = e.clientX; isDragging.current = true; setIsPaused(true); };
+  const onPointerUp = (e: React.PointerEvent) => {
+    if (!isDragging.current) return;
+    isDragging.current = false;
+    const diff = startX.current - e.clientX;
+    if (diff > 50) next(); else if (diff < -50) prev();
+    setTimeout(() => setIsPaused(false), 3000);
+  };
+  const onWheel = (e: React.WheelEvent) => {
+    if (Math.abs(e.deltaX) > Math.abs(e.deltaY)) {
+      e.preventDefault();
+      if (e.deltaX > 30) next(); else if (e.deltaX < -30) prev();
+    }
+  };
+
+  if (sessions.length === 0) return null;
+  const getIdx = (offset: number) => (current + offset + total) % total;
+
+  const getCover = (s: ActivitySession) => {
+    if (s.cover_image_url) return s.cover_image_url;
+    if (s.youtube_url) {
+      const vid = extractYouTubeId(s.youtube_url);
+      return `https://img.youtube.com/vi/${vid}/maxresdefault.jpg`;
+    }
+    return null;
+  };
+
+  return (
+    <section className="relative z-10 py-20">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6">
+        <div className="text-center mb-14">
+          <div className="flex justify-center"><SectionLabel>Recent</SectionLabel></div>
+          <LetterAnim text="Our Activities" tag="h2" className="font-black reveal" style={{ fontSize: "clamp(1.8rem,4vw,2.8rem)", fontFamily: "'Poppins',sans-serif", fontWeight: 800 }} />
+          <p className="text-xs mt-3 reveal" style={{ color: "var(--muted)", fontFamily: "'Share Tech Mono',monospace", letterSpacing: "0.2em" }}>
+            SWIPE · DRAG · USE ARROWS · AUTO-ADVANCES
+          </p>
+        </div>
+
+        <div
+          className="relative select-none"
+          onPointerDown={onPointerDown} onPointerUp={onPointerUp} onPointerLeave={onPointerUp}
+          onWheel={onWheel}
+          onMouseEnter={() => setIsPaused(true)}
+          onMouseLeave={() => setIsPaused(false)}
+          style={{ touchAction: "pan-y" }}
+        >
+          <div className="flex items-center justify-center gap-4 sm:gap-6" style={{ minHeight: 420, overflow: "hidden" }}>
+            {([-1, 0, 1] as const).map(offset => {
+              const s = sessions[getIdx(offset)];
+              const isCurrent = offset === 0;
+              const cover = getCover(s);
+              return (
+                <div
+                  key={`${s.id}-${offset}`}
+                  onClick={() => { if (offset === -1) prev(); else if (offset === 1) next(); else window.location.href = `/activities/${s.slug}`; }}
+                  className="relative rounded-2xl overflow-hidden border flex-shrink-0 cursor-pointer transition-all duration-500"
+                  style={{
+                    width: isCurrent ? "min(380px,82vw)" : "min(240px,45vw)",
+                    height: isCurrent ? 400 : 290,
+                    opacity: isCurrent ? 1 : 0.42,
+                    transform: isCurrent ? "scale(1)" : "scale(0.91)",
+                    borderColor: isCurrent ? "var(--blue)" : "var(--border)",
+                    background: "var(--bg2)",
+                    boxShadow: isCurrent ? "0 0 70px rgba(0,212,255,0.18)" : "none",
+                    transition: "all 0.5s cubic-bezier(0.22,1,0.36,1)",
+                  }}
+                >
+                  {cover ? (
+                    <Image src={cover} alt={s.title} fill className="object-cover" />
+                  ) : (
+                    <div className="absolute inset-0 flex items-center justify-center" style={{ background: "linear-gradient(135deg,rgba(0,212,255,0.1),rgba(0,40,80,0.8))" }}>
+                      <span style={{ fontFamily: "'Orbitron',sans-serif", color: "var(--blue)", fontSize: 40 }}>NDSC</span>
+                    </div>
+                  )}
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/15 to-transparent" />
+                  {isCurrent && (
+                    <div className="absolute bottom-0 left-0 right-0 p-6">
+                      {s.activity_types && (
+                        <span className="text-xs tracking-widest px-2 py-1 rounded mb-2 inline-block" style={{ background: "rgba(0,212,255,0.15)", color: "var(--blue)", fontFamily: "'Share Tech Mono',monospace" }}>
+                          {s.activity_types.name}
+                        </span>
+                      )}
+                      <h3 className="text-lg font-bold leading-tight mb-1" style={{ fontFamily: "'Poppins',sans-serif" }}>{s.title}</h3>
+                      {s.session_date && <p className="text-xs" style={{ color: "var(--muted)" }}>{formatDate(s.session_date)}</p>}
+                      <span className="text-xs font-bold mt-3 inline-flex items-center gap-1" style={{ color: "var(--blue)" }}>View Details →</span>
+                    </div>
+                  )}
+                  {/* Progress bar for current */}
+                  {isCurrent && !isPaused && (
+                    <div className="absolute bottom-0 left-0 right-0 h-0.5" style={{ background: "rgba(0,212,255,0.2)" }}>
+                      <div key={current} className="h-full" style={{ background: "var(--blue)", animation: "progressBar 2.8s linear forwards" }} />
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+
+          <button onClick={() => { prev(); setIsPaused(true); setTimeout(() => setIsPaused(false), 3000); }}
+            aria-label="Previous activity"
+            className="absolute left-0 sm:-left-5 top-1/2 -translate-y-1/2 p-3 sm:p-4 rounded-full border z-20 transition-all hover:scale-110"
+            style={{ background: "rgba(2,8,16,0.95)", borderColor: "var(--blue)", color: "var(--blue)" }}>
+            <ChevronLeft size={18} />
+          </button>
+          <button onClick={() => { next(); setIsPaused(true); setTimeout(() => setIsPaused(false), 3000); }}
+            aria-label="Next activity"
+            className="absolute right-0 sm:-right-5 top-1/2 -translate-y-1/2 p-3 sm:p-4 rounded-full border z-20 transition-all hover:scale-110"
+            style={{ background: "rgba(2,8,16,0.95)", borderColor: "var(--blue)", color: "var(--blue)" }}>
+            <ChevronRight size={18} />
+          </button>
+        </div>
+
+        {/* Dots */}
+        <div className="flex justify-center gap-2 mt-8 flex-wrap">
+          {sessions.map((s, i) => (
+            <button key={s.id} onClick={() => { setCurrent(i); setIsPaused(true); setTimeout(() => setIsPaused(false), 3000); }}
+              aria-label={`Go to activity ${i + 1}`}
+              className="rounded-full transition-all duration-300"
+              style={{ width: i === current ? 26 : 8, height: 8, background: i === current ? "var(--blue)" : "rgba(0,212,255,0.22)" }} />
+          ))}
+        </div>
+
+        {/* Activity type links */}
+        {activityTypes.length > 0 && (
+          <div className="flex flex-wrap justify-center gap-3 mt-10">
+            {activityTypes.map(t => (
+              <a key={t.id} href={`/activities?type=${t.slug}`}
+                className="px-5 py-2 rounded-full border text-xs font-bold tracking-widest transition-all hover:bg-[var(--blue)] hover:text-black hover:border-[var(--blue)]"
+                style={{ borderColor: "var(--border)", color: "var(--muted)", fontFamily: "'Share Tech Mono',monospace" }}>
+                {t.name}
+              </a>
+            ))}
+            <a href="/activities"
+              className="px-5 py-2 rounded-full border text-xs font-bold tracking-widest transition-all hover:border-[var(--blue)]"
+              style={{ borderColor: "var(--blue)", color: "var(--blue)", fontFamily: "'Share Tech Mono',monospace" }}>
+              ALL ACTIVITIES →
+            </a>
+          </div>
+        )}
+      </div>
+    </section>
+  );
+}
+
+/* ════════════════════════════════════════════════════════════
+   SCIENCE MEDIA
+════════════════════════════════════════════════════════════ */
+function ScienceMediaSection() {
+  const [videos, setVideos] = useState<MediaVideo[]>([]);
+  const [active, setActive] = useState(0);
+  const [title, setTitle] = useState("Check Out Our Science Media");
+
+  useEffect(() => {
+    fetch("/api/science-media").then(r => r.json()).then((d: MediaVideo[]) => { if (Array.isArray(d) && d.length) setVideos(d); });
+    fetch("/api/admin/homepage-settings").then(r => r.json()).then(d => { if (d?.science_media_title) setTitle(d.science_media_title); });
+  }, []);
+
+  if (videos.length === 0) return null;
+  const activeId = extractYouTubeId(videos[active]?.youtube_url || "");
+
+  return (
+    <section className="relative z-10 py-16 sm:py-20" style={{ background: "var(--bg2)" }}>
+      <div className="max-w-7xl mx-auto px-4 sm:px-6">
+        <SectionLabel>Media</SectionLabel>
+        <LetterAnim text={title} tag="h2" className="font-black mb-10 reveal" style={{ fontSize: "clamp(1.6rem,3vw,2.2rem)", fontFamily: "'Poppins',sans-serif", fontWeight: 800 }} />
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+          <div className="lg:col-span-2 rounded-xl overflow-hidden border" style={{ borderColor: "var(--border)", aspectRatio: "16/9" }}>
+            <iframe width="100%" height="100%" src={`https://www.youtube.com/embed/${activeId}`} title="NDSC" frameBorder="0" allowFullScreen />
+          </div>
+          <div className="flex flex-col gap-3">
+            {videos.map((v, i) => {
+              const vid = extractYouTubeId(v.youtube_url);
+              return (
+                <button key={v.id} onClick={() => setActive(i)}
+                  className="flex items-center gap-3 p-3 rounded-xl border text-left transition-all hover:-translate-y-0.5"
+                  style={{ borderColor: active === i ? "var(--blue)" : "var(--border)", background: active === i ? "#00d4ff11" : "var(--card)" }}>
+                  <div className="relative shrink-0 rounded-lg overflow-hidden" style={{ width: 72, height: 45 }}>
+                    <Image src={`https://img.youtube.com/vi/${vid}/mqdefault.jpg`} alt={v.title} fill className="object-cover" />
+                  </div>
+                  <p className="text-xs font-medium" style={{ color: active === i ? "var(--blue)" : "var(--white)", fontFamily: "'Poppins',sans-serif" }}>{v.title}</p>
+                </button>
+              );
+            })}
+            <a href="https://www.youtube.com/@NDSCOfficial" target="_blank" rel="noopener noreferrer"
+              className="mt-auto py-3 text-center text-xs font-bold tracking-widest border rounded-xl transition-all hover:bg-[var(--blue)] hover:text-black"
+              style={{ borderColor: "var(--blue)", color: "var(--blue)", fontFamily: "'Share Tech Mono',monospace" }}>
+              VIEW ALL VIDEOS →
+            </a>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+/* ════════════════════════════════════════════════════════════
+   AUDRI CTA
+════════════════════════════════════════════════════════════ */
+function AudriCTA() {
+  const [cover, setCover] = useState<string | null>(null);
+  useEffect(() => {
+    fetch("/api/publications?latest=true&category=annual_magazine")
+      .then(r => r.json())
+      .then(d => { const pub = Array.isArray(d) ? d[0] : d; if (pub?.cover_image_url) setCover(pub.cover_image_url); })
+      .catch(() => {});
+  }, []);
+
+  return (
+    <section className="relative z-10 py-16 sm:py-20" style={{ background: "var(--bg2)" }}>
+      <div className="max-w-7xl mx-auto px-4 sm:px-6">
+        <div className="reveal rounded-2xl border overflow-hidden p-8 sm:p-14 flex flex-col sm:flex-row items-center gap-8 sm:gap-12"
+          style={{ borderColor: "var(--blue)", background: "linear-gradient(135deg,rgba(0,212,255,0.04),rgba(0,119,255,0.04))" }}>
+          <div className="flex-1">
+            <SectionLabel>Annual Magazine</SectionLabel>
+            <LetterAnim text="অদ্রি (AUDRI)" tag="h2" className="font-black mb-3" style={{ fontSize: "clamp(1.6rem,3vw,2.2rem)", fontFamily: "'Poppins',sans-serif", fontWeight: 800 }} />
+            <p className="text-sm leading-relaxed mb-6" style={{ color: "var(--muted)", fontFamily: "'Poppins',sans-serif" }}>
+              Annual science publication — articles on Quantum Entanglement, CRISPR, Neural Networks, and more.
+            </p>
+            <Link href="/publication" className="btn-primary inline-flex items-center gap-2 px-6 py-3 font-bold text-sm tracking-widest rounded-xl" style={{ fontFamily: "'Poppins',sans-serif" }}>
+              <BookOpen size={15} /> Read AUDRI
+            </Link>
+          </div>
+          <div className="shrink-0">
+            <Image src={cover || "/images/Audri-24.jpeg"} alt="AUDRI" width={180} height={240} className="rounded-xl object-contain shadow-2xl"
+              style={{ filter: "drop-shadow(0 0 30px rgba(0,212,255,0.4))" }} />
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+/* ════════════════════════════════════════════════════════════
    THEME TOGGLE
-══════════════════════════════════════════════════════════ */
+════════════════════════════════════════════════════════════ */
 function ThemeToggle() {
   const [dark, setDark] = useState(true);
   useEffect(() => {
@@ -90,430 +1033,13 @@ function ThemeToggle() {
     else document.documentElement.removeAttribute("data-theme");
   };
   return (
-    <button onClick={toggle} className="theme-toggle" title="Toggle theme" aria-label="Toggle theme">
-      {dark ? "☀" : "🌙"}
-    </button>
+    <button onClick={toggle} className="theme-toggle" title="Toggle theme" aria-label="Toggle theme">{dark ? "☀" : "🌙"}</button>
   );
 }
 
-/* ══════════════════════════════════════════════════════════════
-   WATER RIPPLE + DEEP SPACE BACKGROUND CANVAS
-══════════════════════════════════════════════════════════════ */
-function WaterSpaceCanvas() {
-  const ref = useRef<HTMLCanvasElement>(null);
-  useEffect(() => {
-    const canvas = ref.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext("2d")!;
-    let animId: number, W = 0, H = 0, t = 0;
-    interface Star { x: number; y: number; r: number; o: number; tw: number }
-    let stars: Star[] = [];
-    const resize = () => {
-      W = canvas.width = window.innerWidth; H = canvas.height = window.innerHeight; stars = [];
-      for (let i = 0; i < 180; i++) stars.push({ x: Math.random() * W, y: Math.random() * H, r: Math.random() * 1.4 + 0.2, o: Math.random(), tw: Math.random() * Math.PI * 2 });
-    };
-    resize(); window.addEventListener("resize", resize);
-    const ripples = [
-      { cx: 0.5, cy: 0.75, amp: 18, freq: 0.012, speed: 0.7 },
-      { cx: 0.3, cy: 0.85, amp: 10, freq: 0.018, speed: 0.5 },
-      { cx: 0.7, cy: 0.8, amp: 12, freq: 0.015, speed: 0.6 },
-    ];
-    const draw = () => {
-      t += 0.016; ctx.clearRect(0, 0, W, H);
-      const bg = ctx.createLinearGradient(0, 0, 0, H);
-      bg.addColorStop(0, "#000408"); bg.addColorStop(0.45, "#020c1a"); bg.addColorStop(0.7, "#030e20"); bg.addColorStop(1, "#000204");
-      ctx.fillStyle = bg; ctx.fillRect(0, 0, W, H);
-      const paintNebula = (x: number, y: number, rx: number, ry: number, color: string) => {
-        const g = ctx.createRadialGradient(x, y, 0, x, y, Math.max(rx, ry));
-        g.addColorStop(0, color); g.addColorStop(1, "transparent");
-        ctx.save(); ctx.scale(1, ry / rx); ctx.fillStyle = g;
-        ctx.beginPath(); ctx.arc(x, y * (rx / ry), rx, 0, Math.PI * 2); ctx.fill(); ctx.restore();
-      };
-      paintNebula(W * 0.2, H * 0.25, 320, 180, "rgba(0,80,160,0.09)");
-      paintNebula(W * 0.8, H * 0.3, 260, 160, "rgba(0,180,255,0.06)");
-      paintNebula(W * 0.5, H * 0.5, 400, 250, "rgba(0,40,100,0.05)");
-      for (const s of stars) {
-        s.tw += 0.015; const ao = 0.3 + 0.7 * Math.abs(Math.sin(s.tw));
-        ctx.beginPath(); ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2);
-        ctx.fillStyle = `rgba(${180 + Math.round(75 * ao)},${220 + Math.round(35 * ao)},255,${ao * 0.85})`; ctx.fill();
-      }
-      const waterTop = H * 0.6, rows = 90, rowH = (H - waterTop) / rows;
-      for (let row = 0; row < rows; row++) {
-        const y = waterTop + row * rowH, depth = row / rows;
-        const cols = Math.max(8, Math.round(60 - depth * 40)), segW = W / cols;
-        for (let col = 0; col < cols; col++) {
-          const x = col * segW; let wave = 0;
-          for (const rp of ripples) {
-            const dx = x / W - rp.cx, dy = (y / H - rp.cy) * 2, dist = Math.sqrt(dx * dx + dy * dy);
-            wave += rp.amp * Math.sin(dist * W * rp.freq - t * rp.speed) * Math.exp(-dist * 3.5);
-          }
-          wave *= (1 - depth);
-          const intensity = Math.max(0, Math.sin(wave * 0.3 + t * 0.4) * 0.5 + 0.5);
-          const alpha = (0.04 + intensity * 0.18) * (1 - depth * 0.8);
-          ctx.fillStyle = `rgba(${Math.round(intensity * 20)},${Math.round(60 + intensity * 140 - depth * 40)},${Math.round(120 + intensity * 135 - depth * 30)},${alpha})`;
-          ctx.fillRect(x, y + wave * depth * 0.3, segW + 1, rowH + 1);
-        }
-      }
-      const horizGrad = ctx.createLinearGradient(0, 0, W, 0);
-      horizGrad.addColorStop(0, "transparent"); horizGrad.addColorStop(0.2, "rgba(0,200,255,0.12)");
-      horizGrad.addColorStop(0.5, "rgba(0,212,255,0.22)"); horizGrad.addColorStop(0.8, "rgba(0,200,255,0.12)"); horizGrad.addColorStop(1, "transparent");
-      ctx.fillStyle = horizGrad; ctx.fillRect(0, waterTop - 1, W, 3 + Math.sin(t * 0.5) * 1);
-      for (let i = 0; i < 5; i++) {
-        const lx = W * (0.1 + i * 0.2 + Math.sin(t * 0.1 + i) * 0.04);
-        const lg = ctx.createLinearGradient(lx, waterTop, lx, H);
-        lg.addColorStop(0, `rgba(0,200,255,${0.04 + Math.sin(t * 0.3 + i) * 0.02})`); lg.addColorStop(1, "transparent");
-        ctx.fillStyle = lg; ctx.beginPath();
-        ctx.moveTo(lx - 40, waterTop); ctx.lineTo(lx + 40, waterTop); ctx.lineTo(lx + 10, H); ctx.lineTo(lx - 10, H);
-        ctx.closePath(); ctx.fill();
-      }
-      const vig = ctx.createRadialGradient(W / 2, H / 2, H * 0.25, W / 2, H / 2, H * 0.85);
-      vig.addColorStop(0, "transparent"); vig.addColorStop(1, "rgba(0,0,0,0.55)");
-      ctx.fillStyle = vig; ctx.fillRect(0, 0, W, H);
-      animId = requestAnimationFrame(draw);
-    };
-    draw();
-    return () => { cancelAnimationFrame(animId); window.removeEventListener("resize", resize); };
-  }, []);
-  return <canvas ref={ref} className="fixed inset-0 w-full h-full pointer-events-none z-0" />;
-}
-
-/* ══════════════════════════════════════════════════════════════
-   SCROLL REVEAL
-══════════════════════════════════════════════════════════════ */
-function useReveal() {
-  useEffect(() => {
-    const obs = new IntersectionObserver(
-      (entries) => entries.forEach(e => { if (e.isIntersecting) { e.target.classList.add("visible"); obs.unobserve(e.target); } }),
-      { threshold: 0.08, rootMargin: "-30px" }
-    );
-    document.querySelectorAll(".reveal").forEach(el => obs.observe(el));
-    return () => obs.disconnect();
-  }, []);
-}
-
-/* ══════════════════════════════════════════════════════════════
-   DATA
-══════════════════════════════════════════════════════════════ */
-const STATS = [
-  { num: "70+", label: "Years of Legacy" },
-  { num: "20,000+", label: "Members & Alumni" },
-  { num: "1,000+", label: "Workshops & Sessions" },
-  { num: "1st", label: "Science Club in S. Asia" },
-];
-
-const DEPTS = [
-  { name: "Administration", icon: "/images/admininstration-icon.png", short: "Administration", color: "#00d4ff", desc: "Ensures smooth operation and management of club activities. Coordinates planning, logistics and execution of events." },
-  { name: "Project", icon: "/images/project.png", short: "Project", color: "#34d399", desc: "Conducts scientific research and innovation-based projects. Encourages experimentation and analytical development." },
-  { name: "Publication", icon: "/images/publication.png", short: "Publication", color: "#00d4ff", desc: "Handles graphics, publishes wall magazines, journals and annual publications (AUDRI). Promotes scientific writing." },
-  { name: "ICT", icon: "/images/ict.png", short: "ICT", color: "#34d399", desc: "Handles digital media, website management and tech support. Maintains digital infrastructure of the club." },
-  { name: "LWS", icon: "/images/lws.png", short: "LWS", color: "#00d4ff", desc: "Life & Welfare Science — biology, environment and health oriented activities and awareness programs." },
-  { name: "Quiz", icon: "/images/quiz.png", short: "Quiz", color: "#34d399", desc: "Hosts Q-League, BrainRain, Scienceophile. NDC Blue, NDC Green & NDC Gold — NDSC's prestigious quiz teams." },
-];
-
-const QUOTES = [
-  {
-    role: "Moderator",
-    name: "Dr. Vincent Titas Rozario",
-    image: "/images/Titas-sir.jpg",
-    full: "Notre Dame Science Club, since its founding in 1955 by the eminent scientist Fr. Richard William Timm, C.S.C., has exemplified the spirit of scientific curiosity and service to humanity. The club's motto — 'Science in Human Welfare' — is not merely a slogan but a living commitment that guides every activity, publication, and event we organize. I am proud to guide this generation of science enthusiasts as they carry forward a 70-year legacy of excellence, innovation, and national pride.",
-    link: "/about#moderator",
-  },
-  {
-    role: "General Secretary",
-    name: "Fahim Faisal Arnob",
-    image: "/images/panel-26/gs.jpg",
-    full: "Notre Dame Science Club has always been more than just a club — it is a family, a community of dreamers and doers. NDSC is a pioneer in the Indian Subcontinent for organizing its annual and government-supported science festivals. Through national olympiads, weekly workshops, Science Sundays, research projects, and innovative STEM activities, NDSC nurtures young minds to become future scientists, innovators, and leaders.",
-    link: "/about#gs",
-  },
-];
-
-/* ══════════════════════════════════════════════════════════════
-   SCIENCE MEDIA — dynamic from DB
-══════════════════════════════════════════════════════════════ */
-type MediaVideo = { id: string; title: string; youtube_url: string; display_order: number };
-
-function extractYouTubeId(url: string): string {
-  const m = url.match(/(?:v=|youtu\.be\/|embed\/)([a-zA-Z0-9_-]{11})/);
-  return m ? m[1] : url;
-}
-
-function ScienceMediaSection() {
-  const [videos, setVideos] = useState<MediaVideo[]>([]);
-  const [active, setActive] = useState(0);
-  const [title, setTitle] = useState("Check Out Our Science Media");
-
-  useEffect(() => {
-    fetch("/api/science-media").then(r => r.json()).then((d: MediaVideo[]) => { if (Array.isArray(d) && d.length) setVideos(d); });
-    fetch("/api/admin/homepage-settings").then(r => r.json()).then(d => { if (d?.science_media_title) setTitle(d.science_media_title); });
-  }, []);
-
-  if (videos.length === 0) return null;
-  const activeId = extractYouTubeId(videos[active]?.youtube_url || "");
-  const words = title.split(" ");
-
-  return (
-    <section className="relative z-10 py-16 sm:py-20" style={{ background: "var(--bg2)" }}>
-      <div className="max-w-7xl mx-auto px-4 sm:px-6">
-        <SectionLabel>Media</SectionLabel>
-        <h2 className="text-2xl sm:text-3xl font-black mb-10 reveal" style={{ fontFamily: "'Orbitron',sans-serif" }}>
-          {words.map((w, i) => (
-            <span key={i} style={{ color: i >= words.length - 2 ? "var(--blue)" : undefined }}>{w} </span>
-          ))}
-        </h2>
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
-          <div className="lg:col-span-2 rounded-xl overflow-hidden border" style={{ borderColor: "var(--border)", aspectRatio: "16/9" }}>
-            <iframe width="100%" height="100%" src={`https://www.youtube.com/embed/${activeId}`} title="NDSC" frameBorder="0" allowFullScreen />
-          </div>
-          <div className="flex flex-col gap-3">
-            {videos.map((v, i) => {
-              const vid = extractYouTubeId(v.youtube_url);
-              return (
-                <button key={v.id} onClick={() => setActive(i)}
-                  className="flex items-center gap-3 p-3 rounded-xl border text-left transition-all hover:-translate-y-0.5"
-                  style={{ borderColor: active === i ? "var(--blue)" : "var(--border)", background: active === i ? "#00d4ff11" : "var(--card)" }}>
-                  <div className="relative shrink-0 rounded-lg overflow-hidden" style={{ width: 72, height: 45 }}>
-                    <Image src={`https://img.youtube.com/vi/${vid}/mqdefault.jpg`} alt={v.title} fill className="object-cover" />
-                    <div className="absolute inset-0 flex items-center justify-center bg-black/30">
-                      <Play size={14} className="fill-white text-white" />
-                    </div>
-                  </div>
-                  <p className="text-xs font-medium" style={{ color: active === i ? "var(--blue)" : "var(--white)" }}>{v.title}</p>
-                </button>
-              );
-            })}
-            <a href="https://www.youtube.com/@NDSCOfficial" target="_blank" rel="noopener noreferrer"
-              className="mt-auto py-3 text-center text-xs font-black tracking-widest border rounded-xl transition-all hover:bg-[var(--blue)] hover:text-black"
-              style={{ borderColor: "var(--blue)", color: "var(--blue)", fontFamily: "'Orbitron',sans-serif" }}>
-              VIEW ALL VIDEOS →
-            </a>
-          </div>
-        </div>
-      </div>
-    </section>
-  );
-}
-
-/* ══════════════════════════════════════════════════════════════
-   ACTIVITIES CAROUSEL — dynamic, swipeable
-══════════════════════════════════════════════════════════════ */
-type ActivitySession = {
-  id: string; title: string; slug: string;
-  cover_image_url: string | null; session_date: string | null;
-  activity_types: { name: string; slug: string } | null;
-};
-
-function ActivitiesCarousel() {
-  const [sessions, setSessions] = useState<ActivitySession[]>([]);
-  const [current, setCurrent] = useState(0);
-  const [activityTypes, setActivityTypes] = useState<{ id: string; name: string; slug: string }[]>([]);
-  const startX = useRef(0);
-  const isDragging = useRef(false);
-
-  useEffect(() => {
-    fetch("/api/activity-sessions-public").then(r => r.json()).then(d => { if (Array.isArray(d)) setSessions(d); });
-    fetch("/api/activity-types-public").then(r => r.json()).then(d => { if (Array.isArray(d)) setActivityTypes(d); });
-  }, []);
-
-  const total = sessions.length;
-  const prev = () => setCurrent(c => (c - 1 + total) % total);
-  const next = () => setCurrent(c => (c + 1) % total);
-  const onPointerDown = (e: React.PointerEvent) => { startX.current = e.clientX; isDragging.current = true; };
-  const onPointerUp = (e: React.PointerEvent) => {
-    if (!isDragging.current) return;
-    isDragging.current = false;
-    const diff = startX.current - e.clientX;
-    if (diff > 50) next(); else if (diff < -50) prev();
-  };
-  const onWheel = (e: React.WheelEvent) => {
-    if (Math.abs(e.deltaX) > Math.abs(e.deltaY)) {
-      e.preventDefault();
-      if (e.deltaX > 30) next(); else if (e.deltaX < -30) prev();
-    }
-  };
-
-  if (sessions.length === 0) return null;
-
-  const formatDate = (d: string | null) => {
-    if (!d) return "";
-    return new Date(d).toLocaleDateString("en-BD", { day: "numeric", month: "short", year: "numeric" });
-  };
-  const getIdx = (offset: number) => (current + offset + total) % total;
-
-  return (
-    <section className="relative z-10 py-20">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6">
-        <div className="text-center mb-12">
-          <div className="flex justify-center"><SectionLabel>Recent</SectionLabel></div>
-          <h2 className="text-3xl sm:text-4xl font-black reveal" style={{ fontFamily: "'Orbitron',sans-serif" }}>
-            OUR <span style={{ color: "var(--blue)" }}>ACTIVITIES</span>
-          </h2>
-          <p className="text-sm mt-3 reveal" style={{ color: "var(--muted)" }}>Swipe, drag or use arrows to explore</p>
-        </div>
-
-        <div className="relative select-none"
-          onPointerDown={onPointerDown} onPointerUp={onPointerUp} onPointerLeave={onPointerUp}
-          onWheel={onWheel} style={{ touchAction: "pan-y" }}>
-          <div className="flex items-center justify-center gap-4 sm:gap-6" style={{ minHeight: 420, overflow: "hidden" }}>
-            {([-1, 0, 1] as const).map(offset => {
-              const s = sessions[getIdx(offset)];
-              const isCurrent = offset === 0;
-              return (
-                <div key={`${s.id}-${offset}`}
-                  onClick={() => { if (offset === -1) prev(); else if (offset === 1) next(); else window.location.href = `/activities/${s.slug}`; }}
-                  className="relative rounded-2xl overflow-hidden border flex-shrink-0 cursor-pointer transition-all duration-500"
-                  style={{
-                    width: isCurrent ? "min(380px,82vw)" : "min(240px,45vw)",
-                    height: isCurrent ? 400 : 300,
-                    opacity: isCurrent ? 1 : 0.45,
-                    transform: isCurrent ? "scale(1)" : "scale(0.92)",
-                    borderColor: isCurrent ? "var(--blue)" : "var(--border)",
-                    background: "var(--bg2)",
-                    boxShadow: isCurrent ? "0 0 60px rgba(0,212,255,0.2)" : "none",
-                  }}>
-                  {s.cover_image_url ? (
-                    <Image src={s.cover_image_url} alt={s.title} fill className="object-cover" />
-                  ) : (
-                    <div className="absolute inset-0 flex items-center justify-center"
-                      style={{ background: "linear-gradient(135deg,rgba(0,212,255,0.1),rgba(0,40,80,0.8))" }}>
-                      <span style={{ fontFamily: "'Orbitron',sans-serif", color: "var(--blue)", fontSize: 40 }}>NDSC</span>
-                    </div>
-                  )}
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent" />
-                  {isCurrent && (
-                    <div className="absolute bottom-0 left-0 right-0 p-6">
-                      {s.activity_types && (
-                        <span className="text-xs font-mono tracking-widest px-2 py-1 rounded mb-2 inline-block"
-                          style={{ background: "rgba(0,212,255,0.15)", color: "var(--blue)" }}>
-                          {s.activity_types.name}
-                        </span>
-                      )}
-                      <h3 className="text-lg font-black leading-tight mb-1">{s.title}</h3>
-                      {s.session_date && <p className="text-xs" style={{ color: "var(--muted)" }}>{formatDate(s.session_date)}</p>}
-                      <span className="text-xs font-bold mt-3 inline-block" style={{ color: "var(--blue)" }}>View Details →</span>
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-          <button onClick={prev}
-            className="absolute left-0 sm:-left-5 top-1/2 -translate-y-1/2 p-3 sm:p-4 rounded-full border z-20 transition-all hover:scale-110"
-            style={{ background: "rgba(2,8,16,0.95)", borderColor: "var(--blue)", color: "var(--blue)" }}>←</button>
-          <button onClick={next}
-            className="absolute right-0 sm:-right-5 top-1/2 -translate-y-1/2 p-3 sm:p-4 rounded-full border z-20 transition-all hover:scale-110"
-            style={{ background: "rgba(2,8,16,0.95)", borderColor: "var(--blue)", color: "var(--blue)" }}>→</button>
-        </div>
-
-        {/* Dots */}
-        <div className="flex justify-center gap-2 mt-8 flex-wrap">
-          {sessions.map((s, i) => (
-            <button key={s.id} onClick={() => setCurrent(i)} className="rounded-full transition-all"
-              style={{ width: i === current ? 24 : 8, height: 8, background: i === current ? "var(--blue)" : "rgba(0,212,255,0.25)" }} />
-          ))}
-        </div>
-
-        {/* Activity type links */}
-        {activityTypes.length > 0 && (
-          <div className="flex flex-wrap justify-center gap-3 mt-10">
-            {activityTypes.map(t => (
-              <a key={t.id} href={`/activities?type=${t.slug}`}
-                className="px-5 py-2 rounded-full border text-xs font-black tracking-widest transition-all hover:bg-[var(--blue)] hover:text-black hover:border-[var(--blue)]"
-                style={{ borderColor: "var(--border)", color: "var(--muted)", fontFamily: "'Orbitron',sans-serif" }}>
-                {t.name}
-              </a>
-            ))}
-            <a href="/activities"
-              className="px-5 py-2 rounded-full border text-xs font-black tracking-widest transition-all hover:border-[var(--blue)]"
-              style={{ borderColor: "var(--blue)", color: "var(--blue)", fontFamily: "'Orbitron',sans-serif" }}>
-              ALL ACTIVITIES →
-            </a>
-          </div>
-        )}
-      </div>
-    </section>
-  );
-}
-
-/* ══════════════════════════════════════════════════════════════
-   AUDRI CTA — dynamic latest cover from DB
-══════════════════════════════════════════════════════════════ */
-function AudriCTA() {
-  const [cover, setCover] = useState<string | null>(null);
-  useEffect(() => {
-    fetch("/api/publications?latest=true&category=annual_magazine")
-      .then(r => r.json())
-      .then(d => {
-        const pub = Array.isArray(d) ? d[0] : d;
-        if (pub?.cover_image_url) setCover(pub.cover_image_url);
-      })
-      .catch(() => {});
-  }, []);
-
-  return (
-    <section className="relative z-10 py-16 sm:py-20" style={{ background: "var(--bg2)" }}>
-      <div className="max-w-7xl mx-auto px-4 sm:px-6">
-        <div className="reveal rounded-2xl border overflow-hidden p-8 sm:p-14 flex flex-col sm:flex-row items-center gap-8 sm:gap-12"
-          style={{ borderColor: "var(--blue)", background: "linear-gradient(135deg,rgba(0,212,255,0.04),rgba(0,119,255,0.04))" }}>
-          <div className="flex-1">
-            <SectionLabel>Annual Magazine</SectionLabel>
-            <h2 className="text-2xl sm:text-3xl font-black mb-3" style={{ fontFamily: "'Orbitron',sans-serif" }}>
-              অদ্রি <span style={{ color: "var(--blue)" }}>(AUDRI)</span>
-            </h2>
-            <p className="text-sm leading-relaxed mb-6" style={{ color: "var(--muted)" }}>
-              Annual science publication — articles on Quantum Entanglement, CRISPR, Neural Networks, and more.
-            </p>
-            <Link href="/publication"
-              className="btn-primary inline-flex items-center gap-2 px-6 py-3 font-black text-sm tracking-widest rounded-xl"
-              style={{ fontFamily: "'Orbitron',sans-serif" }}>
-              <BookOpen size={15} /> Read AUDRI
-            </Link>
-          </div>
-          <div className="shrink-0">
-            <Image
-              src={cover || "/images/Audri-24.jpeg"}
-              alt="AUDRI" width={180} height={240}
-              className="rounded-xl object-contain shadow-2xl"
-              style={{ filter: "drop-shadow(0 0 30px rgba(0,212,255,0.4))" }}
-            />
-          </div>
-        </div>
-      </div>
-    </section>
-  );
-}
-
-/* ──────────────────────────────────────────────────────────── */
-function DeptModal({ dept, onClose }: { dept: typeof DEPTS[0]; onClose: () => void }) {
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "rgba(0,0,0,.88)" }} onClick={onClose}>
-      <div className="relative w-full max-w-sm rounded-2xl border p-8 text-center"
-        style={{ borderColor: dept.color, background: "var(--bg2)" }} onClick={e => e.stopPropagation()}>
-        <button onClick={onClose} className="absolute top-4 right-4 text-xs font-bold" style={{ color: "var(--muted)" }}>✕</button>
-        <div className="w-20 h-20 mx-auto mb-4 relative">
-          <Image src={dept.icon} alt={dept.name} fill className="object-contain" style={{ filter: `drop-shadow(0 0 12px ${dept.color})` }} />
-        </div>
-        <h3 className="text-xl font-black mb-3" style={{ color: dept.color }}>{dept.name}</h3>
-        <p className="text-sm leading-relaxed" style={{ color: "var(--muted)" }}>{dept.desc}</p>
-        <Link href="/about#departments" onClick={onClose}
-          className="inline-block mt-5 px-5 py-2 rounded-lg text-xs font-black tracking-widest border"
-          style={{ borderColor: dept.color, color: dept.color }}>Learn More →</Link>
-      </div>
-    </div>
-  );
-}
-
-function SectionLabel({ children }: { children: React.ReactNode }) {
-  return (
-    <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", marginBottom: "0.5rem", fontFamily: "'Share Tech Mono', monospace", fontSize: "0.72rem", letterSpacing: "0.35em", color: "var(--blue)", textTransform: "uppercase" }}>
-      <span style={{ display: "inline-block", width: 28, height: 1, background: "var(--blue)", flexShrink: 0 }} />
-      {children}
-    </div>
-  );
-}
-
-/* ══════════════════════════════════════════════════════════════
+/* ════════════════════════════════════════════════════════════
    PAGE
-══════════════════════════════════════════════════════════════ */
+════════════════════════════════════════════════════════════ */
 export default function HomePage() {
   useReveal();
   const [deptModal, setDeptModal] = useState<typeof DEPTS[0] | null>(null);
@@ -521,61 +1047,90 @@ export default function HomePage() {
   return (
     <>
       <style>{`
-        @keyframes riseWord   { from{opacity:0;transform:translateY(60px) skewY(4deg);}to{opacity:1;transform:none;} }
-        @keyframes fadeSlide  { from{opacity:0;transform:translateX(-24px);}to{opacity:1;transform:none;} }
-        @keyframes fadeUp     { from{opacity:0;transform:translateY(32px);}to{opacity:1;transform:none;} }
-        @keyframes scaleGlow  { from{opacity:0;transform:scale(0.82);}to{opacity:1;transform:scale(1);} }
-        @keyframes spinSlow   { from{transform:rotate(0deg);}to{transform:rotate(360deg);} }
-        @keyframes pulse      { 0%,100%{opacity:.55;}50%{opacity:1;} }
-        @keyframes marquee    { from{transform:translateX(0);}to{transform:translateX(-50%);} }
-        @keyframes scanV      { 0%{top:-4px;}100%{top:104%;} }
-        @keyframes borderCycle{ 0%,100%{border-color:rgba(0,212,255,.3);box-shadow:0 0 40px rgba(0,212,255,.15);}50%{border-color:rgba(0,212,255,.75);box-shadow:0 0 80px rgba(0,212,255,.3);} }
-        @keyframes floatY     { 0%,100%{transform:translateY(0);}50%{transform:translateY(-14px);} }
-        @keyframes tickerIn   { from{opacity:0;transform:translateY(6px);}to{opacity:1;transform:none;} }
+        /* ── Keyframes ─────────────────────────────── */
+        @keyframes spinSlow    { from{transform:rotate(0deg);}to{transform:rotate(360deg);} }
+        @keyframes pulse       { 0%,100%{opacity:.55;}50%{opacity:1;} }
+        @keyframes scanV       { 0%{top:-4px;}100%{top:104%;} }
+        @keyframes borderCycle { 0%,100%{border-color:rgba(0,212,255,.3);box-shadow:0 0 40px rgba(0,212,255,.15);}50%{border-color:rgba(0,212,255,.78);box-shadow:0 0 80px rgba(0,212,255,.32);} }
+        @keyframes floatY      { 0%,100%{transform:translateY(0);}50%{transform:translateY(-14px);} }
+        @keyframes fadeUp      { from{opacity:0;transform:translateY(28px);}to{opacity:1;transform:none;} }
+        @keyframes fadeSlide   { from{opacity:0;transform:translateX(-20px);}to{opacity:1;transform:none;} }
+        @keyframes scaleIn     { from{opacity:0;transform:scale(0.85);}to{opacity:1;transform:scale(1);} }
+        @keyframes marquee     { from{transform:translateX(0);}to{transform:translateX(-50%);} }
+        @keyframes progressBar { from{width:0;}to{width:100%;} }
+        @keyframes glowPulse   { 0%,100%{filter:drop-shadow(0 0 14px rgba(0,212,255,0.4));}50%{filter:drop-shadow(0 0 32px rgba(0,212,255,0.9));} }
+        @keyframes shimmer     { 0%{background-position:200% center;}100%{background-position:-200% center;} }
 
-        .hero-badge-anim { animation:fadeSlide 0.7s cubic-bezier(0.22,1,0.36,1) 0.2s both; }
-        .hero-word-anim  { display:inline-block; animation:riseWord 0.8s cubic-bezier(0.22,1,0.36,1) both; }
-        .hero-desc-anim  { animation:fadeUp 0.8s cubic-bezier(0.22,1,0.36,1) 0.65s both; }
-        .hero-btn-anim   { animation:fadeUp 0.7s cubic-bezier(0.22,1,0.36,1) 0.85s both; }
-        .hero-logo-anim  { animation:scaleGlow 1s cubic-bezier(0.22,1,0.36,1) 0.3s both; }
-        .logo-float-anim { animation:floatY 5s ease-in-out infinite; }
+        /* ── Hero ─────────────────────────────────── */
+        .hero-badge  { animation: fadeSlide 0.7s cubic-bezier(0.22,1,0.36,1) 0.2s both; }
+        .hero-h1-l1  { animation: fadeUp 0.8s cubic-bezier(0.22,1,0.36,1) 0.15s both; }
+        .hero-h1-l2  { animation: fadeUp 0.8s cubic-bezier(0.22,1,0.36,1) 0.28s both; }
+        .hero-h1-l3  { animation: fadeUp 0.8s cubic-bezier(0.22,1,0.36,1) 0.41s both; }
+        .hero-h1-l4  { animation: fadeUp 0.8s cubic-bezier(0.22,1,0.36,1) 0.54s both; }
+        .hero-sub    { animation: fadeUp 0.7s cubic-bezier(0.22,1,0.36,1) 0.62s both; }
+        .hero-desc   { animation: fadeUp 0.7s cubic-bezier(0.22,1,0.36,1) 0.74s both; }
+        .hero-btns   { animation: fadeUp 0.7s cubic-bezier(0.22,1,0.36,1) 0.88s both; }
+        .hero-logo   { animation: scaleIn 1s cubic-bezier(0.22,1,0.36,1) 0.3s both; }
+        .logo-float  { animation: floatY 5.5s ease-in-out infinite; }
 
-        .reveal { opacity:0; transform:translateY(28px); transition:opacity .7s ease,transform .7s ease; }
+        /* ── Reveal ───────────────────────────────── */
+        .reveal { opacity:0; transform:translateY(24px); transition:opacity .75s cubic-bezier(0.22,1,0.36,1), transform .75s cubic-bezier(0.22,1,0.36,1); }
         .reveal.visible { opacity:1; transform:none; }
 
-        .marquee-track { display:flex; width:max-content; animation:marquee 22s linear infinite; }
+        /* ── Marquee ──────────────────────────────── */
+        .marquee-track { display:flex; width:max-content; animation:marquee 24s linear infinite; }
 
-        .stat-card { transition:all .3s; }
-        .stat-card:hover { border-color:var(--blue)!important; background:rgba(0,212,255,.05)!important; transform:translateY(-4px); }
-
-        .dept-card { transition:all .3s; }
-        .dept-card:hover { transform:translateY(-6px); }
-        .dept-icon { transition:all .35s; }
-        .dept-card:hover .dept-icon { transform:scale(1.12); }
-
-        .btn-primary { background:var(--blue); color:#000; transition:all .3s; box-shadow:0 0 30px rgba(0,212,255,.35); }
+        /* ── Buttons ──────────────────────────────── */
+        .btn-primary { background:var(--blue); color:#000; transition:all .3s; box-shadow:0 0 28px rgba(0,212,255,.35); font-weight:700; }
         .btn-primary:hover { transform:translateY(-2px) scale(1.03); box-shadow:0 0 50px rgba(0,212,255,.55); }
-        .btn-outline { border:1.5px solid rgba(0,212,255,.55); color:var(--blue); transition:all .3s; }
+        .btn-outline { border:1.5px solid rgba(0,212,255,.55); color:var(--blue); transition:all .3s; font-weight:700; }
         .btn-outline:hover { background:var(--blue); color:#000; border-color:var(--blue); transform:translateY(-2px); }
 
-        @media (max-width:480px) { .hero-h1-size { font-size:clamp(2.6rem,12vw,4rem)!important; } }
+        /* ── Cards ────────────────────────────────── */
+        .stat-card:hover { border-color:var(--blue)!important; background:rgba(0,212,255,.04)!important; transform:translateY(-4px); }
+        .dept-card { transition:all .3s; }
+        .dept-card:hover { transform:translateY(-6px); }
+
+        /* ── Ticker pill ──────────────────────────── */
+        .ticker-pill {
+          display:inline-flex; align-items:center; gap:0.5rem; padding:0.35rem 0.9rem;
+          border-radius:999px; border:1px solid rgba(0,212,255,0.3);
+          background:rgba(0,212,255,0.06); color:var(--blue);
+          font-size:0.72rem; font-family:'Share Tech Mono',monospace;
+          letter-spacing:0.15em; white-space:nowrap; transition:all .25s;
+        }
+        .ticker-pill:hover { border-color:var(--blue); background:rgba(0,212,255,0.12); }
+
+        /* ── Pioneer section image ────────────────── */
+        .pioneer-img-wrap::after {
+          content:''; position:absolute; inset:0; border-radius:inherit;
+          box-shadow:inset 0 0 40px rgba(0,212,255,0.06);
+          pointer-events:none;
+        }
+
+        /* ── Mobile ───────────────────────────────── */
+        @media (max-width:480px) { .hero-h1-size { font-size:clamp(2.5rem,11vw,3.8rem)!important; } }
       `}</style>
 
-      <WaterSpaceCanvas />
+      <GalaxyCanvas />
       {deptModal && <DeptModal dept={deptModal} onClose={() => setDeptModal(null)} />}
 
-      {/* ════ HERO ════ */}
+      {/* ══════ HERO ══════════════════════════════════════════ */}
       <section className="relative min-h-screen flex flex-col justify-center overflow-hidden">
-        <div className="absolute inset-0 pointer-events-none z-[1]" style={{
-          backgroundImage: "linear-gradient(rgba(0,212,255,0.018) 1px,transparent 1px),linear-gradient(90deg,rgba(0,212,255,0.018) 1px,transparent 1px)",
-          backgroundSize: "72px 72px",
-        }} />
-        <AtomCanvas />
+        {/* Grid overlay */}
+        <div className="absolute inset-0 pointer-events-none z-[1]" style={{ backgroundImage: "linear-gradient(rgba(0,212,255,0.015) 1px,transparent 1px),linear-gradient(90deg,rgba(0,212,255,0.015) 1px,transparent 1px)", backgroundSize: "72px 72px" }} />
+
+        {/* Atom — top-left, subtle */}
+        <div className="absolute z-[1] opacity-25" style={{ top: "8%", left: "-20px", pointerEvents: "none" }}>
+          <AtomCanvas3D size={260} />
+        </div>
+
         <div className="relative z-[2] max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-28 pb-16 w-full">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-16 items-center">
+
             {/* LEFT */}
-            <div className="flex flex-col gap-6">
-              <div className="hero-badge-anim flex">
+            <div className="flex flex-col gap-5">
+              <div className="hero-badge flex">
                 <span className="ticker-pill">
                   <span className="relative flex h-2 w-2">
                     <span className="animate-ping absolute h-full w-full rounded-full bg-cyan-400 opacity-60" />
@@ -584,214 +1139,155 @@ export default function HomePage() {
                   SINCE 1955 · DHAKA, BANGLADESH
                 </span>
               </div>
-              <div className="overflow-hidden">
+
+              <div className="flex flex-col gap-0.5">
                 {[
-                  { text: "Join the", color: "var(--white)", delay: "0.15s", outline: false },
-                  { text: "Community", color: "var(--blue)", delay: "0.28s", outline: false },
-                  { text: "of Science", color: "var(--white)", delay: "0.41s", outline: false },
-                  { text: "Enthusiasts", color: "var(--white)", delay: "0.54s", outline: true },
+                  { text: "Join the",      color: "var(--white)",       cls: "hero-h1-l1", outline: false },
+                  { text: "Community",     color: "var(--blue)",        cls: "hero-h1-l2", outline: false },
+                  { text: "of Science",    color: "var(--white)",       cls: "hero-h1-l3", outline: false },
+                  { text: "Enthusiasts",   color: "transparent",        cls: "hero-h1-l4", outline: true  },
                 ].map((line, i) => (
                   <div key={i} className="overflow-hidden">
-                    <h1 className="hero-word-anim hero-h1-size font-black block"
+                    <h1
+                      className={`${line.cls} font-black block hero-h1-size`}
                       style={{
-                        fontSize: "clamp(2.6rem,5.8vw,5.2rem)",
-                        fontFamily: "'Montserrat','Orbitron',sans-serif",
-                        lineHeight: 1.0, letterSpacing: "-0.02em",
-                        animationDelay: line.delay,
+                        fontSize: "clamp(2.6rem,5.6vw,5rem)",
+                        fontFamily: "'Poppins',sans-serif",
+                        fontWeight: 800,
+                        lineHeight: 1.02,
+                        letterSpacing: "-0.025em",
                         color: line.outline ? "transparent" : line.color,
                         WebkitTextStroke: line.outline ? "1.5px var(--blue)" : undefined,
                         filter: line.color === "var(--blue)" ? "drop-shadow(0 0 20px rgba(0,212,255,0.5))" : undefined,
-                      }}>
-                      {line.text}
-                    </h1>
+                      }}
+                    >{line.text}</h1>
                   </div>
                 ))}
               </div>
-              <div className="hero-desc-anim flex items-center gap-4">
-                <div style={{ height: 1, width: 40, background: "linear-gradient(to right, var(--blue), transparent)" }} />
-                <span style={{ fontFamily: "var(--font-mono)", fontSize: "0.68rem", letterSpacing: "0.28em", color: "var(--muted)", textTransform: "uppercase" }}>
+
+              <div className="hero-sub flex items-center gap-4">
+                <div style={{ height: 1, width: 36, background: "linear-gradient(to right, var(--blue), transparent)" }} />
+                <span style={{ fontFamily: "'Share Tech Mono',monospace", fontSize: "0.67rem", letterSpacing: "0.3em", color: "var(--muted)", textTransform: "uppercase" }}>
                   Science in Human Welfare
                 </span>
               </div>
-              <p className="hero-desc-anim text-sm sm:text-base leading-relaxed" style={{ color: "var(--muted)", maxWidth: 420, animationDelay: "0.7s" }}>
-                The <span style={{ color: "var(--white)", fontWeight: 600 }}>first college-level science club</span> in the
-                Indian Subcontinent — shaping scientists, innovators &amp; leaders for{" "}
+
+              <p className="hero-desc text-sm sm:text-base leading-relaxed" style={{ color: "var(--muted)", maxWidth: 420, fontFamily: "'Poppins',sans-serif" }}>
+                The <span style={{ color: "var(--white)", fontWeight: 600 }}>first college-level science club</span> in the Indian Subcontinent — shaping scientists, innovators &amp; leaders for{" "}
                 <span style={{ color: "var(--blue)", fontWeight: 700 }}>70 years</span>.
               </p>
-              <div className="hero-btn-anim flex flex-wrap gap-4">
-                <Link href="/activities"
-                  className="btn-primary group flex items-center gap-3 px-7 py-3.5 font-black text-sm tracking-widest rounded-2xl"
-                  style={{ fontFamily: "'Orbitron',sans-serif" }}>
+
+              <div className="hero-btns flex flex-wrap gap-4">
+                <Link href="/activities" className="btn-primary group flex items-center gap-3 px-7 py-3.5 text-sm tracking-widest rounded-2xl" style={{ fontFamily: "'Poppins',sans-serif" }}>
                   View Activities <ChevronRight size={15} className="group-hover:translate-x-1 transition-transform" />
                 </Link>
-                <Link href="/login"
-                  className="btn-outline flex items-center gap-3 px-7 py-3.5 font-black text-sm tracking-widest rounded-2xl"
-                  style={{ fontFamily: "'Orbitron',sans-serif" }}>
+                <Link href="/login" className="btn-outline flex items-center gap-3 px-7 py-3.5 text-sm tracking-widest rounded-2xl" style={{ fontFamily: "'Poppins',sans-serif" }}>
                   Join Us
                 </Link>
               </div>
+
               <HeroTicker />
             </div>
 
-            {/* RIGHT: 3D LOGO */}
-            <div className="hero-logo-anim flex justify-center lg:justify-end">
-              <div className="logo-float-anim relative flex items-center justify-center" style={{ width: 380, height: 380 }}>
-                {/* Outer ring */}
-                <div className="absolute rounded-full" style={{ width: 380, height: 380, border: "1px dashed rgba(0,212,255,0.14)", animation: "spinSlow 70s linear infinite" }}>
-                  {[0, 72, 144, 216, 288].map((deg, i) => (
-                    <div key={i} style={{ position: "absolute", top: "50%", left: "50%", width: i % 2 === 0 ? 7 : 4, height: i % 2 === 0 ? 7 : 4, borderRadius: "50%", background: i % 2 === 0 ? "var(--blue)" : "rgba(0,212,255,0.35)", boxShadow: i % 2 === 0 ? "0 0 10px var(--blue)" : "none", transform: `rotate(${deg}deg) translateX(189px) translateY(-50%)` }} />
-                  ))}
-                </div>
-                {/* Mid ring */}
-                <div className="absolute rounded-full" style={{ width: 296, height: 296, top: "50%", left: "50%", border: "1px solid rgba(0,212,255,0.2)", animation: "spinSlow 40s linear infinite reverse" }}>
-                  {[45, 165, 285].map((deg, i) => (
-                    <div key={i} style={{ position: "absolute", top: "50%", left: "50%", width: 5, height: 5, borderRadius: "50%", background: "rgba(0,212,255,0.6)", transform: `rotate(${deg}deg) translateX(147px) translateY(-50%)` }} />
-                  ))}
-                </div>
-                {/* Core */}
-                <div className="absolute rounded-full overflow-hidden flex items-center justify-center" style={{ width: 216, height: 216, top: "50%", left: "50%", transform: "translate(-50%,-50%)", background: "radial-gradient(circle at 38% 32%, rgba(0,50,90,0.9), rgba(0,4,12,0.97))", animation: "borderCycle 3.5s ease infinite", border: "2px solid rgba(0,212,255,0.4)" }}>
-                  <div className="absolute left-0 right-0" style={{ height: 2, top: 0, background: "linear-gradient(90deg,transparent,rgba(0,212,255,0.5),transparent)", animation: "scanV 3s linear infinite" }} />
-                  <Image src="/images/logo-2.0.png" alt="NDSC" width={168} height={168} className="object-contain relative z-10"
-                    style={{ filter: "drop-shadow(0 0 22px rgba(0,212,255,0.65))", animation: "spinSlow 28s linear infinite" }} priority />
-                </div>
-                {/* Arc text */}
-                <svg className="absolute inset-0 w-full h-full pointer-events-none" viewBox="0 0 380 380">
-                  <defs><path id="arcHero" d="M 50,190 A 140,140 0 1,1 330,190" /></defs>
-                  <text fontSize="9" letterSpacing="5" fill="rgba(0,212,255,0.28)" fontFamily="'Share Tech Mono',monospace" textAnchor="middle">
-                    <textPath href="#arcHero" startOffset="50%">SCIENCE IN HUMAN WELFARE • 1955–2025 •</textPath>
-                  </text>
-                </svg>
-                {/* 70yr badge */}
-                <div className="absolute rounded-full flex items-center justify-center" style={{ width: 68, height: 68, bottom: 24, right: 16, background: "rgba(2,8,16,0.96)", border: "2px solid var(--blue)", boxShadow: "0 0 24px rgba(0,212,255,0.45)", animation: "pulse 2.5s ease infinite" }}>
-                  <div className="text-center leading-none">
-                    <p className="font-black" style={{ fontFamily: "'Orbitron',sans-serif", color: "var(--blue)", fontSize: 20 }}>70</p>
-                    <p style={{ fontSize: 7, letterSpacing: "0.2em", color: "var(--muted)", textTransform: "uppercase" }}>YRS</p>
-                  </div>
-                </div>
-              </div>
+            {/* RIGHT — logo orbit */}
+            <div className="hero-logo flex justify-center lg:justify-end">
+              <LogoOrbit />
             </div>
           </div>
         </div>
-        {/* Scroll hint */}
+
+        {/* Scroll indicator */}
         <div className="absolute bottom-8 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2 z-[2]">
-          <span style={{ fontFamily: "var(--font-mono)", fontSize: "0.58rem", letterSpacing: "0.45em", color: "rgba(0,212,255,0.4)", textTransform: "uppercase" }}>SCROLL</span>
+          <span style={{ fontFamily: "'Share Tech Mono',monospace", fontSize: "0.56rem", letterSpacing: "0.45em", color: "rgba(0,212,255,0.4)", textTransform: "uppercase" }}>SCROLL</span>
           <div style={{ width: 1, height: 40, position: "relative", background: "rgba(0,212,255,0.12)", overflow: "hidden" }}>
             <div style={{ position: "absolute", width: "100%", height: "45%", background: "linear-gradient(to bottom,transparent,var(--blue))", animation: "scanV 1.8s ease infinite" }} />
           </div>
         </div>
       </section>
 
-      {/* ════ MARQUEE ════ */}
+      {/* ══════ MARQUEE ══════════════════════════════════════ */}
       <div className="w-full overflow-hidden py-3.5 relative z-10" style={{ background: "var(--blue)" }}>
         <div className="marquee-track">
-          {Array(16).fill("✦ LEGACY OF 70 YEARS").map((txt, i) => (
-            <span key={i} className="mx-8 font-black text-sm tracking-[.3em] whitespace-nowrap text-black" style={{ fontFamily: "'Orbitron',sans-serif" }}>{txt}</span>
+          {Array(18).fill("✦ LEGACY OF 70 YEARS").map((txt, i) => (
+            <span key={i} className="mx-8 font-bold text-sm tracking-[.28em] whitespace-nowrap text-black" style={{ fontFamily: "'Poppins',sans-serif" }}>{txt}</span>
           ))}
         </div>
       </div>
 
-      {/* ════ STATS ════ */}
+      {/* ══════ STATS ════════════════════════════════════════ */}
       <section className="relative z-10 py-16" style={{ background: "var(--bg)" }}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 sm:gap-6">
             {STATS.map((s, i) => (
-              <div key={s.label} className="reveal stat-card text-center p-5 sm:p-8 rounded-2xl border cursor-default"
-                style={{ borderColor: "var(--border)", background: "var(--card)", animationDelay: `${i * 0.1}s` }}>
-                <p className="text-3xl sm:text-5xl font-black mb-2" style={{ fontFamily: "'Orbitron',sans-serif", color: "var(--blue)", filter: "drop-shadow(0 0 12px var(--glow))" }}>{s.num}</p>
-                <p className="text-xs tracking-wider uppercase" style={{ color: "var(--muted)" }}>{s.label}</p>
+              <div key={s.label} className="reveal stat-card text-center p-5 sm:p-8 rounded-2xl border cursor-default transition-all"
+                style={{ borderColor: "var(--border)", background: "var(--card)", animationDelay: `${i * 0.09}s` }}>
+                <LetterAnim text={s.num} tag="p" className="font-black mb-2" style={{ fontSize: "clamp(2rem,5vw,3.2rem)", fontFamily: "'Poppins',sans-serif", fontWeight: 800, color: "var(--blue)", filter: "drop-shadow(0 0 12px var(--glow))" }} delay={i * 0.12} />
+                <p className="text-xs tracking-wider uppercase" style={{ color: "var(--muted)", fontFamily: "'Share Tech Mono',monospace" }}>{s.label}</p>
               </div>
             ))}
           </div>
         </div>
       </section>
 
-      {/* ════ VOICE OF LEADERS ════ */}
-      <section className="relative z-10 py-16 sm:py-20" style={{ background: "var(--bg2)" }}>
-        <div className="max-w-5xl mx-auto px-4 sm:px-6">
-          <div className="text-center mb-12">
-            <div className="flex justify-center"><SectionLabel>Leadership</SectionLabel></div>
-            <h2 className="text-2xl sm:text-3xl font-black reveal" style={{ fontFamily: "'Orbitron',sans-serif" }}>
-              VOICE OF OUR <span style={{ color: "var(--blue)" }}>LEADERS</span>
-            </h2>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {QUOTES.map((q) => (
-              <div key={q.role} className="reveal rounded-2xl border p-6 sm:p-8 flex flex-col"
-                style={{ borderColor: "rgba(0,212,255,.2)", background: "rgba(0,212,255,.03)" }}>
-                <div className="flex flex-col items-center text-center mb-5">
-                  <div className="relative w-24 h-24 rounded-full overflow-hidden mb-3 shadow-xl" style={{ border: "3px solid var(--blue)" }}>
-                    <Image src={q.image} alt={q.name} fill className="object-cover" />
-                  </div>
-                  <h4 className="text-base font-black" style={{ fontFamily: "'Orbitron',sans-serif", color: "var(--white)" }}>{q.name}</h4>
-                  <p className="text-xs font-semibold mt-1" style={{ color: "var(--blue)" }}>{q.role}</p>
-                </div>
-                <div className="flex-1">
-                  <Quote size={22} className="mb-2" style={{ color: "var(--blue)", opacity: 0.35 }} />
-                  <p className="text-sm leading-relaxed italic line-clamp-4" style={{ color: "var(--muted)" }}>"{q.full}"</p>
-                </div>
-                <Link href={q.link} className="mt-4 text-xs font-black tracking-widest self-start" style={{ color: "var(--blue)", fontFamily: "'Orbitron',sans-serif" }}>
-                  READ MORE →
-                </Link>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
+      {/* ══════ PIONEER / ABOUT ══════════════════════════════ */}
+      <PioneerSection />
 
-      {/* ════ DEPARTMENTS ════ */}
+      {/* ══════ VOICE OF LEADERS ════════════════════════════ */}
+      <LeadersSection />
+
+      {/* ══════ DEPARTMENTS ═════════════════════════════════ */}
       <section className="relative z-10 py-20" style={{ background: "var(--bg)" }}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6">
-          <div className="text-center mb-12">
+          <div className="text-center mb-14">
             <div className="flex justify-center"><SectionLabel>Structure</SectionLabel></div>
-            <h2 className="text-3xl sm:text-4xl font-black reveal" style={{ fontFamily: "'Orbitron',sans-serif" }}>
-              OUR <span style={{ color: "var(--blue)" }}>DEPARTMENTS</span>
-            </h2>
-            <p className="text-sm mt-3 max-w-xl mx-auto reveal" style={{ color: "var(--muted)" }}>Click on a department to learn more.</p>
+            <LetterAnim text="Our Departments" tag="h2" className="font-black reveal" style={{ fontSize: "clamp(1.8rem,4vw,2.8rem)", fontFamily: "'Poppins',sans-serif", fontWeight: 800 }} />
+            <p className="text-sm mt-3 max-w-xl mx-auto reveal" style={{ color: "var(--muted)", fontFamily: "'Poppins',sans-serif" }}>Click on a department to learn more.</p>
           </div>
           <div className="grid grid-cols-2 md:grid-cols-3 gap-5 sm:gap-6">
             {DEPTS.map((d, i) => (
               <button key={d.name} onClick={() => setDeptModal(d)}
                 className="reveal dept-card group flex flex-col items-center gap-4 p-6 sm:p-8 rounded-3xl border"
-                style={{ borderColor: "var(--border)", background: "var(--card)", animationDelay: `${i * 0.08}s` }}
+                style={{ borderColor: "var(--border)", background: "var(--card)", animationDelay: `${i * 0.07}s` }}
                 onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = d.color; }}
                 onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = "var(--border)"; }}>
-                <div className="dept-icon relative w-20 h-20 sm:w-24 sm:h-24">
+                <div className="relative w-20 h-20 sm:w-24 sm:h-24 transition-transform group-hover:scale-110 duration-300">
                   <Image src={d.icon} alt={d.name} fill className="object-contain" style={{ filter: `drop-shadow(0 0 10px ${d.color})` }} />
                 </div>
-                <p className="text-base sm:text-lg font-black tracking-wider text-center"
-                  style={{ fontFamily: "'Orbitron',sans-serif", color: i % 2 === 0 ? "var(--blue)" : "#a78bfa" }}>{d.short}</p>
-                <p className="text-xs text-center line-clamp-2 px-2" style={{ color: "var(--muted)" }}>{d.desc}</p>
+                <p className="text-base sm:text-lg font-bold tracking-wide text-center" style={{ fontFamily: "'Poppins',sans-serif", color: d.color }}>{d.name}</p>
+                <p className="text-xs text-center line-clamp-2 px-2" style={{ color: "var(--muted)", fontFamily: "'Poppins',sans-serif" }}>{d.desc}</p>
               </button>
             ))}
           </div>
         </div>
       </section>
 
-      {/* ════ SCIENCE MEDIA ════ */}
+      {/* ══════ SCIENCE MEDIA ════════════════════════════════ */}
       <ScienceMediaSection />
 
-      {/* ════ ACTIVITIES CAROUSEL ════ */}
+      {/* ══════ ACTIVITIES CAROUSEL ══════════════════════════ */}
       <ActivitiesCarousel />
 
-      {/* ════ AUDRI CTA ════ */}
+      {/* ══════ AUDRI CTA ════════════════════════════════════ */}
       <AudriCTA />
 
-      {/* ════ FINAL CTA ════ */}
+      {/* ══════ FINAL CTA ════════════════════════════════════ */}
       <section className="relative z-10 py-20 sm:py-28 text-center overflow-hidden">
         <div className="absolute inset-0 pointer-events-none" style={{ background: "radial-gradient(ellipse 70% 55% at 50% 50%, rgba(0,212,255,0.05) 0%, transparent 70%)" }} />
+        {/* Atom decoration */}
+        <div className="absolute right-8 top-8 opacity-15 pointer-events-none hidden lg:block">
+          <AtomCanvas3D size={200} />
+        </div>
         <div className="max-w-3xl mx-auto px-4 sm:px-6 relative z-10">
           <div className="flex justify-center"><SectionLabel>Join Us</SectionLabel></div>
-          <h2 className="text-3xl sm:text-5xl font-black mb-5 reveal" style={{ fontFamily: "'Orbitron',sans-serif" }}>
-            BE PART OF THE <span style={{ color: "var(--blue)" }}>LEGACY</span>
-          </h2>
-          <p className="text-sm sm:text-base leading-relaxed mb-8 reveal" style={{ color: "var(--muted)" }}>
-            Join thousands of science enthusiasts, participate in olympiads, workshops, and events.
+          <LetterAnim text="Be Part of the Legacy" tag="h2" className="font-black mb-5 reveal" style={{ fontSize: "clamp(2rem,5vw,3.5rem)", fontFamily: "'Poppins',sans-serif", fontWeight: 800 }} />
+          <p className="text-sm sm:text-base leading-relaxed mb-8 reveal" style={{ color: "var(--muted)", fontFamily: "'Poppins',sans-serif" }}>
+            Join thousands of science enthusiasts. Participate in olympiads, workshops, and events.
           </p>
           <div className="flex flex-wrap gap-4 justify-center reveal">
-            <Link href="/register" className="btn-primary px-7 py-4 font-black text-sm tracking-widest rounded-xl" style={{ fontFamily: "'Orbitron',sans-serif" }}>
+            <Link href="/register" className="btn-primary px-7 py-4 text-sm tracking-widest rounded-xl" style={{ fontFamily: "'Poppins',sans-serif" }}>
               BECOME A MEMBER
             </Link>
-            <Link href="/olympiad" className="btn-outline flex items-center gap-2 px-7 py-4 font-black text-sm tracking-widest rounded-xl" style={{ fontFamily: "'Orbitron',sans-serif" }}>
+            <Link href="/olympiad" className="btn-outline flex items-center gap-2 px-7 py-4 text-sm tracking-widest rounded-xl" style={{ fontFamily: "'Poppins',sans-serif" }}>
               <Trophy size={15} /> TAKE OLYMPIAD
             </Link>
           </div>

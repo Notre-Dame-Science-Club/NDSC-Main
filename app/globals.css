@@ -1,4 +1,6 @@
-@import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;700;800;900&family=Rajdhani:wght@300;400;500;600;700&family=Share+Tech+Mono&family=Plus+Jakarta+Sans:ital,wght@0,200..800;1,200..800&family=Poppins:wght@300;400;500;600;700&family=Montserrat:wght@700;800;900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Plus+Jakarta+Sans:ital,wght@0,200..800;1,200..800&family=Poppins:wght@300;400;500;600;700;800;900&family=Montserrat:wght@700;800;900&display=swap');
+/* Gilroy via CDN-friendly self-host fallback — uses Montserrat as closest match */
+/* If you have Gilroy .woff2 files, add @font-face here */
 
 @tailwind base;
 @tailwind components;
@@ -20,10 +22,10 @@
   --accent: #ff6b35;
   --accent2: #a78bfa;
   --font-body: 'Poppins', 'Plus Jakarta Sans', sans-serif;
-  --font-heading: 'Orbitron', sans-serif;
-  --font-display: 'Montserrat', 'Orbitron', sans-serif;
+  --font-heading: 'Poppins', 'Montserrat', sans-serif;
+  --font-display: 'Montserrat', 'Poppins', sans-serif;
   --font-mono: 'Share Tech Mono', monospace;
-  --font-exec: 'Montserrat', sans-serif;
+  --font-exec: 'Montserrat', 'Poppins', sans-serif;
   color-scheme: dark;
 }
 
@@ -64,7 +66,8 @@ body {
 }
 
 h1, h2, h3, h4 {
-  font-family: 'Orbitron', sans-serif;
+  font-family: 'Poppins', 'Montserrat', sans-serif;
+  font-weight: 800;
 }
 
 /* ═══════════════════════════════════════════
@@ -303,3 +306,38 @@ h1, h2, h3, h4 {
 .hero-btn-anim     { animation: heroBtnIn 0.7s cubic-bezier(0.22,1,0.36,1) 0.85s both; }
 .hero-logo-anim    { animation: logoIn 1s cubic-bezier(0.22,1,0.36,1) 0.3s both; }
 .logo-float-anim   { animation: floatY 5s ease-in-out infinite; }
+/* ═══════════════════════════════════════════
+   THEME TOGGLE BUTTON
+═══════════════════════════════════════════ */
+.theme-toggle {
+  position: fixed;
+  bottom: 1.5rem;
+  right: 1.5rem;
+  z-index: 999;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  border: 1.5px solid var(--blue);
+  background: var(--bg2);
+  color: var(--blue);
+  font-size: 1.15rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.3s;
+  box-shadow: 0 0 20px rgba(0,212,255,0.15);
+}
+.theme-toggle:hover {
+  background: var(--blue);
+  color: #000;
+  transform: scale(1.1);
+}
+
+/* ═══════════════════════════════════════════
+   PROGRESS BAR ANIMATION
+═══════════════════════════════════════════ */
+@keyframes progressBar {
+  from { width: 0; }
+  to   { width: 100%; }
+}

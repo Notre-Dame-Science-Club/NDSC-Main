@@ -273,7 +273,7 @@ export default function AboutPage() {
       </section>
 
       {/* ══ ABOUT NDSC ARTICLE ════════════════════════════════ */}
-      <section className="py-16 sm:py-20">
+      <section id="about-article" className="py-16 sm:py-20">
         <div className="max-w-4xl mx-auto px-4 sm:px-6">
           <div className="section-label mb-2">Who We Are</div>
           <h2 className="text-2xl sm:text-3xl font-black mb-8" style={{ fontFamily: "'Orbitron',sans-serif" }}>
@@ -424,7 +424,7 @@ export default function AboutPage() {
       </section>
 
       {/* ══ MODERATOR MESSAGE ════════════════════════════════════ */}
-      <section className="py-16 sm:py-20" style={{ background: "var(--bg2)" }}>
+      <section id="moderator" className="py-16 sm:py-20" style={{ background: "var(--bg2)" }}>
         <div className="max-w-4xl mx-auto px-4 sm:px-6">
           <div className="section-label mb-2">Faculty Guidance</div>
           <h2 className="text-2xl sm:text-3xl font-black mb-8" style={{ fontFamily: "'Orbitron',sans-serif" }}>
@@ -461,7 +461,7 @@ export default function AboutPage() {
       </section>
 
       {/* ══ GS MESSAGE ══════════════════════════════════════════ */}
-      <section className="py-16 sm:py-20">
+      <section id="gs" className="py-16 sm:py-20">
         <div className="max-w-4xl mx-auto px-4 sm:px-6">
           <div className="section-label mb-2">Leadership Message</div>
           <h2 className="text-2xl sm:text-3xl font-black mb-8" style={{ fontFamily: "'Orbitron',sans-serif" }}>

@@ -176,8 +176,12 @@ function DetailPopup({ exec, onClose }: { exec: Executive; onClose: () => void }
       onClick={onClose}
     >
       <div
-        className="relative w-full max-w-2xl rounded-2xl overflow-hidden"
         style={{
+          position: "relative",
+          width: "100%",
+          maxWidth: 760,
+          borderRadius: 18,
+          overflow: "hidden",
           background: "linear-gradient(135deg, #060f1e 0%, #0b1c33 100%)",
           border: "1px solid rgba(0,212,255,0.3)",
           boxShadow: "0 32px 100px rgba(0,0,0,0.85), 0 0 0 1px rgba(0,212,255,0.08), 0 0 60px rgba(0,212,255,0.06)",
@@ -197,59 +201,122 @@ function DetailPopup({ exec, onClose }: { exec: Executive; onClose: () => void }
 
         {/* Session badge */}
         {exec.session_year && (
-          <div className="absolute top-4 left-4 z-10 px-3 py-0.5 rounded-full text-xs font-bold"
-            style={{ background:"rgba(0,212,255,0.12)", color:"#00d4ff", border:"1px solid rgba(0,212,255,0.3)", fontFamily:"'Orbitron',sans-serif", letterSpacing:"0.05em" }}>
+          <div style={{
+            position:"absolute", top:16, left:16, zIndex:10,
+            padding:"3px 12px", borderRadius:20,
+            background:"rgba(0,212,255,0.12)", color:"#00d4ff",
+            border:"1px solid rgba(0,212,255,0.3)",
+            fontFamily:"'Orbitron',sans-serif", fontSize:11,
+            letterSpacing:"0.06em", fontWeight:700,
+          }}>
             {exec.session_year}
           </div>
         )}
 
-        <div className="flex flex-col sm:flex-row">
+        {/* NDSC logo blurred bg watermark */}
+        <div style={{
+          position:"absolute", inset:0, zIndex:1,
+          display:"flex", alignItems:"center", justifyContent:"flex-end",
+          paddingRight:"2rem", overflow:"hidden", pointerEvents:"none",
+        }}>
+          <img
+            src="/images/ndsc-logo.png"
+            alt=""
+            style={{
+              width: 260, height: 260,
+              objectFit: "contain",
+              opacity: 0.055,
+              filter: "blur(3px)",
+              transform: "rotate(-12deg)",
+              userSelect: "none",
+            }}
+            onError={e => { (e.currentTarget as HTMLImageElement).style.display = "none"; }}
+          />
+        </div>
+
+        <div className="exec-popup-inner" style={{ display:"flex", flexDirection:"row", position:"relative", zIndex:2, flexWrap:"wrap" }}>
           {/* Photo */}
-          <div className="sm:w-56 flex-shrink-0 relative" style={{ minHeight: 240 }}>
+          <div className="exec-popup-photo" style={{ width:220, flexShrink:0, position:"relative", minHeight:280 }}>
             {exec.photo_url ? (
               <img src={exec.photo_url} alt={exec.full_name}
-                className="w-full h-full absolute inset-0"
-                style={{ objectFit:"cover", objectPosition:"top", minHeight:240 }} />
+                style={{
+                  position:"absolute", inset:0, width:"100%", height:"100%",
+                  objectFit:"cover", objectPosition:"top",
+                }} />
             ) : (
-              <div className="w-full h-full flex items-center justify-center absolute inset-0"
-                style={{ background:"linear-gradient(135deg,#0a1a30,#0f2a4a)", minHeight:240 }}>
-                <span style={{ fontSize:56, color:"rgba(0,212,255,0.15)" }}>👤</span>
+              <div style={{
+                position:"absolute", inset:0,
+                background:"linear-gradient(135deg,#0a1a30,#0f2a4a)",
+                display:"flex", alignItems:"center", justifyContent:"center",
+              }}>
+                <span style={{ fontSize:60, color:"rgba(0,212,255,0.15)" }}>👤</span>
               </div>
             )}
-            <div style={{ position:"absolute", top:0, right:0, bottom:0, width:40,
-              background:"linear-gradient(270deg, #060f1e, transparent)" }} />
+            {/* fade right edge */}
+            <div style={{ position:"absolute", top:0, right:0, bottom:0, width:48,
+              background:"linear-gradient(270deg,#060f1e,transparent)" }} />
           </div>
 
           {/* Info */}
-          <div className="flex-1 p-7 flex flex-col justify-center gap-1">
-            <h2 style={{ fontFamily:"'Gilroy','Poppins',sans-serif", fontWeight:800,
-              fontSize:"clamp(1.35rem,3.5vw,1.9rem)", color:"#ffffff",
-              lineHeight:1.1, letterSpacing:"0.01em" }}>
+          <div className="exec-popup-info" style={{
+            flex:1, padding:"2rem 2rem 2rem 1.5rem",
+            display:"flex", flexDirection:"column", justifyContent:"center", gap:6,
+          }}>
+            <h2 style={{
+              fontFamily:"'Gilroy','Montserrat','Poppins',sans-serif",
+              fontWeight:800,
+              fontSize:"clamp(1.5rem,3.5vw,2.1rem)",
+              color:"#ffffff", lineHeight:1.1, letterSpacing:"0.01em",
+            }}>
               {exec.full_name}
             </h2>
-            <p style={{ fontFamily:"'Poppins',sans-serif", fontWeight:700, fontSize:"1rem",
-              color:"#00d4ff", letterSpacing:"0.01em" }}>
+            <p style={{
+              fontFamily:"'Poppins',sans-serif", fontWeight:700,
+              fontSize:"clamp(1rem,2.5vw,1.2rem)", color:"#00d4ff",
+              letterSpacing:"0.01em",
+            }}>
               {exec.position}
             </p>
             {exec.dept && (
-              <p style={{ fontFamily:"'Poppins',sans-serif", fontSize:"0.82rem",
-                color:"rgba(150,190,220,0.65)" }}>
+              <p style={{ fontFamily:"'Poppins',sans-serif", fontSize:"0.88rem",
+                color:"rgba(150,190,220,0.6)", marginBottom:4 }}>
                 {exec.dept}
               </p>
             )}
 
+            {/* Role description placeholder */}
+            <p style={{
+              fontFamily:"'Poppins',sans-serif", fontSize:"0.82rem",
+              color:"rgba(140,180,210,0.45)", lineHeight:1.55,
+              borderTop:"1px solid rgba(0,212,255,0.08)", paddingTop:10,
+              marginTop:2,
+            }}>
+              {/* Add a `description` field to executives table to show here */}
+              {(exec as any).description || ""}
+            </p>
+
             {socials.length > 0 && (
-              <div className="mt-4">
-                <p className="text-xs mb-2 uppercase tracking-widest"
-                  style={{ color:"rgba(90,130,160,0.6)", fontFamily:"'Orbitron',sans-serif" }}>
+              <div style={{ marginTop:8 }}>
+                <p style={{
+                  fontFamily:"'Orbitron',sans-serif", fontSize:10,
+                  color:"rgba(90,130,160,0.55)", letterSpacing:"0.08em",
+                  textTransform:"uppercase", marginBottom:8,
+                }}>
                   Connect
                 </p>
-                <div className="flex flex-wrap gap-2">
+                <div style={{ display:"flex", flexWrap:"wrap", gap:8 }}>
                   {socials.map((s, i) => (
                     <a key={i} href={s.href} target="_blank" rel="noopener noreferrer"
                       title={s.label}
-                      className="w-9 h-9 rounded-full flex items-center justify-center hover:scale-110 transition-transform"
-                      style={{ background:"rgba(255,255,255,0.06)", border:"1px solid rgba(255,255,255,0.11)", color:s.color }}>
+                      style={{
+                        width:36, height:36, borderRadius:"50%",
+                        display:"flex", alignItems:"center", justifyContent:"center",
+                        background:"rgba(255,255,255,0.06)",
+                        border:"1px solid rgba(255,255,255,0.11)",
+                        color:s.color, transition:"transform 0.2s, background 0.2s",
+                      }}
+                      onMouseEnter={e => { e.currentTarget.style.transform="scale(1.15)"; e.currentTarget.style.background=`${s.color}22`; }}
+                      onMouseLeave={e => { e.currentTarget.style.transform="scale(1)"; e.currentTarget.style.background="rgba(255,255,255,0.06)"; }}>
                       {s.icon}
                     </a>
                   ))}
@@ -287,21 +354,21 @@ function ECCard({ exec, onClick }: { exec: Executive; onClick: () => void }) {
       style={{
         position: "relative",
         width: "100%",
-        aspectRatio: "3 / 4.5",
+        aspectRatio: "3 / 3.15",
         borderRadius: 18,
         overflow: "hidden",
         cursor: "pointer",
         background: "#060f1e",
         border: `1px solid ${hov ? "rgba(0,212,255,0.55)" : "rgba(0,212,255,0.13)"}`,
         boxShadow: hov
-          ? "0 22px 60px rgba(0,0,0,0.65), 0 0 0 1px rgba(0,212,255,0.18), 0 0 30px rgba(0,212,255,0.1)"
+          ? "0 28px 70px rgba(0,0,0,0.7), 0 0 0 2px rgba(0,212,255,0.45), 0 0 50px rgba(0,212,255,0.22), 0 0 90px rgba(0,212,255,0.1)"
           : "0 8px 28px rgba(0,0,0,0.55)",
-        transform: hov ? "translateY(-5px) scale(1.012)" : "none",
+        transform: hov ? "translateY(-7px) scale(1.035)" : "none",
         transition: "all 0.32s cubic-bezier(.4,0,.2,1)",
       }}
     >
-      {/* ── PHOTO SECTION — top 75% ── */}
-      <div style={{ position:"absolute", top:0, left:0, right:0, bottom:"25%", overflow:"hidden" }}>
+      {/* ── PHOTO SECTION — top 72% ── */}
+      <div style={{ position:"absolute", top:0, left:0, right:0, bottom:"28%", overflow:"hidden" }}>
         {exec.photo_url ? (
           <img
             src={exec.photo_url}
@@ -332,99 +399,127 @@ function ECCard({ exec, onClick }: { exec: Executive; onClick: () => void }) {
         }} />
       </div>
 
-      {/* ── INFO SECTION — bottom 25% — solid dark bg ── */}
+      {/* ── INFO SECTION — bottom 28% — solid dark bg ── */}
       <div style={{
         position: "absolute",
         bottom: 0, left: 0, right: 0,
-        height: "25%",
+        height: "28%",
         background: "linear-gradient(180deg, #060f1e 0%, #040c18 100%)",
-        borderTop: `1px solid ${hov ? "rgba(0,212,255,0.2)" : "rgba(0,212,255,0.06)"}`,
+        borderTop: `1px solid ${hov ? "rgba(0,212,255,0.25)" : "rgba(0,212,255,0.07)"}`,
         display: "flex",
         flexDirection: "column",
         alignItems: "center",
-        justifyContent: "flex-start",
-        padding: "0.45rem 0.5rem 0.4rem",
-        gap: 0,
+        justifyContent: "center",
+        padding: "0.3rem 0.4rem",
         transition: "border-color 0.3s",
+        overflow: "hidden",
       }}>
-        {/* Socials — appear on hover, above name */}
+
+        {/* SOCIALS — shown on hover, replaces name/post/dept */}
+        <div style={{
+          position: "absolute",
+          inset: 0,
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          justifyContent: "center",
+          gap: 6,
+          opacity: hov ? 1 : 0,
+          transform: hov ? "translateY(0)" : "translateY(8px)",
+          transition: "all 0.3s ease",
+          pointerEvents: hov ? "auto" : "none",
+          padding: "0.3rem",
+        }}>
+          <div style={{ display:"flex", flexWrap:"wrap", gap:5, justifyContent:"center" }}>
+            {socials.map((s, i) => (
+              <a key={i} href={s.href} target="_blank" rel="noopener noreferrer"
+                onClick={e => e.stopPropagation()}
+                style={{
+                  width: 26, height: 26, borderRadius: "50%",
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  background: "rgba(255,255,255,0.1)",
+                  border: "1px solid rgba(255,255,255,0.16)",
+                  color: s.color,
+                  transition: "transform 0.2s, background 0.2s",
+                  flexShrink: 0,
+                }}
+                onMouseEnter={e => { e.currentTarget.style.transform = "scale(1.2)"; e.currentTarget.style.background = `${s.color}22`; }}
+                onMouseLeave={e => { e.currentTarget.style.transform = "scale(1)"; e.currentTarget.style.background = "rgba(255,255,255,0.1)"; }}>
+                <span style={{ transform:"scale(0.85)", display:"flex" }}>{s.icon}</span>
+              </a>
+            ))}
+          </div>
+        </div>
+
+        {/* NAME + POST + DEPT group — hidden on hover */}
         <div style={{
           display: "flex",
-          gap: 5,
-          marginBottom: hov ? "0.3rem" : 0,
-          opacity: hov ? 1 : 0,
-          transform: hov ? "translateY(0)" : "translateY(5px)",
-          transition: "all 0.28s ease",
-          height: hov ? "auto" : 0,
-          overflow: "hidden",
-          flexWrap: "wrap",
+          flexDirection: "column",
+          alignItems: "center",
           justifyContent: "center",
+          width: "100%",
+          opacity: hov ? 0 : 1,
+          transform: hov ? "translateY(-6px)" : "translateY(0)",
+          transition: "all 0.3s ease",
+          pointerEvents: hov ? "none" : "auto",
+          gap: 1,
         }}>
-          {socials.slice(0, 5).map((s, i) => (
-            <a key={i} href={s.href} target="_blank" rel="noopener noreferrer"
-              onClick={e => e.stopPropagation()}
-              style={{
-                width: 24, height: 24, borderRadius: "50%",
-                display: "flex", alignItems: "center", justifyContent: "center",
-                background: "rgba(255,255,255,0.09)",
-                border: "1px solid rgba(255,255,255,0.14)",
-                color: s.color,
-                transition: "transform 0.2s",
-              }}
-              onMouseEnter={e => (e.currentTarget.style.transform = "scale(1.18)")}
-              onMouseLeave={e => (e.currentTarget.style.transform = "scale(1)")}>
-              <span style={{ transform:"scale(0.82)", display:"flex" }}>{s.icon}</span>
-            </a>
-          ))}
-        </div>
+          {/* Name */}
+          <div className="exec-card-name" style={{
+            width: "83%",
+            textAlign: "center",
+            fontFamily: "'Gilroy','Montserrat','Poppins',sans-serif",
+            fontWeight: 800,
+            fontSize: "clamp(1.1rem, 2.8vw, 1.6rem)",
+            color: "#ffffff",
+            lineHeight: 1.2,
+            letterSpacing: "0.01em",
+            wordBreak: "break-word",
+            overflowWrap: "break-word",
+            maxWidth: "95%",
+            whiteSpace: "normal",
+          }}>
+            {exec.full_name}
+          </div>
 
-        {/* Name — Gilroy, large, 83% width, top-aligned across all cards */}
-        <div style={{
-          width: "83%",
-          textAlign: "center",
-          fontFamily: "'Gilroy','Montserrat','Poppins',sans-serif",
-          fontWeight: 800,
-          fontSize: "clamp(0.82rem, 2.2vw, 1.05rem)",
-          color: "#ffffff",
-          lineHeight: 1.2,
-          letterSpacing: "0.01em",
-          marginBottom: "0.2rem",
-          /* Top-align: all names share same top position */
-          alignSelf: "center",
-        }}>
-          {exec.full_name}
-        </div>
-
-        {/* Position */}
-        <div style={{
-          width: "92%",
-          textAlign: "center",
-          fontFamily: "'Poppins',sans-serif",
-          fontWeight: 700,
-          fontSize: "clamp(0.64rem, 1.7vw, 0.8rem)",
-          color: "#00d4ff",
-          lineHeight: 1.2,
-          letterSpacing: "0.01em",
-          textShadow: "0 0 10px rgba(0,212,255,0.35)",
-          marginBottom: exec.dept ? "0.12rem" : 0,
-        }}>
-          {exec.position}
-        </div>
-
-        {/* Dept */}
-        {exec.dept && (
-          <div style={{
-            width: "92%",
+          {/* Position — 93% of name size */}
+          <div className="exec-card-pos" style={{
+            width: "95%",
             textAlign: "center",
             fontFamily: "'Poppins',sans-serif",
-            fontWeight: 400,
-            fontSize: "clamp(0.54rem, 1.4vw, 0.66rem)",
-            color: "rgba(130,175,210,0.6)",
+            fontWeight: 700,
+            fontSize: "clamp(0.98rem, 2.5vw, 1.49rem)",
+            color: "#00d4ff",
             lineHeight: 1.2,
+            letterSpacing: "0.01em",
+            textShadow: "0 0 10px rgba(0,212,255,0.35)",
+            wordBreak: "break-word",
+            overflowWrap: "break-word",
+            maxWidth: "95%",
+            whiteSpace: "normal",
           }}>
-            {exec.dept}
+            {exec.position}
           </div>
-        )}
+
+          {/* Dept — 92% of position size, forced single line with ellipsis */}
+          {exec.dept && (
+            <div className="exec-card-dept" style={{
+              width: "95%",
+              textAlign: "center",
+              fontFamily: "'Poppins',sans-serif",
+              fontWeight: 400,
+              fontSize: "clamp(0.82rem, 2vw, 1.37rem)",
+              color: "rgba(130,175,210,0.6)",
+              lineHeight: 1.2,
+              whiteSpace: "nowrap",
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              maxWidth: "95%",
+            }}>
+              {exec.dept}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
@@ -442,17 +537,26 @@ function SessionSelector({
   selected,
   onSelect,
 }: { years: string[]; selected: string; onSelect: (y: string) => void }) {
-  // years is sorted desc: [newest, ..., oldest]
+  // years sorted desc: index 0 = newest
   const [windowStart, setWindowStart] = useState(0);
   const WINDOW = 4;
-
   const totalYears = years.length;
-  const canGoNewer = windowStart > 0;                         // left arrow → newer (lower idx)
-  const canGoOlder = windowStart + WINDOW < totalYears;       // right arrow → older (higher idx)
 
+  // touch / trackpad state
+  const touchStartX = useRef(0);
+  const touchLastX  = useRef(0);
+  const wheelAcc    = useRef(0);
+  const wheelTimer  = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const canGoNewer = windowStart > 0;
+  const canGoOlder = windowStart + WINDOW < totalYears;
   const visibleYears = years.slice(windowStart, windowStart + WINDOW);
 
-  // When selected changes, ensure it's in view
+  const shiftWindow = (dir: "newer" | "older") => {
+    if (dir === "newer" && canGoNewer) setWindowStart(w => Math.max(0, w - 1));
+    if (dir === "older" && canGoOlder) setWindowStart(w => Math.min(totalYears - WINDOW, w + 1));
+  };
+
   useEffect(() => {
     const idx = years.indexOf(selected);
     if (idx < windowStart) setWindowStart(idx);
@@ -461,42 +565,79 @@ function SessionSelector({
 
   if (years.length === 0) return null;
 
-  const ArrowBtn = ({
-    direction, disabled, onClick,
-  }: { direction: "left"|"right"; disabled: boolean; onClick: () => void }) => (
-    <button
-      onClick={onClick}
-      disabled={disabled}
-      style={{
-        width: 40, height: 40,
-        borderRadius: "50%",
-        border: `1px solid ${disabled ? "rgba(255,255,255,0.07)" : "rgba(0,212,255,0.4)"}`,
-        background: disabled ? "rgba(255,255,255,0.02)" : "rgba(0,212,255,0.08)",
-        color: disabled ? "rgba(255,255,255,0.18)" : "#00d4ff",
-        cursor: disabled ? "not-allowed" : "pointer",
-        display: "flex", alignItems: "center", justifyContent: "center",
-        fontSize: 18, flexShrink: 0,
-        transition: "all 0.2s",
-      }}
-      onMouseEnter={e => { if (!disabled) (e.currentTarget as HTMLButtonElement).style.background = "rgba(0,212,255,0.18)"; }}
-      onMouseLeave={e => { if (!disabled) (e.currentTarget as HTMLButtonElement).style.background = "rgba(0,212,255,0.08)"; }}
-    >
-      {direction === "left" ? "←" : "→"}
-    </button>
-  );
+  /* ── touch handlers ── */
+  const onTouchStart = (e: React.TouchEvent) => {
+    touchStartX.current = e.touches[0].clientX;
+    touchLastX.current  = e.touches[0].clientX;
+  };
+  const onTouchMove = (e: React.TouchEvent) => {
+    touchLastX.current = e.touches[0].clientX;
+  };
+  const onTouchEnd = () => {
+    const delta = touchStartX.current - touchLastX.current;
+    if (Math.abs(delta) > 40) {
+      // swipe left (finger moves left) = go older; swipe right = go newer
+      if (delta > 0) shiftWindow("older");
+      else            shiftWindow("newer");
+    }
+  };
+
+  /* ── wheel / trackpad horizontal scroll ── */
+  const onWheel = (e: React.WheelEvent) => {
+    // horizontal trackpad OR Ctrl+wheel (pinch treated as zoom on some devices — skip)
+    const horizontal = Math.abs(e.deltaX) > Math.abs(e.deltaY);
+    if (!horizontal && !e.ctrlKey) return;
+    e.preventDefault();
+    const delta = e.ctrlKey ? e.deltaY : e.deltaX;
+    wheelAcc.current += delta;
+    if (wheelTimer.current) clearTimeout(wheelTimer.current);
+    wheelTimer.current = setTimeout(() => { wheelAcc.current = 0; }, 300);
+    if (Math.abs(wheelAcc.current) > 60) {
+      if (wheelAcc.current > 0) shiftWindow("older");
+      else                       shiftWindow("newer");
+      wheelAcc.current = 0;
+    }
+  };
+
+  const ArrowBtn = ({ dir }: { dir: "newer" | "older" }) => {
+    const disabled = dir === "newer" ? !canGoNewer : !canGoOlder;
+    return (
+      <button
+        onClick={() => shiftWindow(dir)}
+        disabled={disabled}
+        style={{
+          width: 40, height: 40, borderRadius: "50%",
+          border: `1px solid ${disabled ? "rgba(255,255,255,0.07)" : "rgba(0,212,255,0.4)"}`,
+          background: disabled ? "rgba(255,255,255,0.02)" : "rgba(0,212,255,0.08)",
+          color: disabled ? "rgba(255,255,255,0.18)" : "#00d4ff",
+          cursor: disabled ? "not-allowed" : "pointer",
+          display: "flex", alignItems: "center", justifyContent: "center",
+          fontSize: 18, flexShrink: 0, transition: "all 0.2s",
+        }}
+        onMouseEnter={e => { if (!disabled) (e.currentTarget as HTMLButtonElement).style.background = "rgba(0,212,255,0.2)"; }}
+        onMouseLeave={e => { if (!disabled) (e.currentTarget as HTMLButtonElement).style.background = "rgba(0,212,255,0.08)"; }}
+      >
+        {dir === "newer" ? "←" : "→"}
+      </button>
+    );
+  };
 
   return (
-    <div style={{ display:"flex", alignItems:"center", justifyContent:"center", gap:10, marginBottom:28 }}>
-      {/* Left = move window to newer sessions */}
-      <ArrowBtn direction="left" disabled={!canGoNewer} onClick={() => setWindowStart(w => Math.max(0, w - 1))} />
+    <div
+      style={{ display:"flex", alignItems:"center", justifyContent:"center", gap:10, marginBottom:28, userSelect:"none" }}
+      onTouchStart={onTouchStart}
+      onTouchMove={onTouchMove}
+      onTouchEnd={onTouchEnd}
+      onWheel={onWheel}
+    >
+      {/* ← newer */}
+      <ArrowBtn dir="newer" />
 
       <div style={{ display:"flex", gap:8 }}>
         {visibleYears.map(y => (
-          <button
-            key={y}
-            onClick={() => onSelect(y)}
+          <button key={y} onClick={() => onSelect(y)}
             style={{
-              padding: "8px 18px",
+              padding: "8px 16px",
               borderRadius: 12,
               border: `1px solid ${selected === y ? "rgba(0,212,255,0.65)" : "rgba(255,255,255,0.08)"}`,
               background: selected === y
@@ -504,22 +645,19 @@ function SessionSelector({
                 : "rgba(255,255,255,0.03)",
               color: selected === y ? "#00d4ff" : "rgba(160,195,215,0.5)",
               fontFamily: "'Poppins',sans-serif",
-              fontWeight: 700,
-              fontSize: 13,
-              cursor: "pointer",
+              fontWeight: 700, fontSize: 13, cursor: "pointer",
               boxShadow: selected === y ? "0 0 18px rgba(0,212,255,0.18)" : "none",
               transform: selected === y ? "scale(1.06)" : "scale(1)",
               transition: "all 0.22s ease",
               whiteSpace: "nowrap",
-            }}
-          >
+            }}>
             {y}
           </button>
         ))}
       </div>
 
-      {/* Right = move window to older sessions */}
-      <ArrowBtn direction="right" disabled={!canGoOlder} onClick={() => setWindowStart(w => Math.min(totalYears - WINDOW, w + 1))} />
+      {/* → older */}
+      <ArrowBtn dir="older" />
     </div>
   );
 }
@@ -608,7 +746,7 @@ function CrossSessionFilter({
             display:"block", marginBottom:5, textTransform:"uppercase", letterSpacing:"0.06em" }}>
             Position
           </label>
-          <select value={cf.position} onChange={e => sel("position", e.target.value)} style={sty}>
+          <select aria-label="Filter by position" value={cf.position} onChange={e => sel("position", e.target.value)} style={sty}>
             {allPositions.map(p => <option key={p} value={p} style={{ background:"#060f1e" }}>{p === "all" ? "All Positions" : p}</option>)}
           </select>
         </div>
@@ -617,7 +755,7 @@ function CrossSessionFilter({
             display:"block", marginBottom:5, textTransform:"uppercase", letterSpacing:"0.06em" }}>
             Department
           </label>
-          <select value={cf.dept} onChange={e => sel("dept", e.target.value)} style={sty}>
+          <select aria-label="Filter by department" value={cf.dept} onChange={e => sel("dept", e.target.value)} style={sty}>
             {allDepts.map(d => <option key={d} value={d} style={{ background:"#060f1e" }}>{d === "all" ? "All Depts" : d}</option>)}
           </select>
         </div>
@@ -626,7 +764,7 @@ function CrossSessionFilter({
             display:"block", marginBottom:5, textTransform:"uppercase", letterSpacing:"0.06em" }}>
             From Session
           </label>
-          <select value={cf.yearFrom} onChange={e => sel("yearFrom", e.target.value)} style={sty}>
+          <select aria-label="From session year" value={cf.yearFrom} onChange={e => sel("yearFrom", e.target.value)} style={sty}>
             <option value="all" style={{ background:"#060f1e" }}>All Time</option>
             {[...allYears].reverse().map(y => <option key={y} value={y} style={{ background:"#060f1e" }}>{y}</option>)}
           </select>
@@ -636,7 +774,7 @@ function CrossSessionFilter({
             display:"block", marginBottom:5, textTransform:"uppercase", letterSpacing:"0.06em" }}>
             To Session
           </label>
-          <select value={cf.yearTo} onChange={e => sel("yearTo", e.target.value)} style={sty}>
+          <select aria-label="To session year" value={cf.yearTo} onChange={e => sel("yearTo", e.target.value)} style={sty}>
             <option value="all" style={{ background:"#060f1e" }}>Present</option>
             {allYears.map(y => <option key={y} value={y} style={{ background:"#060f1e" }}>{y}</option>)}
           </select>
@@ -845,7 +983,7 @@ export default function ExecutivesPage() {
   );
 
   return (
-    <div style={{ minHeight:"100vh", paddingTop:72, background:"var(--bg)", position:"relative" }}>
+    <div className="exec-page-root" style={{ minHeight:"100vh", paddingTop:72, background:"var(--bg)", position:"relative" }}>
       {/* Fonts */}
       <link rel="preconnect" href="https://fonts.googleapis.com" />
       <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700;800;900&family=Montserrat:wght@700;800;900&family=Orbitron:wght@700;900&display=swap" rel="stylesheet" />
@@ -869,11 +1007,31 @@ export default function ExecutivesPage() {
             grid-template-columns: 1fr;
             gap: 1rem;
           }
+          /* Mobile: name 2× desktop base, post 1.2× */
+          .exec-card-name {
+            font-size: clamp(2rem, 7vw, 2.8rem) !important;
+          }
+          .exec-card-pos {
+            font-size: clamp(1.6rem, 5.5vw, 2.3rem) !important;
+          }
+          .exec-card-dept {
+            font-size: clamp(1.3rem, 4.5vw, 1.9rem) !important;
+          }
         }
         @media (min-width: 640px) and (max-width: 1023px) {
           .exec-grid {
             grid-template-columns: repeat(3, 1fr);
           }
+        }
+        /* Mobile navbar fix: ensure page doesn't overflow horizontally */
+        @media (max-width: 639px) {
+          body { overflow-x: hidden; }
+          .exec-page-root { padding-left: 0 !important; padding-right: 0 !important; }
+          .exec-page-inner { padding-left: 0.75rem !important; padding-right: 0.75rem !important; }
+          /* Popup on mobile: stack vertically */
+          .exec-popup-inner { flex-direction: column !important; }
+          .exec-popup-photo { width: 100% !important; min-height: 200px !important; }
+          .exec-popup-info  { padding: 1.2rem !important; }
         }
 
         @keyframes fadeUp {
@@ -943,7 +1101,7 @@ export default function ExecutivesPage() {
 
         {/* ══ COMMITTEE VIEW ══════════════════════════════════════ */}
         {activeView === "committee" && (
-          <div style={{ maxWidth:1200, margin:"0 auto", padding:"1.5rem 1.25rem 5rem" }}>
+          <div className="exec-page-inner" style={{ maxWidth:1200, margin:"0 auto", padding:"1.5rem 1.25rem 5rem" }}>
 
             {/* Session Selector */}
             {!loading && committeeYears.length > 0 && !crossResults && (
@@ -996,7 +1154,7 @@ export default function ExecutivesPage() {
 
                 {/* Dept Filter for current session */}
                 {deptList.length > 2 && (
-                  <select value={filterDept} onChange={e => setFilterDept(e.target.value)}
+                  <select aria-label="Filter by department" value={filterDept} onChange={e => setFilterDept(e.target.value)}
                     style={{
                       padding:"10px 14px", borderRadius:12,
                       background:"rgba(255,255,255,0.04)",

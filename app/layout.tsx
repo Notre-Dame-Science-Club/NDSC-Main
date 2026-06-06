@@ -4,21 +4,69 @@ import Navbar from "@/components/layout/Navbar";
 import Footer from "@/components/layout/Footer";
 
 export const metadata: Metadata = {
-  title: "Notre Dame Science Club (NDSC) | Official Website",
+  title: "Notre Dame Science Club (NDSC) | ndscbd.net — Official Website",
   description:
-    "Official website of Notre Dame Science Club (NDSC), founded in 1955. The first college-level science club in the Indian Subcontinent. Promoting science, olympiads, innovation, and scientific curiosity in Bangladesh.",
-  keywords:
-    "Notre Dame Science Club, NDSC, Notre Dame College, NDSC Bangladesh, Science Club Dhaka",
+    "Official website of Notre Dame Science Club (NDSC) — the pioneer science club of the Indian Subcontinent, founded in 1955 at Notre Dame College, Dhaka. Join Science Sunday, Elucidation Hour, workshops, sessions, national science festival, intra science festival, and more.",
+  keywords: [
+    "Notre Dame Science Club",
+    "NDSC",
+    "ndscbd",
+    "ndscbd.net",
+    "Notre Dame College",
+    "Notre Dame science club",
+    "Notre Dame College Science Club",
+    "notre dame college dhaka",
+    "science club bangladesh",
+    "science club dhaka",
+    "NDSC Bangladesh",
+    "Elucidation Hour",
+    "Science Sunday",
+    "ndsc workshops",
+    "ndsc sessions",
+    "Notre Dame Fest",
+    "Notre Dame Festival",
+    "Notre Dame Science Festival",
+    "National Science Technology Week",
+    "জাতীয় বিজ্ঞান ও প্রযুক্তি সপ্তাহ",
+    "Tech Intro",
+    "Intra Science Festival",
+    "NDSC olympiad",
+    "science olympiad bangladesh",
+    "pioneer science club indian subcontinent",
+    "notre dame math club",
+  ].join(", "),
+  metadataBase: new URL("https://ndscbd.net"),
+  alternates: { canonical: "https://ndscbd.net" },
   openGraph: {
     title: "Notre Dame Science Club (NDSC) | Official Website",
     description:
-      "Official website of Notre Dame Science Club (NDSC), promoting science, olympiads, innovation, and scientific curiosity in Bangladesh.",
+      "The first college-level science club of the Indian Subcontinent — promoting science, innovation, and curiosity since 1955. Science Sunday, Elucidation Hour, national festivals, workshops & more.",
     url: "https://ndscbd.net",
     siteName: "Notre Dame Science Club",
-    images: [{ url: "https://ndscbd.net/images/cropped-logo.png" }],
+    locale: "en_BD",
+    images: [
+      {
+        url: "https://ndscbd.net/images/cropped-logo.png",
+        width: 1200,
+        height: 630,
+        alt: "Notre Dame Science Club — ndscbd.net",
+      },
+    ],
     type: "website",
   },
-  robots: { index: true, follow: true },
+  twitter: {
+    card: "summary_large_image",
+    title: "Notre Dame Science Club (NDSC)",
+    description:
+      "Pioneer science club of the Indian Subcontinent since 1955 — ndscbd.net",
+    images: ["https://ndscbd.net/images/cropped-logo.png"],
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: { index: true, follow: true, "max-image-preview": "large" },
+  },
+  verification: {},
 };
 
 export default function RootLayout({
