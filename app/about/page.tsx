@@ -9,7 +9,7 @@ import Image from "next/image";
 const DEPTS = [
   {
     name: "Administration",
-    icon: "https://ndscbd.net/uploads/gallery/administration-icon.png",
+    icon: "https://ndscbd.net/uploads/gallery/admininstration-icon.png",
     color: "#00d4ff",
     bg: "rgba(0,212,255,0.08)",
     border: "rgba(0,212,255,0.3)",

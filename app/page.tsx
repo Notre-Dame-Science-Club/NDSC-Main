@@ -31,7 +31,7 @@ const STATS = [
 ];
 
 const DEPTS = [
-  { name: "Administration", icon: "https://ndscbd.net/uploads/gallery/administration-icon.png", color: "#00d4ff",  bg: "rgba(0,212,255,0.07)",  border: "rgba(0,212,255,0.28)",  desc: "Ensures smooth operation and management. Coordinates planning, logistics and execution of events." },
+  { name: "Administration", icon: "https://ndscbd.net/uploads/gallery/admininstration-icon.png", color: "#00d4ff",  bg: "rgba(0,212,255,0.07)",  border: "rgba(0,212,255,0.28)",  desc: "Ensures smooth operation and management. Coordinates planning, logistics and execution of events." },
   { name: "Project",        icon: "https://ndscbd.net/uploads/gallery/project-icon.png",        color: "#34d399",  bg: "rgba(52,211,153,0.07)", border: "rgba(52,211,153,0.28)", desc: "Conducts scientific research and innovation-based projects. Encourages experimentation." },
   { name: "Publication",    icon: "https://ndscbd.net/uploads/gallery/publication-icon.png",    color: "#a78bfa",  bg: "rgba(167,139,250,0.07)",border: "rgba(167,139,250,0.28)",desc: "Publishes wall magazines, AUDRI journal. Promotes scientific writing and creative expression." },
   { name: "ICT",            icon: "https://ndscbd.net/uploads/gallery/ict-icon.png",            color: "#f87171",  bg: "rgba(248,113,113,0.07)",border: "rgba(248,113,113,0.28)",desc: "Handles digital media, website management and emerging technology workshops." },
@@ -768,8 +768,8 @@ function LeadersSection() {
   const leaders = [
     {
       key: "moderator",
-      role: "Faculty Moderator",
-      name: "Rev. Fr. Bejoy Nicephorus Rodrigues, CSC",
+      role: "Moderator",
+      name: "Dr. Vincent Titas Rozario",
       img: "https://ndscbd.net/uploads/executives/1780621402_fdc8d88bf714.jpg",
     },
     {
