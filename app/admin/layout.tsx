@@ -22,6 +22,8 @@ export default async function AdminLayout({
     { href: '/admin/executives', label: 'Executives', icon: '👥' },
     { href: '/admin/announcements', label: 'Announcements', icon: '📢' },
     { href: '/admin/olympiads', label: 'Olympiads', icon: '🏆' },
+    { href: '/admin/science-media', label: 'Science Media', icon: '🎬' },
+    { href: '/admin/homepage-settings', label: 'Homepage Settings', icon: '⚙️' },
   ]
 
   // If no session, just render children (login page will show)
