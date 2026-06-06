@@ -31,12 +31,13 @@ const STATS = [
 ];
 
 const DEPTS = [
-  { name: "Administration", icon: "/images/admininstration-icon.png", color: "#00d4ff",  bg: "rgba(0,212,255,0.07)",  border: "rgba(0,212,255,0.28)",  desc: "Ensures smooth operation and management. Coordinates planning, logistics and execution of events." },
-  { name: "Project",        icon: "/images/project.png",              color: "#34d399",  bg: "rgba(52,211,153,0.07)", border: "rgba(52,211,153,0.28)", desc: "Conducts scientific research and innovation-based projects. Encourages experimentation." },
-  { name: "Publication",    icon: "/images/publication.png",          color: "#a78bfa",  bg: "rgba(167,139,250,0.07)",border: "rgba(167,139,250,0.28)",desc: "Publishes wall magazines, AUDRI journal. Promotes scientific writing and creative expression." },
-  { name: "ICT",            icon: "/images/ict.png",                  color: "#f87171",  bg: "rgba(248,113,113,0.07)",border: "rgba(248,113,113,0.28)",desc: "Handles digital media, website management and emerging technology workshops." },
-  { name: "LWS",            icon: "/images/lws.png",                  color: "#f59e0b",  bg: "rgba(245,158,11,0.07)", border: "rgba(245,158,11,0.28)", desc: "Life & Welfare Science — biology, environment and health oriented activities." },
-  { name: "Quiz",           icon: "/images/quiz.png",                 color: "#60a5fa",  bg: "rgba(96,165,250,0.07)", border: "rgba(96,165,250,0.28)", desc: "Hosts Q-League, BrainRain, Scienceophile. NDC Blue, NDC Green & NDC Gold quiz teams." },
+  { name: "Administration", icon: "https://ndscbd.net/uploads/gallery/administration-icon.png", color: "#00d4ff",  bg: "rgba(0,212,255,0.07)",  border: "rgba(0,212,255,0.28)",  desc: "Ensures smooth operation and management. Coordinates planning, logistics and execution of events." },
+  { name: "Project",        icon: "https://ndscbd.net/uploads/gallery/project-icon.png",        color: "#34d399",  bg: "rgba(52,211,153,0.07)", border: "rgba(52,211,153,0.28)", desc: "Conducts scientific research and innovation-based projects. Encourages experimentation." },
+  { name: "Publication",    icon: "https://ndscbd.net/uploads/gallery/publication-icon.png",    color: "#a78bfa",  bg: "rgba(167,139,250,0.07)",border: "rgba(167,139,250,0.28)",desc: "Publishes wall magazines, AUDRI journal. Promotes scientific writing and creative expression." },
+  { name: "ICT",            icon: "https://ndscbd.net/uploads/gallery/ict-icon.png",            color: "#f87171",  bg: "rgba(248,113,113,0.07)",border: "rgba(248,113,113,0.28)",desc: "Handles digital media, website management and emerging technology workshops." },
+  { name: "LWS",            icon: "https://ndscbd.net/uploads/gallery/lws-icon.png",            color: "#f59e0b",  bg: "rgba(245,158,11,0.07)", border: "rgba(245,158,11,0.28)", desc: "Life & Welfare Science — biology, environment and health oriented activities." },
+  { name: "Quiz",           icon: "https://ndscbd.net/uploads/gallery/quiz-icon.png",           color: "#60a5fa",  bg: "rgba(96,165,250,0.07)", border: "rgba(96,165,250,0.28)", desc: "Hosts Q-League, BrainRain, Scienceophile. NDC Blue, NDC Green & NDC Gold quiz teams." },
+  { name: "R&D",            icon: "https://ndscbd.net/uploads/gallery/r&d-icon.png",            color: "#fb923c",  bg: "rgba(251,146,60,0.07)", border: "rgba(251,146,60,0.28)", desc: "Research & Development wing — drives innovation, experiments and scientific discovery initiatives." },
 ];
 
 /* ════════════════════════════════════════════════════════════
@@ -682,26 +683,24 @@ function PioneerSection() {
   return (
     <section className="relative z-10 py-20 sm:py-28" style={{ background: "var(--bg)" }}>
       <div className="max-w-7xl mx-auto px-4 sm:px-6">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-10 items-start">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 lg:gap-8 items-start">
           {/* LEFT — founder image */}
           <div className="reveal flex flex-col items-center lg:items-start">
             <div
               className="pioneer-img-wrap relative rounded-2xl overflow-hidden"
               style={{
-                width: "100%", maxWidth: 400,
-                aspectRatio: "4/5",
+                width: "100%", maxWidth: 460,
+                aspectRatio: "3/4",
                 border: "1.5px solid rgba(0,212,255,0.25)",
                 background: "var(--card)",
                 boxShadow: "0 0 60px rgba(0,212,255,0.1)",
               }}
             >
               {founder?.photo_url ? (
-                /* LINE 593 — replace founder.photo_url with your Hostinger image URL if DB is empty */
                 <Image src={founder.photo_url} alt={founder.full_name} fill className="object-cover object-top" />
               ) : (
-                /* FALLBACK LINE — set src below to your Hostinger URL for Fr. Timm's photo */
-                <Image src="/images/fr-timm.jpg" alt="Fr. Richard William Timm, C.S.C." fill className="object-cover object-top"
-                  onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
+                /* Static Hostinger URL for founder photo */
+                <Image src="https://ndscbd.net/uploads/executives/1780729148_fe4addabb0f8.jpeg" alt="Fr. Richard William Timm, C.S.C." fill className="object-cover object-top" />
               )}
               <div className="absolute bottom-0 left-0 right-0 p-4 text-center" style={{ background: "linear-gradient(to top, rgba(2,8,16,0.95), transparent)" }}>
                 <p className="font-bold text-sm" style={{ color: "var(--white)", fontFamily: "'Poppins',sans-serif" }}>
@@ -752,33 +751,9 @@ function PioneerSection() {
 }
 
 /* ════════════════════════════════════════════════════════════
-   VOICE OF LEADERS — dynamic from executives DB
+   VOICE OF LEADERS — STATIC (current session 2025-26)
 ════════════════════════════════════════════════════════════ */
 function LeadersSection() {
-  const [moderator, setModerator] = useState<Executive | null>(null);
-  const [gs, setGs] = useState<Executive | null>(null);
-
-  useEffect(() => {
-    fetch("/api/executives")
-      .then(r => r.json())
-      .then((data: Executive[]) => {
-        if (!Array.isArray(data)) return;
-        // Find current moderator — look for panel="moderator" first, else position match
-        const mod = data.find(e => e.panel?.toLowerCase() === "moderator")
-          || data.find(e => e.position?.toLowerCase().includes("moderator"));
-        // Find GS: prefer session_year 2025-26, then 25-26, then latest
-        const gsAll = data.filter(e =>
-          e.position?.toLowerCase().includes("general secretary") ||
-          e.position?.toLowerCase().includes("gs")
-        );
-        const gsExec = gsAll.find(e => e.session_year === "2025-26" || e.session_year === "25-26")
-          || gsAll[0];
-        if (mod) setModerator(mod);
-        if (gsExec) setGs(gsExec);
-      })
-      .catch(() => {});
-  }, []);
-
   const STATIC_QUOTES: Record<string, { full: string; link: string }> = {
     moderator: {
       full: "Notre Dame Science Club, since its founding in 1955 by the eminent scientist Fr. Richard William Timm, C.S.C., has exemplified the spirit of scientific curiosity and service to humanity. The club's motto — 'Science in Human Welfare' — is not merely a slogan but a living commitment that guides every activity, publication, and event we organize.",
@@ -791,8 +766,18 @@ function LeadersSection() {
   };
 
   const leaders = [
-    { exec: moderator, key: "moderator", role: "Faculty Moderator", staticImg: "/images/Titas-sir.jpg", staticName: "Dr. Vincent Titas Rozario" },
-    { exec: gs,        key: "gs",        role: "General Secretary",  staticImg: "/images/panel-26/gs.jpg", staticName: "Fahim Faisal Arnob" },
+    {
+      key: "moderator",
+      role: "Faculty Moderator",
+      name: "Rev. Fr. Bejoy Nicephorus Rodrigues, CSC",
+      img: "https://ndscbd.net/uploads/executives/1780621402_fdc8d88bf714.jpg",
+    },
+    {
+      key: "gs",
+      role: "General Secretary · Session 2025–26",
+      name: "Fahim Faisal Arnob",
+      img: "https://ndscbd.net/uploads/executives/1780619755_f8a427c9fe3d.jpg",
+    },
   ];
 
   return (
@@ -803,19 +788,13 @@ function LeadersSection() {
           <LetterAnim text="Voice of Our Leaders" tag="h2" className="font-black reveal" style={{ fontSize: "clamp(1.6rem,3.5vw,2.4rem)", fontFamily: "'Poppins',sans-serif", fontWeight: 800 }} delay={0.05} slideDir="right" />
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {leaders.map(({ exec, key, role, staticImg, staticName }) => {
+          {leaders.map(({ key, role, name, img }) => {
             const q = STATIC_QUOTES[key];
-            const img = exec?.photo_url || staticImg;
-            const name = exec?.full_name || staticName;
             return (
               <div key={key} className="reveal rounded-2xl border p-6 sm:p-8 flex flex-col" style={{ borderColor: "rgba(0,212,255,0.18)", background: "rgba(0,212,255,0.025)", animationDelay: key === "gs" ? "0.1s" : "0s" }}>
                 <div className="flex items-center gap-4 mb-5">
                   <div className="relative shrink-0 rounded-full overflow-hidden" style={{ width: 80, height: 80, border: "2.5px solid var(--blue)" }}>
-                    {img ? <Image src={img} alt={name} fill className="object-cover" /> : (
-                      <div className="w-full h-full flex items-center justify-center" style={{ background: "var(--card)" }}>
-                        <span style={{ color: "var(--blue)", fontSize: 24, fontFamily: "'Orbitron',sans-serif" }}>{name[0]}</span>
-                      </div>
-                    )}
+                    <Image src={img} alt={name} fill className="object-cover" />
                   </div>
                   <div>
                     <p className="font-bold text-sm" style={{ color: "var(--white)", fontFamily: "'Poppins',sans-serif" }}>{name}</p>
@@ -823,7 +802,7 @@ function LeadersSection() {
                   </div>
                 </div>
                 <div className="flex-1">
-          <p className="text-sm leading-relaxed italic line-clamp-4" style={{ color: "var(--muted)", fontFamily: "'Poppins',sans-serif" }}>
+                  <p className="text-sm leading-relaxed italic line-clamp-4" style={{ color: "var(--muted)", fontFamily: "'Poppins',sans-serif" }}>
                     &ldquo;{q.full}&rdquo;
                   </p>
                 </div>
@@ -921,7 +900,8 @@ function ActivitiesCarousel() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6">
         <div className="text-center mb-14">
           <div className="flex justify-center"><SectionLabel>Recent</SectionLabel></div>
-          <LetterAnim text="Our Activities" tag="h2" className="font-black reveal" style={{ fontSize: "clamp(1.8rem,4vw,2.8rem)", fontFamily: "'Poppins',sans-serif", fontWeight: 800 }} slideDir="up" />
+          <LetterAnim text="Latest Activity" tag="h2" className="font-black reveal" style={{ fontSize: "clamp(1.8rem,4vw,2.8rem)", fontFamily: "'Poppins',sans-serif", fontWeight: 800 }} slideDir="up" />
+          <LetterAnim text="Our Recent Activity" tag="p" className="reveal mt-2" style={{ fontSize: "clamp(1rem,2vw,1.3rem)", fontFamily: "'Poppins',sans-serif", fontWeight: 600, color: "var(--blue)" }} slideDir="up" delay={0.1} />
           <p className="text-xs mt-3 reveal" style={{ color: "var(--muted)", fontFamily: "'Share Tech Mono',monospace", letterSpacing: "0.2em" }}>
             SWIPE · DRAG · USE ARROWS · AUTO-ADVANCES
           </p>
@@ -1039,11 +1019,9 @@ function ActivitiesCarousel() {
 function ScienceMediaSection() {
   const [videos, setVideos] = useState<MediaVideo[]>([]);
   const [active, setActive] = useState(0);
-  const [title, setTitle] = useState("Check Out Our Science Media");
 
   useEffect(() => {
     fetch("/api/science-media").then(r => r.json()).then((d: MediaVideo[]) => { if (Array.isArray(d) && d.length) setVideos(d); });
-    fetch("/api/admin/homepage-settings").then(r => r.json()).then(d => { if (d?.science_media_title) setTitle(d.science_media_title); });
   }, []);
 
   if (videos.length === 0) return null;
@@ -1054,7 +1032,9 @@ function ScienceMediaSection() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6">
         <div className="text-center mb-10">
           <div className="flex justify-center"><SectionLabel>Media</SectionLabel></div>
-          <LetterAnim text={title} tag="h2" className="font-black reveal" style={{ fontSize: "clamp(1.6rem,3vw,2.2rem)", fontFamily: "'Poppins',sans-serif", fontWeight: 800 }} slideDir="right" /></div>
+          <LetterAnim text="Science Media" tag="h2" className="font-black reveal" style={{ fontSize: "clamp(1.8rem,4vw,2.8rem)", fontFamily: "'Poppins',sans-serif", fontWeight: 800 }} slideDir="right" />
+          <LetterAnim text="Check Out Our Science Media" tag="p" className="reveal mt-2" style={{ fontSize: "clamp(0.95rem,1.8vw,1.2rem)", fontFamily: "'Poppins',sans-serif", fontWeight: 500, color: "var(--blue)" }} slideDir="right" delay={0.08} />
+        </div>
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
           <div className="lg:col-span-2 rounded-xl overflow-hidden border" style={{ borderColor: "var(--border)", aspectRatio: "16/9" }}>
             <iframe width="100%" height="100%" src={`https://www.youtube.com/embed/${activeId}`} title="NDSC" frameBorder="0" allowFullScreen />
@@ -1172,15 +1152,15 @@ export default function HomePage() {
         @import url('https://fonts.googleapis.com/css2?family=Noto+Serif+Bengali:wght@400;600;700&display=swap');
 
         /* ── Logo Orbit Responsive ─────────────────── */
-        .logo-orbit-wrap { --s: 513px; width: var(--s); height: var(--s); }
+        .logo-orbit-wrap { --s: 460px; width: var(--s); height: var(--s); }
         .logo-ring-outer { width: var(--s); height: var(--s); --orbit-outer-r: calc(var(--s)/2 - 1px); }
         .logo-ring-mid   { width: calc(var(--s)*0.79); height: calc(var(--s)*0.79); margin-top: calc(var(--s)*-0.395); margin-left: calc(var(--s)*-0.395); --orbit-mid-r: calc(var(--s)*0.392); }
         .logo-ring-inner { width: calc(var(--s)*0.63); height: calc(var(--s)*0.63); margin-top: calc(var(--s)*-0.315); margin-left: calc(var(--s)*-0.315); }
         .logo-core { width: calc(var(--s)*0.574); height: calc(var(--s)*0.574); margin-top: calc(var(--s)*-0.287); margin-left: calc(var(--s)*-0.287); }
         .logo-img  { width: calc(var(--s)*0.448) !important; height: calc(var(--s)*0.448) !important; }
         .logo-badge { width: 68px; height: 68px; bottom: calc(var(--s)*0.053); right: calc(var(--s)*0.034); }
-        /* Desktop: shift right by 3rem */
-        @media (min-width: 1024px) { .logo-float { margin-right: -3rem; } }
+        /* Desktop: shift LEFT slightly toward content */
+        @media (min-width: 1024px) { .logo-float { margin-right: 0; margin-left: -1rem; margin-top: -2rem; } }
         /* Mobile: shrink to 300px */
         @media (max-width: 768px) {
           .logo-orbit-wrap { --s: 300px; }
@@ -1255,7 +1235,7 @@ export default function HomePage() {
       {deptModal && <DeptModal dept={deptModal} onClose={() => setDeptModal(null)} />}
 
       {/* ══════ HERO ══════════════════════════════════════════ */}
-      <section className="relative min-h-screen flex flex-col justify-center overflow-hidden">
+      <section className="relative min-h-[92vh] flex flex-col justify-center overflow-hidden">
         {/* Grid overlay */}
         <div className="absolute inset-0 pointer-events-none z-[1]" style={{ backgroundImage: "linear-gradient(rgba(0,212,255,0.015) 1px,transparent 1px),linear-gradient(90deg,rgba(0,212,255,0.015) 1px,transparent 1px)", backgroundSize: "72px 72px" }} />
 
@@ -1264,7 +1244,7 @@ export default function HomePage() {
           <AtomCanvas3D size={260} />
         </div>
 
-        <div className="relative z-[2] max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-28 pb-16 w-full">
+        <div className="relative z-[2] max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-20 pb-8 w-full">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-16 items-center">
 
             {/* LEFT */}
@@ -1290,7 +1270,7 @@ export default function HomePage() {
                     <h1
                       className={`${line.cls} font-black block hero-h1-size`}
                       style={{
-                        fontSize: "clamp(2.6rem,5.6vw,5rem)",
+                        fontSize: "clamp(2.4rem,5vw,4.4rem)",
                         fontFamily: "'Poppins',sans-serif",
                         fontWeight: 800,
                         lineHeight: 1.02,
