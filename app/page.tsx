@@ -690,7 +690,7 @@ function PioneerSection() {
               className="pioneer-img-wrap relative rounded-2xl overflow-hidden"
               style={{
                 width: "100%", maxWidth: 460,
-                aspectRatio: "3/4",
+                aspectRatio: "6.5/4",
                 border: "1.5px solid rgba(0,212,255,0.25)",
                 background: "var(--card)",
                 boxShadow: "0 0 60px rgba(0,212,255,0.1)",

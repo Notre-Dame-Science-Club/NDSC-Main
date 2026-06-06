@@ -267,10 +267,6 @@ export default function AboutPage() {
           <h1 className="text-4xl sm:text-6xl font-black mb-5" style={{ fontFamily: "'Orbitron',sans-serif" }}>
             ABOUT <span style={{ color: "var(--blue)" }}>NDSC</span>
           </h1>
-          <p className="text-sm sm:text-base leading-relaxed" style={{ color: "var(--muted)" }}>
-            Notre Dame Science Club — the official science club of Notre Dame College, Bangladesh,
-            and the first college-level science club in the Indian Subcontinent.
-          </p>
         </div>
 
         {/* About article — collapsed, left-aligned, inside hero */}
