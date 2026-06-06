@@ -246,7 +246,7 @@ export default function AboutPage() {
 
       {/* ══ HERO ══════════════════════════════════════════════ */}
       <section
-        className="py-20 sm:py-28 text-center border-b relative overflow-hidden"
+        className="py-20 sm:py-28 border-b relative overflow-hidden"
         style={{ background: "linear-gradient(180deg,var(--bg2),var(--bg))", borderColor: "var(--border)" }}
       >
         <div
@@ -260,7 +260,9 @@ export default function AboutPage() {
           className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] rounded-full pointer-events-none"
           style={{ background: "radial-gradient(circle, rgba(0,212,255,0.06) 0%, transparent 70%)" }}
         />
-        <div className="relative max-w-3xl mx-auto px-4 sm:px-6">
+
+        {/* Hero heading — centered */}
+        <div className="relative max-w-3xl mx-auto px-4 sm:px-6 text-center mb-10">
           <div className="section-label justify-center mb-3">[ EST. 1955 ]</div>
           <h1 className="text-4xl sm:text-6xl font-black mb-5" style={{ fontFamily: "'Orbitron',sans-serif" }}>
             ABOUT <span style={{ color: "var(--blue)" }}>NDSC</span>
@@ -270,35 +272,34 @@ export default function AboutPage() {
             and the first college-level science club in the Indian Subcontinent.
           </p>
         </div>
-      </section>
 
-      {/* ══ ABOUT NDSC ARTICLE ════════════════════════════════ */}
-      <section id="about-article" className="py-16 sm:py-20">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6">
-          <div className="section-label mb-2">Who We Are</div>
-          <h2 className="text-2xl sm:text-3xl font-black mb-8" style={{ fontFamily: "'Orbitron',sans-serif" }}>
-            ABOUT <span style={{ color: "var(--blue)" }}>NDSC</span>
-          </h2>
-
-          <CollapsibleText previewLines={7}>
-            <div className="space-y-4 text-sm leading-[1.9]" style={{ color: "var(--muted)" }}>
-              <p>
-                Notre Dame Science Club, also known as <strong style={{ color: "var(--white)" }}>NDSC</strong>, is the most promising, versatile, and eminent co-curricular activities club of Notre Dame College, Dhaka. It began its inception in <strong style={{ color: "var(--blue)" }}>1955</strong> with a singular mission — to ignite a passion for science among students. It holds the proud distinction of being the <strong style={{ color: "var(--blue)" }}>pioneer science club of the Indian Subcontinent</strong>. Holding the noble motto &ldquo;Science in Human Welfare,&rdquo; the eminent scientist <strong style={{ color: "var(--white)" }}>Fr. Richard William Timm, C.S.C.</strong> inaugurated the flag of NDSC on September 18, 1955, alongside 19 founding student members.
-              </p>
-              <p>
-                The NDSC has a long history of inspiring its followers to rediscover their innate passion for science by serving as the country&apos;s <strong style={{ color: "var(--white)" }}>oldest and most prestigious scientific club</strong>. NDSC provides necessary guidelines to budding scientists and is the trailblazer in spreading scientific awareness among the people. We foster a love of science and an eagerness to learn more about the world&apos;s mysteries, touch the untouched, and see the unseen. For the last few decades, NDSC has turned into the most prominent club to organize numerous <strong style={{ color: "var(--white)" }}>science fairs</strong> — the ultimate platform for student project demonstrations across the nation.
-              </p>
-              <p>
-                Besides its events and competitions, NDSC has provided the momentum to research advanced knowledge. The official quiz teams of Notre Dame Science Club — <strong style={{ color: "var(--blue)" }}>&quot;NDC Blue&quot;, &quot;NDC Green&quot; &amp; &quot;NDC Gold&quot;</strong> — are prestigious platforms for quizzers working relentlessly to uphold the glory of competitive science. These teams have represented Bangladesh at national and international levels, earning glory for the institution and inspiring a culture of intellectual excellence.
-              </p>
-              <p>
-                Every year, distinguished members of NDSC compete in <strong style={{ color: "var(--white)" }}>international science fairs</strong> and bring honour to the institution. The club has secured remarkable positions at global competitions — including 2nd place at the International Science Festival in Lucknow, India (2006), and 8th place globally out of 128 competing international teams at the ISSF (2007). Run by experienced moderators and a dedicated executive panel, NDSC continues to be the pioneer of the science movement in Bangladesh and will upgrade the noble cause of promoting science in every sphere of life.
-              </p>
-              <p>
-                Today, as NDSC celebrates its <strong style={{ color: "var(--blue)" }}>70th Anniversary — the Platinum Jubilee</strong> — it stands not just as a college club, but as an institution that has systematically defined the landscape of scientific education, secular thought, and technological innovation in Bangladesh for seven glorious decades. With over <strong style={{ color: "var(--white)" }}>5000 alumni members</strong> across the globe, more than 100 events hosted, and 7 specialized departments working in unison, NDSC remains the benchmark of scientific co-curricular excellence in the region.
-              </p>
-            </div>
-          </CollapsibleText>
+        {/* About article — collapsed, left-aligned, inside hero */}
+        <div className="relative max-w-3xl mx-auto px-4 sm:px-6">
+          <div
+            className="p-6 sm:p-8 rounded-2xl border"
+            style={{ borderColor: "rgba(0,212,255,0.2)", background: "rgba(0,212,255,0.03)" }}
+          >
+            <div className="section-label mb-3">[ Who We Are ]</div>
+            <CollapsibleText previewLines={5}>
+              <div className="space-y-4 text-sm leading-[1.9]" style={{ color: "var(--muted)" }}>
+                <p>
+                  Notre Dame Science Club, also known as <strong style={{ color: "var(--white)" }}>NDSC</strong>, is the most promising, versatile, and eminent co-curricular activities club of Notre Dame College, Dhaka. It began its inception in <strong style={{ color: "var(--blue)" }}>1955</strong> with a singular mission — to ignite a passion for science among students. It holds the proud distinction of being the <strong style={{ color: "var(--blue)" }}>pioneer science club of the Indian Subcontinent</strong>. Holding the noble motto &ldquo;Science in Human Welfare,&rdquo; the eminent scientist <strong style={{ color: "var(--white)" }}>Fr. Richard William Timm, C.S.C.</strong> inaugurated the flag of NDSC on September 18, 1955, alongside 19 founding student members.
+                </p>
+                <p>
+                  The NDSC has a long history of inspiring its followers to rediscover their innate passion for science by serving as the country&apos;s <strong style={{ color: "var(--white)" }}>oldest and most prestigious scientific club</strong>. NDSC provides necessary guidelines to budding scientists and is the trailblazer in spreading scientific awareness among the people. We foster a love of science and an eagerness to learn more about the world&apos;s mysteries, touch the untouched, and see the unseen. For the last few decades, NDSC has turned into the most prominent club to organize numerous <strong style={{ color: "var(--white)" }}>science fairs</strong> — the ultimate platform for student project demonstrations across the nation.
+                </p>
+                <p>
+                  Besides its events and competitions, NDSC has provided the momentum to research advanced knowledge. The official quiz teams of Notre Dame Science Club — <strong style={{ color: "var(--blue)" }}>&quot;NDC Blue&quot;, &quot;NDC Green&quot; &amp; &quot;NDC Gold&quot;</strong> — are prestigious platforms for quizzers working relentlessly to uphold the glory of competitive science. These teams have represented Bangladesh at national and international levels, earning glory for the institution and inspiring a culture of intellectual excellence.
+                </p>
+                <p>
+                  Every year, distinguished members of NDSC compete in <strong style={{ color: "var(--white)" }}>international science fairs</strong> and bring honour to the institution. The club has secured remarkable positions at global competitions — including 2nd place at the International Science Festival in Lucknow, India (2006), and 8th place globally out of 128 competing international teams at the ISSF (2007). Run by experienced moderators and a dedicated executive panel, NDSC continues to be the pioneer of the science movement in Bangladesh and will upgrade the noble cause of promoting science in every sphere of life.
+                </p>
+                <p>
+                  Today, as NDSC celebrates its <strong style={{ color: "var(--blue)" }}>70th Anniversary — the Platinum Jubilee</strong> — it stands not just as a college club, but as an institution that has systematically defined the landscape of scientific education, secular thought, and technological innovation in Bangladesh for seven glorious decades. With over <strong style={{ color: "var(--white)" }}>5000 alumni members</strong> across the globe, more than 100 events hosted, and 7 specialized departments working in unison, NDSC remains the benchmark of scientific co-curricular excellence in the region.
+                </p>
+              </div>
+            </CollapsibleText>
+          </div>
         </div>
       </section>
 
