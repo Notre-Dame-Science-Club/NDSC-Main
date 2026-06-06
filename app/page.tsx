@@ -593,7 +593,7 @@ function LogoOrbit() {
       {/* Core */}
       <div className="absolute rounded-full overflow-hidden flex items-center justify-center logo-core" style={{ top: "50%", left: "50%", background: "radial-gradient(circle at 38% 32%, rgba(0,50,90,0.92), rgba(0,4,12,0.97))", animation: "borderCycle 3.5s ease infinite", border: "2px solid rgba(0,212,255,0.45)" }}>
         <div className="absolute left-0 right-0" style={{ height: 2, top: 0, background: "linear-gradient(90deg,transparent,rgba(0,212,255,0.55),transparent)", animation: "scanV 2.8s linear infinite" }} />
-        <Image src="/images/logo-2.0.png" alt="NDSC" width={230} height={230} className="object-contain relative z-10 logo-img" style={{ filter: "drop-shadow(0 0 24px rgba(0,212,255,0.7))", animation: "spinSlow 30s linear infinite" }} priority />
+        <Image src="/images/logo-2.0.svg" alt="NDSC" width={230} height={230} className="object-contain relative z-10 logo-img" style={{ filter: "drop-shadow(0 0 24px rgba(0,212,255,0.7))", animation: "spinSlow 30s linear infinite" }} priority />
       </div>
       {/* Arc text */}
       <svg className="absolute inset-0 w-full h-full pointer-events-none" viewBox="0 0 513 513">
