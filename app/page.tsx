@@ -538,7 +538,7 @@ function AtomCanvas3D({ size = 340 }: { size?: number }) {
         for (let tr = 1; tr <= 8; tr++) {
           const ta = angle - tr * 0.18;
           const tx2 = Math.cos(ta) * oR, ty2 = Math.sin(ta) * oR * tiltY;
-          ctx.beginPath(); ctx.arc(tx2, ty2, (eDot - 0.5) - tr * 0.3, 0, Math.PI * 2);
+          ctx.beginPath(); ctx.arc(tx2, ty2, Math.max(0.1, (eDot - 0.5) - tr * 0.3), 0, Math.PI * 2);
           ctx.fillStyle = eColor.replace("1)", `${(1 - tr / 9) * 0.4})`);
           ctx.fill();
         }
@@ -594,7 +594,7 @@ function LogoOrbit() {
       {/* Core */}
       <div className="absolute rounded-full overflow-hidden flex items-center justify-center logo-core" style={{ top: "50%", left: "50%", background: "radial-gradient(circle at 38% 32%, rgba(0,50,90,0.92), rgba(0,4,12,0.97))", animation: "borderCycle 3.5s ease infinite", border: "2px solid rgba(0,212,255,0.45)" }}>
         <div className="absolute left-0 right-0" style={{ height: 2, top: 0, background: "linear-gradient(90deg,transparent,rgba(0,212,255,0.55),transparent)", animation: "scanV 2.8s linear infinite" }} />
-        <Image src="/images/70-logo.svg" alt="NDSC 70 Years" width={230} height={230} className="object-contain relative z-10 logo-img" style={{ filter: "drop-shadow(0 0 24px rgba(0,212,255,0.7))", animation: "spinSlow 30s linear infinite" }} priority />
+        <Image src="/images/logo-2.0.svg" alt="NDSC 70 Years" width={230} height={230} className="object-contain relative z-10 logo-img" style={{ filter: "drop-shadow(0 0 24px rgba(0,212,255,0.7))", animation: "spinSlow 30s linear infinite" }} priority />
       </div>
       {/* Arc text */}
       <svg className="absolute inset-0 w-full h-full pointer-events-none" viewBox="0 0 513 513">
@@ -605,7 +605,7 @@ function LogoOrbit() {
       </svg>
       {/* 70yr badge — right side, shows 70-logo image */}
       <div className="absolute rounded-full flex items-center justify-center logo-badge" style={{ background: "rgba(0,0,0,0.97)", border: "2px solid var(--blue)", boxShadow: "0 0 28px rgba(0,212,255,0.6)", animation: "pulse 2.5s ease infinite", overflow: "hidden" }}>
-        <Image src="/images/70-logo.svg" alt="NDSC 70 Years" width={56} height={56} className="object-contain p-1" style={{ filter: "drop-shadow(0 0 8px rgba(0,212,255,0.5))" }} />
+        <Image src="/images/70-logo.png" alt="NDSC 70 Years" width={56} height={56} className="object-contain p-1" style={{ filter: "drop-shadow(0 0 8px rgba(0,212,255,0.5))" }} />
       </div>
       {/* NDC logo badge — left side, mirrored position */}
       <div className="absolute rounded-full flex items-center justify-center logo-badge-ndc" style={{ background: "rgba(0,0,0,0.97)", border: "2px solid var(--blue)", boxShadow: "0 0 28px rgba(0,212,255,0.6)", animation: "pulse 2.5s ease infinite 0.8s", overflow: "hidden" }}>
