@@ -423,7 +423,7 @@ export default function AboutPage() {
       {/* ══ MODERATOR MESSAGE ════════════════════════════════════ */}
       <section id="moderator" className="py-16 sm:py-20" style={{ background: "var(--bg2)" }}>
         <div className="max-w-4xl mx-auto px-4 sm:px-6">
-          <div className="section-label mb-2">Faculty Guidance</div>
+          <div className="section-label mb-2">Message</div>
           <h2 className="text-2xl sm:text-3xl font-black mb-8" style={{ fontFamily: "'Orbitron',sans-serif" }}>
             FROM THE <span style={{ color: "#a78bfa" }}>MODERATOR</span>
           </h2>
@@ -440,8 +440,8 @@ export default function AboutPage() {
                 <Image src="/images/cropped-logo.png" alt="Moderator" fill className="object-cover" />
               </div>
               <div>
-                <h3 className="font-black text-base" style={{ fontFamily: "'Orbitron',sans-serif" }}>Fr. Patrick Gomes, CSC</h3>
-                <p className="text-sm font-bold" style={{ color: "#a78bfa" }}>Faculty Moderator</p>
+                <h3 className="font-black text-base" style={{ fontFamily: "'Orbitron',sans-serif" }}>Dr. Vincent Titas Rozario</h3>
+                <p className="text-sm font-bold" style={{ color: "#a78bfa" }}>Moderator</p>
                 <p className="text-xs" style={{ color: "var(--muted)" }}>Notre Dame Science Club</p>
               </div>
             </div>
@@ -460,7 +460,7 @@ export default function AboutPage() {
       {/* ══ GS MESSAGE ══════════════════════════════════════════ */}
       <section id="gs" className="py-16 sm:py-20">
         <div className="max-w-4xl mx-auto px-4 sm:px-6">
-          <div className="section-label mb-2">Leadership Message</div>
+          <div className="section-label mb-2">Message</div>
           <h2 className="text-2xl sm:text-3xl font-black mb-8" style={{ fontFamily: "'Orbitron',sans-serif" }}>
             FROM THE <span style={{ color: "var(--blue)" }}>GENERAL SECRETARY</span>
           </h2>
