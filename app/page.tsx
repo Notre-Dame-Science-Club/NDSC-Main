@@ -714,7 +714,7 @@ function PioneerSection() {
                   {founder?.full_name || "Fr. Richard William Timm, C.S.C."}
                 </p>
                 <p className="text-xs mt-0.5" style={{ color: "var(--blue)", fontFamily: "'Share Tech Mono',monospace", letterSpacing: "0.2em" }}>
-                  FOUNDER · 1955
+                  FOUNDER
                 </p>
               </div>
             </div>
@@ -808,7 +808,7 @@ function LeadersSection() {
                   </div>
                   <div>
                     <p className="font-bold text-sm" style={{ color: "var(--white)", fontFamily: "'Poppins',sans-serif" }}>{name}</p>
-                    <p className="text-xs font-semibold mt-0.5" style={{ color: "var(--blue)", fontFamily: "'Share Tech Mono',monospace", letterSpacing: "0.15em" }}>{role}</p>
+                    <p className="text-xs font-semibold mt-0.7" style={{ color: "var(--blue)", fontFamily: "'Poppins',sans-serif", letterSpacing: "0.15em" }}>{role}</p>
                   </div>
                 </div>
                 <div className="flex-1">
