@@ -37,6 +37,15 @@ export const metadata: Metadata = {
   ].join(", "),
   metadataBase: new URL("https://ndscbd.net"),
   alternates: { canonical: "https://ndscbd.net" },
+  icons: {
+    icon: [
+      { url: "/images/cropped-logo.png", type: "image/png" },
+    ],
+    apple: [
+      { url: "/images/cropped-logo.png", type: "image/png" },
+    ],
+    shortcut: "/images/cropped-logo.png",
+  },
   openGraph: {
     title: "Notre Dame Science Club (NDSC) | Official Website",
     description:
@@ -76,6 +85,10 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" suppressHydrationWarning>
+      <head>
+        <link rel="icon" href="/images/cropped-logo.png" type="image/png" />
+        <link rel="apple-touch-icon" href="/images/cropped-logo.png" />
+      </head>
       <body suppressHydrationWarning>
         <script dangerouslySetInnerHTML={{__html: `
           (function(){

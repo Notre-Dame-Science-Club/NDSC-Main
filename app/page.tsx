@@ -602,12 +602,13 @@ function LogoOrbit() {
           <textPath href="#arcHero" startOffset="50%">SCIENCE IN HUMAN WELFARE • 1955–2025 •</textPath>
         </text>
       </svg>
-      {/* 70yr badge */}
-      <div className="absolute rounded-full flex items-center justify-center logo-badge" style={{ background: "rgba(2,8,16,0.97)", border: "2px solid var(--blue)", boxShadow: "0 0 24px rgba(0,212,255,0.5)", animation: "pulse 2.5s ease infinite" }}>
-        <div className="text-center leading-none">
-          <p className="font-black" style={{ fontFamily: "'Orbitron',sans-serif", color: "var(--blue)", fontSize: 20 }}>70</p>
-          <p style={{ fontSize: 7, letterSpacing: "0.2em", color: "var(--muted)", textTransform: "uppercase" }}>YRS</p>
-        </div>
+      {/* 70yr badge — right side, shows 70-logo image */}
+      <div className="absolute rounded-full flex items-center justify-center logo-badge" style={{ background: "rgba(0,0,0,0.97)", border: "2px solid var(--blue)", boxShadow: "0 0 28px rgba(0,212,255,0.6)", animation: "pulse 2.5s ease infinite", overflow: "hidden" }}>
+        <Image src="/images/70-logo.svg" alt="NDSC 70 Years" width={56} height={56} className="object-contain p-1" style={{ filter: "drop-shadow(0 0 8px rgba(0,212,255,0.5))" }} />
+      </div>
+      {/* NDC logo badge — left side, mirrored position */}
+      <div className="absolute rounded-full flex items-center justify-center logo-badge-ndc" style={{ background: "rgba(0,0,0,0.97)", border: "2px solid var(--blue)", boxShadow: "0 0 28px rgba(0,212,255,0.6)", animation: "pulse 2.5s ease infinite 0.8s", overflow: "hidden" }}>
+        <Image src="/images/ndc-logo.svg" alt="Notre Dame College" width={56} height={56} className="object-contain p-1" style={{ filter: "drop-shadow(0 0 8px rgba(0,212,255,0.4))" }} />
       </div>
     </div>
   );
@@ -683,14 +684,14 @@ function PioneerSection() {
   return (
     <section className="relative z-10 py-20 sm:py-28" style={{ background: "var(--bg)" }}>
       <div className="max-w-7xl mx-auto px-4 sm:px-6">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 lg:gap-8 items-start">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-2 lg:gap-4 items-stretch">
           {/* LEFT — founder image */}
           <div className="reveal flex flex-col items-center lg:items-start">
             <div
               className="pioneer-img-wrap relative rounded-2xl overflow-hidden"
               style={{
                 width: "100%", maxWidth: 460,
-                aspectRatio: "6.5/4",
+                aspectRatio: "7/6",
                 border: "1.5px solid rgba(0,212,255,0.25)",
                 background: "var(--card)",
                 boxShadow: "0 0 60px rgba(0,212,255,0.1)",
@@ -714,7 +715,7 @@ function PioneerSection() {
           </div>
 
           {/* RIGHT — article */}
-          <div className="reveal flex flex-col" style={{ animationDelay: "0.15s" }}>
+          <div className="reveal flex flex-col justify-between" style={{ animationDelay: "0.15s" }}>
             <SectionLabel>Who We Are</SectionLabel>
             <LetterAnim
               text="Indian-Sub Continent's Pioneer Science Club"
@@ -781,7 +782,7 @@ function LeadersSection() {
   ];
 
   return (
-    <section className="relative z-10 py-20 sm:py-24" style={{ background: "var(--bg2)" }}>
+    <section className="relative z-10 py-20 sm:py-24" style={{ background: "var(--bg)" }}>
       <div className="max-w-5xl mx-auto px-4 sm:px-6">
         <div className="text-center mb-14">
           <div className="flex justify-center"><SectionLabel>Leadership</SectionLabel></div>
@@ -900,7 +901,8 @@ function ActivitiesCarousel() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6">
         <div className="text-center mb-14">
           <div className="flex justify-center"><SectionLabel>Recent</SectionLabel></div>
-          <LetterAnim text="Latest Activity" tag="h2" className="font-black reveal" style={{ fontSize: "clamp(1.8rem,4vw,2.8rem)", fontFamily: "'Poppins',sans-serif", fontWeight: 800 }} slideDir="up" />
+          <LetterAnim text="Latest Activities" tag="h2" className="font-black reveal" style={{ fontSize: "clamp(1.8rem,4vw,2.8rem)", fontFamily: "'Poppins',sans-serif", fontWeight: 800, color: "var(--white)" }} slideDir="up" />
+          <LatestActivitiesSubtitle />
           <LetterAnim text="Our Recent Activity" tag="p" className="reveal mt-2" style={{ fontSize: "clamp(1rem,2vw,1.3rem)", fontFamily: "'Poppins',sans-serif", fontWeight: 600, color: "var(--blue)" }} slideDir="up" delay={0.1} />
           <p className="text-xs mt-3 reveal" style={{ color: "var(--muted)", fontFamily: "'Share Tech Mono',monospace", letterSpacing: "0.2em" }}>
             SWIPE · DRAG · USE ARROWS · AUTO-ADVANCES
@@ -1016,6 +1018,31 @@ function ActivitiesCarousel() {
 /* ════════════════════════════════════════════════════════════
    SCIENCE MEDIA
 ════════════════════════════════════════════════════════════ */
+
+/* Looping subtitle for Latest Activities */
+function LatestActivitiesSubtitle() {
+  const [visible, setVisible] = useState(true);
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setVisible(false);
+      setTimeout(() => setVisible(true), 1000);
+    }, 3000);
+    return () => clearInterval(interval);
+  }, []);
+  return (
+    <p className="mt-2 text-sm font-medium transition-all duration-700"
+      style={{
+        fontFamily: "'Share Tech Mono',monospace",
+        color: "var(--blue)",
+        letterSpacing: "0.2em",
+        opacity: visible ? 1 : 0,
+        transform: visible ? "translateY(0)" : "translateY(-8px)",
+      }}>
+      EXPLORE WHAT WE&apos;VE BEEN UP TO
+    </p>
+  );
+}
+
 function ScienceMediaSection() {
   const [videos, setVideos] = useState<MediaVideo[]>([]);
   const [active, setActive] = useState(0);
@@ -1028,7 +1055,7 @@ function ScienceMediaSection() {
   const activeId = extractYouTubeId(videos[active]?.youtube_url || "");
 
   return (
-    <section className="relative z-10 py-16 sm:py-20" style={{ background: "var(--bg2)" }}>
+    <section className="relative z-10 py-16 sm:py-20" style={{ background: "var(--bg)" }}>
       <div className="max-w-7xl mx-auto px-4 sm:px-6">
         <div className="text-center mb-10">
           <div className="flex justify-center"><SectionLabel>Media</SectionLabel></div>
@@ -1036,28 +1063,60 @@ function ScienceMediaSection() {
           <LetterAnim text="Check Out Our Science Media" tag="p" className="reveal mt-2" style={{ fontSize: "clamp(0.95rem,1.8vw,1.2rem)", fontFamily: "'Poppins',sans-serif", fontWeight: 500, color: "var(--blue)" }} slideDir="right" delay={0.08} />
         </div>
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
-          <div className="lg:col-span-2 rounded-xl overflow-hidden border" style={{ borderColor: "var(--border)", aspectRatio: "16/9" }}>
+          <div className="lg:col-span-2 rounded-xl overflow-hidden border" style={{ borderColor: "var(--border)", aspectRatio: "16/9", alignSelf: "stretch" }}>
             <iframe width="100%" height="100%" src={`https://www.youtube.com/embed/${activeId}`} title="NDSC" frameBorder="0" allowFullScreen />
           </div>
-          <div className="flex flex-col gap-3">
-            {videos.map((v, i) => {
-              const vid = extractYouTubeId(v.youtube_url);
-              return (
-                <button key={v.id} onClick={() => setActive(i)}
-                  className="flex items-center gap-3 p-3 rounded-xl border text-left transition-all hover:-translate-y-0.5"
-                  style={{ borderColor: active === i ? "var(--blue)" : "var(--border)", background: active === i ? "#00d4ff11" : "var(--card)" }}>
-                  <div className="relative shrink-0 rounded-lg overflow-hidden" style={{ width: 72, height: 45 }}>
-                    <Image src={`https://img.youtube.com/vi/${vid}/mqdefault.jpg`} alt={v.title} fill className="object-cover" />
-                  </div>
-                  <p className="text-xs font-medium" style={{ color: active === i ? "var(--blue)" : "var(--white)", fontFamily: "'Poppins',sans-serif" }}>{v.title}</p>
-                </button>
-              );
-            })}
-            <a href="https://www.youtube.com/@NDSCOfficial" target="_blank" rel="noopener noreferrer"
-              className="mt-auto py-3 text-center text-xs font-bold tracking-widest border rounded-xl transition-all hover:bg-[var(--blue)] hover:text-black"
-              style={{ borderColor: "var(--blue)", color: "var(--blue)", fontFamily: "'Share Tech Mono',monospace" }}>
-              VIEW ALL VIDEOS →
-            </a>
+          {/* Scrollable video list — same height as player */}
+          <div className="flex flex-col rounded-xl border overflow-hidden" style={{ borderColor: "var(--border)", background: "var(--card)" }}>
+            {/* Header */}
+            <div className="px-4 py-3 border-b flex items-center justify-between shrink-0" style={{ borderColor: "var(--border)" }}>
+              <p className="text-xs font-black tracking-widest" style={{ fontFamily: "'Share Tech Mono',monospace", color: "var(--blue)" }}>
+                ALL VIDEOS ({videos.length})
+              </p>
+              <a href="https://www.youtube.com/@NDSCOfficial" target="_blank" rel="noopener noreferrer"
+                className="text-xs font-bold transition-colors hover:text-[var(--blue)]"
+                style={{ color: "var(--muted)", fontFamily: "'Share Tech Mono',monospace" }}>
+                YT →
+              </a>
+            </div>
+            {/* Scrollable list */}
+            <div className="flex-1 overflow-y-auto" style={{
+              maxHeight: "calc((100vw - 48px) * 9/16 * 2/3)",
+              scrollbarWidth: "thin",
+              scrollbarColor: "rgba(0,212,255,0.3) transparent",
+            }}>
+              {videos.map((v, i) => {
+                const vid = extractYouTubeId(v.youtube_url);
+                return (
+                  <button key={v.id} onClick={() => setActive(i)}
+                    className="w-full flex items-center gap-3 px-3 py-2.5 text-left transition-all border-b hover:bg-[rgba(0,212,255,0.04)]"
+                    style={{
+                      borderColor: "rgba(255,255,255,0.04)",
+                      background: active === i ? "rgba(0,212,255,0.08)" : "transparent",
+                      borderLeft: active === i ? "3px solid var(--blue)" : "3px solid transparent",
+                    }}>
+                    <div className="relative shrink-0 rounded-md overflow-hidden" style={{ width: 68, height: 42 }}>
+                      <Image src={`https://img.youtube.com/vi/${vid}/mqdefault.jpg`} alt={v.title} fill className="object-cover" />
+                      {active === i && (
+                        <div className="absolute inset-0 flex items-center justify-center" style={{ background: "rgba(0,212,255,0.2)" }}>
+                          <div className="w-5 h-5 rounded-full flex items-center justify-center" style={{ background: "var(--blue)" }}>
+                            <svg width="8" height="8" viewBox="0 0 24 24" fill="black"><path d="M5 3l14 9-14 9V3z"/></svg>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-semibold line-clamp-2 leading-tight" style={{ color: active === i ? "var(--blue)" : "var(--white)", fontFamily: "'Poppins',sans-serif" }}>
+                        {v.title}
+                      </p>
+                      <p className="text-xs mt-0.5" style={{ color: "var(--muted)", fontFamily: "'Share Tech Mono',monospace" }}>
+                        #{i + 1}
+                      </p>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
           </div>
         </div>
       </div>
@@ -1078,7 +1137,7 @@ function AudriCTA() {
   }, []);
 
   return (
-    <section className="relative z-10 py-16 sm:py-20" style={{ background: "var(--bg2)" }}>
+    <section className="relative z-10 py-16 sm:py-20" style={{ background: "var(--bg)" }}>
       <div className="max-w-7xl mx-auto px-4 sm:px-6">
         <div className="reveal rounded-2xl border overflow-hidden p-8 sm:p-14 flex flex-col sm:flex-row items-center gap-8 sm:gap-12"
           style={{ borderColor: "var(--blue)", background: "linear-gradient(135deg,rgba(0,212,255,0.04),rgba(0,119,255,0.04))" }}>
@@ -1158,7 +1217,8 @@ export default function HomePage() {
         .logo-ring-inner { width: calc(var(--s)*0.63); height: calc(var(--s)*0.63); margin-top: calc(var(--s)*-0.315); margin-left: calc(var(--s)*-0.315); }
         .logo-core { width: calc(var(--s)*0.574); height: calc(var(--s)*0.574); margin-top: calc(var(--s)*-0.287); margin-left: calc(var(--s)*-0.287); }
         .logo-img  { width: calc(var(--s)*0.448) !important; height: calc(var(--s)*0.448) !important; }
-        .logo-badge { width: 68px; height: 68px; bottom: calc(var(--s)*0.053); right: calc(var(--s)*0.034); }
+        .logo-badge { width: 78px; height: 78px; bottom: calc(var(--s)*0.053); right: calc(var(--s)*0.034); }
+        .logo-badge-ndc { width: 78px; height: 78px; bottom: calc(var(--s)*0.053); left: calc(var(--s)*0.034); }
         /* Desktop: shift LEFT slightly toward content */
         @media (min-width: 1024px) { .logo-float { margin-right: 0; margin-left: -1rem; margin-top: -2rem; } }
         /* Mobile: shrink to 300px */
