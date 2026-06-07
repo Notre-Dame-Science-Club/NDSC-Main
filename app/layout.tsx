@@ -86,8 +86,10 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
-        <link rel="icon" href="/favicon.png" type="image/png" />
-        <link rel="apple-touch-icon" href="/favicon.png" />
+        <link rel="icon" href="/favicon.png" type="image/png" sizes="any" />
+        <link rel="icon" href="/images/cropped-logo.png" type="image/png" sizes="32x32" />
+        <link rel="shortcut icon" href="/favicon.png" />
+        <link rel="apple-touch-icon" href="/favicon.png" sizes="180x180" />
       </head>
       <body suppressHydrationWarning>
         <script dangerouslySetInnerHTML={{__html: `

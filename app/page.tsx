@@ -37,7 +37,6 @@ const DEPTS = [
   { name: "ICT",            icon: "https://ndscbd.net/uploads/gallery/ict-icon.png",            color: "#f87171",  bg: "rgba(248,113,113,0.07)",border: "rgba(248,113,113,0.28)",desc: "Handles digital media, website management and emerging technology workshops." },
   { name: "LWS",            icon: "https://ndscbd.net/uploads/gallery/lws-icon.png",            color: "#f59e0b",  bg: "rgba(245,158,11,0.07)", border: "rgba(245,158,11,0.28)", desc: "Life & Welfare Science — biology, environment and health oriented activities." },
   { name: "Quiz",           icon: "https://ndscbd.net/uploads/gallery/quiz-icon.png",           color: "#60a5fa",  bg: "rgba(96,165,250,0.07)", border: "rgba(96,165,250,0.28)", desc: "Hosts Q-League, BrainRain, Scienceophile. NDC Blue, NDC Green & NDC Gold quiz teams." },
-  { name: "R&D",            icon: "https://ndscbd.net/uploads/gallery/r&d-icon.png",            color: "#fb923c",  bg: "rgba(251,146,60,0.07)", border: "rgba(251,146,60,0.28)", desc: "Research & Development wing — drives innovation, experiments and scientific discovery initiatives." },
 ];
 
 /* ════════════════════════════════════════════════════════════
@@ -907,13 +906,12 @@ function ActivitiesCarousel() {
   };
 
   return (
-    <section className="relative z-10 py-20">
+    <section className="relative z-10 py-20" style={{ background: "var(--bg2)" }}>
       <div className="max-w-7xl mx-auto px-4 sm:px-6">
         <div className="text-center mb-14">
           <div className="flex justify-center"><SectionLabel>Recent</SectionLabel></div>
           <LetterAnim text="Latest Activities" tag="h2" className="font-black reveal" style={{ fontSize: "clamp(1.8rem,4vw,2.8rem)", fontFamily: "'Poppins',sans-serif", fontWeight: 800, color: "var(--white)" }} slideDir="up" />
           <LatestActivitiesSubtitle />
-          <LetterAnim text="Our Recent Activity" tag="p" className="reveal mt-2" style={{ fontSize: "clamp(1rem,2vw,1.3rem)", fontFamily: "'Poppins',sans-serif", fontWeight: 600, color: "var(--blue)" }} slideDir="up" delay={0.1} />
           <p className="text-xs mt-3 reveal" style={{ color: "var(--muted)", fontFamily: "'Share Tech Mono',monospace", letterSpacing: "0.2em" }}>
             SWIPE · DRAG · USE ARROWS · AUTO-ADVANCES
           </p>
@@ -1033,20 +1031,28 @@ function ActivitiesCarousel() {
 function LatestActivitiesSubtitle() {
   const [visible, setVisible] = useState(true);
   useEffect(() => {
-    const interval = setInterval(() => {
-      setVisible(false);
-      setTimeout(() => setVisible(true), 1000);
-    }, 3000);
-    return () => clearInterval(interval);
+    // 3s hold, then fade out 0.5s, wait 0.5s, fade in again — total cycle ~4s
+    const cycle = () => {
+      setVisible(true);
+      const hideTimer = setTimeout(() => {
+        setVisible(false);
+        const showTimer = setTimeout(() => cycle(), 1000); // 1s gap (fade out 500ms + 500ms pause)
+        return showTimer;
+      }, 3000);
+      return hideTimer;
+    };
+    const t = cycle();
+    return () => clearTimeout(t);
   }, []);
   return (
-    <p className="mt-2 text-sm font-medium transition-all duration-700"
+    <p className="mt-2 text-sm font-medium"
       style={{
         fontFamily: "'Share Tech Mono',monospace",
         color: "var(--blue)",
         letterSpacing: "0.2em",
         opacity: visible ? 1 : 0,
-        transform: visible ? "translateY(0)" : "translateY(-8px)",
+        transform: visible ? "translateY(0)" : "translateY(-6px)",
+        transition: "opacity 0.5s ease, transform 0.5s ease",
       }}>
       EXPLORE WHAT WE&apos;VE BEEN UP TO
     </p>
