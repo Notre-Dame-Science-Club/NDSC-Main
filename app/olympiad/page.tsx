@@ -1,3 +1,17 @@
+import type { Metadata } from "next";
+
+export const metadata: Metadata = {
+  title: "Olympiad | Notre Dame Science Club (NDSC)",
+  description: "Participate in NDSC online olympiads — Physics, Chemistry, Biology, Math. Register now and test your knowledge.",
+  alternates: { canonical: "https://ndscbd.net/olympiad" },
+  openGraph: {
+    title: "NDSC Olympiad | Notre Dame Science Club",
+    description: "Online science olympiads by NDSC — Physics, Chemistry, Biology, Math.",
+    url: "https://ndscbd.net/olympiad",
+    images: [{ url: "https://ndscbd.net/images/cropped-logo.png" }],
+  },
+};
+
 import Link from "next/link";
 import { Trophy, Clock, BookOpen, Award } from "lucide-react";
 
