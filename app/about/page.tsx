@@ -437,7 +437,7 @@ export default function AboutPage() {
             >"</div>
             <div className="flex flex-col sm:flex-row gap-5 sm:gap-8 items-start mb-6">
               <div className="relative w-20 h-20 rounded-full overflow-hidden border-2 shrink-0" style={{ borderColor: "#a78bfa" }}>
-                <Image src="/images/cropped-logo.png" alt="Moderator" fill className="object-cover" />
+                <Image src="https://ndscbd.net/uploads/executives/1780621402_fdc8d88bf714.jpg" alt="Moderator" fill className="object-cover" />
               </div>
               <div>
                 <h3 className="font-black text-base" style={{ fontFamily: "'Orbitron',sans-serif" }}>Dr. Vincent Titas Rozario</h3>
@@ -474,7 +474,7 @@ export default function AboutPage() {
             >"</div>
             <div className="flex flex-col sm:flex-row gap-5 sm:gap-8 items-start mb-6">
               <div className="relative w-20 h-20 rounded-full overflow-hidden border-2 shrink-0" style={{ borderColor: "var(--blue)" }}>
-                <Image src="/images/panel-26/gs.jpg" alt="GS" fill className="object-cover" />
+                <Image src="https://ndscbd.net/uploads/executives/1780619755_f8a427c9fe3d.jpg" alt="GS" fill className="object-cover" />
               </div>
               <div>
                 <h3 className="font-black text-base" style={{ fontFamily: "'Orbitron',sans-serif" }}>Fahim Faisal Arnob</h3>
