@@ -122,13 +122,7 @@ export default function Footer() {
               <span style={{ display: "inline-block", width: 16, height: 1, background: "var(--blue)" }} />
               Contact
             </h4>
-            <div className="flex flex-col gap-4 items-center sm:items-start w-full">
-              <div className="flex items-start gap-3 text-center sm:text-left">
-                <MapPin size={14} className="mt-0.5 shrink-0" style={{ color: "var(--blue)" }} />
-                <p className="text-xs leading-relaxed" style={{ color: "var(--muted)" }}>
-                  G.P.O Box 5, Toyenbee Circular Rd,<br />Dhaka 1000, Bangladesh
-                </p>
-              </div>
+            
               <a href="mailto:ndsc.org@gmail.com" className="flex items-center gap-3 text-xs hover:text-[var(--blue)] transition-colors group">
                 <Mail size={14} style={{ color: "var(--blue)", flexShrink: 0 }} />
                 <span style={{ color: "var(--muted)" }} className="group-hover:text-[var(--blue)] transition-colors">ndsc.org@gmail.com</span>
@@ -137,13 +131,21 @@ export default function Footer() {
                 <Phone size={14} style={{ color: "var(--blue)", flexShrink: 0 }} />
                 <span style={{ color: "var(--muted)" }} className="group-hover:text-[var(--blue)] transition-colors">+880-1568-171970</span>
               </a>
+              
+              <div className="flex flex-col gap-4 items-center sm:items-start w-full">
+              <div className="flex items-start gap-3 text-center sm:text-left">
+                <MapPin size={14} className="mt-0.5 shrink-0" style={{ color: "var(--blue)" }} />
+                <p className="text-xs leading-relaxed" style={{ color: "var(--muted)" }}>
+                  G.P.O Box 5, Toyenbee Circular Rd,<br />Dhaka 1000, Bangladesh
+                </p>
+              </div>
 
               {/* Google Maps embed */}
               <div className="w-full mt-2 rounded-xl overflow-hidden border" style={{ borderColor: "rgba(0,212,255,0.18)", boxShadow: "0 0 20px rgba(0,212,255,0.06)" }}>
                 <div style={{ position: "relative", paddingBottom: "62%" }}>
                   <iframe
                     src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3651.9068527395384!2d90.40580957530252!3d23.726488778685456!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x3755b89b08d29ac3%3A0x6a29c6fde93a9498!2sNotre%20Dame%20College!5e0!3m2!1sen!2sbd!4v1716000000000!5m2!1sen!2sbd"
-                    style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%", border: 0 }}
+                    style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "40%", border: 0 }}
                     allowFullScreen
                     loading="lazy"
                     referrerPolicy="no-referrer-when-downgrade"
