@@ -33,6 +33,7 @@ export default async function AdminDashboard() {
           { label: 'Executives', icon: '👥', href: '/admin/executives', desc: 'Manage full club' },
           { label: 'Olympiads', icon: '🏆', href: '/admin/olympiads', desc: 'Manage olympiad registrations' },
           { label: 'Announcements', icon: '📢', href: '/admin/announcements', desc: 'Send email & SMS blasts' },
+          { label: 'Fix Upload URLs', icon: '🔧', href: '/admin/fix-urls', desc: 'Fix broken image/file URLs in database' },
         ].map(card => (
           <a key={card.href} href={card.href}
             className="block rounded-xl p-5 border transition-all hover:border-[#00d4ff] hover:scale-[1.02]"

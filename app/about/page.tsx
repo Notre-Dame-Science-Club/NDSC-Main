@@ -9,7 +9,7 @@ import Image from "next/image";
 const DEPTS = [
   {
     name: "Administration",
-    icon: "https://ndscbd.net/uploads/gallery/admininstration-icon.png",
+    icon: "https://uploads.ndscbd.net/gallery/admininstration-icon.png",
     color: "#00d4ff",
     bg: "rgba(0,212,255,0.08)",
     border: "rgba(0,212,255,0.3)",
@@ -17,7 +17,7 @@ const DEPTS = [
   },
   {
     name: "Project",
-    icon: "https://ndscbd.net/uploads/gallery/project-icon.png",
+    icon: "https://uploads.ndscbd.net/gallery/project-icon.png",
     color: "#34d399",
     bg: "rgba(52,211,153,0.08)",
     border: "rgba(52,211,153,0.3)",
@@ -25,7 +25,7 @@ const DEPTS = [
   },
   {
     name: "Publication",
-    icon: "https://ndscbd.net/uploads/gallery/publication-icon.png",
+    icon: "https://uploads.ndscbd.net/gallery/publication-icon.png",
     color: "#a78bfa",
     bg: "rgba(167,139,250,0.08)",
     border: "rgba(167,139,250,0.3)",
@@ -33,7 +33,7 @@ const DEPTS = [
   },
   {
     name: "ICT",
-    icon: "https://ndscbd.net/uploads/gallery/ict-icon.png",
+    icon: "https://uploads.ndscbd.net/gallery/ict-icon.png",
     color: "#f87171",
     bg: "rgba(248,113,113,0.08)",
     border: "rgba(248,113,113,0.3)",
@@ -41,7 +41,7 @@ const DEPTS = [
   },
   {
     name: "LWS",
-    icon: "https://ndscbd.net/uploads/gallery/lws-icon.png",
+    icon: "https://uploads.ndscbd.net/gallery/lws-icon.png",
     color: "#f59e0b",
     bg: "rgba(245,158,11,0.08)",
     border: "rgba(245,158,11,0.3)",
@@ -49,7 +49,7 @@ const DEPTS = [
   },
   {
     name: "Quiz",
-    icon: "https://ndscbd.net/uploads/gallery/quiz-icon.png",
+    icon: "https://uploads.ndscbd.net/gallery/quiz-icon.png",
     color: "#60a5fa",
     bg: "rgba(96,165,250,0.08)",
     border: "rgba(96,165,250,0.3)",
@@ -57,7 +57,7 @@ const DEPTS = [
   },
   {
     name: "R&D",
-    icon: "https://ndscbd.net/uploads/gallery/r&d-icon.png",
+    icon: "https://uploads.ndscbd.net/gallery/r&d-icon.png",
     color: "#fb923c",
     bg: "rgba(251,146,60,0.08)",
     border: "rgba(251,146,60,0.3)",
@@ -437,7 +437,7 @@ export default function AboutPage() {
             >"</div>
             <div className="flex flex-col sm:flex-row gap-5 sm:gap-8 items-start mb-6">
               <div className="relative w-20 h-20 rounded-full overflow-hidden border-2 shrink-0" style={{ borderColor: "#a78bfa" }}>
-                <Image src="https://ndscbd.net/uploads/executives/1780621402_fdc8d88bf714.jpg" alt="Moderator" fill className="object-cover" />
+                <Image src="https://uploads.ndscbd.net/executives/1780621402_fdc8d88bf714.jpg" alt="Moderator" fill className="object-cover" />
               </div>
               <div>
                 <h3 className="font-black text-base" style={{ fontFamily: "'Orbitron',sans-serif" }}>Dr. Vincent Titas Rozario</h3>
@@ -474,7 +474,7 @@ export default function AboutPage() {
             >"</div>
             <div className="flex flex-col sm:flex-row gap-5 sm:gap-8 items-start mb-6">
               <div className="relative w-20 h-20 rounded-full overflow-hidden border-2 shrink-0" style={{ borderColor: "var(--blue)" }}>
-                <Image src="https://ndscbd.net/uploads/executives/1780619755_f8a427c9fe3d.jpg" alt="GS" fill className="object-cover" />
+                <Image src="https://uploads.ndscbd.net/executives/1780619755_f8a427c9fe3d.jpg" alt="GS" fill className="object-cover" />
               </div>
               <div>
                 <h3 className="font-black text-base" style={{ fontFamily: "'Orbitron',sans-serif" }}>Fahim Faisal Arnob</h3>

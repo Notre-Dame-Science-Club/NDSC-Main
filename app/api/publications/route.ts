@@ -1,5 +1,6 @@
 import { supabase } from '@/lib/supabase'
 import { NextRequest, NextResponse } from 'next/server'
+import { normalizeUploadUrl } from '@/lib/uploadUrl'
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url)
@@ -18,9 +19,16 @@ export async function GET(req: NextRequest) {
   const { data, error } = await query
   if (error) return NextResponse.json({ error: error.message }, { status: 400 })
 
+  // Normalize URLs
+  const normalized = (data || []).map((p: any) => ({
+    ...p,
+    cover_image_url: normalizeUploadUrl(p.cover_image_url),
+    pdf_url: normalizeUploadUrl(p.pdf_url),
+  }))
+
   if (latest === 'true' && !category) {
     const seen = new Set<string>()
-    const filtered = (data || []).filter((p: any) => {
+    const filtered = normalized.filter((p: any) => {
       if (seen.has(p.category)) return false
       seen.add(p.category)
       return true
@@ -28,5 +36,5 @@ export async function GET(req: NextRequest) {
     return NextResponse.json(filtered)
   }
 
-  return NextResponse.json(data || [])
+  return NextResponse.json(normalized)
 }

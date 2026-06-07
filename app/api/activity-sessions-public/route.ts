@@ -1,11 +1,12 @@
 import { supabaseAdmin } from '@/lib/supabase'
 import { NextResponse } from 'next/server'
+import { normalizeUploadUrl } from '@/lib/uploadUrl'
 
 export async function GET() {
   const { data, error } = await supabaseAdmin
     .from('activity_sessions')
     .select(`
-      id, title, slug, cover_image_url, session_date,
+      id, title, slug, cover_image_url, session_date, youtube_url,
       activity_types ( name, slug )
     `)
     .eq('is_published', true)
@@ -13,5 +14,12 @@ export async function GET() {
     .limit(25)
 
   if (error) return NextResponse.json([], { status: 200 })
-  return NextResponse.json(data || [])
+
+  // Normalize all cover URLs
+  const normalized = (data || []).map((s: any) => ({
+    ...s,
+    cover_image_url: normalizeUploadUrl(s.cover_image_url),
+  }))
+
+  return NextResponse.json(normalized)
 }

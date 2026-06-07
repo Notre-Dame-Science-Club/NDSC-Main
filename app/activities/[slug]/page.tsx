@@ -2,6 +2,7 @@ import { supabaseAdmin } from '@/lib/supabase'
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import PdfViewer from './PdfViewer'
+import { normalizeUploadUrl, normalizeUploadUrls } from '@/lib/uploadUrl'
 export const dynamic = 'force-dynamic'
 
 function getYoutubeId(url: string) {
@@ -36,6 +37,11 @@ export default async function SessionDetailPage({
     .maybeSingle()
 
   if (!session) notFound()
+
+  // Normalize upload URLs
+  session.cover_image_url = normalizeUploadUrl(session.cover_image_url)
+  session.pdf_url = normalizeUploadUrl(session.pdf_url)
+  session.gallery_urls = normalizeUploadUrls(session.gallery_urls)
 
   // Get type info separately if type_id exists
   let typeName = 'Activities'

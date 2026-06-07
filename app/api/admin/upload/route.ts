@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
+import { normalizeUploadUrl } from '@/lib/uploadUrl'
 
-export const maxDuration = 60 // Vercel timeout 60s
+export const maxDuration = 60
 export const dynamic = 'force-dynamic'
 
 const BUCKET_TO_FOLDER: Record<string, string> = {
@@ -14,6 +15,7 @@ const BUCKET_TO_FOLDER: Record<string, string> = {
   'pdfs':             'pdfs',
   'executives':       'executives',
   'misc':             'misc',
+  'publications':     'publications',
 }
 
 export async function POST(req: NextRequest) {
@@ -33,12 +35,11 @@ export async function POST(req: NextRequest) {
 
   if (!file) return NextResponse.json({ error: 'No file provided' }, { status: 400 })
 
-  // File size check — 200MB max
   if (file.size > 200 * 1024 * 1024) {
-    return NextResponse.json({ error: 'File too large. Maximum size is 50MB.' }, { status: 413 })
+    return NextResponse.json({ error: 'File too large. Maximum size is 200MB.' }, { status: 413 })
   }
 
-  const folder = BUCKET_TO_FOLDER[bucketOrFolder] ?? 'misc'
+  const folder = BUCKET_TO_FOLDER[bucketOrFolder] ?? bucketOrFolder
 
   const hostingerUploadUrl = process.env.HOSTINGER_UPLOAD_URL
   const uploadSecret = process.env.UPLOAD_SECRET
@@ -65,11 +66,14 @@ export async function POST(req: NextRequest) {
   const text = await res.text()
   let data: any
   try { data = JSON.parse(text) }
-  catch { return NextResponse.json({ error: 'Invalid response: ' + text }, { status: 502 }) }
+  catch { return NextResponse.json({ error: 'Invalid response from upload server: ' + text }, { status: 502 }) }
 
   if (!res.ok || !data.success) {
     return NextResponse.json({ error: data.error || 'Upload failed' }, { status: 400 })
   }
 
-  return NextResponse.json({ url: data.url })
+  // ✅ Normalize the URL before returning — fixes /uploads/ prefix issue
+  const cleanUrl = normalizeUploadUrl(data.url)
+
+  return NextResponse.json({ url: cleanUrl })
 }
