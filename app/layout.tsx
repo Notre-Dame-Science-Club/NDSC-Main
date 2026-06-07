@@ -39,12 +39,12 @@ export const metadata: Metadata = {
   alternates: { canonical: "https://ndscbd.net" },
   icons: {
     icon: [
-      { url: "/images/cropped-logo.png", type: "image/png" },
+      { url: "/favicon.png", type: "image/png" },
     ],
     apple: [
-      { url: "/images/cropped-logo.png", type: "image/png" },
+      { url: "/favicon.png", type: "image/png" },
     ],
-    shortcut: "/images/cropped-logo.png",
+    shortcut: "/favicon.png",
   },
   openGraph: {
     title: "Notre Dame Science Club (NDSC) | Official Website",
@@ -86,8 +86,8 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
-        <link rel="icon" href="/images/cropped-logo.png" type="image/png" />
-        <link rel="apple-touch-icon" href="/images/cropped-logo.png" />
+        <link rel="icon" href="/favicon.png" type="image/png" />
+        <link rel="apple-touch-icon" href="/favicon.png" />
       </head>
       <body suppressHydrationWarning>
         <script dangerouslySetInnerHTML={{__html: `

@@ -512,44 +512,45 @@ function AtomCanvas3D({ size = 340 }: { size?: number }) {
 
       // Orbital planes
       const orbitals = [
-        { tilt: 0,             tiltY: 0.32, speed: 1.0,  color: "rgba(0,212,255,0.55)",  eColor: "rgba(0,212,255,1)" },
-        { tilt: Math.PI/3,     tiltY: 0.28, speed: 1.55, color: "rgba(0,130,255,0.4)",   eColor: "rgba(80,180,255,1)" },
-        { tilt: -Math.PI/3,    tiltY: 0.26, speed: 0.72, color: "rgba(167,100,255,0.4)", eColor: "rgba(200,150,255,1)" },
-        { tilt: Math.PI/2,     tiltY: 0.22, speed: 1.2,  color: "rgba(0,255,180,0.3)",   eColor: "rgba(0,255,180,0.9)" },
+        { tilt: 0,             tiltY: 0.32, speed: 1.0,  color: "rgba(0,212,255,0.55)",  eColor: "rgba(0,212,255,1)",    rScale: 1.0,  eDot: 4,   eGlow: 12 },
+        { tilt: Math.PI/3,     tiltY: 0.28, speed: 1.55, color: "rgba(0,130,255,0.4)",   eColor: "rgba(80,180,255,1)",   rScale: 1.0,  eDot: 4,   eGlow: 12 },
+        { tilt: -Math.PI/3,    tiltY: 0.26, speed: 0.72, color: "rgba(167,100,255,0.4)", eColor: "rgba(200,150,255,1)",  rScale: 0.72, eDot: 2.5, eGlow: 7  },
+        { tilt: Math.PI/2,     tiltY: 0.22, speed: 1.2,  color: "rgba(0,255,180,0.3)",   eColor: "rgba(0,255,180,0.9)", rScale: 1.0,  eDot: 4,   eGlow: 12 },
       ];
 
-      orbitals.forEach(({ tilt, tiltY, speed, color, eColor }, oi) => {
+      orbitals.forEach(({ tilt, tiltY, speed, color, eColor, rScale, eDot, eGlow }, oi) => {
+        const oR = R * rScale;
         ctx.save();
         ctx.translate(cx, cy);
         ctx.rotate(tilt);
 
         // Orbit ellipse
         ctx.beginPath();
-        ctx.ellipse(0, 0, R, R * tiltY, 0, 0, Math.PI * 2);
+        ctx.ellipse(0, 0, oR, oR * tiltY, 0, 0, Math.PI * 2);
         ctx.strokeStyle = color; ctx.lineWidth = 0.9; ctx.stroke();
 
         // Electron
         const angle = t * speed + (oi * Math.PI * 2) / orbitals.length;
-        const ex = Math.cos(angle) * R;
-        const ey = Math.sin(angle) * R * tiltY;
+        const ex = Math.cos(angle) * oR;
+        const ey = Math.sin(angle) * oR * tiltY;
 
         // Electron trail
         for (let tr = 1; tr <= 8; tr++) {
           const ta = angle - tr * 0.18;
-          const tx2 = Math.cos(ta) * R, ty2 = Math.sin(ta) * R * tiltY;
-          ctx.beginPath(); ctx.arc(tx2, ty2, 3.5 - tr * 0.35, 0, Math.PI * 2);
+          const tx2 = Math.cos(ta) * oR, ty2 = Math.sin(ta) * oR * tiltY;
+          ctx.beginPath(); ctx.arc(tx2, ty2, (eDot - 0.5) - tr * 0.3, 0, Math.PI * 2);
           ctx.fillStyle = eColor.replace("1)", `${(1 - tr / 9) * 0.4})`);
           ctx.fill();
         }
 
         // Electron glow
-        const eg = ctx.createRadialGradient(ex, ey, 0, ex, ey, 12);
+        const eg = ctx.createRadialGradient(ex, ey, 0, ex, ey, eGlow);
         eg.addColorStop(0, eColor);
         eg.addColorStop(0.4, eColor.replace("1)", "0.5)"));
         eg.addColorStop(1, "rgba(0,0,0,0)");
-        ctx.beginPath(); ctx.arc(ex, ey, 12, 0, Math.PI * 2);
+        ctx.beginPath(); ctx.arc(ex, ey, eGlow, 0, Math.PI * 2);
         ctx.fillStyle = eg; ctx.fill();
-        ctx.beginPath(); ctx.arc(ex, ey, 4, 0, Math.PI * 2);
+        ctx.beginPath(); ctx.arc(ex, ey, eDot, 0, Math.PI * 2);
         ctx.fillStyle = "#fff"; ctx.fill();
         ctx.restore();
       });
@@ -593,7 +594,7 @@ function LogoOrbit() {
       {/* Core */}
       <div className="absolute rounded-full overflow-hidden flex items-center justify-center logo-core" style={{ top: "50%", left: "50%", background: "radial-gradient(circle at 38% 32%, rgba(0,50,90,0.92), rgba(0,4,12,0.97))", animation: "borderCycle 3.5s ease infinite", border: "2px solid rgba(0,212,255,0.45)" }}>
         <div className="absolute left-0 right-0" style={{ height: 2, top: 0, background: "linear-gradient(90deg,transparent,rgba(0,212,255,0.55),transparent)", animation: "scanV 2.8s linear infinite" }} />
-        <Image src="/images/logo-2.0.svg" alt="NDSC" width={230} height={230} className="object-contain relative z-10 logo-img" style={{ filter: "drop-shadow(0 0 24px rgba(0,212,255,0.7))", animation: "spinSlow 30s linear infinite" }} priority />
+        <Image src="/images/70-logo.svg" alt="NDSC 70 Years" width={230} height={230} className="object-contain relative z-10 logo-img" style={{ filter: "drop-shadow(0 0 24px rgba(0,212,255,0.7))", animation: "spinSlow 30s linear infinite" }} priority />
       </div>
       {/* Arc text */}
       <svg className="absolute inset-0 w-full h-full pointer-events-none" viewBox="0 0 513 513">
@@ -684,14 +685,16 @@ function PioneerSection() {
   return (
     <section className="relative z-10 py-20 sm:py-28" style={{ background: "var(--bg)" }}>
       <div className="max-w-7xl mx-auto px-4 sm:px-6">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-2 lg:gap-4 items-stretch">
-          {/* LEFT — founder image */}
-          <div className="reveal flex flex-col items-center lg:items-start">
+        {/* items-stretch so both columns take same height */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-8 items-stretch">
+          {/* LEFT — founder image: fills full height of the article column */}
+          <div className="reveal flex flex-col items-center lg:items-start h-full">
             <div
-              className="pioneer-img-wrap relative rounded-2xl overflow-hidden"
+              className="pioneer-img-wrap relative rounded-2xl overflow-hidden w-full"
               style={{
-                width: "100%", maxWidth: 460,
-                aspectRatio: "7/6",
+                /* no fixed aspectRatio — let it grow to match article height */
+                minHeight: 340,
+                flex: 1,
                 border: "1.5px solid rgba(0,212,255,0.25)",
                 background: "var(--card)",
                 boxShadow: "0 0 60px rgba(0,212,255,0.1)",
@@ -700,8 +703,12 @@ function PioneerSection() {
               {founder?.photo_url ? (
                 <Image src={founder.photo_url} alt={founder.full_name} fill className="object-cover object-top" />
               ) : (
-                /* Static Hostinger URL for founder photo */
-                <Image src="https://ndscbd.net/uploads/executives/1780729148_fe4addabb0f8.jpeg" alt="Fr. Richard William Timm, C.S.C." fill className="object-cover object-top" />
+                <Image
+                  src="https://ndscbd.net/uploads/executives/1780729148_fe4addabb0f8.jpeg"
+                  alt="Fr. Richard William Timm, C.S.C."
+                  fill
+                  className="object-cover object-top"
+                />
               )}
               <div className="absolute bottom-0 left-0 right-0 p-4 text-center" style={{ background: "linear-gradient(to top, rgba(2,8,16,0.95), transparent)" }}>
                 <p className="font-bold text-sm" style={{ color: "var(--white)", fontFamily: "'Poppins',sans-serif" }}>
@@ -716,29 +723,32 @@ function PioneerSection() {
 
           {/* RIGHT — article */}
           <div className="reveal flex flex-col justify-between" style={{ animationDelay: "0.15s" }}>
-            <SectionLabel>Who We Are</SectionLabel>
-            <LetterAnim
-              text="Indian-Sub Continent's Pioneer Science Club"
-              tag="h2"
-              className="font-black mb-6 leading-tight"
-              style={{ fontSize: "clamp(1.5rem, 3vw, 2.2rem)", fontFamily: "'Poppins',sans-serif", fontWeight: 800, color: "var(--white)" }}
-              delay={0.1}
-              slideDir="left"
-            />
-            <div className="space-y-4 text-sm leading-[1.95]" style={{ color: "var(--muted)", fontFamily: "'Poppins',sans-serif" }}>
-              <LoopingP delay={0.5}>
-                Notre Dame Science Club, also known as <strong style={{ color: "var(--white)" }}>NDSC</strong>, is the most promising, versatile, and eminent co-curricular activities club of Notre Dame College, Dhaka. It began its inception in <strong style={{ color: "var(--blue)" }}>1955</strong> with a singular mission — to ignite a passion for science among students. It holds the proud distinction of being the <strong style={{ color: "var(--blue)" }}>pioneer science club of the Indian Subcontinent</strong>.
-              </LoopingP>
-              <LoopingP delay={1.2}>
-                Holding the noble motto &ldquo;Science in Human Welfare,&rdquo; the eminent scientist <strong style={{ color: "var(--white)" }}>Fr. Richard William Timm, C.S.C.</strong> inaugurated the flag of NDSC on September 18, 1955, alongside 19 founding student members.
-              </LoopingP>
-              <LoopingP delay={2.0}>
-                The NDSC has a long history of inspiring its followers to rediscover their innate passion for science by serving as the country&apos;s <strong style={{ color: "var(--white)" }}>oldest and most prestigious scientific club</strong>. NDSC provides necessary guidelines to budding scientists and is the trailblazer in spreading scientific awareness among the people.
-              </LoopingP>
+            <div>
+              <SectionLabel>Who We Are</SectionLabel>
+              <LetterAnim
+                text="Indian-Sub Continent's Pioneer Science Club"
+                tag="h2"
+                className="font-black mb-4 leading-tight"
+                style={{ fontSize: "clamp(1.5rem, 3vw, 2.2rem)", fontFamily: "'Poppins',sans-serif", fontWeight: 800, color: "var(--white)" }}
+                delay={0.1}
+                slideDir="left"
+              />
+              {/* Paragraphs — gap matches the ~1rem space between paragraphs themselves */}
+              <div className="space-y-3 text-sm leading-[1.9]" style={{ color: "var(--muted)", fontFamily: "'Poppins',sans-serif" }}>
+                <LoopingP delay={0.5}>
+                  Notre Dame Science Club, also known as <strong style={{ color: "var(--white)" }}>NDSC</strong>, is the most promising, versatile, and eminent co-curricular activities club of Notre Dame College, Dhaka. It began its inception in <strong style={{ color: "var(--blue)" }}>1955</strong> with a singular mission — to ignite a passion for science among students. It holds the proud distinction of being the <strong style={{ color: "var(--blue)" }}>pioneer science club of the Indian Subcontinent</strong>.
+                </LoopingP>
+                <LoopingP delay={1.2}>
+                  Holding the noble motto &ldquo;Science in Human Welfare,&rdquo; the eminent scientist <strong style={{ color: "var(--white)" }}>Fr. Richard William Timm, C.S.C.</strong> inaugurated the flag of NDSC on September 18, 1955, alongside 19 founding student members.
+                </LoopingP>
+                <LoopingP delay={2.0}>
+                  The NDSC has a long history of inspiring its followers to rediscover their innate passion for science by serving as the country&apos;s <strong style={{ color: "var(--white)" }}>oldest and most prestigious scientific club</strong>. NDSC provides necessary guidelines to budding scientists and is the trailblazer in spreading scientific awareness among the people.
+                </LoopingP>
+              </div>
             </div>
             <Link
               href="/about#about-article"
-              className="mt-6 self-start flex items-center gap-2 text-xs font-bold tracking-widest group"
+              className="mt-5 self-start flex items-center gap-2 text-xs font-bold tracking-widest group"
               style={{ color: "var(--blue)", fontFamily: "'Share Tech Mono',monospace", letterSpacing: "0.25em" }}
             >
               READ MORE
