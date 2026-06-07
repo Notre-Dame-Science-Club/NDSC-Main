@@ -784,7 +784,7 @@ function LeadersSection() {
     },
     {
       key: "gs",
-      role: "General Secretary · Session 2025–26",
+      role: "General Secretary",
       name: "Fahim Faisal Arnob",
       img: "https://ndscbd.net/uploads/executives/1780619755_f8a427c9fe3d.jpg",
     },
