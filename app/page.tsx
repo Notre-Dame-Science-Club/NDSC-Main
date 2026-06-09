@@ -583,10 +583,170 @@ function AtomCanvas3D({ size = 340 }: { size?: number }) {
 /* ════════════════════════════════════════════════════════════
    3D LOGO RING (hero right side)
 ════════════════════════════════════════════════════════════ */
+/* ════════════════════════════════════════════════════════════
+   QUANTUM ORBITAL 3D CANVAS — s, p, d orbitals behind logo
+════════════════════════════════════════════════════════════ */
+function QuantumOrbitalCanvas({ size = 460 }: { size?: number }) {
+  const ref = useRef<HTMLCanvasElement>(null);
+  useEffect(() => {
+    const canvas = ref.current;
+    if (!canvas) return;
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    canvas.width  = size * dpr;
+    canvas.height = size * dpr;
+    canvas.style.width  = size + "px";
+    canvas.style.height = size + "px";
+    const ctx = canvas.getContext("2d")!;
+    ctx.scale(dpr, dpr);
+
+    const cx = size / 2, cy = size / 2;
+    let t = 0, animId: number;
+
+    /* ── 3-D helpers ─────────────────────────────── */
+    const rotX = (x: number, y: number, z: number, a: number): [number,number,number] => [x, y*Math.cos(a)-z*Math.sin(a), y*Math.sin(a)+z*Math.cos(a)];
+    const rotY = (x: number, y: number, z: number, a: number): [number,number,number] => [x*Math.cos(a)+z*Math.sin(a), y, -x*Math.sin(a)+z*Math.cos(a)];
+    const rotZ = (x: number, y: number, z: number, a: number): [number,number,number] => [x*Math.cos(a)-y*Math.sin(a), x*Math.sin(a)+y*Math.cos(a), z];
+    const project = (x: number, y: number, z: number, fov = 600): [number,number,number] => {
+      const s = fov / (fov + z);
+      return [cx + x*s, cy + y*s, s];
+    };
+
+    /* ── Orbital lobe sampler ─────────────────────
+       Returns array of {x,y,z,alpha} points on a lobe surface
+       via spherical harmonic magnitudes mapped to radius       */
+    type Pt3 = { x:number; y:number; z:number; a:number; color:string };
+
+    const sampleOrbital = (
+      type: "s"|"px"|"py"|"pz"|"dz2"|"dxy"|"dx2y2",
+      color: string,
+      R: number,
+      N = 420,
+    ): Pt3[] => {
+      const pts: Pt3[] = [];
+      for (let i = 0; i < N; i++) {
+        // Fibonacci sphere for even distribution
+        const phi   = Math.acos(1 - 2*(i+0.5)/N);
+        const theta = Math.PI * (1 + Math.sqrt(5)) * i;
+        const sinP = Math.sin(phi), cosP = Math.cos(phi);
+        const sinT = Math.sin(theta), cosT = Math.cos(theta);
+
+        let r = 0;
+        switch(type) {
+          case "s":      r = R * 0.62; break;
+          case "px":     r = R * Math.abs(sinP * cosT) * 1.05; break;
+          case "py":     r = R * Math.abs(sinP * sinT) * 1.05; break;
+          case "pz":     r = R * Math.abs(cosP)        * 1.05; break;
+          case "dz2":    r = R * Math.abs(3*cosP*cosP - 1) * 0.55; break;
+          case "dxy":    r = R * Math.abs(sinP*sinP * Math.sin(2*theta)) * 0.9; break;
+          case "dx2y2":  r = R * Math.abs(sinP*sinP * Math.cos(2*theta)) * 0.9; break;
+        }
+        if (r < 0.5) continue;
+        pts.push({ x: r*sinP*cosT, y: r*sinP*sinT, z: r*cosP, a: 0.65, color });
+      }
+      return pts;
+    };
+
+    /* ── Orbital definitions ─────────────────────── */
+    const R = size * 0.38;
+    const orbitals: {
+      pts: Pt3[];
+      rotFunc: (t:number) => [number,number,number]; // returns [rx,ry,rz] at time t
+      dotSize: number;
+    }[] = [
+      // 1s — soft sphere, slow pulse
+      { pts: sampleOrbital("s","0,212,255", R*0.28, 280),
+        rotFunc: (t) => [t*0.07, t*0.05, 0],
+        dotSize: 1.4 },
+      // 2px — dumbbell along X, tilted 30°
+      { pts: sampleOrbital("px","80,160,255", R*0.72, 360),
+        rotFunc: (t) => [t*0.09 + 0.3, t*0.13, Math.PI/6],
+        dotSize: 1.6 },
+      // 2py — dumbbell along Y, tilted differently
+      { pts: sampleOrbital("py","140,100,255", R*0.72, 360),
+        rotFunc: (t) => [t*0.11 + Math.PI/4, -t*0.08, Math.PI/3],
+        dotSize: 1.6 },
+      // 2pz — dumbbell along Z, upright
+      { pts: sampleOrbital("pz","0,200,180", R*0.72, 360),
+        rotFunc: (t) => [t*0.06, t*0.15, -Math.PI/5],
+        dotSize: 1.6 },
+      // 3dz² — double-lobe + torus ring
+      { pts: sampleOrbital("dz2","200,140,255", R*0.88, 400),
+        rotFunc: (t) => [t*0.08 - 0.5, t*0.10, Math.PI/4],
+        dotSize: 1.5 },
+      // 3dxy — four-leaf clover in XY plane
+      { pts: sampleOrbital("dxy","0,230,255", R*0.82, 380),
+        rotFunc: (t) => [t*0.05 + 0.8, t*0.12, t*0.03],
+        dotSize: 1.4 },
+      // 3dx²-y² — four-leaf clover rotated 45°
+      { pts: sampleOrbital("dx2y2","255,160,80", R*0.82, 360),
+        rotFunc: (t) => [-t*0.07 + 1.2, t*0.09, -t*0.04],
+        dotSize: 1.4 },
+    ];
+
+    const draw = () => {
+      ctx.clearRect(0, 0, size, size);
+
+      // Collect all projected points from all orbitals
+      type ProjPt = { px:number; py:number; z:number; size:number; color:string; a:number };
+      const allPts: ProjPt[] = [];
+
+      for (const orb of orbitals) {
+        const [rx, ry, rz] = orb.rotFunc(t);
+        for (const p of orb.pts) {
+          let [x, y, z] = rotZ(p.x, p.y, p.z, rz);
+          [x, y, z] = rotX(x, y, z, rx);
+          [x, y, z] = rotY(x, y, z, ry);
+          const [ppx, ppy, ps] = project(x, y, z);
+          // depth: ps ~0.55–1.3; use it for alpha+size
+          const depthA = Math.max(0, Math.min(1, (ps - 0.5) * 1.6));
+          allPts.push({
+            px: ppx, py: ppy, z,
+            size: orb.dotSize * ps,
+            color: p.color,
+            a: p.a * depthA * 0.72,
+          });
+        }
+      }
+
+      // Painter's algorithm — back to front
+      allPts.sort((a, b) => a.z - b.z);
+
+      for (const p of allPts) {
+        if (p.a < 0.02) continue;
+        ctx.beginPath();
+        ctx.arc(p.px, p.py, p.size, 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(${p.color},${p.a.toFixed(2)})`;
+        ctx.fill();
+      }
+
+      t += 0.012;
+      animId = requestAnimationFrame(draw);
+    };
+    draw();
+    return () => cancelAnimationFrame(animId);
+  }, [size]);
+
+  return (
+    <canvas
+      ref={ref}
+      className="absolute inset-0 pointer-events-none"
+      style={{ width: size, height: size, opacity: 0.82 }}
+    />
+  );
+}
+
 function LogoOrbit() {
-  // Desktop: 513px (380 * 1.35), mobile keeps 300px
+  const [orbSize, setOrbSize] = useState(460);
+  useEffect(() => {
+    const update = () => setOrbSize(window.innerWidth < 768 ? 300 : 460);
+    update();
+    window.addEventListener("resize", update);
+    return () => window.removeEventListener("resize", update);
+  }, []);
   return (
     <div className="logo-float logo-orbit-wrap relative flex items-center justify-center">
+      {/* Quantum orbital cloud — behind everything */}
+      <QuantumOrbitalCanvas size={orbSize} />
       {/* Outer ring */}
       <div className="absolute rounded-full logo-ring-outer" style={{ border: "1px dashed rgba(0,212,255,0.16)", animation: "spinSlow 70s linear infinite" }}>
         {[0, 72, 144, 216, 288].map((deg, i) => (
