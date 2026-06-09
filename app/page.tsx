@@ -31,12 +31,12 @@ const STATS = [
 ];
 
 const DEPTS = [
-  { name: "Administration", icon: "https://uploads.ndscbd.net/gallery/admininstration-icon.png", color: "#00d4ff",  bg: "rgba(0,212,255,0.07)",  border: "rgba(0,212,255,0.28)",  desc: "Ensures smooth operation and management. Coordinates planning, logistics and execution of events." },
-  { name: "Project",        icon: "https://uploads.ndscbd.net/gallery/project-icon.png",        color: "#34d399",  bg: "rgba(52,211,153,0.07)", border: "rgba(52,211,153,0.28)", desc: "Conducts scientific research and innovation-based projects. Encourages experimentation." },
-  { name: "Publication",    icon: "https://uploads.ndscbd.net/gallery/publication-icon.png",    color: "#a78bfa",  bg: "rgba(167,139,250,0.07)",border: "rgba(167,139,250,0.28)",desc: "Publishes wall magazines, AUDRI journal. Promotes scientific writing and creative expression." },
-  { name: "ICT",            icon: "https://uploads.ndscbd.net/gallery/ict-icon.png",            color: "#f87171",  bg: "rgba(248,113,113,0.07)",border: "rgba(248,113,113,0.28)",desc: "Handles digital media, website management and emerging technology workshops." },
-  { name: "LWS",            icon: "https://uploads.ndscbd.net/gallery/lws-icon.png",            color: "#f59e0b",  bg: "rgba(245,158,11,0.07)", border: "rgba(245,158,11,0.28)", desc: "Life & Welfare Science — biology, environment and health oriented activities." },
-  { name: "Quiz",           icon: "https://uploads.ndscbd.net/gallery/quiz-icon.png",           color: "#60a5fa",  bg: "rgba(96,165,250,0.07)", border: "rgba(96,165,250,0.28)", desc: "Hosts Q-League, BrainRain, Scienceophile. NDC Blue, NDC Green & NDC Gold quiz teams." },
+  { name: "Administration", icon: "/images/admininstration-icon.svg", color: "#00d4ff",  bg: "rgba(0,212,255,0.07)",  border: "rgba(0,212,255,0.28)",  desc: "Ensures smooth operation and management. Coordinates planning, logistics and execution of events." },
+  { name: "Project",        icon: "/images/project-icon.svg",        color: "#34d399",  bg: "rgba(52,211,153,0.07)", border: "rgba(52,211,153,0.28)", desc: "Conducts scientific research and innovation-based projects. Encourages experimentation." },
+  { name: "Publication",    icon: "/images/publication-icon.svg",    color: "#a78bfa",  bg: "rgba(167,139,250,0.07)",border: "rgba(167,139,250,0.28)",desc: "Publishes wall magazines, AUDRI journal. Promotes scientific writing and creative expression." },
+  { name: "ICT",            icon: "/images/ict-icon.svg",            color: "#f87171",  bg: "rgba(248,113,113,0.07)",border: "rgba(248,113,113,0.28)",desc: "Handles digital media, website management and emerging technology workshops." },
+  { name: "LWS",            icon: "/images/lws-icon.svg",            color: "#f59e0b",  bg: "rgba(245,158,11,0.07)", border: "rgba(245,158,11,0.28)", desc: "Life & Welfare Science — biology, environment and health oriented activities." },
+  { name: "Quiz",           icon: "/images/quiz-icon.svg",           color: "#60a5fa",  bg: "rgba(96,165,250,0.07)", border: "rgba(96,165,250,0.28)", desc: "Hosts Q-League, BrainRain, Scienceophile. NDC Blue, NDC Green & NDC Gold quiz teams." },
 ];
 
 /* ════════════════════════════════════════════════════════════
