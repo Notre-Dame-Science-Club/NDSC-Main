@@ -223,36 +223,33 @@ function GalaxyCanvas() {
     let animId: number, W = 0, H = 0, t = 0;
 
     interface Star { x: number; y: number; r: number; tw: number; vx: number; vy: number; bright: boolean }
-    interface Particle { x: number; y: number; vx: number; vy: number; r: number; life: number; maxLife: number; color: string }
 
     let stars: Star[] = [];
-    let particles: Particle[] = [];
 
     const resize = () => {
       W = canvas.width = window.innerWidth;
       H = canvas.height = window.innerHeight;
+      // Reduced from 320 → 90 stars; only 5 bright ones
       stars = [];
-      for (let i = 0; i < 320; i++) {
+      for (let i = 0; i < 90; i++) {
         stars.push({
           x: Math.random() * W, y: Math.random() * H,
-          r: Math.random() * 1.6 + 0.15,
+          r: Math.random() * 1.8 + 0.3,
           tw: Math.random() * Math.PI * 2,
-          vx: (Math.random() - 0.5) * 0.04,
-          vy: (Math.random() - 0.5) * 0.04,
-          bright: Math.random() < 0.12,
+          vx: (Math.random() - 0.5) * 0.018,
+          vy: (Math.random() - 0.5) * 0.018,
+          bright: i < 5,
         });
       }
     };
     resize();
     window.addEventListener("resize", resize);
 
-    // Nebula blobs
+    // Nebula blobs — fewer, lighter
     const nebulae = [
-      { cx: 0.15, cy: 0.2,  rx: 380, ry: 200, color: "rgba(0,100,200,0.055)" },
-      { cx: 0.85, cy: 0.25, rx: 300, ry: 180, color: "rgba(0,200,255,0.04)" },
-      { cx: 0.5,  cy: 0.55, rx: 420, ry: 240, color: "rgba(0,50,120,0.038)" },
-      { cx: 0.25, cy: 0.75, rx: 260, ry: 140, color: "rgba(80,0,180,0.03)" },
-      { cx: 0.75, cy: 0.7,  rx: 300, ry: 160, color: "rgba(0,180,120,0.025)" },
+      { cx: 0.15, cy: 0.2,  rx: 340, ry: 180, color: "rgba(0,100,200,0.045)" },
+      { cx: 0.82, cy: 0.25, rx: 260, ry: 160, color: "rgba(0,200,255,0.032)" },
+      { cx: 0.5,  cy: 0.55, rx: 380, ry: 220, color: "rgba(0,50,120,0.03)" },
     ];
 
     const drawNebula = (nx: number, ny: number, rx: number, ry: number, color: string) => {
@@ -268,84 +265,39 @@ function GalaxyCanvas() {
       ctx.restore();
     };
 
-    // Galaxy spiral arms
+    // Galaxy spiral — single, fewer points
     const drawGalaxy = (cx: number, cy: number, maxR: number, rotation: number, alpha: number) => {
-      const arms = 3, pointsPerArm = 120;
+      const arms = 2, pointsPerArm = 60;
       for (let arm = 0; arm < arms; arm++) {
         const armAngle = (arm / arms) * Math.PI * 2 + rotation;
         for (let p = 0; p < pointsPerArm; p++) {
           const frac = p / pointsPerArm;
           const r = frac * maxR;
-          const angle = armAngle + frac * Math.PI * 3.2 + t * 0.008;
-          const spread = frac * maxR * 0.18 * (Math.random() - 0.5);
+          const angle = armAngle + frac * Math.PI * 3.2 + t * 0.006;
+          const spread = frac * maxR * 0.14 * (Math.random() - 0.5);
           const x = cx + (r + spread) * Math.cos(angle);
           const y = cy + (r + spread) * Math.sin(angle) * 0.42;
-          const a = alpha * (1 - frac) * 0.9;
-          if (a < 0.002) continue;
+          const a = alpha * (1 - frac) * 0.8;
+          if (a < 0.003) continue;
           ctx.beginPath();
-          ctx.arc(x, y, frac < 0.1 ? 1.2 : 0.6, 0, Math.PI * 2);
-          ctx.fillStyle = arm === 0
-            ? `rgba(0,212,255,${a})`
-            : arm === 1 ? `rgba(100,180,255,${a})` : `rgba(180,100,255,${a * 0.7})`;
+          ctx.arc(x, y, frac < 0.1 ? 1.0 : 0.55, 0, Math.PI * 2);
+          ctx.fillStyle = arm === 0 ? `rgba(0,212,255,${a})` : `rgba(100,180,255,${a})`;
           ctx.fill();
         }
       }
-    };
-
-    // Blackhole with accretion disk
-    const drawBlackhole = (bx: number, by: number, br: number) => {
-      // Event horizon
-      const bh = ctx.createRadialGradient(bx, by, 0, bx, by, br);
-      bh.addColorStop(0, "rgba(0,0,0,1)");
-      bh.addColorStop(0.6, "rgba(0,0,4,0.95)");
-      bh.addColorStop(1, "rgba(0,0,8,0)");
-      ctx.beginPath();
-      ctx.arc(bx, by, br, 0, Math.PI * 2);
-      ctx.fillStyle = bh;
-      ctx.fill();
-
-      // Accretion disk rings
-      for (let ring = 0; ring < 5; ring++) {
-        const rr = br * (1.4 + ring * 0.4);
-        const intensity = (1 - ring / 5) * 0.22;
-        ctx.save();
-        ctx.translate(bx, by);
-        ctx.scale(1, 0.3);
-        ctx.beginPath();
-        ctx.arc(0, 0, rr, 0, Math.PI * 2);
-        const ag = ctx.createRadialGradient(0, 0, rr * 0.85, 0, 0, rr * 1.15);
-        const hue = ring < 2 ? `rgba(255,${140 + ring * 30},0,${intensity})` : `rgba(0,212,255,${intensity * 0.6})`;
-        ag.addColorStop(0, "transparent");
-        ag.addColorStop(0.5, hue);
-        ag.addColorStop(1, "transparent");
-        ctx.strokeStyle = hue;
-        ctx.lineWidth = 2 + ring;
-        ctx.globalAlpha = 0.7;
-        ctx.stroke();
-        ctx.globalAlpha = 1;
-        ctx.restore();
-      }
-
-      // Lensing glow
-      const lg = ctx.createRadialGradient(bx, by, br * 0.8, bx, by, br * 3);
-      lg.addColorStop(0, "rgba(0,180,255,0.08)");
-      lg.addColorStop(0.4, "rgba(0,100,200,0.04)");
-      lg.addColorStop(1, "transparent");
-      ctx.beginPath(); ctx.arc(bx, by, br * 3, 0, Math.PI * 2);
-      ctx.fillStyle = lg; ctx.fill();
     };
 
     // Electromagnetic wave
     const drawEMWave = (ox: number, oy: number, len: number, amp: number, freq: number, phase: number, color: string) => {
       ctx.beginPath();
       ctx.moveTo(ox, oy);
-      for (let x = 0; x < len; x += 2) {
-        const y = oy + amp * Math.sin((x / len) * Math.PI * freq * 2 + phase + t * 1.2);
+      for (let x = 0; x < len; x += 4) {
+        const y = oy + amp * Math.sin((x / len) * Math.PI * freq * 2 + phase + t * 1.1);
         ctx.lineTo(ox + x, y);
       }
       ctx.strokeStyle = color;
-      ctx.lineWidth = 1.2;
-      ctx.globalAlpha = 0.18;
+      ctx.lineWidth = 1.0;
+      ctx.globalAlpha = 0.14;
       ctx.stroke();
       ctx.globalAlpha = 1;
     };
@@ -355,17 +307,17 @@ function GalaxyCanvas() {
     const spawnShooter = () => {
       shooters.push({ x: Math.random() * W, y: Math.random() * H * 0.5, vx: 6 + Math.random() * 8, vy: 2 + Math.random() * 4, life: 0, maxLife: 50 + Math.random() * 30 });
     };
-    let nextShooter = 120;
+    let nextShooter = 180;
 
     const draw = () => {
-      t += 0.012;
+      t += 0.010;
       ctx.clearRect(0, 0, W, H);
 
       // BG gradient
       const bg = ctx.createLinearGradient(0, 0, 0, H);
       bg.addColorStop(0, "#000306");
-      bg.addColorStop(0.3, "#010a18");
-      bg.addColorStop(0.65, "#020c20");
+      bg.addColorStop(0.35, "#010a18");
+      bg.addColorStop(0.7, "#020c20");
       bg.addColorStop(1, "#000204");
       ctx.fillStyle = bg;
       ctx.fillRect(0, 0, W, H);
@@ -373,91 +325,52 @@ function GalaxyCanvas() {
       // Nebulae
       nebulae.forEach(n => drawNebula(n.cx * W, n.cy * H, n.rx, n.ry, n.color));
 
-      // Galaxy
-      drawGalaxy(W * 0.72, H * 0.28, Math.min(W, H) * 0.32, t * 0.003, 0.9);
-      drawGalaxy(W * 0.18, H * 0.65, Math.min(W, H) * 0.18, -t * 0.004 + 1.2, 0.5);
+      // Single galaxy
+      drawGalaxy(W * 0.72, H * 0.28, Math.min(W, H) * 0.30, t * 0.003, 0.85);
 
-      // Blackhole
-      drawBlackhole(W * 0.88, H * 0.78, 38);
-
-      // Stars
+      // Stars — slow heavy drift
       for (const s of stars) {
         s.x += s.vx; s.y += s.vy;
         if (s.x < 0) s.x = W; if (s.x > W) s.x = 0;
         if (s.y < 0) s.y = H; if (s.y > H) s.y = 0;
-        s.tw += 0.012;
-        const ao = s.bright ? 0.5 + 0.5 * Math.abs(Math.sin(s.tw)) : 0.25 + 0.35 * Math.abs(Math.sin(s.tw));
+        s.tw += 0.008;
+        const ao = s.bright ? 0.5 + 0.5 * Math.abs(Math.sin(s.tw)) : 0.22 + 0.38 * Math.abs(Math.sin(s.tw));
         ctx.beginPath();
-        ctx.arc(s.x, s.y, s.bright ? s.r * 1.4 : s.r, 0, Math.PI * 2);
+        ctx.arc(s.x, s.y, s.bright ? s.r * 1.6 : s.r, 0, Math.PI * 2);
         ctx.fillStyle = `rgba(${180 + Math.round(75 * ao)},${220 + Math.round(35 * ao)},255,${ao})`;
         ctx.fill();
         if (s.bright) {
-          const sg = ctx.createRadialGradient(s.x, s.y, 0, s.x, s.y, s.r * 5);
-          sg.addColorStop(0, `rgba(0,212,255,${ao * 0.25})`);
+          const sg = ctx.createRadialGradient(s.x, s.y, 0, s.x, s.y, s.r * 6);
+          sg.addColorStop(0, `rgba(0,212,255,${ao * 0.3})`);
           sg.addColorStop(1, "transparent");
-          ctx.beginPath(); ctx.arc(s.x, s.y, s.r * 5, 0, Math.PI * 2);
+          ctx.beginPath(); ctx.arc(s.x, s.y, s.r * 6, 0, Math.PI * 2);
           ctx.fillStyle = sg; ctx.fill();
         }
       }
 
-      // EM waves across screen
-      drawEMWave(W * 0.05, H * 0.4, W * 0.4, 18, 3, 0, "rgba(0,212,255,1)");
-      drawEMWave(W * 0.55, H * 0.55, W * 0.4, 14, 4, Math.PI, "rgba(100,180,255,1)");
-      drawEMWave(W * 0.1,  H * 0.7,  W * 0.3, 10, 5, 0.5, "rgba(180,100,255,1)");
+      // EM waves — 2 only
+      drawEMWave(W * 0.05, H * 0.4, W * 0.38, 16, 3, 0, "rgba(0,212,255,1)");
+      drawEMWave(W * 0.58, H * 0.55, W * 0.36, 12, 4, Math.PI, "rgba(100,180,255,1)");
 
       // Shooting stars
       nextShooter--;
-      if (nextShooter <= 0) { spawnShooter(); nextShooter = 80 + Math.random() * 160; }
+      if (nextShooter <= 0) { spawnShooter(); nextShooter = 140 + Math.random() * 200; }
       for (let i = shooters.length - 1; i >= 0; i--) {
         const sh = shooters[i];
         sh.x += sh.vx; sh.y += sh.vy; sh.life++;
         if (sh.life > sh.maxLife) { shooters.splice(i, 1); continue; }
         const prog = sh.life / sh.maxLife;
         const alpha = prog < 0.3 ? prog / 0.3 : 1 - (prog - 0.3) / 0.7;
-        const tail = 80;
-        const grad = ctx.createLinearGradient(sh.x - sh.vx * (tail / sh.vx), sh.y - sh.vy * (tail / sh.vx), sh.x, sh.y);
+        const grad = ctx.createLinearGradient(sh.x - sh.vx * 10, sh.y - sh.vy * 10, sh.x, sh.y);
         grad.addColorStop(0, "transparent");
         grad.addColorStop(1, `rgba(180,230,255,${alpha * 0.9})`);
         ctx.beginPath();
-        ctx.moveTo(sh.x - sh.vx * 12, sh.y - sh.vy * 12);
+        ctx.moveTo(sh.x - sh.vx * 10, sh.y - sh.vy * 10);
         ctx.lineTo(sh.x, sh.y);
         ctx.strokeStyle = grad; ctx.lineWidth = 1.5; ctx.stroke();
         ctx.beginPath(); ctx.arc(sh.x, sh.y, 1.5, 0, Math.PI * 2);
         ctx.fillStyle = `rgba(255,255,255,${alpha})`; ctx.fill();
       }
-
-      // Water ripple lower half
-      const waterTop = H * 0.62, rows = 80, rowH = (H - waterTop) / rows;
-      const ripples = [
-        { cx: 0.5, cy: 0.78, amp: 16, freq: 0.013, speed: 0.65 },
-        { cx: 0.25, cy: 0.88, amp: 9, freq: 0.02, speed: 0.45 },
-        { cx: 0.75, cy: 0.82, amp: 11, freq: 0.016, speed: 0.55 },
-      ];
-      for (let row = 0; row < rows; row++) {
-        const y = waterTop + row * rowH, depth = row / rows;
-        const cols = Math.max(6, Math.round(55 - depth * 38)), segW = W / cols;
-        for (let col = 0; col < cols; col++) {
-          const x = col * segW; let wave = 0;
-          for (const rp of ripples) {
-            const dx = x / W - rp.cx, dy = (y / H - rp.cy) * 2;
-            const dist = Math.sqrt(dx * dx + dy * dy);
-            wave += rp.amp * Math.sin(dist * W * rp.freq - t * rp.speed) * Math.exp(-dist * 3.5);
-          }
-          wave *= (1 - depth);
-          const intensity = Math.max(0, Math.sin(wave * 0.3 + t * 0.4) * 0.5 + 0.5);
-          const alpha = (0.03 + intensity * 0.14) * (1 - depth * 0.85);
-          ctx.fillStyle = `rgba(${Math.round(intensity * 18)},${Math.round(55 + intensity * 130 - depth * 35)},${Math.round(110 + intensity * 130 - depth * 28)},${alpha})`;
-          ctx.fillRect(x, y + wave * depth * 0.25, segW + 1, rowH + 1);
-        }
-      }
-      const horizGrad = ctx.createLinearGradient(0, 0, W, 0);
-      horizGrad.addColorStop(0, "transparent");
-      horizGrad.addColorStop(0.3, "rgba(0,200,255,0.14)");
-      horizGrad.addColorStop(0.5, "rgba(0,212,255,0.24)");
-      horizGrad.addColorStop(0.7, "rgba(0,200,255,0.14)");
-      horizGrad.addColorStop(1, "transparent");
-      ctx.fillStyle = horizGrad;
-      ctx.fillRect(0, waterTop - 1, W, 3 + Math.sin(t * 0.5) * 1);
 
       // Vignette
       const vig = ctx.createRadialGradient(W / 2, H / 2, H * 0.2, W / 2, H / 2, H * 0.9);
@@ -470,7 +383,7 @@ function GalaxyCanvas() {
     draw();
     return () => { cancelAnimationFrame(animId); window.removeEventListener("resize", resize); };
   }, []);
-  return <canvas ref={ref} className="fixed inset-0 w-full h-full pointer-events-none z-0" />;
+  return <canvas ref={ref} className="fixed inset-0 w-full h-full pointer-events-none z-0" style={{ willChange: "transform" }} />;
 }
 
 /* ════════════════════════════════════════════════════════════
@@ -1305,6 +1218,22 @@ export default function HomePage() {
 
         /* ── Mobile ───────────────────────────────── */
         @media (max-width:480px) { .hero-h1-size { font-size:clamp(2.5rem,11vw,3.8rem)!important; } }
+
+        /* ── Underwater caustic light ─────────────── */
+        @keyframes caustic1 { 0%,100%{transform:translate(0,0) scale(1);opacity:0.18;} 33%{transform:translate(4%,3%) scale(1.08);opacity:0.28;} 66%{transform:translate(-3%,5%) scale(0.96);opacity:0.22;} }
+        @keyframes caustic2 { 0%,100%{transform:translate(0,0) scale(1.05);opacity:0.14;} 40%{transform:translate(-5%,-2%) scale(0.95);opacity:0.24;} 70%{transform:translate(3%,4%) scale(1.1);opacity:0.18;} }
+        @keyframes caustic3 { 0%,100%{transform:translate(0,0) scale(0.98);opacity:0.10;} 50%{transform:translate(6%,-4%) scale(1.12);opacity:0.20;} }
+        @keyframes depthFlow { 0%{background-position:0% 0%;}100%{background-position:100% 100%;} }
+        .caustic-layer { position:absolute; inset:0; pointer-events:none; overflow:hidden; }
+        .caustic-blob {
+          position:absolute; border-radius:50%;
+          filter:blur(48px);
+          mix-blend-mode: screen;
+        }
+        .caustic-blob-1 { width:55%; height:70%; top:-10%; left:10%; background:radial-gradient(ellipse,rgba(0,180,255,0.22) 0%,rgba(0,80,200,0.08) 50%,transparent 75%); animation:caustic1 9s ease-in-out infinite; }
+        .caustic-blob-2 { width:60%; height:65%; top:20%; right:-5%; background:radial-gradient(ellipse,rgba(0,212,255,0.16) 0%,rgba(0,100,180,0.06) 55%,transparent 80%); animation:caustic2 12s ease-in-out infinite; }
+        .caustic-blob-3 { width:45%; height:55%; bottom:-5%; left:25%; background:radial-gradient(ellipse,rgba(30,160,255,0.14) 0%,rgba(0,60,140,0.05) 55%,transparent 80%); animation:caustic3 15s ease-in-out infinite; }
+        .caustic-grid { position:absolute; inset:0; background-image:radial-gradient(ellipse 80px 120px at 30% 40%,rgba(0,212,255,0.07) 0%,transparent 70%), radial-gradient(ellipse 60px 90px at 70% 25%,rgba(0,180,255,0.06) 0%,transparent 70%), radial-gradient(ellipse 100px 60px at 55% 70%,rgba(0,150,255,0.05) 0%,transparent 70%); animation:depthFlow 20s linear infinite alternate; }
       `}</style>
 
       <GalaxyCanvas />
@@ -1312,6 +1241,15 @@ export default function HomePage() {
 
       {/* ══════ HERO ══════════════════════════════════════════ */}
       <section className="relative min-h-[92vh] flex flex-col justify-center overflow-hidden">
+        {/* Underwater caustic light overlay — whole hero feels submerged */}
+        <div className="caustic-layer z-[1]">
+          <div className="caustic-blob caustic-blob-1" />
+          <div className="caustic-blob caustic-blob-2" />
+          <div className="caustic-blob caustic-blob-3" />
+          <div className="caustic-grid" />
+          {/* Deep water tint — bottom fade */}
+          <div style={{ position:"absolute", inset:0, background:"linear-gradient(to bottom, transparent 0%, rgba(0,8,30,0.18) 60%, rgba(0,15,50,0.38) 100%)", pointerEvents:"none" }} />
+        </div>
         {/* Grid overlay */}
         <div className="absolute inset-0 pointer-events-none z-[1]" style={{ backgroundImage: "linear-gradient(rgba(0,212,255,0.015) 1px,transparent 1px),linear-gradient(90deg,rgba(0,212,255,0.015) 1px,transparent 1px)", backgroundSize: "72px 72px" }} />
 
