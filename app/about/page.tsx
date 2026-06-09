@@ -9,7 +9,7 @@ import Image from "next/image";
 const DEPTS = [
   {
     name: "Administration",
-    icon: "https://uploads.ndscbd.net/gallery/admininstration-icon.png",
+    icon: "/images/admininstration-icon.svg",
     color: "#00d4ff",
     bg: "rgba(0,212,255,0.08)",
     border: "rgba(0,212,255,0.3)",
@@ -17,7 +17,7 @@ const DEPTS = [
   },
   {
     name: "Project",
-    icon: "https://uploads.ndscbd.net/gallery/project-icon.png",
+    icon: "/images/project-icon.svg",
     color: "#34d399",
     bg: "rgba(52,211,153,0.08)",
     border: "rgba(52,211,153,0.3)",
@@ -25,7 +25,7 @@ const DEPTS = [
   },
   {
     name: "Publication",
-    icon: "https://uploads.ndscbd.net/gallery/publication-icon.png",
+    icon: "/images/publication-icon.svg",
     color: "#a78bfa",
     bg: "rgba(167,139,250,0.08)",
     border: "rgba(167,139,250,0.3)",
@@ -33,7 +33,7 @@ const DEPTS = [
   },
   {
     name: "ICT",
-    icon: "https://uploads.ndscbd.net/gallery/ict-icon.png",
+    icon: "/images/ict-icon.svg",
     color: "#f87171",
     bg: "rgba(248,113,113,0.08)",
     border: "rgba(248,113,113,0.3)",
@@ -41,7 +41,7 @@ const DEPTS = [
   },
   {
     name: "LWS",
-    icon: "https://uploads.ndscbd.net/gallery/lws-icon.png",
+    icon: "/images/lws-icon.svg",
     color: "#f59e0b",
     bg: "rgba(245,158,11,0.08)",
     border: "rgba(245,158,11,0.3)",
@@ -49,7 +49,7 @@ const DEPTS = [
   },
   {
     name: "Quiz",
-    icon: "https://uploads.ndscbd.net/gallery/quiz-icon.png",
+    icon: "/images/quiz-icon.svg",
     color: "#60a5fa",
     bg: "rgba(96,165,250,0.08)",
     border: "rgba(96,165,250,0.3)",
@@ -57,7 +57,7 @@ const DEPTS = [
   },
   {
     name: "R&D",
-    icon: "https://uploads.ndscbd.net/gallery/r&d-icon.png",
+    icon: "/images/r&d-icon.svg",
     color: "#fb923c",
     bg: "rgba(251,146,60,0.08)",
     border: "rgba(251,146,60,0.3)",
