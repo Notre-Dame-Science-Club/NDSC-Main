@@ -34,7 +34,7 @@ export default async function AdminDashboard() {
           { label: 'Olympiads', icon: '🏆', href: '/admin/olympiads', desc: 'Manage olympiad registrations' },
           { label: 'Announcements', icon: '📢', href: '/admin/announcements', desc: 'Send email & SMS blasts' },
           { label: 'Fix Upload URLs', icon: '🔧', href: '/admin/fix-urls', desc: 'Fix broken image/file URLs in database' },
-          { label: 'AI ChatBot', icon: '֎🇦🇮', href: 'https://ndsc-ai-bot.foysalmahmud1627.workers.dev/logs', desc: 'NDSC AI LightHouse' },
+          { label: 'AI ChatBot', icon: '֎AI', href: 'https://ndsc-ai-bot.foysalmahmud1627.workers.dev/logs', desc: 'NDSC AI LightHouse' },
         ].map(card => (
           <a key={card.href} href={card.href}
             className="block rounded-xl p-5 border transition-all hover:border-[#00d4ff] hover:scale-[1.02]"
