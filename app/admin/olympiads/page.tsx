@@ -50,6 +50,9 @@ export default function AdminOlympiadsPage() {
   const [selectedOlympiadId, setSelectedOlympiadId] = useState<string | null>(null)
   const [sendingEmail, setSendingEmail] = useState(false)
   const [emailMsg, setEmailMsg] = useState('')
+  const [uploading, setUploading] = useState<'cover' | 'pdf' | null>(null)
+  const [uploadProgress, setUploadProgress] = useState(0)
+  const [uploadError, setUploadError] = useState('')
 
   const load = async () => {
     const { data } = await supabase.from('olympiads').select('*').order('created_at', { ascending: false })
@@ -73,6 +76,97 @@ export default function AdminOlympiadsPage() {
     setExpandedId(id)
     if (!registrations[id]) loadRegistrations(id)
   }
+
+  // Direct-to-Hostinger upload. The admin is already authenticated, so it is
+  // safe to hand the browser a one-time-fetched upload URL + secret and let
+  // it talk to Hostinger directly — this is the same pattern already used in
+  // the Publications admin page, kept here for the Olympiad cover image / PDF.
+  const MAX_COVER_MB = 10
+  const MAX_PDF_MB = 20
+
+  const uploadFile = (
+    file: File,
+    folder: 'olympiad-covers' | 'olympiad-pdfs',
+    onProgress?: (pct: number) => void
+  ): Promise<string | null> => {
+    return new Promise(async (resolve) => {
+      let uploadUrl: string
+      let secret: string
+      try {
+        const res = await fetch('/api/admin/upload-token')
+        const data = await res.json()
+        if (!data.uploadUrl || !data.secret) { resolve(null); return }
+        uploadUrl = data.uploadUrl
+        secret = data.secret
+      } catch { resolve(null); return }
+
+      const fd = new FormData()
+      fd.append('file', file)
+      fd.append('folder', folder)
+
+      const xhr = new XMLHttpRequest()
+
+      xhr.upload.addEventListener('progress', (e) => {
+        if (e.lengthComputable && onProgress) {
+          onProgress(Math.round((e.loaded / e.total) * 100))
+        }
+      })
+
+      xhr.addEventListener('load', () => {
+        try {
+          const data = JSON.parse(xhr.responseText)
+          if (xhr.status >= 200 && xhr.status < 300 && data.url) resolve(data.url)
+          else resolve(null)
+        } catch { resolve(null) }
+      })
+
+      xhr.addEventListener('error', () => resolve(null))
+      xhr.open('POST', uploadUrl)
+      xhr.setRequestHeader('X-Upload-Secret', secret)
+      xhr.send(fd)
+    })
+  }
+
+  const handleCoverUpload = async (file: File | null) => {
+    if (!file) return
+    setUploadError('')
+    if (file.size > MAX_COVER_MB * 1024 * 1024) {
+      setUploadError(`Cover image too large. Maximum size is ${MAX_COVER_MB}MB.`)
+      return
+    }
+    if (!['image/jpeg', 'image/jpg', 'image/png', 'image/webp'].includes(file.type)) {
+      setUploadError('Invalid file type. Please upload a JPG, PNG, or WEBP image.')
+      return
+    }
+    setUploading('cover')
+    setUploadProgress(0)
+    const url = await uploadFile(file, 'olympiad-covers', (pct) => setUploadProgress(pct))
+    if (url) setEditing(p => ({ ...p, cover_image_url: url }))
+    else setUploadError('Upload failed. Please try again.')
+    setUploading(null)
+    setUploadProgress(0)
+  }
+
+  const handlePdfUpload = async (file: File | null) => {
+    if (!file) return
+    setUploadError('')
+    if (file.size > MAX_PDF_MB * 1024 * 1024) {
+      setUploadError(`PDF too large. Maximum size is ${MAX_PDF_MB}MB.`)
+      return
+    }
+    if (file.type !== 'application/pdf') {
+      setUploadError('Invalid file type. Please upload a PDF.')
+      return
+    }
+    setUploading('pdf')
+    setUploadProgress(0)
+    const url = await uploadFile(file, 'olympiad-pdfs', (pct) => setUploadProgress(pct))
+    if (url) setEditing(p => ({ ...p, pdf_url: url }))
+    else setUploadError('Upload failed. Please try again.')
+    setUploading(null)
+    setUploadProgress(0)
+  }
+
 
   const save = async () => {
     if (!editing) return
@@ -243,7 +337,7 @@ export default function AdminOlympiadsPage() {
     <div>
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold" style={h}>Olympiads</h1>
-        <button onClick={() => setEditing({ ...BLANK_OLYMPIAD })}
+        <button onClick={() => { setEditing({ ...BLANK_OLYMPIAD }); setUploadError(''); setUploadProgress(0); setUploading(null) }}
           className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold"
           style={{ background: 'rgba(0,212,255,0.12)', color: '#00d4ff', border: '1px solid rgba(0,212,255,0.3)' }}>
           <Plus size={16} /> New Olympiad
@@ -302,7 +396,7 @@ export default function AdminOlympiadsPage() {
                 <button onClick={() => toggleActive(o)} className="p-1.5 rounded" style={{ color: '#6a8faf' }} title={o.is_active ? 'Hide' : 'Show'}>
                   {o.is_active ? <EyeOff size={16} /> : <Eye size={16} />}
                 </button>
-                <button onClick={() => setEditing(o)} className="p-1.5 rounded" style={{ color: '#00d4ff' }}><Edit2 size={16} /></button>
+                <button onClick={() => { setEditing(o); setUploadError(''); setUploadProgress(0); setUploading(null) }} className="p-1.5 rounded" style={{ color: '#00d4ff' }}><Edit2 size={16} /></button>
                 <button onClick={() => del(o.id)} className="p-1.5 rounded" style={{ color: '#ff7070' }}><Trash2 size={16} /></button>
               </div>
             </div>
@@ -322,7 +416,7 @@ export default function AdminOlympiadsPage() {
           <div className="w-full max-w-2xl rounded-2xl border" style={{ background: '#050d1a', borderColor: '#0f2a4a' }}>
             <div className="flex items-center justify-between p-6 border-b" style={{ borderColor: '#0f2a4a' }}>
               <h2 className="font-black text-lg" style={h}>{editing.id ? 'Edit Olympiad' : 'New Olympiad'}</h2>
-              <button onClick={() => setEditing(null)} style={{ color: '#6a8faf' }}><X size={20} /></button>
+              <button onClick={() => { setEditing(null); setUploadError('') }} style={{ color: '#6a8faf' }}><X size={20} /></button>
             </div>
             <div className="p-6 space-y-4 max-h-[75vh] overflow-y-auto">
 
@@ -374,16 +468,72 @@ export default function AdminOlympiadsPage() {
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs mb-1" style={{ color: '#6a8faf' }}>Cover Image URL</label>
-                  <input className={inputClass} style={inputStyle} value={editing.cover_image_url || ''}
-                    onChange={e => setEditing(p => ({ ...p, cover_image_url: e.target.value }))} placeholder="https://..." />
+                  <label className="block text-xs mb-1" style={{ color: '#6a8faf' }}>
+                    Cover Image <span style={{ color: '#3d5a78' }}>(max {MAX_COVER_MB}MB — JPG, PNG, WEBP)</span>
+                  </label>
+                  <label className="flex items-center justify-center gap-2 w-full px-3 py-2.5 rounded-lg text-sm border cursor-pointer"
+                    style={{ ...inputStyle, color: '#00d4ff', opacity: uploading === 'cover' ? 0.6 : 1 }}>
+                    <ImageIcon size={15} />
+                    {uploading === 'cover' ? 'Uploading...' : editing.cover_image_url ? 'Replace cover image' : 'Upload cover image'}
+                    <input type="file" accept="image/jpeg,image/png,image/webp" className="hidden"
+                      disabled={uploading === 'cover'}
+                      onChange={e => handleCoverUpload(e.target.files?.[0] || null)} />
+                  </label>
+                  {uploading === 'cover' && (
+                    <div className="mt-2">
+                      <div className="flex justify-between text-xs mb-1" style={{ color: '#6a8faf' }}>
+                        <span>Uploading...</span><span>{uploadProgress}%</span>
+                      </div>
+                      <div className="w-full rounded-full overflow-hidden" style={{ height: 4, background: '#0f2a4a' }}>
+                        <div className="h-full rounded-full transition-all duration-200" style={{ width: `${uploadProgress}%`, background: '#00d4ff' }} />
+                      </div>
+                    </div>
+                  )}
+                  {editing.cover_image_url && uploading !== 'cover' && (
+                    <div className="relative w-fit mt-2">
+                      <img src={editing.cover_image_url} alt="cover" className="h-16 rounded-lg object-cover border" style={{ borderColor: '#0f2a4a' }} />
+                      <button onClick={() => setEditing(p => ({ ...p, cover_image_url: '' }))}
+                        className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full text-xs flex items-center justify-center"
+                        style={{ background: 'rgba(255,80,80,0.85)', color: 'white' }}>✕</button>
+                    </div>
+                  )}
                 </div>
                 <div>
-                  <label className="block text-xs mb-1" style={{ color: '#6a8faf' }}>Question PDF URL (optional)</label>
-                  <input className={inputClass} style={inputStyle} value={editing.pdf_url || ''}
-                    onChange={e => setEditing(p => ({ ...p, pdf_url: e.target.value }))} placeholder="https://..." />
+                  <label className="block text-xs mb-1" style={{ color: '#6a8faf' }}>
+                    Question PDF <span style={{ color: '#3d5a78' }}>(optional — max {MAX_PDF_MB}MB)</span>
+                  </label>
+                  <label className="flex items-center justify-center gap-2 w-full px-3 py-2.5 rounded-lg text-sm border cursor-pointer"
+                    style={{ ...inputStyle, color: '#00d4ff', opacity: uploading === 'pdf' ? 0.6 : 1 }}>
+                    <FileText size={15} />
+                    {uploading === 'pdf' ? 'Uploading...' : editing.pdf_url ? 'Replace PDF' : 'Upload PDF'}
+                    <input type="file" accept="application/pdf" className="hidden"
+                      disabled={uploading === 'pdf'}
+                      onChange={e => handlePdfUpload(e.target.files?.[0] || null)} />
+                  </label>
+                  {uploading === 'pdf' && (
+                    <div className="mt-2">
+                      <div className="flex justify-between text-xs mb-1" style={{ color: '#6a8faf' }}>
+                        <span>Uploading...</span><span>{uploadProgress}%</span>
+                      </div>
+                      <div className="w-full rounded-full overflow-hidden" style={{ height: 4, background: '#0f2a4a' }}>
+                        <div className="h-full rounded-full transition-all duration-200" style={{ width: `${uploadProgress}%`, background: '#00d4ff' }} />
+                      </div>
+                    </div>
+                  )}
+                  {editing.pdf_url && uploading !== 'pdf' && (
+                    <div className="flex items-center gap-2 mt-2 text-xs" style={{ color: '#6a8faf' }}>
+                      <a href={editing.pdf_url} target="_blank" className="underline" style={{ color: '#00d4ff' }}>View current PDF</a>
+                      <button onClick={() => setEditing(p => ({ ...p, pdf_url: '' }))} style={{ color: '#ff7070' }}>✕ Remove</button>
+                    </div>
+                  )}
                 </div>
               </div>
+
+              {uploadError && (
+                <div className="p-2.5 rounded-lg text-xs" style={{ background: 'rgba(255,80,80,0.1)', border: '1px solid rgba(255,80,80,0.3)', color: '#ff7070' }}>
+                  {uploadError}
+                </div>
+              )}
 
               <div>
                 <label className="block text-xs mb-1" style={{ color: '#6a8faf' }}>Eligibility</label>
@@ -473,7 +623,7 @@ export default function AdminOlympiadsPage() {
 
             </div>
             <div className="flex justify-end gap-3 p-6 border-t" style={{ borderColor: '#0f2a4a' }}>
-              <button onClick={() => setEditing(null)} className="px-5 py-2 rounded-lg text-sm border" style={{ borderColor: '#0f2a4a', color: '#6a8faf' }}>Cancel</button>
+              <button onClick={() => { setEditing(null); setUploadError('') }} className="px-5 py-2 rounded-lg text-sm border" style={{ borderColor: '#0f2a4a', color: '#6a8faf' }}>Cancel</button>
               <button onClick={save} disabled={saving}
                 className="px-6 py-2 rounded-lg text-sm font-black disabled:opacity-50"
                 style={{ background: '#00d4ff', color: '#000', fontFamily: "'Orbitron', sans-serif" }}>
