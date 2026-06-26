@@ -1,7 +1,8 @@
 'use client'
 import { useEffect, useState } from 'react'
+import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
-import { Plus, Trash2, Edit2, ChevronDown, ChevronUp, Eye, EyeOff, Star, Image as ImageIcon, FileText, X, Check } from 'lucide-react'
+import { Plus, Trash2, Edit2, ChevronDown, ChevronUp, Eye, EyeOff, Star, Image as ImageIcon, FileText, X, Check, Megaphone, ArrowRight } from 'lucide-react'
 
 type CustomField = { key: string; label: string; type: 'text' | 'textarea' | 'email' | 'tel'; required: boolean }
 type McqOption = { id: string; text: string }
@@ -48,8 +49,6 @@ export default function AdminOlympiadsPage() {
   const [markScore, setMarkScore] = useState<Record<string, string>>({})
   const [tab, setTab] = useState<'olympiads' | 'registrations'>('olympiads')
   const [selectedOlympiadId, setSelectedOlympiadId] = useState<string | null>(null)
-  const [sendingEmail, setSendingEmail] = useState(false)
-  const [emailMsg, setEmailMsg] = useState('')
   const [uploading, setUploading] = useState<'cover' | 'pdf' | null>(null)
   const [uploadProgress, setUploadProgress] = useState(0)
   const [uploadError, setUploadError] = useState('')
@@ -215,19 +214,6 @@ export default function AdminOlympiadsPage() {
     setMarkingId(null)
   }
 
-  const sendEmail = async (target: 'all' | 'members' | 'non_members') => {
-    if (!emailMsg.trim()) return alert('Please write a message first.')
-    setSendingEmail(true)
-    await fetch('/api/admin/send-announcement', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ message: emailMsg, target }),
-    })
-    setSendingEmail(false)
-    setEmailMsg('')
-    alert('Announcement sent!')
-  }
-
   // ---------- EDITOR HELPERS ----------
   const addCustomField = () => {
     const cf: CustomField = { key: uid(), label: '', type: 'text', required: false }
@@ -344,27 +330,23 @@ export default function AdminOlympiadsPage() {
         </button>
       </div>
 
-      {/* Announcement Email Sender */}
-      <div className="rounded-xl border p-5 mb-6" style={s}>
-        <h2 className="font-bold text-sm mb-3" style={{ color: '#00d4ff', fontFamily: "'Orbitron', sans-serif" }}>📢 Send Announcement Email</h2>
-        <textarea rows={3} placeholder="Write your announcement message..." value={emailMsg}
-          onChange={e => setEmailMsg(e.target.value)}
-          className="w-full px-3 py-2 rounded-lg text-sm outline-none border mb-3 resize-none"
-          style={inputStyle} />
-        <div className="flex gap-2 flex-wrap">
-          {[
-            { key: 'all', label: 'All (Members + Olympiad Registrants)' },
-            { key: 'members', label: 'Members Only' },
-            { key: 'non_members', label: 'Olympiad Registrants (Non-members)' },
-          ].map(opt => (
-            <button key={opt.key} onClick={() => sendEmail(opt.key as any)} disabled={sendingEmail}
-              className="px-4 py-2 rounded-lg text-xs font-semibold border disabled:opacity-50"
-              style={{ borderColor: '#0f2a4a', color: '#6a8faf', background: '#030a12' }}>
-              {sendingEmail ? 'Sending...' : `Send to: ${opt.label}`}
-            </button>
-          ))}
+      {/* Announcements now live on their own dedicated page — this used to be
+          a second, half-working copy of the same compose box, which is the
+          "announcement is messy" bug. Single source of truth now. */}
+      <Link href="/admin/announcements"
+        className="flex items-center justify-between rounded-xl border p-5 mb-6 transition-colors hover:border-[#00d4ff]"
+        style={s}>
+        <div className="flex items-center gap-3">
+          <Megaphone size={20} style={{ color: '#00d4ff' }} />
+          <div>
+            <p className="font-bold text-sm" style={{ color: '#e8f4ff' }}>Send an Announcement</p>
+            <p className="text-xs mt-0.5" style={{ color: '#6a8faf' }}>
+              Email members, olympiad registrants, or everyone — manage announcements →
+            </p>
+          </div>
         </div>
-      </div>
+        <ArrowRight size={18} style={{ color: '#6a8faf' }} />
+      </Link>
 
       {/* Olympiad List */}
       <div className="space-y-4">
