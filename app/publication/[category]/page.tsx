@@ -8,6 +8,12 @@ type Publication = {
   published_year: number; cover_image_url: string; pdf_url: string
 }
 
+const formatCategoryLabel = (category: string) => {
+  const cleaned = category.replace(/_/g, ' ').trim()
+  if (!cleaned) return 'Publication'
+  return cleaned.replace(/\b\w/g, (char) => char.toUpperCase())
+}
+
 const CATEGORY_META: Record<string, { label: string; emoji: string; color: string }> = {
   wall_magazine: { label: 'Wall Magazine',     emoji: '🗞️',  color: '#00d4ff' },
   trimatrik:     { label: 'Trimatrik',         emoji: '🔷', color: '#a78bfa' },
@@ -19,7 +25,7 @@ export default function PublicationArchivePage() {
   const params = useParams()
   const router = useRouter()
   const category = params.category as string
-  const meta = CATEGORY_META[category] || { label: category, emoji: '📚', color: '#00d4ff' }
+  const meta = CATEGORY_META[category] || { label: formatCategoryLabel(category), emoji: '📚', color: '#00d4ff' }
 
   const [items, setItems] = useState<Publication[]>([])
   const [loading, setLoading] = useState(true)

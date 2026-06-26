@@ -3,6 +3,7 @@ import { useEffect, useRef, useState, useCallback } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { Trophy, BookOpen, ChevronRight, ChevronLeft } from "lucide-react";
+import NDSCBot from "@/components/NDSCBot";
 
 /* ════════════════════════════════════════════════════════════
    TYPES
@@ -1642,8 +1643,8 @@ export default function HomePage() {
           </div>
         </div>
       </section>
-
       <ThemeToggle />
+      <NDSCBot />
     </>
   );
 }

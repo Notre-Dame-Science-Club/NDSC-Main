@@ -1,5 +1,5 @@
 'use client'
-import { useEffect, useRef, useState } from 'react'
+import { type ChangeEvent, useEffect, useRef, useState } from 'react'
 
 type Publication = {
   id: string
@@ -12,26 +12,63 @@ type Publication = {
   is_published: boolean
 }
 
-const CATEGORIES = [
+type CategoryOption = {
+  value: string
+  label: string
+}
+
+type PublicationForm = {
+  title: string
+  description: string
+  category: string
+  published_year: number
+  cover_image_url: string
+  pdf_url: string
+  is_published: boolean
+}
+
+const DEFAULT_CATEGORIES: CategoryOption[] = [
   { value: 'annual_magazine', label: 'Annual Magazine (AUDRI)' },
-  { value: 'wall_magazine',   label: 'Wall Magazine' },
-  { value: 'trimatrik',       label: 'Trimatrik (3D Magazine)' },
-  { value: 'abhishkar',       label: 'Abhishkar Focus' },
+  { value: 'wall_magazine', label: 'Wall Magazine' },
+  { value: 'trimatrik', label: 'Trimatrik (3D Magazine)' },
+  { value: 'abhishkar', label: 'Abhishkar Focus' },
 ]
 
-const empty = {
+const createEmptyForm = (defaultCategory: string): PublicationForm => ({
   title: '',
   description: '',
-  category: 'annual_magazine',  // ← first valid category
+  category: defaultCategory,
   published_year: new Date().getFullYear(),
   cover_image_url: '',
   pdf_url: '',
   is_published: true,
+})
+
+const slugifyCategory = (value: string) =>
+  value
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, '_')
+    .replace(/^_+|_+$/g, '')
+
+const formatCategoryLabel = (value: string) => {
+  const cleaned = value.replace(/_/g, ' ').replace(/\s+/g, ' ').trim()
+  if (!cleaned) return 'Untitled Category'
+  return cleaned.replace(/\b\w/g, (char) => char.toUpperCase())
+}
+
+const mergeCategories = (prev: CategoryOption[], incoming: CategoryOption[]) => {
+  const map = new Map<string, CategoryOption>()
+  prev.forEach((cat) => map.set(cat.value, cat))
+  incoming.forEach((cat) => map.set(cat.value, { value: cat.value, label: cat.label }))
+  return Array.from(map.values())
 }
 
 export default function AdminPublicationsPage() {
   const [items, setItems] = useState<Publication[]>([])
-  const [form, setForm] = useState<any>(empty)
+  const [categories, setCategories] = useState<CategoryOption[]>(DEFAULT_CATEGORIES)
+  const [newCategory, setNewCategory] = useState('')
+  const [form, setForm] = useState<PublicationForm>(createEmptyForm(DEFAULT_CATEGORIES[0].value))
   const [editing, setEditing] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const [uploading, setUploading] = useState<string | null>(null)
@@ -41,13 +78,64 @@ export default function AdminPublicationsPage() {
   const coverRef = useRef<HTMLInputElement>(null)
   const pdfRef = useRef<HTMLInputElement>(null)
 
-  const load = async () => {
-  const res = await fetch('/api/admin/publications?admin=1')  // ?admin=1 add করো
-  const data = await res.json()
-  setItems(Array.isArray(data) ? data : [])
-}
+  const persistCategories = (next: CategoryOption[]) => {
+    setCategories(next)
+  }
 
-  useEffect(() => { load() }, [])
+  const loadCategories = async () => {
+    try {
+      const res = await fetch('/api/admin/publications/categories')
+      const data = await res.json()
+      if (Array.isArray(data) && data.length) {
+        persistCategories(data)
+        return
+      }
+      persistCategories(DEFAULT_CATEGORIES)
+    } catch {
+      persistCategories(DEFAULT_CATEGORIES)
+    }
+  }
+
+  const load = async () => {
+    try {
+      const res = await fetch('/api/admin/publications?admin=1')
+      const data = await res.json()
+      const nextItems = Array.isArray(data) ? data : []
+      setItems(nextItems)
+
+      const derivedCategories = nextItems
+        .map((item: Publication) => item.category)
+        .filter((value): value is string => Boolean(value))
+        .map((value) => ({ value: value.trim(), label: formatCategoryLabel(value.trim()) }))
+
+      if (derivedCategories.length > 0) {
+        const merged = mergeCategories(categories, derivedCategories)
+        persistCategories(merged)
+        await fetch('/api/admin/publications/categories', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ categories: merged }),
+        })
+      }
+    } catch {
+      setMsg('Failed to reload publications')
+      setMsgOk(false)
+    }
+  }
+
+  useEffect(() => {
+    loadCategories()
+  }, [])
+
+  useEffect(() => {
+    load()
+  }, [])
+
+  useEffect(() => {
+    if (categories.length && !categories.some((cat) => cat.value === form.category)) {
+      setForm((prev) => ({ ...prev, category: categories[0].value }))
+    }
+  }, [categories, form.category])
 
   const uploadFile = (file: File, bucket: string, onProgress?: (pct: number) => void): Promise<string | null> => {
   return new Promise(async (resolve) => {
@@ -103,7 +191,7 @@ export default function AdminPublicationsPage() {
 }
    
   
-  const handleCover = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleCover = async (e: ChangeEvent<HTMLInputElement>) => {
   const file = e.target.files?.[0]
   if (!file) return
   setUploading('cover')
@@ -114,7 +202,7 @@ export default function AdminPublicationsPage() {
   setUploadProgress(0)
 }
 
-const handlePdf = async (e: React.ChangeEvent<HTMLInputElement>) => {
+const handlePdf = async (e: ChangeEvent<HTMLInputElement>) => {
   const file = e.target.files?.[0]
   if (!file) return
   setUploading('pdf')
@@ -125,6 +213,43 @@ const handlePdf = async (e: React.ChangeEvent<HTMLInputElement>) => {
   setUploadProgress(0)
 }
   
+  const addCategory = () => {
+    const raw = newCategory.trim()
+    if (!raw) {
+      setMsg('Category name required')
+      setMsgOk(false)
+      return
+    }
+
+    const value = slugifyCategory(raw)
+    if (!value) {
+      setMsg('Category name is invalid')
+      setMsgOk(false)
+      return
+    }
+
+    const exists = categories.some((cat) => cat.value === value)
+    if (exists) {
+      setForm((prev) => ({ ...prev, category: value }))
+      setNewCategory('')
+      setMsg('Category already exists')
+      setMsgOk(true)
+      return
+    }
+
+    const next = [...categories, { value, label: raw }]
+    persistCategories(next)
+    fetch('/api/admin/publications/categories', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ categories: next }),
+    }).catch(() => {})
+    setForm((prev) => ({ ...prev, category: value }))
+    setNewCategory('')
+    setMsg(`Added category: ${raw}`)
+    setMsgOk(true)
+  }
+
   const save = async () => {
     if (!form.title) return (setMsg('Title required'), setMsgOk(false))
     setLoading(true)
@@ -140,7 +265,7 @@ const handlePdf = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (res.ok) {
       setMsg('✅ Saved!')
       setMsgOk(true)
-      setForm(empty)
+      setForm(createEmptyForm(categories[0]?.value || DEFAULT_CATEGORIES[0].value))
       setEditing(null)
       load()
     } else {
@@ -165,7 +290,7 @@ const handlePdf = async (e: React.ChangeEvent<HTMLInputElement>) => {
     setForm({
       title: item.title || '',
       description: item.description || '',
-      category: item.category || 'journal',
+      category: item.category || categories[0]?.value || DEFAULT_CATEGORIES[0].value,
       published_year: item.published_year || new Date().getFullYear(),
       cover_image_url: item.cover_image_url || '',
       pdf_url: item.pdf_url || '',
@@ -208,12 +333,28 @@ const handlePdf = async (e: React.ChangeEvent<HTMLInputElement>) => {
             <select className={inp} style={s}
               value={form.category}
               onChange={e => setForm({ ...form, category: e.target.value })}>
-              {CATEGORIES.map(c => (
+              {categories.map(c => (
                 <option key={c.value} value={c.value} style={{ background: '#050d1a' }}>
                   {c.label}
                 </option>
               ))}
             </select>
+            <div className="mt-2 flex gap-2">
+              <input
+                className={inp}
+                style={{ ...s, paddingTop: '0.65rem', paddingBottom: '0.65rem' }}
+                value={newCategory}
+                onChange={(e) => setNewCategory(e.target.value)}
+                placeholder="New category name"
+              />
+              <button
+                type="button"
+                onClick={addCategory}
+                className="px-3 py-2.5 rounded-lg text-xs font-bold whitespace-nowrap"
+                style={{ background: 'rgba(0,212,255,0.12)', color: '#00d4ff' }}>
+                Add
+              </button>
+            </div>
           </div>
 
           <div>
@@ -318,7 +459,7 @@ const handlePdf = async (e: React.ChangeEvent<HTMLInputElement>) => {
             {loading ? 'Saving...' : editing ? '✅ Update' : '➕ Add Publication'}
           </button>
           {editing && (
-            <button onClick={() => { setEditing(null); setForm(empty) }}
+            <button onClick={() => { setEditing(null); setForm(createEmptyForm(categories[0]?.value || DEFAULT_CATEGORIES[0].value)) }}
               className="px-6 py-2.5 rounded-lg text-sm font-bold"
               style={{ background: 'rgba(255,255,255,0.05)', color: '#6a8faf' }}>
               Cancel

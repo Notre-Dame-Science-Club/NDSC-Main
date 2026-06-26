@@ -14,8 +14,36 @@ type Publication = {
   pdf_url: string
 }
 
+const FEATURED_CATEGORIES = ['annual_magazine', 'wall_magazine', 'trimatrik', 'abhishkar'] as const
+
+const CATEGORY_META: Record<string, { sectionLabel: string; title: string; subtitle: string; accent: string; linkLabel: string }> = {
+  annual_magazine: { sectionLabel: 'Annual Publication', title: 'অদ্রি (AUDRI)', subtitle: 'Annual Publication', accent: 'var(--blue)', linkLabel: 'VIEW PREVIOUS' },
+  wall_magazine: { sectionLabel: 'Club Publication', title: 'WALL MAGAZINE', subtitle: 'Club Publication', accent: 'var(--blue)', linkLabel: 'VIEW PREVIOUS' },
+  trimatrik: { sectionLabel: '3D Wall Magazine', title: 'TRIMATRIK', subtitle: '3D Wall Magazine', accent: 'var(--accent2)', linkLabel: 'VIEW PREVIOUS' },
+  abhishkar: { sectionLabel: 'Focus Publication', title: 'ABHISHKAR FOCUS', subtitle: 'Focus Publication', accent: 'var(--accent)', linkLabel: 'VIEW PREVIOUS' },
+}
+
+const formatCategoryLabel = (category: string) => {
+  const cleaned = category.replace(/_/g, ' ').trim()
+  if (!cleaned) return 'Publication'
+  return cleaned.replace(/\b\w/g, (char) => char.toUpperCase())
+}
+
+const getCategoryMeta = (category: string) => {
+  const known = CATEGORY_META[category]
+  if (known) return known
+  return {
+    sectionLabel: 'Publication',
+    title: formatCategoryLabel(category),
+    subtitle: 'Publication',
+    accent: 'var(--blue)',
+    linkLabel: 'VIEW PREVIOUS',
+  }
+}
+
 export default function PublicationPage() {
   const [pubs, setPubs] = useState<Publication[]>([])
+  const [localCategories, setLocalCategories] = useState<string[]>([])
   const [loading, setLoading] = useState(true)
   const [pdfOpen, setPdfOpen] = useState(false)
   const [selectedPub, setSelectedPub] = useState<Publication | null>(null)
@@ -27,6 +55,10 @@ export default function PublicationPage() {
       .catch(() => setLoading(false))
   }, [])
 
+  useEffect(() => {
+    // Categories are derived from the publications data already fetched
+  }, [])
+
   const get = (cat: string) => pubs.find(p => p.category === cat) || null
   const openPdf = (pub: Publication) => { setSelectedPub(pub); setPdfOpen(true) }
 
@@ -34,6 +66,10 @@ export default function PublicationPage() {
   const wall = get('wall_magazine')
   const trimatrik = get('trimatrik')
   const abhishkar = get('abhishkar')
+  const extraCategories = Array.from(new Set([
+    ...localCategories,
+    ...pubs.map(pub => pub.category),
+  ].filter((category) => !FEATURED_CATEGORIES.includes(category as (typeof FEATURED_CATEGORIES)[number]))))
 
   if (loading) return (
     <div className="min-h-screen flex items-center justify-center" style={{ paddingTop: '72px' }}>
@@ -65,7 +101,7 @@ export default function PublicationPage() {
               </button>
             </div>
           </div>
-<PdfViewer url={selectedPub.pdf_url} />
+          <PdfViewer url={selectedPub.pdf_url} />
         </div>
       )}
 
@@ -110,20 +146,25 @@ export default function PublicationPage() {
                 অদ্রি <span style={{ color: 'var(--blue)' }}>(AUDRI)</span>
               </h1>
               {audri ? (
-                <>
-                  <h2 className="text-lg font-bold mb-4" style={{ color: 'var(--muted)' }}>{audri.title}</h2>
+                <div className="flex flex-col gap-4">
+                  <h2 className="text-lg font-bold" style={{ color: 'var(--muted)' }}>{audri.title}</h2>
                   {audri.description && (
-                    <p className="text-sm leading-relaxed mb-6 max-w-lg" style={{ color: 'var(--muted)' }}>
+                    <p className="text-sm leading-relaxed max-w-lg" style={{ color: 'var(--muted)' }}>
                       {audri.description}
                     </p>
                   )}
-                  <div className="flex flex-wrap gap-4">
+
+                  <div className="flex flex-wrap gap-4 mt-2">
                     {audri.pdf_url && (
-                      <button onClick={() => openPdf(audri)}
-                        className="flex items-center gap-2 px-6 py-3 font-black text-sm tracking-widest rounded"
-                        style={{ background: 'var(--blue)', color: '#000', fontFamily: "'Orbitron',sans-serif" }}>
+                      <a 
+                        href="https://heyzine.com/flip-book/a9df397b9b.html"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center gap-2 px-6 py-3 font-black text-sm tracking-widest rounded inline-flex"
+                        style={{ background: 'var(--blue)', color: '#000', fontFamily: "'Orbitron',sans-serif" }}
+                      >
                         <BookOpen size={16} /> READ ONLINE
-                      </button>
+                      </a>
                     )}
                     {audri.pdf_url && (
                       <a href={audri.pdf_url} download
@@ -133,7 +174,7 @@ export default function PublicationPage() {
                       </a>
                     )}
                   </div>
-                </>
+                </div>
               ) : (
                 <p className="text-sm" style={{ color: 'var(--muted)' }}>Coming soon.</p>
               )}
@@ -211,6 +252,34 @@ export default function PublicationPage() {
           )}
         </div>
       </section>
+
+      {extraCategories.map((category) => {
+        const meta = getCategoryMeta(category)
+        const pub = get(category)
+        return (
+          <section key={category} className="py-20 border-t" style={{ borderColor: 'var(--border)', background: 'var(--bg2)' }}>
+            <div className="max-w-7xl mx-auto px-6">
+              <div className="section-label mb-2">{meta.sectionLabel}</div>
+              <div className="flex items-end justify-between mb-10 flex-wrap gap-4">
+                <h2 className="text-3xl font-black" style={{ fontFamily: "'Orbitron',sans-serif" }}>
+                  <span style={{ color: meta.accent }}>{meta.title.toUpperCase()}</span>
+                </h2>
+                <Link href={`/publication/${category}`}
+                  className="flex items-center gap-1.5 text-xs font-bold tracking-widest"
+                  style={{ color: 'var(--muted)', fontFamily: "'Share Tech Mono',monospace" }}>
+                  {meta.linkLabel} <ChevronRight size={12} />
+                </Link>
+              </div>
+              {pub ? (
+                <FeatureCard pub={pub} accentColor={meta.accent} imageRight={false} onRead={openPdf} />
+              ) : (
+                <EmptyState label={meta.title} />
+              )}
+              <PreviousEditions category={category} accentColor={meta.accent} />
+            </div>
+          </section>
+        )
+      })}
     </div>
   )
 }
