@@ -1,6 +1,5 @@
 'use client'
 import { useEffect, useState } from 'react'
-import { supabase } from '@/lib/supabase'
 import { Send, Users, UserCheck, UserX } from 'lucide-react'
 
 type Announcement = {
@@ -37,12 +36,9 @@ export default function AdminAnnouncementsPage() {
   const [result, setResult] = useState<{ ok: boolean; text: string } | null>(null)
 
   const load = async () => {
-    const { data } = await supabase
-      .from('announcements')
-      .select('*')
-      .order('created_at', { ascending: false })
-      .limit(50)
-    setHistory((data as Announcement[]) || [])
+    const res = await fetch('/api/admin/announcements')
+    const data = res.ok ? await res.json() : []
+    setHistory(Array.isArray(data) ? data : [])
     setLoading(false)
   }
 

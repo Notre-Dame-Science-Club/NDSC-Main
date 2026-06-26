@@ -46,15 +46,10 @@ export default function OlympiadPage() {
   const [regId, setRegId] = useState('')
 
   useEffect(() => {
-    supabase
-      .from('olympiads')
-      .select('*')
-      .eq('is_active', true)
-      .order('created_at', { ascending: false })
-      .then(({ data }) => {
-        setOlympiads((data as Olympiad[]) || [])
-        setLoading(false)
-      })
+    fetch('/api/olympiad')
+      .then(r => r.json())
+      .then(data => { setOlympiads(Array.isArray(data) ? data : []); setLoading(false) })
+      .catch(() => setLoading(false))
   }, [])
 
   const openRegister = (o: Olympiad) => {
@@ -164,15 +159,15 @@ export default function OlympiadPage() {
         answer_sheet_url: answerSheetUrl || null,
       }
 
-      const { data, error: dbErr } = await supabase
-        .from('olympiad_registrations')
-        .insert(payload)
-        .select('id')
-        .single()
+      const regRes = await fetch('/api/olympiad-register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      })
+      const regData = await regRes.json()
+      if (!regRes.ok) throw new Error(regData.error || 'Registration failed.')
 
-      if (dbErr) throw new Error(dbErr.message)
-
-      setRegId(data?.id || '')
+      setRegId(regData?.id || '')
       setPhase(selected.mode === 'online_mcq' ? 'mcq' : 'done')
     } catch (e: any) {
       setError(e.message || 'Something went wrong while submitting.')
@@ -189,11 +184,15 @@ export default function OlympiadPage() {
       for (const q of selected.questions) {
         if (mcqAnswers[q.id] === q.correct_option_id) score++
       }
-      const { error: updErr } = await supabase
-        .from('olympiad_registrations')
-        .update({ mcq_answers: mcqAnswers, mcq_score: score, final_score: score, review_status: 'reviewed' })
-        .eq('id', regId)
-      if (updErr) throw new Error(updErr.message)
+      const updRes = await fetch('/api/olympiad-register', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: regId, mcq_answers: mcqAnswers, mcq_score: score, final_score: score, review_status: 'reviewed' }),
+      })
+      if (!updRes.ok) {
+        const d = await updRes.json()
+        throw new Error(d.error || 'Could not submit your answers.')
+      }
       setMcqScore(score)
       setPhase('done')
     } catch (e: any) {

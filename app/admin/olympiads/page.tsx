@@ -1,7 +1,6 @@
 'use client'
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
-import { supabase } from '@/lib/supabase'
 import { Plus, Trash2, Edit2, ChevronDown, ChevronUp, Eye, EyeOff, Star, Image as ImageIcon, FileText, X, Check, Megaphone, ArrowRight } from 'lucide-react'
 
 type CustomField = { key: string; label: string; type: 'text' | 'textarea' | 'email' | 'tel'; required: boolean }
@@ -53,20 +52,25 @@ export default function AdminOlympiadsPage() {
   const [uploadProgress, setUploadProgress] = useState(0)
   const [uploadError, setUploadError] = useState('')
 
+  const [pageError, setPageError] = useState('')
+
   const load = async () => {
-    const { data } = await supabase.from('olympiads').select('*').order('created_at', { ascending: false })
-    setOlympiads((data as Olympiad[]) || [])
+    setLoading(true)
+    const res = await fetch('/api/admin/olympiads')
+    if (res.ok) {
+      const data = await res.json()
+      setOlympiads(data || [])
+    } else {
+      setPageError('Failed to load olympiads.')
+    }
     setLoading(false)
   }
 
   useEffect(() => { load() }, [])
 
   const loadRegistrations = async (olympiadId: string) => {
-    const { data } = await supabase
-      .from('olympiad_registrations')
-      .select('*')
-      .eq('olympiad_id', olympiadId)
-      .order('created_at', { ascending: false })
+    const res = await fetch(`/api/admin/olympiad-registrations?olympiad_id=${olympiadId}`)
+    const data = res.ok ? await res.json() : []
     setRegistrations(prev => ({ ...prev, [olympiadId]: data || [] }))
   }
 
@@ -170,6 +174,7 @@ export default function AdminOlympiadsPage() {
   const save = async () => {
     if (!editing) return
     setSaving(true)
+    setPageError('')
     const payload = {
       name: editing.name || '',
       description: editing.description || '',
@@ -186,30 +191,67 @@ export default function AdminOlympiadsPage() {
       pdf_url: editing.pdf_url || null,
       organizer_password: editing.organizer_password || null,
     }
+    let res: Response
     if (editing.id) {
-      await supabase.from('olympiads').update(payload).eq('id', editing.id)
+      res = await fetch('/api/admin/olympiads', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: editing.id, ...payload }),
+      })
     } else {
-      await supabase.from('olympiads').insert(payload)
+      res = await fetch('/api/admin/olympiads', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      })
+    }
+    if (!res.ok) {
+      const d = await res.json().catch(() => ({}))
+      setPageError(d.error || 'Save failed. Please try again.')
+    } else {
+      setEditing(null)
+      load()
     }
     setSaving(false)
-    setEditing(null)
-    load()
   }
 
   const del = async (id: string) => {
     if (!confirm('Delete this olympiad? All registrations will also be deleted.')) return
-    await supabase.from('olympiad_registrations').delete().eq('olympiad_id', id)
-    await supabase.from('olympiads').delete().eq('id', id)
+    const res = await fetch('/api/admin/olympiads', {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id }),
+    })
+    if (!res.ok) {
+      const d = await res.json().catch(() => ({}))
+      setPageError(d.error || 'Delete failed.')
+    }
     load()
   }
 
   const toggleActive = async (o: Olympiad) => {
-    await supabase.from('olympiads').update({ is_active: !o.is_active }).eq('id', o.id)
+    const res = await fetch('/api/admin/olympiads', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: o.id, is_active: !o.is_active }),
+    })
+    if (!res.ok) {
+      const d = await res.json().catch(() => ({}))
+      setPageError(d.error || 'Update failed.')
+    }
     load()
   }
 
   const saveScore = async (regId: string, score: string) => {
-    await supabase.from('olympiad_registrations').update({ final_score: Number(score), review_status: 'reviewed' }).eq('id', regId)
+    const res = await fetch('/api/admin/olympiad-registrations', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: regId, final_score: Number(score), review_status: 'reviewed' }),
+    })
+    if (!res.ok) {
+      const d = await res.json().catch(() => ({}))
+      setPageError(d.error || 'Score save failed.')
+    }
     if (selectedOlympiadId) loadRegistrations(selectedOlympiadId)
     setMarkingId(null)
   }
@@ -329,6 +371,14 @@ export default function AdminOlympiadsPage() {
           <Plus size={16} /> New Olympiad
         </button>
       </div>
+
+      {pageError && (
+        <div className="mb-4 px-4 py-3 rounded-lg text-sm flex items-center justify-between"
+          style={{ background: 'rgba(255,80,80,0.12)', border: '1px solid rgba(255,80,80,0.4)', color: '#ff6b6b' }}>
+          <span>{pageError}</span>
+          <button onClick={() => setPageError('')} className="ml-4 opacity-70 hover:opacity-100"><X size={14} /></button>
+        </div>
+      )}
 
       {/* Announcements now live on their own dedicated page — this used to be
           a second, half-working copy of the same compose box, which is the
