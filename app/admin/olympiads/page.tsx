@@ -1,68 +1,84 @@
 'use client'
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
-import { Plus, Trash2, Edit2, ChevronDown, ChevronUp, Eye, EyeOff, Star, Image as ImageIcon, FileText, X, Check, Megaphone, ArrowRight } from 'lucide-react'
+import { Plus, Trash2, Edit2, ChevronDown, ChevronUp, Eye, EyeOff, X, Check, Megaphone, ArrowRight, Image as ImageIcon, FileText, Clock, AlignLeft, List, Camera } from 'lucide-react'
 
-type CustomField = { key: string; label: string; type: 'text' | 'textarea' | 'email' | 'tel'; required: boolean }
+const uid = () => Math.random().toString(36).slice(2, 9)
+
+type FieldType = 'text' | 'textarea' | 'email' | 'tel' | 'select'
+type RegField = { key: string; label: string; type: FieldType; required: boolean; options?: string[] }
+
+type QuestionType = 'mcq' | 'short' | 'photo'
 type McqOption = { id: string; text: string }
-type McqQuestion = { id: string; text: string; options: McqOption[]; correct_option_id: string }
+type Question = {
+  id: string
+  type: QuestionType
+  text: string
+  description?: string
+  options?: McqOption[]
+  correct_option_id?: string
+  marks?: number
+}
 
 type Olympiad = {
   id: string
   name: string
   description: string
   cover_image_url?: string
-  mode: 'photo_submit' | 'online_mcq'
+  pdf_url?: string
+  mode: string
+  question_display: 'one_by_one' | 'all_at_once'
+  timer_minutes: number
   is_active: boolean
+  result_published: boolean
+  annotations_published: boolean
   registration_deadline?: string
   exam_date?: string
   eligibility?: string
   external_only?: boolean
-  custom_fields: CustomField[]
-  questions: McqQuestion[]
-  show_results_immediately: boolean
-  pdf_url?: string
   organizer_password?: string
+  registration_fields: RegField[]
+  questions: Question[]
   created_at: string
 }
 
-const BLANK_OLYMPIAD: Partial<Olympiad> = {
-  name: '', description: '', mode: 'photo_submit', is_active: true,
-  external_only: false, custom_fields: [], questions: [], show_results_immediately: false,
-  organizer_password: '',
+const BLANK: Partial<Olympiad> = {
+  name: '', description: '', mode: 'mixed', question_display: 'all_at_once',
+  timer_minutes: 60, is_active: true, result_published: false, annotations_published: false,
+  external_only: false, registration_fields: [], questions: [],
 }
 
-const inputClass = 'w-full px-3 py-2 rounded-lg text-sm outline-none border'
-const inputStyle = { background: '#030a12', borderColor: '#0f2a4a', color: '#e8f4ff' }
-
-function uid() { return Math.random().toString(36).slice(2, 9) }
+const MAX_COVER_MB = 10
+const MAX_PDF_MB = 20
 
 export default function AdminOlympiadsPage() {
   const [olympiads, setOlympiads] = useState<Olympiad[]>([])
   const [loading, setLoading] = useState(true)
   const [editing, setEditing] = useState<Partial<Olympiad> | null>(null)
   const [saving, setSaving] = useState(false)
+  const [pageError, setPageError] = useState('')
   const [expandedId, setExpandedId] = useState<string | null>(null)
-  const [registrations, setRegistrations] = useState<Record<string, any[]>>({})
-  const [markingId, setMarkingId] = useState<string | null>(null)
-  const [markScore, setMarkScore] = useState<Record<string, string>>({})
   const [tab, setTab] = useState<'olympiads' | 'registrations'>('olympiads')
   const [selectedOlympiadId, setSelectedOlympiadId] = useState<string | null>(null)
+  const [registrations, setRegistrations] = useState<Record<string, any[]>>({})
+  const [markingId, setMarkingId] = useState<string | null>(null)
+  const [scoreInput, setScoreInput] = useState('')
   const [uploading, setUploading] = useState<'cover' | 'pdf' | null>(null)
   const [uploadProgress, setUploadProgress] = useState(0)
   const [uploadError, setUploadError] = useState('')
 
-  const [pageError, setPageError] = useState('')
+  const h = { fontFamily: 'Orbitron, monospace', color: '#00d4ff' }
+  const s = { background: '#061420', border: '1px solid #0f2a4a' }
+  const inputStyle = { background: '#0a1f35', borderColor: '#0f2a4a', color: '#e0f0ff' }
+  const inputClass = 'w-full px-3 py-2 rounded-lg text-sm outline-none border'
+
+  const [pageError2, setPageError2] = useState('')
 
   const load = async () => {
     setLoading(true)
     const res = await fetch('/api/admin/olympiads')
-    if (res.ok) {
-      const data = await res.json()
-      setOlympiads(data || [])
-    } else {
-      setPageError('Failed to load olympiads.')
-    }
+    if (res.ok) setOlympiads(await res.json() || [])
+    else setPageError('Failed to load olympiads.')
     setLoading(false)
   }
 
@@ -80,219 +96,141 @@ export default function AdminOlympiadsPage() {
     loadRegistrations(id)
   }
 
-  // Direct-to-Hostinger upload. The admin is already authenticated, so it is
-  // safe to hand the browser a one-time-fetched upload URL + secret and let
-  // it talk to Hostinger directly — this is the same pattern already used in
-  // the Publications admin page, kept here for the Olympiad cover image / PDF.
-  const MAX_COVER_MB = 10
-  const MAX_PDF_MB = 20
-
-  const uploadFile = (
-    file: File,
-    folder: 'olympiad-covers' | 'olympiad-pdfs',
-    onProgress?: (pct: number) => void
-  ): Promise<string | null> => {
-    return new Promise(async (resolve) => {
-      let uploadUrl: string
-      let secret: string
-      try {
-        const res = await fetch('/api/admin/upload-token')
-        const data = await res.json()
-        if (!data.uploadUrl || !data.secret) { resolve(null); return }
-        uploadUrl = data.uploadUrl
-        secret = data.secret
-      } catch { resolve(null); return }
-
+  // Upload helper
+  const uploadFile = (file: File, folder: string, maxMB: number, accept: string[]): Promise<string> => {
+    return new Promise(async (resolve, reject) => {
+      if (file.size > maxMB * 1024 * 1024) { reject(new Error(`Max ${maxMB}MB allowed`)); return }
+      if (!accept.includes(file.type)) { reject(new Error('File type not allowed')); return }
+      const tokenRes = await fetch('/api/admin/upload-token')
+      if (!tokenRes.ok) { reject(new Error('Could not get upload token')); return }
+      const { uploadUrl, secret } = await tokenRes.json()
       const fd = new FormData()
       fd.append('file', file)
+      fd.append('secret', secret)
       fd.append('folder', folder)
-
       const xhr = new XMLHttpRequest()
-
-      xhr.upload.addEventListener('progress', (e) => {
-        if (e.lengthComputable && onProgress) {
-          onProgress(Math.round((e.loaded / e.total) * 100))
-        }
-      })
-
+      xhr.upload.addEventListener('progress', e => { if (e.lengthComputable) setUploadProgress(Math.round(e.loaded / e.total * 100)) })
       xhr.addEventListener('load', () => {
         try {
-          const data = JSON.parse(xhr.responseText)
-          if (xhr.status >= 200 && xhr.status < 300 && data.url) resolve(data.url)
-          else resolve(null)
-        } catch { resolve(null) }
+          const d = JSON.parse(xhr.responseText)
+          if (xhr.status >= 200 && xhr.status < 300 && d.url) resolve(d.url)
+          else reject(new Error(d.error || 'Upload failed'))
+        } catch { reject(new Error('Upload failed')) }
       })
-
-      xhr.addEventListener('error', () => resolve(null))
+      xhr.addEventListener('error', () => reject(new Error('Network error')))
       xhr.open('POST', uploadUrl)
-      xhr.setRequestHeader('X-Upload-Secret', secret)
       xhr.send(fd)
     })
   }
 
   const handleCoverUpload = async (file: File | null) => {
     if (!file) return
-    setUploadError('')
-    if (file.size > MAX_COVER_MB * 1024 * 1024) {
-      setUploadError(`Cover image too large. Maximum size is ${MAX_COVER_MB}MB.`)
-      return
-    }
-    if (!['image/jpeg', 'image/jpg', 'image/png', 'image/webp'].includes(file.type)) {
-      setUploadError('Invalid file type. Please upload a JPG, PNG, or WEBP image.')
-      return
-    }
-    setUploading('cover')
-    setUploadProgress(0)
-    const url = await uploadFile(file, 'olympiad-covers', (pct) => setUploadProgress(pct))
-    if (url) setEditing(p => ({ ...p, cover_image_url: url }))
-    else setUploadError('Upload failed. Please try again.')
+    setUploading('cover'); setUploadError(''); setUploadProgress(0)
+    try {
+      const url = await uploadFile(file, 'olympiad-covers', MAX_COVER_MB, ['image/jpeg', 'image/png', 'image/webp'])
+      setEditing(p => ({ ...p, cover_image_url: url }))
+    } catch (e: any) { setUploadError(e.message) }
     setUploading(null)
-    setUploadProgress(0)
   }
 
   const handlePdfUpload = async (file: File | null) => {
     if (!file) return
-    setUploadError('')
-    if (file.size > MAX_PDF_MB * 1024 * 1024) {
-      setUploadError(`PDF too large. Maximum size is ${MAX_PDF_MB}MB.`)
-      return
-    }
-    if (file.type !== 'application/pdf') {
-      setUploadError('Invalid file type. Please upload a PDF.')
-      return
-    }
-    setUploading('pdf')
-    setUploadProgress(0)
-    const url = await uploadFile(file, 'olympiad-pdfs', (pct) => setUploadProgress(pct))
-    if (url) setEditing(p => ({ ...p, pdf_url: url }))
-    else setUploadError('Upload failed. Please try again.')
+    setUploading('pdf'); setUploadError(''); setUploadProgress(0)
+    try {
+      const url = await uploadFile(file, 'olympiad-pdfs', MAX_PDF_MB, ['application/pdf'])
+      setEditing(p => ({ ...p, pdf_url: url }))
+    } catch (e: any) { setUploadError(e.message) }
     setUploading(null)
-    setUploadProgress(0)
   }
 
+  // Registration fields helpers
+  const addRegField = () => setEditing(p => ({
+    ...p, registration_fields: [...(p?.registration_fields || []), { key: uid(), label: '', type: 'text', required: false }]
+  }))
+  const removeRegField = (key: string) => setEditing(p => ({ ...p, registration_fields: (p?.registration_fields || []).filter(f => f.key !== key) }))
+  const updateRegField = (key: string, patch: Partial<RegField>) => setEditing(p => ({
+    ...p, registration_fields: (p?.registration_fields || []).map(f => f.key === key ? { ...f, ...patch } : f)
+  }))
 
-  const save = async () => {
-    if (!editing) return
-    setSaving(true)
-    setPageError('')
-    const payload = {
-      name: editing.name || '',
-      description: editing.description || '',
-      cover_image_url: editing.cover_image_url || null,
-      mode: editing.mode || 'photo_submit',
-      is_active: editing.is_active ?? true,
-      registration_deadline: editing.registration_deadline || null,
-      exam_date: editing.exam_date || null,
-      eligibility: editing.eligibility || null,
-      external_only: editing.external_only ?? false,
-      custom_fields: editing.custom_fields || [],
-      questions: editing.questions || [],
-      show_results_immediately: editing.show_results_immediately ?? false,
-      pdf_url: editing.pdf_url || null,
-      organizer_password: editing.organizer_password || null,
-    }
-    let res: Response
-    if (editing.id) {
-      res = await fetch('/api/admin/olympiads', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: editing.id, ...payload }),
-      })
-    } else {
-      res = await fetch('/api/admin/olympiads', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      })
-    }
-    if (!res.ok) {
-      const d = await res.json().catch(() => ({}))
-      setPageError(d.error || 'Save failed. Please try again.')
-    } else {
-      setEditing(null)
-      load()
-    }
-    setSaving(false)
-  }
-
-  const del = async (id: string) => {
-    if (!confirm('Delete this olympiad? All registrations will also be deleted.')) return
-    const res = await fetch('/api/admin/olympiads', {
-      method: 'DELETE',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id }),
-    })
-    if (!res.ok) {
-      const d = await res.json().catch(() => ({}))
-      setPageError(d.error || 'Delete failed.')
-    }
-    load()
-  }
-
-  const toggleActive = async (o: Olympiad) => {
-    const res = await fetch('/api/admin/olympiads', {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id: o.id, is_active: !o.is_active }),
-    })
-    if (!res.ok) {
-      const d = await res.json().catch(() => ({}))
-      setPageError(d.error || 'Update failed.')
-    }
-    load()
-  }
-
-  const saveScore = async (regId: string, score: string) => {
-    const res = await fetch('/api/admin/olympiad-registrations', {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id: regId, final_score: Number(score), review_status: 'reviewed' }),
-    })
-    if (!res.ok) {
-      const d = await res.json().catch(() => ({}))
-      setPageError(d.error || 'Score save failed.')
-    }
-    if (selectedOlympiadId) loadRegistrations(selectedOlympiadId)
-    setMarkingId(null)
-  }
-
-  // ---------- EDITOR HELPERS ----------
-  const addCustomField = () => {
-    const cf: CustomField = { key: uid(), label: '', type: 'text', required: false }
-    setEditing(p => ({ ...p, custom_fields: [...(p?.custom_fields || []), cf] }))
-  }
-  const removeCustomField = (key: string) =>
-    setEditing(p => ({ ...p, custom_fields: (p?.custom_fields || []).filter(f => f.key !== key) }))
-  const updateCustomField = (key: string, patch: Partial<CustomField>) =>
-    setEditing(p => ({ ...p, custom_fields: (p?.custom_fields || []).map(f => f.key === key ? { ...f, ...patch } : f) }))
-
-  const addQuestion = () => {
-    const q: McqQuestion = { id: uid(), text: '', options: [{ id: uid(), text: '' }, { id: uid(), text: '' }], correct_option_id: '' }
+  // Question helpers
+  const addQuestion = (type: QuestionType) => {
+    const q: Question = { id: uid(), type, text: '', description: '', marks: 1 }
+    if (type === 'mcq') q.options = [{ id: uid(), text: '' }, { id: uid(), text: '' }]
     setEditing(p => ({ ...p, questions: [...(p?.questions || []), q] }))
   }
-  const removeQuestion = (qid: string) =>
-    setEditing(p => ({ ...p, questions: (p?.questions || []).filter(q => q.id !== qid) }))
-  const updateQuestion = (qid: string, patch: Partial<McqQuestion>) =>
-    setEditing(p => ({ ...p, questions: (p?.questions || []).map(q => q.id === qid ? { ...q, ...patch } : q) }))
-  const addOption = (qid: string) =>
-    updateQuestion(qid, { options: [...((editing?.questions || []).find(q => q.id === qid)?.options || []), { id: uid(), text: '' }] })
+  const removeQuestion = (qid: string) => setEditing(p => ({ ...p, questions: (p?.questions || []).filter(q => q.id !== qid) }))
+  const updateQuestion = (qid: string, patch: Partial<Question>) => setEditing(p => ({
+    ...p, questions: (p?.questions || []).map(q => q.id === qid ? { ...q, ...patch } : q)
+  }))
+  const addOption = (qid: string) => updateQuestion(qid, { options: [...((editing?.questions || []).find(q => q.id === qid)?.options || []), { id: uid(), text: '' }] })
   const removeOption = (qid: string, oid: string) => {
     const q = (editing?.questions || []).find(q => q.id === qid)
     if (!q) return
-    updateQuestion(qid, { options: q.options.filter(o => o.id !== oid) })
+    updateQuestion(qid, { options: (q.options || []).filter(o => o.id !== oid) })
   }
   const updateOption = (qid: string, oid: string, text: string) => {
     const q = (editing?.questions || []).find(q => q.id === qid)
     if (!q) return
-    updateQuestion(qid, { options: q.options.map(o => o.id === oid ? { ...o, text } : o) })
+    updateQuestion(qid, { options: (q.options || []).map(o => o.id === oid ? { ...o, text } : o) })
   }
 
-  const s = { background: '#050d1a', borderColor: '#0f2a4a' }
-  const h = { fontFamily: "'Orbitron', sans-serif", color: '#00d4ff' }
+  const save = async () => {
+    if (!editing) return
+    setSaving(true); setPageError('')
+    const payload = {
+      name: editing.name || '',
+      description: editing.description || '',
+      cover_image_url: editing.cover_image_url || null,
+      pdf_url: editing.pdf_url || null,
+      mode: editing.mode || 'mixed',
+      question_display: editing.question_display || 'all_at_once',
+      timer_minutes: editing.timer_minutes ?? 60,
+      is_active: editing.is_active ?? true,
+      result_published: editing.result_published ?? false,
+      annotations_published: editing.annotations_published ?? false,
+      registration_deadline: editing.registration_deadline || null,
+      exam_date: editing.exam_date || null,
+      eligibility: editing.eligibility || null,
+      external_only: editing.external_only ?? false,
+      organizer_password: editing.organizer_password || null,
+      registration_fields: editing.registration_fields || [],
+      questions: editing.questions || [],
+    }
+    const res = await fetch('/api/admin/olympiads', {
+      method: editing.id ? 'PUT' : 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(editing.id ? { id: editing.id, ...payload } : payload),
+    })
+    if (!res.ok) {
+      const d = await res.json().catch(() => ({}))
+      setPageError(d.error || 'Save failed.')
+    } else { setEditing(null); load() }
+    setSaving(false)
+  }
 
-  if (loading) return <div style={{ color: '#6a8faf' }}>Loading...</div>
+  const del = async (id: string) => {
+    if (!confirm('Delete this olympiad and all its registrations?')) return
+    const res = await fetch('/api/admin/olympiads', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id }) })
+    if (!res.ok) { const d = await res.json().catch(() => ({})); setPageError(d.error || 'Delete failed.') }
+    load()
+  }
 
-  // ---------- REGISTRATION VIEWER ----------
+  const toggleField = async (id: string, field: string, value: boolean) => {
+    await fetch('/api/admin/olympiads', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id, [field]: value }) })
+    load()
+  }
+
+  const saveScore = async (regId: string, score: string) => {
+    await fetch('/api/admin/olympiad-registrations', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: regId, result_score: Number(score), review_status: 'reviewed' }) })
+    if (selectedOlympiadId) loadRegistrations(selectedOlympiadId)
+    setMarkingId(null)
+  }
+
+  const qTypeLabel = (t: QuestionType) => t === 'mcq' ? 'MCQ' : t === 'short' ? 'Short Answer' : 'Photo Upload'
+  const qTypeColor = (t: QuestionType) => t === 'mcq' ? '#00d4ff' : t === 'short' ? '#00ff80' : '#ffb347'
+  const qTypeIcon = (t: QuestionType) => t === 'mcq' ? <List size={12} /> : t === 'short' ? <AlignLeft size={12} /> : <Camera size={12} />
+
+  // ── Registrations view ──────────────────────────────────────────────────────
   if (tab === 'registrations' && selectedOlympiadId) {
     const regs = registrations[selectedOlympiadId] || []
     const olympiad = olympiads.find(o => o.id === selectedOlympiadId)
@@ -307,53 +245,49 @@ export default function AdminOlympiadsPage() {
           <table className="w-full text-sm">
             <thead>
               <tr style={{ borderBottom: '1px solid #0f2a4a', background: 'rgba(0,212,255,0.04)' }}>
-                {['Name','Phone','College','Roll','Batch','Group','Score','Status','Answer Sheet'].map(h2 => (
+                {['Name','Phone','Email','HSC Session','College','Roll','Score','Status','Answer Sheet'].map(h2 => (
                   <th key={h2} className="text-left px-4 py-3 font-medium whitespace-nowrap" style={{ color: '#6a8faf' }}>{h2}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
+              {regs.length === 0 && (
+                <tr><td colSpan={9} className="px-4 py-8 text-center" style={{ color: '#3d5a78' }}>No registrations yet.</td></tr>
+              )}
               {regs.map(r => (
-                <tr key={r.id} style={{ borderBottom: '1px solid #0a1f35' }}>
-                  <td className="px-4 py-3" style={{ color: '#e8f4ff' }}>{r.full_name}</td>
+                <tr key={r.id} style={{ borderBottom: '1px solid #0f2a4a' }}>
+                  <td className="px-4 py-3" style={{ color: '#e0f0ff' }}>{r.full_name}</td>
                   <td className="px-4 py-3" style={{ color: '#6a8faf' }}>{r.phone}</td>
-                  <td className="px-4 py-3" style={{ color: '#6a8faf' }}>{r.college || '—'}</td>
-                  <td className="px-4 py-3" style={{ color: '#6a8faf' }}>{r.college_roll || '—'}</td>
-                  <td className="px-4 py-3" style={{ color: '#6a8faf' }}>{r.batch || '—'}</td>
-                  <td className="px-4 py-3" style={{ color: '#6a8faf' }}>{r.group_name || '—'}</td>
+                  <td className="px-4 py-3" style={{ color: '#6a8faf' }}>{r.email}</td>
+                  <td className="px-4 py-3" style={{ color: '#6a8faf' }}>{r.hsc_session}</td>
+                  <td className="px-4 py-3" style={{ color: '#6a8faf' }}>{r.college}</td>
+                  <td className="px-4 py-3" style={{ color: '#6a8faf' }}>{r.college_roll}</td>
                   <td className="px-4 py-3">
                     {markingId === r.id ? (
                       <div className="flex gap-1">
-                        <input type="number" className="w-16 px-2 py-1 rounded text-xs border" style={inputStyle}
-                          value={markScore[r.id] || ''} onChange={e => setMarkScore(p => ({ ...p, [r.id]: e.target.value }))} />
-                        <button onClick={() => saveScore(r.id, markScore[r.id] || '0')}
-                          className="px-2 py-1 rounded text-xs" style={{ background: 'rgba(0,255,128,0.15)', color: '#00ff80' }}>✓</button>
-                        <button onClick={() => setMarkingId(null)} className="px-2 py-1 rounded text-xs" style={{ background: 'rgba(255,80,80,0.1)', color: '#ff7070' }}>✗</button>
+                        <input className="w-16 px-2 py-1 rounded text-xs border" style={inputStyle} value={scoreInput} onChange={e => setScoreInput(e.target.value)} autoFocus />
+                        <button onClick={() => saveScore(r.id, scoreInput)} className="px-2 py-1 rounded text-xs" style={{ background: '#00d4ff22', color: '#00d4ff' }}><Check size={12} /></button>
+                        <button onClick={() => setMarkingId(null)} className="px-2 py-1 rounded text-xs" style={{ background: 'transparent', color: '#6a8faf' }}><X size={12} /></button>
                       </div>
                     ) : (
-                      <button onClick={() => { setMarkingId(r.id); setMarkScore(p => ({ ...p, [r.id]: r.final_score ?? '' })) }}
-                        className="text-xs px-2 py-1 rounded border" style={{ borderColor: '#0f2a4a', color: r.final_score != null ? '#00ff80' : '#6a8faf' }}>
-                        {r.final_score != null ? r.final_score : 'Mark'}
+                      <button onClick={() => { setMarkingId(r.id); setScoreInput(r.result_score?.toString() || '') }}
+                        className="text-xs px-2 py-1 rounded border" style={{ borderColor: '#0f2a4a', color: r.result_score != null ? '#00ff80' : '#3d5a78' }}>
+                        {r.result_score != null ? r.result_score : 'Mark'}
                       </button>
                     )}
                   </td>
                   <td className="px-4 py-3">
-                    <span className="text-xs px-2 py-0.5 rounded-full" style={{
-                      background: r.review_status === 'reviewed' ? 'rgba(0,255,128,0.1)' : 'rgba(255,165,0,0.1)',
-                      color: r.review_status === 'reviewed' ? '#00ff80' : '#ffa500',
-                      border: `1px solid ${r.review_status === 'reviewed' ? 'rgba(0,255,128,0.3)' : 'rgba(255,165,0,0.3)'}`,
-                    }}>{r.review_status || 'pending'}</span>
+                    <span className="text-xs px-2 py-0.5 rounded-full" style={{ background: r.review_status === 'reviewed' ? '#00ff8022' : '#ffb34722', color: r.review_status === 'reviewed' ? '#00ff80' : '#ffb347' }}>
+                      {r.review_status || 'pending'}
+                    </span>
                   </td>
                   <td className="px-4 py-3">
-                    {r.answer_sheet_url
-                      ? <a href={r.answer_sheet_url} target="_blank" className="text-xs underline" style={{ color: '#00d4ff' }}>View</a>
-                      : <span style={{ color: '#6a8faf' }}>—</span>}
+                    {r.answer_sheet_url && <a href={r.answer_sheet_url} target="_blank" className="text-xs underline" style={{ color: '#00d4ff' }}>View</a>}
+                    {!r.answer_sheet_url && r.exam_submitted_at && <span className="text-xs" style={{ color: '#00ff80' }}>Online ✓</span>}
+                    {!r.answer_sheet_url && !r.exam_submitted_at && <span className="text-xs" style={{ color: '#3d5a78' }}>—</span>}
                   </td>
                 </tr>
               ))}
-              {regs.length === 0 && (
-                <tr><td colSpan={9} className="px-4 py-8 text-center" style={{ color: '#6a8faf' }}>No registrations yet.</td></tr>
-              )}
             </tbody>
           </table>
         </div>
@@ -361,12 +295,230 @@ export default function AdminOlympiadsPage() {
     )
   }
 
-  // ---------- MAIN ----------
+  // ── Editor modal ────────────────────────────────────────────────────────────
+  if (editing !== null) {
+    return (
+      <div>
+        <div className="flex items-center justify-between mb-6">
+          <h1 className="text-xl font-bold" style={h}>{editing.id ? 'Edit Olympiad' : 'New Olympiad'}</h1>
+          <div className="flex gap-3">
+            <button onClick={() => { setEditing(null); setUploadError('') }} className="px-4 py-2 rounded-lg text-sm border" style={{ borderColor: '#0f2a4a', color: '#6a8faf' }}>Cancel</button>
+            <button onClick={save} disabled={saving} className="px-5 py-2 rounded-lg text-sm font-bold" style={{ background: 'linear-gradient(90deg,#00d4ff,#0070ff)', color: '#fff' }}>
+              {saving ? 'Saving…' : 'SAVE →'}
+            </button>
+          </div>
+        </div>
+        {pageError && <div className="mb-4 px-4 py-3 rounded-lg text-sm" style={{ background: 'rgba(255,80,80,0.12)', border: '1px solid rgba(255,80,80,0.4)', color: '#ff6b6b' }}>{pageError}</div>}
+
+        <div className="space-y-5 max-w-3xl">
+          {/* Basic info */}
+          <div className="rounded-xl p-5 space-y-4" style={s}>
+            <p className="text-xs font-bold tracking-widest" style={{ color: '#00d4ff' }}>BASIC INFO</p>
+            <div>
+              <label className="block text-xs mb-1" style={{ color: '#6a8faf' }}>Title *</label>
+              <input className={inputClass} style={inputStyle} value={editing.name || ''} onChange={e => setEditing(p => ({ ...p, name: e.target.value }))} placeholder="e.g. Batch 28 Introductory Quiz" />
+            </div>
+            <div>
+              <label className="block text-xs mb-1" style={{ color: '#6a8faf' }}>Description</label>
+              <textarea rows={3} className={inputClass + ' resize-none'} style={inputStyle} value={editing.description || ''} onChange={e => setEditing(p => ({ ...p, description: e.target.value }))} />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-xs mb-1" style={{ color: '#6a8faf' }}>Status</label>
+                <select className={inputClass} style={inputStyle} value={editing.is_active ? 'true' : 'false'} onChange={e => setEditing(p => ({ ...p, is_active: e.target.value === 'true' }))}>
+                  <option value="true">Active (visible)</option>
+                  <option value="false">Hidden</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs mb-1" style={{ color: '#6a8faf' }}>Eligibility</label>
+                <input className={inputClass} style={inputStyle} value={editing.eligibility || ''} onChange={e => setEditing(p => ({ ...p, eligibility: e.target.value }))} placeholder="e.g. NDC Batch 28" />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-xs mb-1" style={{ color: '#6a8faf' }}>Registration Deadline</label>
+                <input type="datetime-local" className={inputClass} style={inputStyle} value={editing.registration_deadline?.slice(0, 16) || ''} onChange={e => setEditing(p => ({ ...p, registration_deadline: e.target.value }))} />
+              </div>
+              <div>
+                <label className="block text-xs mb-1" style={{ color: '#6a8faf' }}>Exam Date</label>
+                <input type="datetime-local" className={inputClass} style={inputStyle} value={editing.exam_date?.slice(0, 16) || ''} onChange={e => setEditing(p => ({ ...p, exam_date: e.target.value }))} />
+              </div>
+            </div>
+            <label className="flex items-center gap-2 text-sm cursor-pointer" style={{ color: '#6a8faf' }}>
+              <input type="checkbox" checked={editing.external_only || false} onChange={e => setEditing(p => ({ ...p, external_only: e.target.checked }))} />
+              Open to external colleges
+            </label>
+          </div>
+
+          {/* Exam settings */}
+          <div className="rounded-xl p-5 space-y-4" style={s}>
+            <p className="text-xs font-bold tracking-widest" style={{ color: '#00d4ff' }}>EXAM SETTINGS</p>
+            <div className="grid grid-cols-3 gap-4">
+              <div>
+                <label className="block text-xs mb-1" style={{ color: '#6a8faf' }}>Question Display</label>
+                <select className={inputClass} style={inputStyle} value={editing.question_display || 'all_at_once'} onChange={e => setEditing(p => ({ ...p, question_display: e.target.value as any }))}>
+                  <option value="all_at_once">All at once (scroll)</option>
+                  <option value="one_by_one">One by one (Next button)</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs mb-1" style={{ color: '#6a8faf' }}>Timer (minutes)</label>
+                <input type="number" min={1} max={300} className={inputClass} style={inputStyle} value={editing.timer_minutes ?? 60} onChange={e => setEditing(p => ({ ...p, timer_minutes: Number(e.target.value) }))} />
+              </div>
+              <div>
+                <label className="block text-xs mb-1" style={{ color: '#6a8faf' }}>Organizer Password</label>
+                <input className={inputClass} style={inputStyle} value={editing.organizer_password || ''} onChange={e => setEditing(p => ({ ...p, organizer_password: e.target.value }))} placeholder="For organizer login" />
+              </div>
+            </div>
+            <div className="flex gap-6">
+              <label className="flex items-center gap-2 text-sm cursor-pointer" style={{ color: '#6a8faf' }}>
+                <input type="checkbox" checked={editing.result_published || false} onChange={e => setEditing(p => ({ ...p, result_published: e.target.checked }))} />
+                Publish results (students can see scores)
+              </label>
+              <label className="flex items-center gap-2 text-sm cursor-pointer" style={{ color: '#6a8faf' }}>
+                <input type="checkbox" checked={editing.annotations_published || false} onChange={e => setEditing(p => ({ ...p, annotations_published: e.target.checked }))} />
+                Publish annotations (students see marked sheets)
+              </label>
+            </div>
+          </div>
+
+          {/* Cover & PDF */}
+          <div className="rounded-xl p-5 space-y-4" style={s}>
+            <p className="text-xs font-bold tracking-widest" style={{ color: '#00d4ff' }}>COVER IMAGE & PDF</p>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-xs mb-1" style={{ color: '#6a8faf' }}>Cover Image (max {MAX_COVER_MB}MB)</label>
+                <label className="flex items-center justify-center gap-2 w-full px-3 py-2.5 rounded-lg text-sm border cursor-pointer" style={{ ...inputStyle, color: '#00d4ff', opacity: uploading === 'cover' ? 0.6 : 1 }}>
+                  <ImageIcon size={15} />
+                  {uploading === 'cover' ? `${uploadProgress}%` : editing.cover_image_url ? 'Replace image' : 'Upload image'}
+                  <input type="file" accept="image/jpeg,image/png,image/webp" className="hidden" disabled={uploading === 'cover'} onChange={e => handleCoverUpload(e.target.files?.[0] || null)} />
+                </label>
+                {editing.cover_image_url && uploading !== 'cover' && (
+                  <div className="relative w-fit mt-2">
+                    <img src={editing.cover_image_url} alt="cover" className="h-16 rounded object-cover border" style={{ borderColor: '#0f2a4a' }} />
+                    <button onClick={() => setEditing(p => ({ ...p, cover_image_url: '' }))} className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full text-xs flex items-center justify-center" style={{ background: 'rgba(255,80,80,0.85)', color: 'white' }}>✕</button>
+                  </div>
+                )}
+              </div>
+              <div>
+                <label className="block text-xs mb-1" style={{ color: '#6a8faf' }}>Question PDF (optional, max {MAX_PDF_MB}MB)</label>
+                <label className="flex items-center justify-center gap-2 w-full px-3 py-2.5 rounded-lg text-sm border cursor-pointer" style={{ ...inputStyle, color: '#00d4ff', opacity: uploading === 'pdf' ? 0.6 : 1 }}>
+                  <FileText size={15} />
+                  {uploading === 'pdf' ? `${uploadProgress}%` : editing.pdf_url ? 'Replace PDF' : 'Upload PDF'}
+                  <input type="file" accept="application/pdf" className="hidden" disabled={uploading === 'pdf'} onChange={e => handlePdfUpload(e.target.files?.[0] || null)} />
+                </label>
+                {editing.pdf_url && uploading !== 'pdf' && (
+                  <div className="flex items-center gap-2 mt-2 text-xs">
+                    <a href={editing.pdf_url} target="_blank" className="underline" style={{ color: '#00d4ff' }}>View PDF</a>
+                    <button onClick={() => setEditing(p => ({ ...p, pdf_url: '' }))} style={{ color: '#ff7070' }}>✕ Remove</button>
+                  </div>
+                )}
+              </div>
+            </div>
+            {uploadError && <div className="p-2.5 rounded text-xs" style={{ background: 'rgba(255,80,80,0.1)', color: '#ff7070' }}>{uploadError}</div>}
+          </div>
+
+          {/* Registration fields */}
+          <div className="rounded-xl p-5 space-y-4" style={s}>
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs font-bold tracking-widest" style={{ color: '#00d4ff' }}>REGISTRATION FIELDS</p>
+                <p className="text-xs mt-0.5" style={{ color: '#3d5a78' }}>Mandatory: Name, Phone, Email, HSC Session, College, College Roll — always included</p>
+              </div>
+              <button onClick={addRegField} className="text-xs px-3 py-1.5 rounded-lg flex items-center gap-1" style={{ background: 'rgba(0,212,255,0.1)', color: '#00d4ff', border: '1px solid rgba(0,212,255,0.2)' }}>
+                <Plus size={12} /> Add field
+              </button>
+            </div>
+            {(editing.registration_fields || []).map(f => (
+              <div key={f.key} className="flex gap-2 items-start">
+                <input className={inputClass + ' flex-1'} style={inputStyle} placeholder="Field label" value={f.label} onChange={e => updateRegField(f.key, { label: e.target.value })} />
+                <select className="px-2 py-2 rounded-lg text-sm border" style={{ ...inputStyle, width: 130 }} value={f.type} onChange={e => updateRegField(f.key, { type: e.target.value as any })}>
+                  <option value="text">Text</option>
+                  <option value="textarea">Long text</option>
+                  <option value="email">Email</option>
+                  <option value="tel">Phone</option>
+                </select>
+                <label className="flex items-center gap-1 text-xs pt-2.5 whitespace-nowrap cursor-pointer" style={{ color: '#6a8faf' }}>
+                  <input type="checkbox" checked={f.required} onChange={e => updateRegField(f.key, { required: e.target.checked })} /> Required
+                </label>
+                <button onClick={() => removeRegField(f.key)} className="pt-2" style={{ color: '#ff7070' }}><Trash2 size={14} /></button>
+              </div>
+            ))}
+          </div>
+
+          {/* Questions */}
+          <div className="rounded-xl p-5 space-y-4" style={s}>
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs font-bold tracking-widest" style={{ color: '#00d4ff' }}>QUESTIONS</p>
+                <p className="text-xs mt-0.5" style={{ color: '#3d5a78' }}>Mix MCQ, short answer, and photo-submit questions freely</p>
+              </div>
+              <div className="flex gap-2">
+                <button onClick={() => addQuestion('mcq')} className="text-xs px-2.5 py-1.5 rounded-lg flex items-center gap-1" style={{ background: '#00d4ff18', color: '#00d4ff', border: '1px solid #00d4ff33' }}>
+                  <List size={11} /> MCQ
+                </button>
+                <button onClick={() => addQuestion('short')} className="text-xs px-2.5 py-1.5 rounded-lg flex items-center gap-1" style={{ background: '#00ff8018', color: '#00ff80', border: '1px solid #00ff8033' }}>
+                  <AlignLeft size={11} /> Short Ans
+                </button>
+                <button onClick={() => addQuestion('photo')} className="text-xs px-2.5 py-1.5 rounded-lg flex items-center gap-1" style={{ background: '#ffb34718', color: '#ffb347', border: '1px solid #ffb34733' }}>
+                  <Camera size={11} /> Photo
+                </button>
+              </div>
+            </div>
+            {(editing.questions || []).length === 0 && (
+              <p className="text-xs text-center py-4" style={{ color: '#3d5a78' }}>No questions yet. Add MCQ, short answer, or photo questions above.</p>
+            )}
+            {(editing.questions || []).map((q, qi) => (
+              <div key={q.id} className="rounded-lg p-4 space-y-3" style={{ background: '#0a1f35', border: `1px solid ${qTypeColor(q.type)}33` }}>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs px-2 py-0.5 rounded-full flex items-center gap-1" style={{ background: `${qTypeColor(q.type)}18`, color: qTypeColor(q.type) }}>
+                    {qTypeIcon(q.type)} Q{qi + 1} · {qTypeLabel(q.type)}
+                  </span>
+                  <div className="flex items-center gap-1 ml-auto">
+                    <input type="number" min={0} value={q.marks ?? 1} onChange={e => updateQuestion(q.id, { marks: Number(e.target.value) })} className="w-14 px-2 py-1 rounded text-xs border text-right" style={inputStyle} title="Marks for this question" />
+                    <span className="text-xs" style={{ color: '#3d5a78' }}>marks</span>
+                    <button onClick={() => removeQuestion(q.id)} className="ml-2" style={{ color: '#ff7070' }}><Trash2 size={14} /></button>
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-xs mb-1" style={{ color: '#6a8faf' }}>Question text *</label>
+                  <textarea rows={2} className={inputClass + ' resize-none'} style={inputStyle} value={q.text} onChange={e => updateQuestion(q.id, { text: e.target.value })} placeholder="Enter the question..." />
+                </div>
+                <div>
+                  <label className="block text-xs mb-1" style={{ color: '#6a8faf' }}>Description / hint (optional)</label>
+                  <input className={inputClass} style={inputStyle} value={q.description || ''} onChange={e => updateQuestion(q.id, { description: e.target.value })} placeholder="Additional context or instructions for this question" />
+                </div>
+                {q.type === 'mcq' && (
+                  <div className="space-y-2">
+                    <label className="text-xs" style={{ color: '#6a8faf' }}>Options (click radio to mark correct answer)</label>
+                    {(q.options || []).map(o => (
+                      <div key={o.id} className="flex items-center gap-2">
+                        <input type="radio" name={`correct-${q.id}`} checked={q.correct_option_id === o.id} onChange={() => updateQuestion(q.id, { correct_option_id: o.id })} style={{ accentColor: '#00ff80' }} />
+                        <input className={inputClass} style={inputStyle} value={o.text} onChange={e => updateOption(q.id, o.id, e.target.value)} placeholder="Option text" />
+                        <button onClick={() => removeOption(q.id, o.id)} style={{ color: '#ff7070' }}><X size={13} /></button>
+                      </div>
+                    ))}
+                    <button onClick={() => addOption(q.id)} className="text-xs flex items-center gap-1" style={{ color: '#00d4ff' }}><Plus size={11} /> Add option</button>
+                  </div>
+                )}
+                {q.type === 'photo' && (
+                  <p className="text-xs" style={{ color: '#3d5a78' }}>Student will upload a photo (their handwritten answer) for this question.</p>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  // ── Main list view ──────────────────────────────────────────────────────────
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold" style={h}>Olympiads</h1>
-        <button onClick={() => { setEditing({ ...BLANK_OLYMPIAD }); setUploadError(''); setUploadProgress(0); setUploading(null) }}
+        <button onClick={() => { setEditing({ ...BLANK }); setUploadError(''); setUploadProgress(0); setUploading(null) }}
           className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold"
           style={{ background: 'rgba(0,212,255,0.12)', color: '#00d4ff', border: '1px solid rgba(0,212,255,0.3)' }}>
           <Plus size={16} /> New Olympiad
@@ -374,298 +526,90 @@ export default function AdminOlympiadsPage() {
       </div>
 
       {pageError && (
-        <div className="mb-4 px-4 py-3 rounded-lg text-sm flex items-center justify-between"
-          style={{ background: 'rgba(255,80,80,0.12)', border: '1px solid rgba(255,80,80,0.4)', color: '#ff6b6b' }}>
+        <div className="mb-4 px-4 py-3 rounded-lg text-sm flex items-center justify-between" style={{ background: 'rgba(255,80,80,0.12)', border: '1px solid rgba(255,80,80,0.4)', color: '#ff6b6b' }}>
           <span>{pageError}</span>
-          <button onClick={() => setPageError('')} className="ml-4 opacity-70 hover:opacity-100"><X size={14} /></button>
+          <button onClick={() => setPageError('')}><X size={14} /></button>
         </div>
       )}
 
-      {/* Announcements now live on their own dedicated page — this used to be
-          a second, half-working copy of the same compose box, which is the
-          "announcement is messy" bug. Single source of truth now. */}
-      <Link href="/admin/announcements"
-        className="flex items-center justify-between rounded-xl border p-5 mb-6 transition-colors hover:border-[#00d4ff]"
-        style={s}>
+      {/* Announcement link */}
+      <Link href="/admin/announcements" className="flex items-center justify-between mb-6 px-4 py-3 rounded-xl" style={{ background: 'rgba(0,212,255,0.05)', border: '1px solid rgba(0,212,255,0.15)' }}>
         <div className="flex items-center gap-3">
-          <Megaphone size={20} style={{ color: '#00d4ff' }} />
+          <Megaphone size={16} style={{ color: '#00d4ff' }} />
           <div>
-            <p className="font-bold text-sm" style={{ color: '#e8f4ff' }}>Send an Announcement</p>
-            <p className="text-xs mt-0.5" style={{ color: '#6a8faf' }}>
-              Email members, olympiad registrants, or everyone — manage announcements →
-            </p>
+            <p className="text-sm font-medium" style={{ color: '#e0f0ff' }}>Send an Announcement</p>
+            <p className="text-xs" style={{ color: '#3d5a78' }}>Email members, olympiad registrants, or everyone — manage announcements →</p>
           </div>
         </div>
-        <ArrowRight size={18} style={{ color: '#6a8faf' }} />
+        <ArrowRight size={16} style={{ color: '#3d5a78' }} />
       </Link>
 
-      {/* Olympiad List */}
-      <div className="space-y-4">
-        {olympiads.map(o => (
-          <div key={o.id} className="rounded-xl border overflow-hidden" style={s}>
-            <div className="flex items-center gap-4 p-4">
-              {o.cover_image_url && (
-                <img src={o.cover_image_url} alt={o.name} className="w-12 h-12 rounded-lg object-cover flex-shrink-0" />
-              )}
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <h3 className="font-bold" style={{ color: '#e8f4ff' }}>{o.name}</h3>
-                  <span className="text-xs px-2 py-0.5 rounded" style={{
-                    background: o.mode === 'online_mcq' ? '#00ff8022' : '#00d4ff22',
-                    color: o.mode === 'online_mcq' ? '#00ff80' : '#00d4ff',
-                  }}>{o.mode === 'online_mcq' ? 'Online MCQ' : 'Photo Submit'}</span>
-                  <span className="text-xs px-2 py-0.5 rounded" style={{
-                    background: o.is_active ? 'rgba(0,255,128,0.1)' : 'rgba(255,80,80,0.1)',
-                    color: o.is_active ? '#00ff80' : '#ff7070',
-                  }}>{o.is_active ? 'Active' : 'Hidden'}</span>
-                </div>
-                <p className="text-xs mt-0.5 truncate" style={{ color: '#6a8faf' }}>{o.description}</p>
-              </div>
-              <div className="flex items-center gap-2 flex-shrink-0">
-                <button onClick={() => { setSelectedOlympiadId(o.id); setTab('registrations'); loadRegistrations(o.id) }}
-                  className="px-3 py-1.5 rounded text-xs border" style={{ borderColor: '#0f2a4a', color: '#6a8faf' }}>
-                  Registrations
-                </button>
-                <button onClick={() => toggleActive(o)} className="p-1.5 rounded" style={{ color: '#6a8faf' }} title={o.is_active ? 'Hide' : 'Show'}>
-                  {o.is_active ? <EyeOff size={16} /> : <Eye size={16} />}
-                </button>
-                <button onClick={() => { setEditing(o); setUploadError(''); setUploadProgress(0); setUploading(null) }} className="p-1.5 rounded" style={{ color: '#00d4ff' }}><Edit2 size={16} /></button>
-                <button onClick={() => del(o.id)} className="p-1.5 rounded" style={{ color: '#ff7070' }}><Trash2 size={16} /></button>
-              </div>
-            </div>
-          </div>
-        ))}
-        {olympiads.length === 0 && (
-          <div className="rounded-xl border p-8 text-center" style={s}>
-            <p style={{ color: '#6a8faf' }}>No olympiads yet. Click "New Olympiad" to create one.</p>
-          </div>
-        )}
-      </div>
+      {loading && <p className="text-center py-12" style={{ color: '#3d5a78' }}>Loading…</p>}
 
-      {/* EDITOR MODAL */}
-      {editing && (
-        <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto py-8 px-4"
-          style={{ background: 'rgba(0,0,0,0.85)' }}>
-          <div className="w-full max-w-2xl rounded-2xl border" style={{ background: '#050d1a', borderColor: '#0f2a4a' }}>
-            <div className="flex items-center justify-between p-6 border-b" style={{ borderColor: '#0f2a4a' }}>
-              <h2 className="font-black text-lg" style={h}>{editing.id ? 'Edit Olympiad' : 'New Olympiad'}</h2>
-              <button onClick={() => { setEditing(null); setUploadError('') }} style={{ color: '#6a8faf' }}><X size={20} /></button>
-            </div>
-            <div className="p-6 space-y-4 max-h-[75vh] overflow-y-auto">
-
-              <div>
-                <label className="block text-xs mb-1" style={{ color: '#6a8faf' }}>Title *</label>
-                <input className={inputClass} style={inputStyle} value={editing.name || ''}
-                  onChange={e => setEditing(p => ({ ...p, name: e.target.value }))} placeholder="e.g. Batch 28 Introductory Quiz" />
-              </div>
-
-              <div>
-                <label className="block text-xs mb-1" style={{ color: '#6a8faf' }}>Description</label>
-                <textarea rows={3} className={inputClass + ' resize-none'} style={inputStyle} value={editing.description || ''}
-                  onChange={e => setEditing(p => ({ ...p, description: e.target.value }))} />
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs mb-1" style={{ color: '#6a8faf' }}>Mode</label>
-                  <select className={inputClass} style={inputStyle} value={editing.mode || 'photo_submit'}
-                    onChange={e => setEditing(p => ({ ...p, mode: e.target.value as any }))}>
-                    <option value="photo_submit">Photo Submit (offline paper)</option>
-                    <option value="online_mcq">Online MCQ</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-xs mb-1" style={{ color: '#6a8faf' }}>Status</label>
-                  <select className={inputClass} style={inputStyle} value={editing.is_active ? 'true' : 'false'}
-                    onChange={e => setEditing(p => ({ ...p, is_active: e.target.value === 'true' }))}>
-                    <option value="true">Active (visible)</option>
-                    <option value="false">Hidden</option>
-                  </select>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs mb-1" style={{ color: '#6a8faf' }}>Registration Deadline</label>
-                  <input type="datetime-local" className={inputClass} style={inputStyle}
-                    value={editing.registration_deadline?.slice(0, 16) || ''}
-                    onChange={e => setEditing(p => ({ ...p, registration_deadline: e.target.value }))} />
-                </div>
-                <div>
-                  <label className="block text-xs mb-1" style={{ color: '#6a8faf' }}>Exam Date</label>
-                  <input type="datetime-local" className={inputClass} style={inputStyle}
-                    value={editing.exam_date?.slice(0, 16) || ''}
-                    onChange={e => setEditing(p => ({ ...p, exam_date: e.target.value }))} />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs mb-1" style={{ color: '#6a8faf' }}>
-                    Cover Image <span style={{ color: '#3d5a78' }}>(max {MAX_COVER_MB}MB — JPG, PNG, WEBP)</span>
-                  </label>
-                  <label className="flex items-center justify-center gap-2 w-full px-3 py-2.5 rounded-lg text-sm border cursor-pointer"
-                    style={{ ...inputStyle, color: '#00d4ff', opacity: uploading === 'cover' ? 0.6 : 1 }}>
-                    <ImageIcon size={15} />
-                    {uploading === 'cover' ? 'Uploading...' : editing.cover_image_url ? 'Replace cover image' : 'Upload cover image'}
-                    <input type="file" accept="image/jpeg,image/png,image/webp" className="hidden"
-                      disabled={uploading === 'cover'}
-                      onChange={e => handleCoverUpload(e.target.files?.[0] || null)} />
-                  </label>
-                  {uploading === 'cover' && (
-                    <div className="mt-2">
-                      <div className="flex justify-between text-xs mb-1" style={{ color: '#6a8faf' }}>
-                        <span>Uploading...</span><span>{uploadProgress}%</span>
-                      </div>
-                      <div className="w-full rounded-full overflow-hidden" style={{ height: 4, background: '#0f2a4a' }}>
-                        <div className="h-full rounded-full transition-all duration-200" style={{ width: `${uploadProgress}%`, background: '#00d4ff' }} />
-                      </div>
-                    </div>
-                  )}
-                  {editing.cover_image_url && uploading !== 'cover' && (
-                    <div className="relative w-fit mt-2">
-                      <img src={editing.cover_image_url} alt="cover" className="h-16 rounded-lg object-cover border" style={{ borderColor: '#0f2a4a' }} />
-                      <button onClick={() => setEditing(p => ({ ...p, cover_image_url: '' }))}
-                        className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full text-xs flex items-center justify-center"
-                        style={{ background: 'rgba(255,80,80,0.85)', color: 'white' }}>✕</button>
-                    </div>
-                  )}
-                </div>
-                <div>
-                  <label className="block text-xs mb-1" style={{ color: '#6a8faf' }}>
-                    Question PDF <span style={{ color: '#3d5a78' }}>(optional — max {MAX_PDF_MB}MB)</span>
-                  </label>
-                  <label className="flex items-center justify-center gap-2 w-full px-3 py-2.5 rounded-lg text-sm border cursor-pointer"
-                    style={{ ...inputStyle, color: '#00d4ff', opacity: uploading === 'pdf' ? 0.6 : 1 }}>
-                    <FileText size={15} />
-                    {uploading === 'pdf' ? 'Uploading...' : editing.pdf_url ? 'Replace PDF' : 'Upload PDF'}
-                    <input type="file" accept="application/pdf" className="hidden"
-                      disabled={uploading === 'pdf'}
-                      onChange={e => handlePdfUpload(e.target.files?.[0] || null)} />
-                  </label>
-                  {uploading === 'pdf' && (
-                    <div className="mt-2">
-                      <div className="flex justify-between text-xs mb-1" style={{ color: '#6a8faf' }}>
-                        <span>Uploading...</span><span>{uploadProgress}%</span>
-                      </div>
-                      <div className="w-full rounded-full overflow-hidden" style={{ height: 4, background: '#0f2a4a' }}>
-                        <div className="h-full rounded-full transition-all duration-200" style={{ width: `${uploadProgress}%`, background: '#00d4ff' }} />
-                      </div>
-                    </div>
-                  )}
-                  {editing.pdf_url && uploading !== 'pdf' && (
-                    <div className="flex items-center gap-2 mt-2 text-xs" style={{ color: '#6a8faf' }}>
-                      <a href={editing.pdf_url} target="_blank" className="underline" style={{ color: '#00d4ff' }}>View current PDF</a>
-                      <button onClick={() => setEditing(p => ({ ...p, pdf_url: '' }))} style={{ color: '#ff7070' }}>✕ Remove</button>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {uploadError && (
-                <div className="p-2.5 rounded-lg text-xs" style={{ background: 'rgba(255,80,80,0.1)', border: '1px solid rgba(255,80,80,0.3)', color: '#ff7070' }}>
-                  {uploadError}
-                </div>
-              )}
-
-              <div>
-                <label className="block text-xs mb-1" style={{ color: '#6a8faf' }}>Eligibility</label>
-                <input className={inputClass} style={inputStyle} value={editing.eligibility || ''}
-                  onChange={e => setEditing(p => ({ ...p, eligibility: e.target.value }))} placeholder="e.g. Notre Dame College Batch 28 students" />
-              </div>
-
-              <div>
-                <label className="block text-xs mb-1" style={{ color: '#6a8faf' }}>Organizer Review Password</label>
-                <input className={inputClass} style={inputStyle} value={editing.organizer_password || ''}
-                  onChange={e => setEditing(p => ({ ...p, organizer_password: e.target.value }))} placeholder="Password organizers use to log in and review" />
-              </div>
-
-              <div className="flex items-center gap-3">
-                <label className="flex items-center gap-2 text-sm cursor-pointer" style={{ color: '#6a8faf' }}>
-                  <input type="checkbox" checked={editing.external_only || false}
-                    onChange={e => setEditing(p => ({ ...p, external_only: e.target.checked }))} />
-                  Open to external colleges (no NDC pre-fill)
-                </label>
-                {editing.mode === 'online_mcq' && (
-                  <label className="flex items-center gap-2 text-sm cursor-pointer" style={{ color: '#6a8faf' }}>
-                    <input type="checkbox" checked={editing.show_results_immediately || false}
-                      onChange={e => setEditing(p => ({ ...p, show_results_immediately: e.target.checked }))} />
-                    Show score immediately after submission
-                  </label>
-                )}
-              </div>
-
-              {/* Custom Fields */}
-              <div>
-                <div className="flex items-center justify-between mb-2">
-                  <label className="text-xs font-bold" style={{ color: '#00d4ff' }}>ADDITIONAL FORM FIELDS</label>
-                  <button onClick={addCustomField} className="text-xs px-3 py-1 rounded" style={{ background: 'rgba(0,212,255,0.1)', color: '#00d4ff' }}>+ Add Field</button>
-                </div>
-                {(editing.custom_fields || []).map(cf => (
-                  <div key={cf.key} className="flex gap-2 mb-2 items-center">
-                    <input className={inputClass} style={inputStyle} value={cf.label} placeholder="Field label"
-                      onChange={e => updateCustomField(cf.key, { label: e.target.value })} />
-                    <select className="px-2 py-2 rounded-lg text-sm border outline-none" style={inputStyle}
-                      value={cf.type} onChange={e => updateCustomField(cf.key, { type: e.target.value as any })}>
-                      <option value="text">Text</option>
-                      <option value="textarea">Textarea</option>
-                      <option value="email">Email</option>
-                      <option value="tel">Phone</option>
-                    </select>
-                    <label className="flex items-center gap-1 text-xs whitespace-nowrap" style={{ color: '#6a8faf' }}>
-                      <input type="checkbox" checked={cf.required} onChange={e => updateCustomField(cf.key, { required: e.target.checked })} /> Req.
-                    </label>
-                    <button onClick={() => removeCustomField(cf.key)} style={{ color: '#ff7070' }}><X size={14} /></button>
-                  </div>
-                ))}
-              </div>
-
-              {/* MCQ Questions */}
-              {editing.mode === 'online_mcq' && (
-                <div>
-                  <div className="flex items-center justify-between mb-2">
-                    <label className="text-xs font-bold" style={{ color: '#00d4ff' }}>MCQ QUESTIONS</label>
-                    <button onClick={addQuestion} className="text-xs px-3 py-1 rounded" style={{ background: 'rgba(0,212,255,0.1)', color: '#00d4ff' }}>+ Add Question</button>
-                  </div>
-                  {(editing.questions || []).map((q, qi) => (
-                    <div key={q.id} className="p-3 rounded-lg border mb-3" style={{ borderColor: '#0f2a4a', background: '#030a12' }}>
-                      <div className="flex gap-2 mb-2">
-                        <span className="text-xs font-bold mt-2.5" style={{ color: '#00d4ff' }}>Q{qi + 1}</span>
-                        <input className={inputClass} style={inputStyle} value={q.text} placeholder="Question text"
-                          onChange={e => updateQuestion(q.id, { text: e.target.value })} />
-                        <button onClick={() => removeQuestion(q.id)} style={{ color: '#ff7070' }}><X size={14} /></button>
-                      </div>
-                      {q.options.map((opt, oi) => (
-                        <div key={opt.id} className="flex gap-2 mb-1 ml-6">
-                          <input type="radio" name={`correct_${q.id}`} checked={q.correct_option_id === opt.id}
-                            onChange={() => updateQuestion(q.id, { correct_option_id: opt.id })} />
-                          <input className={inputClass} style={{ ...inputStyle, border: '1px solid ' + (q.correct_option_id === opt.id ? '#00ff80' : '#0f2a4a') }}
-                            value={opt.text} placeholder={`Option ${String.fromCharCode(65 + oi)}`}
-                            onChange={e => updateOption(q.id, opt.id, e.target.value)} />
-                          {q.options.length > 2 && (
-                            <button onClick={() => removeOption(q.id, opt.id)} style={{ color: '#ff7070' }}><X size={14} /></button>
-                          )}
-                        </div>
-                      ))}
-                      <button onClick={() => addOption(q.id)} className="ml-6 mt-1 text-xs" style={{ color: '#6a8faf' }}>+ Add option</button>
-                      <p className="ml-6 mt-1 text-xs" style={{ color: '#6a8faf' }}>Select the radio button next to the correct answer.</p>
-                    </div>
-                  ))}
-                </div>
-              )}
-
-            </div>
-            <div className="flex justify-end gap-3 p-6 border-t" style={{ borderColor: '#0f2a4a' }}>
-              <button onClick={() => { setEditing(null); setUploadError('') }} className="px-5 py-2 rounded-lg text-sm border" style={{ borderColor: '#0f2a4a', color: '#6a8faf' }}>Cancel</button>
-              <button onClick={save} disabled={saving}
-                className="px-6 py-2 rounded-lg text-sm font-black disabled:opacity-50"
-                style={{ background: '#00d4ff', color: '#000', fontFamily: "'Orbitron', sans-serif" }}>
-                {saving ? 'SAVING...' : 'SAVE →'}
-              </button>
-            </div>
-          </div>
+      {!loading && olympiads.length === 0 && (
+        <div className="text-center py-12 rounded-xl" style={s}>
+          <p style={{ color: '#3d5a78' }}>No olympiads yet. Click &quot;New Olympiad&quot; to create one.</p>
         </div>
       )}
+
+      <div className="space-y-3">
+        {olympiads.map(o => (
+          <div key={o.id} className="rounded-xl overflow-hidden" style={s}>
+            <div className="flex items-center gap-4 px-5 py-4">
+              {o.cover_image_url && <img src={o.cover_image_url} alt="" className="w-14 h-14 rounded-lg object-cover flex-shrink-0" />}
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="font-semibold" style={{ color: '#e0f0ff' }}>{o.name}</span>
+                  <span className="text-xs px-2 py-0.5 rounded-full" style={{ background: o.is_active ? '#00ff8022' : '#ff707022', color: o.is_active ? '#00ff80' : '#ff7070' }}>
+                    {o.is_active ? 'Active' : 'Hidden'}
+                  </span>
+                  {o.result_published && <span className="text-xs px-2 py-0.5 rounded-full" style={{ background: '#00d4ff22', color: '#00d4ff' }}>Results Published</span>}
+                  {o.timer_minutes && <span className="text-xs flex items-center gap-1" style={{ color: '#3d5a78' }}><Clock size={10} />{o.timer_minutes}min</span>}
+                  <span className="text-xs" style={{ color: '#3d5a78' }}>{(o.questions || []).length} questions</span>
+                </div>
+                {o.description && <p className="text-xs mt-1 truncate" style={{ color: '#3d5a78' }}>{o.description}</p>}
+              </div>
+              <div className="flex items-center gap-2 flex-shrink-0">
+                <button onClick={() => toggleField(o.id, 'is_active', !o.is_active)} title={o.is_active ? 'Hide' : 'Activate'} className="p-1.5 rounded" style={{ color: '#3d5a78' }}>
+                  {o.is_active ? <Eye size={15} /> : <EyeOff size={15} />}
+                </button>
+                <button onClick={() => { setEditing(o); setUploadError(''); setUploadProgress(0); setUploading(null) }} className="p-1.5 rounded" style={{ color: '#6a8faf' }}>
+                  <Edit2 size={15} />
+                </button>
+                <button onClick={() => del(o.id)} className="p-1.5 rounded" style={{ color: '#ff7070' }}><Trash2 size={15} /></button>
+                <button onClick={() => { setSelectedOlympiadId(o.id); setTab('registrations'); loadRegistrations(o.id) }}
+                  className="text-xs px-3 py-1.5 rounded-lg border" style={{ borderColor: 'rgba(0,212,255,0.3)', color: '#00d4ff' }}>
+                  Registrations
+                </button>
+                <button onClick={() => toggleExpand(o.id)} className="p-1.5 rounded" style={{ color: '#3d5a78' }}>
+                  {expandedId === o.id ? <ChevronUp size={15} /> : <ChevronDown size={15} />}
+                </button>
+              </div>
+            </div>
+
+            {expandedId === o.id && (
+              <div className="px-5 pb-4 space-y-2" style={{ borderTop: '1px solid #0f2a4a' }}>
+                <div className="flex gap-4 pt-3 text-xs flex-wrap" style={{ color: '#3d5a78' }}>
+                  {o.exam_date && <span>Exam: {new Date(o.exam_date).toLocaleString()}</span>}
+                  {o.registration_deadline && <span>Reg deadline: {new Date(o.registration_deadline).toLocaleString()}</span>}
+                  {o.eligibility && <span>Eligibility: {o.eligibility}</span>}
+                  <span>Display: {o.question_display === 'one_by_one' ? 'One by one' : 'All at once'}</span>
+                </div>
+                <div className="flex gap-3 pt-1">
+                  <button onClick={() => toggleField(o.id, 'result_published', !o.result_published)}
+                    className="text-xs px-3 py-1.5 rounded-lg border" style={{ borderColor: o.result_published ? '#00ff8044' : '#0f2a4a', color: o.result_published ? '#00ff80' : '#3d5a78' }}>
+                    {o.result_published ? '✓ Results Published' : 'Publish Results'}
+                  </button>
+                  <button onClick={() => toggleField(o.id, 'annotations_published', !o.annotations_published)}
+                    className="text-xs px-3 py-1.5 rounded-lg border" style={{ borderColor: o.annotations_published ? '#00d4ff44' : '#0f2a4a', color: o.annotations_published ? '#00d4ff' : '#3d5a78' }}>
+                    {o.annotations_published ? '✓ Annotations Published' : 'Publish Annotations'}
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
     </div>
   )
 }
