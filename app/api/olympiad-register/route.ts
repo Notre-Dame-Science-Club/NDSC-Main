@@ -1,6 +1,43 @@
 import { supabaseAdmin } from '@/lib/supabase'
 import { NextRequest, NextResponse } from 'next/server'
 
+// GET is used to resume a student's session after a page refresh or closed
+// tab — the public olympiad page stores the registration id in the URL and
+// in localStorage, then calls this on load to fetch both the registration
+// and its parent olympiad so it can jump straight back to the right phase
+// (dashboard / exam-in-progress / done) instead of losing all progress.
+//
+// Like the existing PUT handler below, this route is intentionally public —
+// a registration id is an unguessable UUID, so knowing it is treated as
+// equivalent to "this is the student's own registration", the same trust
+// model the PUT handler already uses for submitting answers.
+export async function GET(req: NextRequest) {
+  const id = req.nextUrl.searchParams.get('id')
+  if (!id) return NextResponse.json({ error: 'Missing id' }, { status: 400 })
+
+  const { data: registration, error: regError } = await supabaseAdmin
+    .from('olympiad_registrations')
+    .select('*')
+    .eq('id', id)
+    .single()
+
+  if (regError || !registration) {
+    return NextResponse.json({ error: 'Registration not found.' }, { status: 404 })
+  }
+
+  const { data: olympiad, error: olyError } = await supabaseAdmin
+    .from('olympiads')
+    .select('*')
+    .eq('id', registration.olympiad_id)
+    .single()
+
+  if (olyError || !olympiad) {
+    return NextResponse.json({ error: 'Olympiad not found.' }, { status: 404 })
+  }
+
+  return NextResponse.json({ registration, olympiad })
+}
+
 export async function POST(req: NextRequest) {
   const body = await req.json()
   const { data, error } = await supabaseAdmin
@@ -23,3 +60,4 @@ export async function PUT(req: NextRequest) {
   if (error) return NextResponse.json({ error: error.message }, { status: 400 })
   return NextResponse.json({ success: true })
 }
+

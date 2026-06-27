@@ -8,7 +8,7 @@ export async function POST(req: NextRequest) {
   const session = await getOrganizerSession()
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  const { regId, score, annotations } = await req.json().catch(() => ({}))
+  const { regId, score, annotations, organizer_note } = await req.json().catch(() => ({}))
 
   if (!regId || typeof regId !== 'string') {
     return NextResponse.json({ error: 'regId is required.' }, { status: 400 })
@@ -35,9 +35,11 @@ export async function POST(req: NextRequest) {
     final_score: Number(score),
     review_status: 'reviewed',
   }
-  // Optional: tick/cross/marks overlay data on the answer sheet image (added once
-  // the DB has an `annotations` jsonb column on olympiad_registrations).
+  // Tick/cross/note overlay data on the answer sheet image, and the
+  // organizer's overall written comment on the sheet (separate from the
+  // per-mark notes that live inside each annotation object).
   if (annotations !== undefined) updatePayload.annotations = annotations
+  if (organizer_note !== undefined) updatePayload.organizer_note = organizer_note
 
   const { error: updateError } = await supabaseAdmin
     .from('olympiad_registrations')

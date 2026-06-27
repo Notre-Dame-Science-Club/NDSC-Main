@@ -1,7 +1,8 @@
 'use client'
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
-import { Plus, Trash2, Edit2, ChevronDown, ChevronUp, Eye, EyeOff, X, Check, Megaphone, ArrowRight, Image as ImageIcon, FileText, Clock, AlignLeft, List, Camera } from 'lucide-react'
+import { Plus, Trash2, Edit2, ChevronDown, ChevronUp, Eye, EyeOff, X, Megaphone, ArrowRight, Image as ImageIcon, FileText, Clock, AlignLeft, List, Camera } from 'lucide-react'
+import AnnotationViewer, { Annotation } from '@/components/olympiad/AnnotationViewer'
 
 const uid = () => Math.random().toString(36).slice(2, 9)
 
@@ -27,6 +28,7 @@ type Olympiad = {
   cover_image_url?: string
   pdf_url?: string
   mode: string
+  exam_type: 'photo_only' | 'live_only' | 'mixed'
   question_display: 'one_by_one' | 'all_at_once'
   timer_minutes: number
   is_active: boolean
@@ -43,7 +45,7 @@ type Olympiad = {
 }
 
 const BLANK: Partial<Olympiad> = {
-  name: '', description: '', mode: 'mixed', question_display: 'all_at_once',
+  name: '', description: '', mode: 'mixed', exam_type: 'mixed', question_display: 'all_at_once',
   timer_minutes: 60, is_active: true, result_published: false, annotations_published: false,
   external_only: false, registration_fields: [], questions: [],
 }
@@ -61,8 +63,7 @@ export default function AdminOlympiadsPage() {
   const [tab, setTab] = useState<'olympiads' | 'registrations'>('olympiads')
   const [selectedOlympiadId, setSelectedOlympiadId] = useState<string | null>(null)
   const [registrations, setRegistrations] = useState<Record<string, any[]>>({})
-  const [markingId, setMarkingId] = useState<string | null>(null)
-  const [scoreInput, setScoreInput] = useState('')
+  const [viewingReg, setViewingReg] = useState<any | null>(null)
   const [uploading, setUploading] = useState<'cover' | 'pdf' | null>(null)
   const [uploadProgress, setUploadProgress] = useState(0)
   const [uploadError, setUploadError] = useState('')
@@ -106,7 +107,6 @@ export default function AdminOlympiadsPage() {
       const { uploadUrl, secret } = await tokenRes.json()
       const fd = new FormData()
       fd.append('file', file)
-      fd.append('secret', secret)
       fd.append('folder', folder)
       const xhr = new XMLHttpRequest()
       xhr.upload.addEventListener('progress', e => { if (e.lengthComputable) setUploadProgress(Math.round(e.loaded / e.total * 100)) })
@@ -119,6 +119,11 @@ export default function AdminOlympiadsPage() {
       })
       xhr.addEventListener('error', () => reject(new Error('Network error')))
       xhr.open('POST', uploadUrl)
+      // The secret must be sent as a header, not a form field — Hostinger's
+      // upload script authenticates by reading the X-Upload-Secret header.
+      // Sending it as a body field (the previous bug) meant the server never
+      // saw it and rejected every direct upload as unauthorized.
+      xhr.setRequestHeader('X-Upload-Secret', secret)
       xhr.send(fd)
     })
   }
@@ -183,6 +188,7 @@ export default function AdminOlympiadsPage() {
       cover_image_url: editing.cover_image_url || null,
       pdf_url: editing.pdf_url || null,
       mode: editing.mode || 'mixed',
+      exam_type: editing.exam_type || 'mixed',
       question_display: editing.question_display || 'all_at_once',
       timer_minutes: editing.timer_minutes ?? 60,
       is_active: editing.is_active ?? true,
@@ -220,10 +226,23 @@ export default function AdminOlympiadsPage() {
     load()
   }
 
-  const saveScore = async (regId: string, score: string) => {
-    await fetch('/api/admin/olympiad-registrations', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: regId, result_score: Number(score), review_status: 'reviewed' }) })
+  const saveAnnotatedScore = async (regId: string, data: { score: number; annotations: Annotation[]; organizerNote: string }) => {
+    const res = await fetch('/api/admin/olympiad-registrations', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        id: regId,
+        final_score: data.score,
+        annotations: data.annotations,
+        organizer_note: data.organizerNote,
+        review_status: 'reviewed',
+      }),
+    })
+    if (!res.ok) {
+      const d = await res.json().catch(() => ({}))
+      throw new Error(d.error || 'Could not save score.')
+    }
     if (selectedOlympiadId) loadRegistrations(selectedOlympiadId)
-    setMarkingId(null)
   }
 
   const qTypeLabel = (t: QuestionType) => t === 'mcq' ? 'MCQ' : t === 'short' ? 'Short Answer' : 'Photo Upload'
@@ -263,18 +282,10 @@ export default function AdminOlympiadsPage() {
                   <td className="px-4 py-3" style={{ color: '#6a8faf' }}>{r.college}</td>
                   <td className="px-4 py-3" style={{ color: '#6a8faf' }}>{r.college_roll}</td>
                   <td className="px-4 py-3">
-                    {markingId === r.id ? (
-                      <div className="flex gap-1">
-                        <input className="w-16 px-2 py-1 rounded text-xs border" style={inputStyle} value={scoreInput} onChange={e => setScoreInput(e.target.value)} autoFocus />
-                        <button onClick={() => saveScore(r.id, scoreInput)} className="px-2 py-1 rounded text-xs" style={{ background: '#00d4ff22', color: '#00d4ff' }}><Check size={12} /></button>
-                        <button onClick={() => setMarkingId(null)} className="px-2 py-1 rounded text-xs" style={{ background: 'transparent', color: '#6a8faf' }}><X size={12} /></button>
-                      </div>
-                    ) : (
-                      <button onClick={() => { setMarkingId(r.id); setScoreInput(r.result_score?.toString() || '') }}
-                        className="text-xs px-2 py-1 rounded border" style={{ borderColor: '#0f2a4a', color: r.result_score != null ? '#00ff80' : '#3d5a78' }}>
-                        {r.result_score != null ? r.result_score : 'Mark'}
-                      </button>
-                    )}
+                    <button onClick={() => setViewingReg(r)}
+                      className="text-xs px-2 py-1 rounded border" style={{ borderColor: '#0f2a4a', color: r.final_score != null ? '#00ff80' : '#3d5a78' }}>
+                      {r.final_score != null ? r.final_score : 'Mark'}
+                    </button>
                   </td>
                   <td className="px-4 py-3">
                     <span className="text-xs px-2 py-0.5 rounded-full" style={{ background: r.review_status === 'reviewed' ? '#00ff8022' : '#ffb34722', color: r.review_status === 'reviewed' ? '#00ff80' : '#ffb347' }}>
@@ -282,7 +293,11 @@ export default function AdminOlympiadsPage() {
                     </span>
                   </td>
                   <td className="px-4 py-3">
-                    {r.answer_sheet_url && <a href={r.answer_sheet_url} target="_blank" className="text-xs underline" style={{ color: '#00d4ff' }}>View</a>}
+                    {r.answer_sheet_url && (
+                      <button onClick={() => setViewingReg(r)} className="text-xs underline" style={{ color: '#00d4ff' }}>
+                        View{(r.annotations?.length ?? 0) > 0 ? ` (${r.annotations.length} marks)` : ''}
+                      </button>
+                    )}
                     {!r.answer_sheet_url && r.exam_submitted_at && <span className="text-xs" style={{ color: '#00ff80' }}>Online ✓</span>}
                     {!r.answer_sheet_url && !r.exam_submitted_at && <span className="text-xs" style={{ color: '#3d5a78' }}>—</span>}
                   </td>
@@ -291,7 +306,30 @@ export default function AdminOlympiadsPage() {
             </tbody>
           </table>
         </div>
+
+        {viewingReg && viewingReg.answer_sheet_url && (
+          <AnnotationViewer
+            imageUrl={viewingReg.answer_sheet_url}
+            initialAnnotations={viewingReg.annotations || []}
+            initialScore={viewingReg.final_score ?? ''}
+            initialNote={viewingReg.organizer_note || ''}
+            onClose={() => setViewingReg(null)}
+            onSave={async data => {
+              await saveAnnotatedScore(viewingReg.id, data)
+              setViewingReg(null)
+            }}
+          />
+        )}
+        {viewingReg && !viewingReg.answer_sheet_url && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(2,8,16,0.85)' }}>
+            <div className="w-full max-w-sm rounded-2xl border p-6" style={s}>
+              <h2 className="font-bold text-sm mb-4" style={h}>Score — {viewingReg.full_name}</h2>
+              <AdminScoreOnlyForm reg={viewingReg} onClose={() => setViewingReg(null)} onSave={saveAnnotatedScore} inputClass={inputClass} inputStyle={inputStyle} />
+            </div>
+          </div>
+        )}
       </div>
+
     )
   }
 
@@ -354,6 +392,18 @@ export default function AdminOlympiadsPage() {
           {/* Exam settings */}
           <div className="rounded-xl p-5 space-y-4" style={s}>
             <p className="text-xs font-bold tracking-widest" style={{ color: '#00d4ff' }}>EXAM SETTINGS</p>
+            <div>
+              <label className="block text-xs mb-1" style={{ color: '#6a8faf' }}>Exam Format</label>
+              <select className={inputClass} style={inputStyle} value={editing.exam_type || 'mixed'}
+                onChange={e => setEditing(p => ({ ...p, exam_type: e.target.value as any }))}>
+                <option value="photo_only">Photo Submission Only — students just upload a photo of their answer sheet</option>
+                <option value="live_only">Live Exam Only — fully online, timed, on this website</option>
+                <option value="mixed">Mixed — students can do both</option>
+              </select>
+              <p className="text-xs mt-1" style={{ color: '#3d5a78' }}>
+                Controls which option(s) students see on their dashboard after registering.
+              </p>
+            </div>
             <div className="grid grid-cols-3 gap-4">
               <div>
                 <label className="block text-xs mb-1" style={{ color: '#6a8faf' }}>Question Display</label>
@@ -416,7 +466,11 @@ export default function AdminOlympiadsPage() {
                 )}
               </div>
             </div>
-            {uploadError && <div className="p-2.5 rounded text-xs" style={{ background: 'rgba(255,80,80,0.1)', color: '#ff7070' }}>{uploadError}</div>}
+            {uploadError && (
+              <div className="p-2.5 rounded text-xs" style={{ background: 'rgba(255,80,80,0.1)', color: '#ff7070' }}>
+                {uploadError} You can still save this olympiad without it, or try the upload again.
+              </div>
+            )}
           </div>
 
           {/* Registration fields */}
@@ -609,6 +663,52 @@ export default function AdminOlympiadsPage() {
             )}
           </div>
         ))}
+      </div>
+    </div>
+  )
+}
+
+function AdminScoreOnlyForm({ reg, onClose, onSave, inputClass, inputStyle }: {
+  reg: any
+  onClose: () => void
+  onSave: (regId: string, data: { score: number; annotations: Annotation[]; organizerNote: string }) => Promise<void>
+  inputClass: string
+  inputStyle: React.CSSProperties
+}) {
+  const [score, setScore] = useState(reg.final_score?.toString() || '')
+  const [note, setNote] = useState(reg.organizer_note || '')
+  const [saving, setSaving] = useState(false)
+  const [err, setErr] = useState('')
+
+  const submit = async () => {
+    const num = Number(score)
+    if (score === '' || Number.isNaN(num)) { setErr('Please enter a valid score.'); return }
+    setSaving(true); setErr('')
+    try {
+      await onSave(reg.id, { score: num, annotations: reg.annotations || [], organizerNote: note })
+      onClose()
+    } catch (e: any) {
+      setErr(e.message || 'Could not save.')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <div className="space-y-3">
+      <div>
+        <label className="block text-xs mb-1" style={{ color: '#6a8faf' }}>Score</label>
+        <input type="number" className={inputClass} style={inputStyle} value={score} onChange={e => setScore(e.target.value)} autoFocus />
+      </div>
+      <div>
+        <label className="block text-xs mb-1" style={{ color: '#6a8faf' }}>Note (optional)</label>
+        <textarea rows={3} className={inputClass + ' resize-none'} style={inputStyle} value={note} onChange={e => setNote(e.target.value)} />
+      </div>
+      {err && <p className="text-xs" style={{ color: '#ff7070' }}>{err}</p>}
+      <div className="flex gap-2 pt-1">
+        <button onClick={submit} disabled={saving} className="flex-1 py-2 rounded-lg text-sm font-bold disabled:opacity-50"
+          style={{ background: '#00d4ff', color: '#000' }}>{saving ? 'Saving...' : 'Save'}</button>
+        <button onClick={onClose} className="px-4 py-2 rounded-lg text-sm" style={{ color: '#6a8faf' }}>Cancel</button>
       </div>
     </div>
   )

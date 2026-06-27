@@ -1,12 +1,14 @@
 'use client'
 import { useState, useEffect } from 'react'
-import { CheckCircle, XCircle, Clock, Eye } from 'lucide-react'
+import { Clock, Eye } from 'lucide-react'
+import AnnotationViewer, { Annotation } from '@/components/olympiad/AnnotationViewer'
 
 type Reg = {
   id: string; full_name: string; phone: string; email?: string; college?: string
   college_roll?: string; batch?: string; group_name?: string; answer_sheet_url?: string
   mcq_score?: number; final_score?: number; review_status?: string; created_at: string
   custom_answers?: Record<string, string>; mcq_answers?: Record<string, string>
+  annotations?: Annotation[]; organizer_note?: string
 }
 
 type Olympiad = { id: string; name: string; mode: string; questions?: any[] }
@@ -20,8 +22,7 @@ export default function OrganizerPage() {
   const [regs, setRegs] = useState<Reg[]>([])
   const [loading, setLoading] = useState(false)
   const [checkingSession, setCheckingSession] = useState(true)
-  const [markingId, setMarkingId] = useState<string | null>(null)
-  const [scoreInput, setScoreInput] = useState('')
+  const [viewingReg, setViewingReg] = useState<Reg | null>(null)
   const [filter, setFilter] = useState<'all' | 'pending' | 'reviewed'>('all')
 
   // On mount, see if the httpOnly cookie from a previous login is still valid —
@@ -79,16 +80,25 @@ export default function OrganizerPage() {
     }
   }
 
-  const saveScore = async (regId: string, score: string) => {
+  const saveAnnotatedScore = async (regId: string, data: { score: number; annotations: Annotation[]; organizerNote: string }) => {
     const res = await fetch('/api/organizer/score', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ regId, score }),
+      body: JSON.stringify({
+        regId,
+        score: data.score,
+        annotations: data.annotations,
+        organizer_note: data.organizerNote,
+      }),
     })
     if (res.ok) {
-      setRegs(prev => prev.map(r => r.id === regId ? { ...r, final_score: Number(score), review_status: 'reviewed' } : r))
+      setRegs(prev => prev.map(r => r.id === regId
+        ? { ...r, final_score: data.score, review_status: 'reviewed', annotations: data.annotations, organizer_note: data.organizerNote }
+        : r))
+    } else {
+      const d = await res.json().catch(() => ({}))
+      throw new Error(d.error || 'Could not save. Please try again.')
     }
-    setMarkingId(null)
   }
 
   const logout = async () => {
@@ -207,14 +217,18 @@ export default function OrganizerPage() {
           {filteredRegs.map(r => (
             <div key={r.id} className="rounded-xl border overflow-hidden" style={{ background: '#050d1a', borderColor: '#0f2a4a' }}>
               {r.answer_sheet_url && (
-                <div className="relative h-40 bg-black overflow-hidden">
+                <button onClick={() => setViewingReg(r)} className="relative h-40 w-full bg-black overflow-hidden block">
                   <img src={r.answer_sheet_url} alt="Answer sheet" className="w-full h-full object-cover opacity-80" />
-                  <a href={r.answer_sheet_url} target="_blank"
-                    className="absolute inset-0 flex items-center justify-center"
-                    style={{ background: 'rgba(0,0,0,0.4)' }}>
+                  <div className="absolute inset-0 flex items-center justify-center" style={{ background: 'rgba(0,0,0,0.4)' }}>
                     <Eye size={24} style={{ color: '#00d4ff' }} />
-                  </a>
-                </div>
+                  </div>
+                  {(r.annotations?.length ?? 0) > 0 && (
+                    <span className="absolute top-2 right-2 text-xs px-2 py-0.5 rounded-full font-semibold"
+                      style={{ background: 'rgba(0,212,255,0.85)', color: '#001018' }}>
+                      {r.annotations!.length} marks
+                    </span>
+                  )}
+                </button>
               )}
               <div className="p-4">
                 <div className="flex items-start justify-between mb-2">
@@ -245,27 +259,16 @@ export default function OrganizerPage() {
                   </div>
                 )}
 
-                <div className="mt-3 flex items-center gap-2">
-                  {markingId === r.id ? (
-                    <>
-                      <input type="number" className="flex-1 px-3 py-1.5 rounded-lg text-sm border outline-none" style={inpStyle}
-                        value={scoreInput} onChange={e => setScoreInput(e.target.value)} placeholder="Score" />
-                      <button onClick={() => saveScore(r.id, scoreInput)}
-                        className="p-1.5 rounded-lg" style={{ background: 'rgba(0,255,128,0.15)', color: '#00ff80' }}><CheckCircle size={18} /></button>
-                      <button onClick={() => setMarkingId(null)}
-                        className="p-1.5 rounded-lg" style={{ background: 'rgba(255,80,80,0.1)', color: '#ff7070' }}><XCircle size={18} /></button>
-                    </>
-                  ) : (
-                    <button onClick={() => { setMarkingId(r.id); setScoreInput(r.final_score?.toString() || '') }}
-                      className="flex-1 py-1.5 rounded-lg text-xs font-semibold border"
-                      style={{
-                        borderColor: r.final_score != null ? 'rgba(0,255,128,0.3)' : '#0f2a4a',
-                        color: r.final_score != null ? '#00ff80' : '#6a8faf',
-                        background: r.final_score != null ? 'rgba(0,255,128,0.05)' : 'transparent',
-                      }}>
-                      {r.final_score != null ? `Score: ${r.final_score} (edit)` : 'Mark Score'}
-                    </button>
-                  )}
+                <div className="mt-3">
+                  <button onClick={() => setViewingReg(r)}
+                    className="w-full py-1.5 rounded-lg text-xs font-semibold border"
+                    style={{
+                      borderColor: r.final_score != null ? 'rgba(0,255,128,0.3)' : '#0f2a4a',
+                      color: r.final_score != null ? '#00ff80' : '#6a8faf',
+                      background: r.final_score != null ? 'rgba(0,255,128,0.05)' : 'transparent',
+                    }}>
+                    {r.final_score != null ? `Score: ${r.final_score} (review)` : (r.answer_sheet_url ? 'Mark & Score' : 'Score')}
+                  </button>
                 </div>
               </div>
             </div>
@@ -277,6 +280,78 @@ export default function OrganizerPage() {
             </div>
           )}
         </div>
+      </div>
+
+      {/* Full annotation tool — only makes sense when there's an answer sheet image to mark up */}
+      {viewingReg && viewingReg.answer_sheet_url && (
+        <AnnotationViewer
+          imageUrl={viewingReg.answer_sheet_url}
+          initialAnnotations={viewingReg.annotations || []}
+          initialScore={viewingReg.final_score ?? ''}
+          initialNote={viewingReg.organizer_note || ''}
+          onClose={() => setViewingReg(null)}
+          onSave={data => saveAnnotatedScore(viewingReg.id, data)}
+        />
+      )}
+
+      {/* Simple score-only modal for submissions with no photo to annotate (e.g. pure online MCQ) */}
+      {viewingReg && !viewingReg.answer_sheet_url && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(2,8,16,0.85)' }}>
+          <div className="w-full max-w-sm rounded-2xl border p-6" style={{ background: '#050d1a', borderColor: '#0f2a4a' }}>
+            <h2 className="font-bold text-sm mb-4" style={{ color: '#00d4ff', fontFamily: "'Orbitron', sans-serif" }}>
+              Score — {viewingReg.full_name}
+            </h2>
+            <ScoreOnlyForm reg={viewingReg} onClose={() => setViewingReg(null)} onSave={saveAnnotatedScore} />
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+function ScoreOnlyForm({ reg, onClose, onSave }: {
+  reg: Reg
+  onClose: () => void
+  onSave: (regId: string, data: { score: number; annotations: Annotation[]; organizerNote: string }) => Promise<void>
+}) {
+  const [score, setScore] = useState(reg.final_score?.toString() || '')
+  const [note, setNote] = useState(reg.organizer_note || '')
+  const [saving, setSaving] = useState(false)
+  const [err, setErr] = useState('')
+
+  const submit = async () => {
+    const num = Number(score)
+    if (score === '' || Number.isNaN(num)) { setErr('Please enter a valid score.'); return }
+    setSaving(true); setErr('')
+    try {
+      await onSave(reg.id, { score: num, annotations: reg.annotations || [], organizerNote: note })
+      onClose()
+    } catch (e: any) {
+      setErr(e.message || 'Could not save.')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const inpStyle = { background: '#0a1628', borderColor: '#0f2a4a', color: '#e8f4ff' }
+
+  return (
+    <div className="space-y-3">
+      <div>
+        <label className="block text-xs mb-1" style={{ color: '#6a8faf' }}>Score</label>
+        <input type="number" className="w-full px-3 py-2 rounded-lg text-sm border outline-none" style={inpStyle}
+          value={score} onChange={e => setScore(e.target.value)} autoFocus />
+      </div>
+      <div>
+        <label className="block text-xs mb-1" style={{ color: '#6a8faf' }}>Note (optional)</label>
+        <textarea rows={3} className="w-full px-3 py-2 rounded-lg text-sm border outline-none resize-none" style={inpStyle}
+          value={note} onChange={e => setNote(e.target.value)} />
+      </div>
+      {err && <p className="text-xs" style={{ color: '#ff7070' }}>{err}</p>}
+      <div className="flex gap-2 pt-1">
+        <button onClick={submit} disabled={saving} className="flex-1 py-2 rounded-lg text-sm font-bold disabled:opacity-50"
+          style={{ background: '#00d4ff', color: '#000' }}>{saving ? 'Saving...' : 'Save'}</button>
+        <button onClick={onClose} className="px-4 py-2 rounded-lg text-sm" style={{ color: '#6a8faf' }}>Cancel</button>
       </div>
     </div>
   )

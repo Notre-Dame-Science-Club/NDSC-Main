@@ -8,12 +8,14 @@ type Question = { id: string; type: QuestionType; text: string; description?: st
 type RegField = { key: string; label: string; type: string; required: boolean }
 type Olympiad = {
   id: string; name: string; description: string; cover_image_url?: string; pdf_url?: string
-  mode: string; question_display: 'one_by_one' | 'all_at_once'; timer_minutes: number
-  is_active: boolean; result_published: boolean; registration_deadline?: string; exam_date?: string
+  mode: string; exam_type: 'photo_only' | 'live_only' | 'mixed'
+  question_display: 'one_by_one' | 'all_at_once'; timer_minutes: number
+  is_active: boolean; result_published: boolean; annotations_published?: boolean
+  registration_deadline?: string; exam_date?: string
   eligibility?: string; external_only?: boolean; registration_fields: RegField[]; questions: Question[]
 }
 
-type Phase = 'list' | 'register' | 'dashboard' | 'exam' | 'done'
+type Phase = 'list' | 'register' | 'dashboard' | 'exam' | 'done' | 'result'
 const MAX_PHOTO_MB = 15
 
 export default function OlympiadPage() {
@@ -43,13 +45,99 @@ export default function OlympiadPage() {
   const [answerSheetProgress, setAnswerSheetProgress] = useState(0)
   const [fileError, setFileError] = useState('')
 
+  const [restoring, setRestoring] = useState(true)
+
   const bg = 'var(--bg1, #061420)'
   const card = { background: '#061420', border: '1px solid #0f2a4a', borderRadius: 16 }
   const inp = { background: '#0a1f35', border: '1px solid #0f2a4a', color: '#e0f0ff', borderRadius: 8 }
   const inputCls = 'w-full px-4 py-2.5 text-sm outline-none'
 
+  const STORAGE_KEY = 'ndsc_olympiad_reg_id'
+
+  // Decide which phase to land a returning student on, based on what their
+  // registration record already shows — this is what makes a page refresh
+  // (or coming back later on the same device) not lose their progress.
+  const phaseForRegistration = (reg: any, oly: Olympiad): Phase => {
+    if (reg.exam_submitted_at || reg.answer_sheet_url) {
+      return oly.result_published ? 'result' : 'done'
+    }
+    if (reg.exam_started_at) return 'exam'
+    return 'dashboard'
+  }
+
   useEffect(() => {
-    fetch('/api/olympiad').then(r => r.json()).then(d => { setOlympiads(Array.isArray(d) ? d : []); setLoading(false) }).catch(() => setLoading(false))
+    fetch('/api/olympiad').then(r => r.json()).then(d => { setOlympiads(Array.isArray(d) ? d : []) }).catch(() => {}).finally(() => setLoading(false))
+
+    // Resume a previous session if we have a registration id saved — check
+    // the URL first (so a shared/bookmarked link works), then localStorage.
+    const params = new URLSearchParams(window.location.search)
+    const savedId = params.get('reg') || localStorage.getItem(STORAGE_KEY)
+    if (!savedId) { setRestoring(false); return }
+
+    fetch(`/api/olympiad-register?id=${savedId}`)
+      .then(async r => {
+        if (!r.ok) throw new Error('not found')
+        return r.json()
+      })
+      .then(({ registration, olympiad }) => {
+        setRegId(registration.id)
+        setRegData(registration)
+        setSelected(olympiad)
+        localStorage.setItem(STORAGE_KEY, registration.id)
+        const nextPhase = phaseForRegistration(registration, olympiad)
+        setPhase(nextPhase)
+        if (nextPhase === 'exam' && registration.exam_started_at) {
+          // Resume the timer from where it should be based on elapsed time,
+          // not a fresh full duration — otherwise refreshing would let a
+          // student extend their time indefinitely.
+          const startedAt = new Date(registration.exam_started_at).getTime()
+          const elapsedSec = Math.floor((Date.now() - startedAt) / 1000)
+          const totalSec = (olympiad.timer_minutes || 60) * 60
+          const remaining = Math.max(0, totalSec - elapsedSec)
+          if (remaining <= 0) {
+            // Time's already up while the student was away — submit
+            // immediately using the freshly-fetched registration/olympiad
+            // data directly (not via submitExam(), which would read this
+            // effect's stale closed-over `selected`/`regId` state — both
+            // still null/empty at this point since this runs before the
+            // setSelected/setRegId calls above have actually committed).
+            setTimeLeft(0)
+            const photoAnswers = Object.entries(
+              (registration.photo_answers || []).reduce((acc: any, pa: any) => ({ ...acc, [pa.question_id]: pa.url }), {})
+            ).map(([question_id, url]) => ({ question_id, url }))
+            let score = 0
+            for (const q of olympiad.questions.filter((q: any) => q.type === 'mcq')) {
+              if ((registration.mcq_answers || {})[q.id] === q.correct_option_id) score += (q.marks || 1)
+            }
+            fetch('/api/olympiad-register', {
+              method: 'PUT',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                id: registration.id,
+                mcq_answers: registration.mcq_answers || {},
+                short_answers: registration.short_answers || {},
+                photo_answers: photoAnswers,
+                mcq_score: score,
+                exam_submitted_at: new Date().toISOString(),
+                review_status: 'pending',
+              }),
+            }).then(() => setPhase(olympiad.result_published ? 'result' : 'done')).catch(() => {})
+          } else {
+            setMcqAnswers(registration.mcq_answers || {})
+            setShortAnswers(registration.short_answers || {})
+            const restoredPhotoUrls: Record<string, string> = {}
+            for (const pa of registration.photo_answers || []) restoredPhotoUrls[pa.question_id] = pa.url
+            setPhotoUrls(restoredPhotoUrls)
+            startTimer(Math.ceil(remaining / 60))
+            setTimeLeft(remaining)
+          }
+        }
+      })
+      .catch(() => {
+        // Saved id is stale/invalid — clear it and just show the list normally.
+        localStorage.removeItem(STORAGE_KEY)
+      })
+      .finally(() => setRestoring(false))
   }, [])
 
   const fmtDate = (d?: string) => d ? new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : ''
@@ -70,6 +158,23 @@ export default function OlympiadPage() {
   }, [])
 
   useEffect(() => () => clearInterval(timerRef.current), [])
+
+  // Autosave in-progress MCQ/short answers every 15s while the exam is
+  // active, so a refresh or closed tab mid-exam doesn't lose what the
+  // student has already answered (the timer itself already resumes
+  // correctly from exam_started_at — this just makes the answers resume too).
+  useEffect(() => {
+    if (phase !== 'exam' || !regId) return
+    const interval = setInterval(() => {
+      const photoAnswers = Object.entries(photoUrls).map(([question_id, url]) => ({ question_id, url }))
+      fetch('/api/olympiad-register', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: regId, mcq_answers: mcqAnswers, short_answers: shortAnswers, photo_answers: photoAnswers }),
+      }).catch(() => { /* best-effort — next interval will retry */ })
+    }, 15000)
+    return () => clearInterval(interval)
+  }, [phase, regId, mcqAnswers, shortAnswers, photoUrls])
 
   const fmtTime = (s: number) => `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`
 
@@ -150,6 +255,12 @@ export default function OlympiadPage() {
       setRegId(data.id || '')
       setRegData(data)
       setPhase('dashboard')
+      if (data.id) {
+        localStorage.setItem(STORAGE_KEY, data.id)
+        const url = new URL(window.location.href)
+        url.searchParams.set('reg', data.id)
+        window.history.replaceState({}, '', url.toString())
+      }
     } catch (e: any) { setError(e.message) }
     finally { setSubmitting(false) }
   }
@@ -168,11 +279,37 @@ export default function OlympiadPage() {
         }
       }
       const photoAnswers = Object.entries(uploadedUrls).map(([question_id, url]) => ({ question_id, url }))
-      // MCQ auto-score
+      // MCQ auto-score, plus build a per-question breakdown now while we have
+      // everything in memory — this is what the student's result page will
+      // read from once the admin publishes results, so they see exactly
+      // which questions they got right/wrong, not just a total.
       let score = 0
-      for (const q of selected.questions.filter(q => q.type === 'mcq')) {
-        if (mcqAnswers[q.id] === q.correct_option_id) score += (q.marks || 1)
-      }
+      const questionResults = selected.questions.map(q => {
+        if (q.type === 'mcq') {
+          const isCorrect = mcqAnswers[q.id] === q.correct_option_id
+          if (isCorrect) score += (q.marks || 1)
+          const chosen = (q.options || []).find(o => o.id === mcqAnswers[q.id])
+          const correct = (q.options || []).find(o => o.id === q.correct_option_id)
+          return {
+            question_id: q.id, question_text: q.text, type: q.type,
+            student_answer: chosen?.text ?? null, correct_answer: correct?.text ?? null,
+            is_correct: isCorrect, marks_awarded: isCorrect ? (q.marks || 1) : 0, marks_possible: q.marks || 1,
+          }
+        }
+        if (q.type === 'short') {
+          return {
+            question_id: q.id, question_text: q.text, type: q.type,
+            student_answer: shortAnswers[q.id] || null, correct_answer: null,
+            is_correct: null, marks_awarded: null, marks_possible: q.marks || 1,
+          }
+        }
+        // photo
+        return {
+          question_id: q.id, question_text: q.text, type: q.type,
+          student_answer: uploadedUrls[q.id] || null, correct_answer: null,
+          is_correct: null, marks_awarded: null, marks_possible: q.marks || 1,
+        }
+      })
       const res = await fetch('/api/olympiad-register', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
@@ -182,12 +319,14 @@ export default function OlympiadPage() {
           short_answers: shortAnswers,
           photo_answers: photoAnswers,
           mcq_score: score,
+          question_results: questionResults,
           exam_submitted_at: new Date().toISOString(),
           review_status: 'pending',
         }),
       })
       if (!res.ok) { const d = await res.json(); throw new Error(d.error || 'Submit failed') }
-      setPhase('done')
+      setRegData((prev: any) => ({ ...prev, mcq_answers: mcqAnswers, short_answers: shortAnswers, photo_answers: photoAnswers, mcq_score: score, question_results: questionResults, exam_submitted_at: new Date().toISOString() }))
+      setPhase(selected.result_published ? 'result' : 'done')
     } catch (e: any) { setError(e.message) }
     finally { setSubmitting(false) }
   }
@@ -207,6 +346,7 @@ export default function OlympiadPage() {
         body: JSON.stringify({ id: regId, answer_sheet_url: url, exam_submitted_at: new Date().toISOString(), review_status: 'pending' }),
       })
       if (!res.ok) { const d = await res.json(); throw new Error(d.error || 'Submit failed') }
+      setRegData((prev: any) => ({ ...prev, answer_sheet_url: url, exam_submitted_at: new Date().toISOString() }))
       setPhase('done')
     } catch (e: any) { setError(e.message) }
     finally { setSubmitting(false) }
@@ -220,8 +360,27 @@ export default function OlympiadPage() {
     setPhase('exam')
   }
 
-  const hasOnlineQuestions = (o: Olympiad) => o.questions?.some(q => q.type === 'mcq' || q.type === 'short')
-  const hasPhotoSubmit = (o: Olympiad) => o.questions?.some(q => q.type === 'photo') || o.pdf_url
+  // exam_type is the admin's explicit choice and takes priority; if it's not
+  // set (older olympiads created before this field existed default to
+  // 'mixed'), fall back to inferring from the actual question mix so nothing
+  // that worked before suddenly breaks.
+  const hasOnlineQuestions = (o: Olympiad) => {
+    if (o.exam_type === 'photo_only') return false
+    if (o.exam_type === 'live_only' || o.exam_type === 'mixed') return o.questions?.some(q => q.type === 'mcq' || q.type === 'short') ?? false
+    return o.questions?.some(q => q.type === 'mcq' || q.type === 'short')
+  }
+  const hasPhotoSubmit = (o: Olympiad) => {
+    if (o.exam_type === 'live_only') return false
+    if (o.exam_type === 'photo_only' || o.exam_type === 'mixed') return true
+    return o.questions?.some(q => q.type === 'photo') || !!o.pdf_url
+  }
+
+  // ── RESTORING ────────────────────────────────────────────────────────────────
+  if (restoring) return (
+    <div className="min-h-screen flex items-center justify-center" style={{ background: bg }}>
+      <p style={{ color: '#3d5a78' }}>Loading…</p>
+    </div>
+  )
 
   // ── LIST ────────────────────────────────────────────────────────────────────
   if (phase === 'list') return (
@@ -500,19 +659,102 @@ export default function OlympiadPage() {
   }
 
   // ── DONE ─────────────────────────────────────────────────────────────────────
+  const clearSession = () => {
+    localStorage.removeItem(STORAGE_KEY)
+    const url = new URL(window.location.href)
+    url.searchParams.delete('reg')
+    window.history.replaceState({}, '', url.toString())
+    setPhase('list'); setSelected(null); setRegId(''); setRegData(null)
+    setMcqAnswers({}); setShortAnswers({}); setPhotoFiles({}); setPhotoUrls({}); setAnswerSheetFile(null)
+  }
+
   if (phase === 'done') return (
     <div className="min-h-screen flex items-center justify-center py-12 px-4" style={{ background: bg }}>
       <div className="max-w-md w-full p-8 text-center space-y-4" style={card}>
         <CheckCircle size={48} className="mx-auto" style={{ color: '#00ff80' }} />
         <h2 className="text-xl font-bold" style={{ fontFamily: 'Orbitron, monospace', color: '#00ff80' }}>Submitted!</h2>
         <p className="text-sm" style={{ color: '#6a8faf' }}>Your response has been recorded. Results will be announced by the organizers.</p>
-        <button onClick={() => { setPhase('list'); setSelected(null); setRegId(''); setMcqAnswers({}); setShortAnswers({}); setPhotoFiles({}); setPhotoUrls({}); setAnswerSheetFile(null) }}
+        <button onClick={clearSession}
           className="px-6 py-2.5 rounded-xl text-sm font-medium" style={{ background: 'rgba(0,212,255,0.1)', color: '#00d4ff', border: '1px solid rgba(0,212,255,0.2)' }}>
           Back to Olympiads
         </button>
       </div>
     </div>
   )
+
+  // ── RESULT ───────────────────────────────────────────────────────────────────
+  if (phase === 'result' && selected && regData) {
+    const results: any[] = regData.question_results || []
+    const totalAwarded = results.reduce((sum, r) => sum + (r.marks_awarded || 0), 0)
+    const totalPossible = results.reduce((sum, r) => sum + (r.marks_possible || 0), 0)
+    const finalScore = regData.final_score ?? regData.mcq_score ?? totalAwarded
+
+    return (
+      <div className="min-h-screen py-12 px-4" style={{ background: bg }}>
+        <div className="max-w-2xl mx-auto space-y-5">
+          <div className="p-6 text-center" style={card}>
+            <h2 className="text-xl font-bold mb-1" style={{ fontFamily: 'Orbitron, monospace', color: '#00d4ff' }}>{selected.name} — Result</h2>
+            <p className="text-3xl font-black mt-3" style={{ color: '#00ff80' }}>
+              {finalScore}{totalPossible > 0 ? ` / ${totalPossible}` : ''}
+            </p>
+            {regData.organizer_note && (
+              <p className="text-sm mt-3 p-3 rounded-lg text-left" style={{ background: '#0a1f35', color: '#e0f0ff' }}>
+                <span className="font-semibold" style={{ color: '#ffb347' }}>Organizer's note: </span>{regData.organizer_note}
+              </p>
+            )}
+          </div>
+
+          {results.length > 0 && (
+            <div className="space-y-3">
+              <h3 className="text-sm font-bold px-1" style={{ color: '#6a8faf' }}>QUESTION BREAKDOWN</h3>
+              {results.map((r, i) => (
+                <div key={r.question_id || i} className="p-4 rounded-xl" style={{ background: '#0a1f35', border: `1px solid ${r.is_correct === true ? '#00ff8044' : r.is_correct === false ? '#ff4d4d44' : '#0f2a4a'}` }}>
+                  <div className="flex items-start justify-between gap-3">
+                    <p className="text-sm font-medium flex-1" style={{ color: '#e0f0ff' }}>Q{i + 1}. {r.question_text}</p>
+                    {r.is_correct === true && <CheckCircle size={16} style={{ color: '#00ff80', flexShrink: 0 }} />}
+                    {r.is_correct === false && <span style={{ color: '#ff4d4d', flexShrink: 0 }}>✗</span>}
+                  </div>
+                  {r.type === 'mcq' && (
+                    <div className="mt-2 text-xs space-y-1">
+                      <p style={{ color: r.is_correct ? '#00ff80' : '#ff7070' }}>Your answer: {r.student_answer ?? '(not answered)'}</p>
+                      {!r.is_correct && <p style={{ color: '#6a8faf' }}>Correct answer: {r.correct_answer}</p>}
+                    </div>
+                  )}
+                  {r.type === 'short' && (
+                    <div className="mt-2 text-xs" style={{ color: '#6a8faf' }}>
+                      Your answer: <span style={{ color: '#e0f0ff' }}>{r.student_answer || '(not answered)'}</span>
+                    </div>
+                  )}
+                  {r.type === 'photo' && selected.annotations_published && r.student_answer && (
+                    <button onClick={() => window.open(r.student_answer, '_blank')} className="mt-2 text-xs underline" style={{ color: '#00d4ff' }}>
+                      View marked answer sheet
+                    </button>
+                  )}
+                  <p className="text-xs mt-2" style={{ color: '#3d5a78' }}>
+                    {r.marks_awarded != null ? `${r.marks_awarded} / ${r.marks_possible} marks` : `Out of ${r.marks_possible} marks — pending review`}
+                  </p>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {regData.answer_sheet_url && selected.annotations_published && (
+            <div className="p-4 rounded-xl text-center" style={card}>
+              <p className="text-sm mb-3" style={{ color: '#6a8faf' }}>Your marked answer sheet</p>
+              <img src={regData.answer_sheet_url} alt="Marked answer sheet" className="max-w-full rounded-lg mx-auto" />
+              {regData.organizer_note && (
+                <p className="text-sm mt-3 text-left p-3 rounded-lg" style={{ background: '#0a1f35', color: '#e0f0ff' }}>{regData.organizer_note}</p>
+              )}
+            </div>
+          )}
+
+          <button onClick={clearSession} className="w-full py-3 rounded-xl text-sm font-medium" style={{ background: 'rgba(0,212,255,0.1)', color: '#00d4ff', border: '1px solid rgba(0,212,255,0.2)' }}>
+            Back to Olympiads
+          </button>
+        </div>
+      </div>
+    )
+  }
 
   return null
 }
