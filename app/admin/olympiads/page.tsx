@@ -77,7 +77,7 @@ export default function AdminOlympiadsPage() {
   const toggleExpand = (id: string) => {
     if (expandedId === id) { setExpandedId(null); return }
     setExpandedId(id)
-    if (!registrations[id]) loadRegistrations(id)
+    loadRegistrations(id)
   }
 
   // Direct-to-Hostinger upload. The admin is already authenticated, so it is
@@ -301,6 +301,7 @@ export default function AdminOlympiadsPage() {
         <div className="flex items-center gap-4 mb-6">
           <button onClick={() => setTab('olympiads')} className="text-sm px-3 py-1 rounded border" style={{ borderColor: '#0f2a4a', color: '#6a8faf' }}>← Back</button>
           <h1 className="text-xl font-bold" style={h}>{olympiad?.name} — Registrations ({regs.length})</h1>
+          <button onClick={() => loadRegistrations(selectedOlympiadId!)} className="text-sm px-3 py-1 rounded border ml-auto" style={{ borderColor: 'rgba(0,212,255,0.3)', color: '#00d4ff' }}>↺ Refresh</button>
         </div>
         <div className="rounded-xl border overflow-x-auto" style={s}>
           <table className="w-full text-sm">
