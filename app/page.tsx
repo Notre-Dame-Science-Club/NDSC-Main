@@ -36,10 +36,122 @@ const DEPTS = [
   { name: "Project",        icon: "/images/project-icon.svg",        color: "#34d399",  bg: "rgba(52,211,153,0.07)", border: "rgba(52,211,153,0.28)", desc: "Conducts scientific research and innovation-based projects. Encourages experimentation." },
   { name: "Publication",    icon: "/images/publication-icon.svg",    color: "#a78bfa",  bg: "rgba(167,139,250,0.07)",border: "rgba(167,139,250,0.28)",desc: "Publishes wall magazines, AUDRI journal. Promotes scientific writing and creative expression." },
   { name: "ICT",            icon: "/images/ict-icon.svg",            color: "#f87171",  bg: "rgba(248,113,113,0.07)",border: "rgba(248,113,113,0.28)",desc: "Handles digital media, website management and emerging technology workshops." },
-  { name: "LWS",            icon: "/images/lws-icon.svg",            color: "#f59e0b",  bg: "rgba(245,158,11,0.07)", border: "rgba(245,158,11,0.28)", desc: "Life & Welfare Science — biology, environment and health oriented activities." },
+  { name: "LWS",            icon: "/images/lws-icon.svg",            color: "#f59e0b",  bg: "rgba(245,158,11,0.07)", border: "rgba(245,158,11,0.28)", desc: "Library, Workshop & Seminar — the academics department. Runs the library, academic workshops and seminars." },
   { name: "Quiz",           icon: "/images/quiz-icon.svg",           color: "#60a5fa",  bg: "rgba(96,165,250,0.07)", border: "rgba(96,165,250,0.28)", desc: "Hosts Q-League, BrainRain, Scienceophile. NDC Blue, NDC Green & NDC Gold quiz teams." },
+  { name: "R&D",            icon: "/images/r&d-icon.svg",            color: "#fb923c",  bg: "rgba(251,146,60,0.07)", border: "rgba(251,146,60,0.28)", desc: "Drives olympiad preparation, academic seminars and student-led scientific innovation." },
 ];
 
+/* ════════════════════════════════════════════════════════════
+   OLYMPIAD PULSE — live countdown to the next olympiad + a
+   teaser leaderboard for olympiads whose results are published.
+   New "high-tech" homepage widget.
+════════════════════════════════════════════════════════════ */
+type PulseOlympiad = { id: string; name: string; exam_date: string | null; registration_deadline: string | null };
+type LeaderboardEntry = { name: string; score: number };
+type Leaderboard = { olympiad_id: string; olympiad_name: string; entries: LeaderboardEntry[] };
+
+function useCountdown(target: string | null) {
+  const [left, setLeft] = useState<{ d: number; h: number; m: number; s: number } | null>(null);
+  useEffect(() => {
+    if (!target) { setLeft(null); return; }
+    const targetTime = new Date(target).getTime();
+    const tick = () => {
+      const diff = targetTime - Date.now();
+      if (diff <= 0) { setLeft({ d: 0, h: 0, m: 0, s: 0 }); return; }
+      setLeft({
+        d: Math.floor(diff / 86400000),
+        h: Math.floor((diff % 86400000) / 3600000),
+        m: Math.floor((diff % 3600000) / 60000),
+        s: Math.floor((diff % 60000) / 1000),
+      });
+    };
+    tick();
+    const id = setInterval(tick, 1000);
+    return () => clearInterval(id);
+  }, [target]);
+  return left;
+}
+
+function OlympiadPulse() {
+  const [olympiads, setOlympiads] = useState<PulseOlympiad[]>([]);
+  const [leaderboards, setLeaderboards] = useState<Leaderboard[]>([]);
+
+  useEffect(() => {
+    fetch("/api/olympiad").then(r => r.json()).then(d => { if (Array.isArray(d)) setOlympiads(d); }).catch(() => {});
+    fetch("/api/olympiad-leaderboard").then(r => r.json()).then(d => setLeaderboards(d.leaderboards || [])).catch(() => {});
+  }, []);
+
+  const next = olympiads
+    .filter(o => o.exam_date && new Date(o.exam_date).getTime() > Date.now())
+    .sort((a, b) => new Date(a.exam_date!).getTime() - new Date(b.exam_date!).getTime())[0];
+
+  const left = useCountdown(next?.exam_date || null);
+
+  if (!next && leaderboards.length === 0) return null;
+
+  return (
+    <section className="relative z-10 py-16 sm:py-20" style={{ background: "var(--bg2)" }}>
+      <div className="max-w-6xl mx-auto px-4 sm:px-6">
+        <div className="text-center mb-12">
+          <div className="flex justify-center"><SectionLabel>Olympiad Pulse</SectionLabel></div>
+          <LetterAnim text="What's Happening Now" tag="h2" className="font-black reveal"
+            style={{ fontSize: "clamp(1.8rem,4vw,2.8rem)", fontFamily: "'Poppins',sans-serif", fontWeight: 800 }} slideDir="left" />
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Countdown */}
+          {next && left && (
+            <div className="reveal rounded-3xl p-7 sm:p-8 relative overflow-hidden"
+              style={{ background: "rgba(0,212,255,0.06)", border: "1px solid rgba(0,212,255,0.25)" }}>
+              <div className="absolute top-0 right-0 w-32 h-32 rounded-full pointer-events-none"
+                style={{ background: "radial-gradient(circle at top right, rgba(0,212,255,0.18), transparent 70%)" }} />
+              <p className="text-xs font-bold tracking-widest mb-2" style={{ color: "var(--blue)", fontFamily: "'Share Tech Mono',monospace" }}>
+                NEXT UP
+              </p>
+              <h3 className="text-lg sm:text-xl font-bold mb-5" style={{ color: "var(--white)", fontFamily: "'Poppins',sans-serif" }}>{next.name}</h3>
+              <div className="grid grid-cols-4 gap-2 sm:gap-3">
+                {[{ v: left.d, l: "Days" }, { v: left.h, l: "Hrs" }, { v: left.m, l: "Min" }, { v: left.s, l: "Sec" }].map(u => (
+                  <div key={u.l} className="text-center rounded-xl py-3" style={{ background: "rgba(0,212,255,0.08)", border: "1px solid rgba(0,212,255,0.2)" }}>
+                    <p className="text-2xl sm:text-3xl font-black tabular-nums" style={{ color: "var(--blue)", fontFamily: "'Orbitron',sans-serif" }}>
+                      {String(u.v).padStart(2, "0")}
+                    </p>
+                    <p className="text-[10px] mt-1 tracking-wider" style={{ color: "var(--muted)" }}>{u.l}</p>
+                  </div>
+                ))}
+              </div>
+              <Link href="/olympiad" className="inline-flex items-center gap-1.5 mt-5 text-sm font-bold hover:gap-2.5 transition-all" style={{ color: "var(--blue)" }}>
+                Register now <ChevronRight size={15} />
+              </Link>
+            </div>
+          )}
+
+          {/* Leaderboard */}
+          {leaderboards[0] && (
+            <div className="reveal rounded-3xl p-7 sm:p-8" style={{ background: "rgba(255,179,71,0.05)", border: "1px solid rgba(255,179,71,0.25)" }}>
+              <p className="text-xs font-bold tracking-widest mb-2" style={{ color: "#ffb347", fontFamily: "'Share Tech Mono',monospace" }}>
+                LEADERBOARD
+              </p>
+              <h3 className="text-lg sm:text-xl font-bold mb-5" style={{ color: "var(--white)", fontFamily: "'Poppins',sans-serif" }}>
+                {leaderboards[0].olympiad_name}
+              </h3>
+              <div className="space-y-2">
+                {leaderboards[0].entries.map((e, i) => (
+                  <div key={i} className="flex items-center gap-3 rounded-xl px-4 py-2.5" style={{ background: i === 0 ? "rgba(255,179,71,0.1)" : "rgba(255,255,255,0.02)" }}>
+                    <span className="w-6 text-center font-black text-sm" style={{ color: i === 0 ? "#ffb347" : "var(--muted)", fontFamily: "'Orbitron',sans-serif" }}>
+                      {i === 0 ? "🏆" : `#${i + 1}`}
+                    </span>
+                    <span className="flex-1 text-sm font-medium truncate" style={{ color: "var(--white)" }}>{e.name}</span>
+                    <span className="text-sm font-bold tabular-nums" style={{ color: "#ffb347" }}>{e.score}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    </section>
+  );
+}
 /* ════════════════════════════════════════════════════════════
    HELPERS
 ════════════════════════════════════════════════════════════ */
@@ -1571,17 +1683,21 @@ export default function HomePage() {
           <div className="grid grid-cols-2 md:grid-cols-3 gap-5 sm:gap-6">
             {DEPTS.map((d, i) => (
               <button key={d.name} onClick={() => setDeptModal(d)}
+                onMouseMove={e => {
+                  const el = e.currentTarget as HTMLElement;
+                  const rect = el.getBoundingClientRect();
+                  const px = (e.clientX - rect.left) / rect.width - 0.5;
+                  const py = (e.clientY - rect.top) / rect.height - 0.5;
+                  el.style.transform = `translateY(-6px) perspective(800px) rotateX(${py * -10}deg) rotateY(${px * 10}deg)`;
+                  el.style.boxShadow = `0 8px 32px ${d.color}33, 0 0 0 1px ${d.color}66`;
+                }}
                 className="reveal dept-card group relative flex flex-col items-center gap-4 p-6 sm:p-8 rounded-3xl overflow-hidden text-left"
                 style={{
                   background: d.bg,
                   border: `1px solid ${d.border}`,
                   animationDelay: `${i * 0.07}s`,
-                  transition: "transform 0.3s, box-shadow 0.3s, border-color 0.3s",
-                }}
-                onMouseEnter={e => {
-                  const el = e.currentTarget as HTMLElement;
-                  el.style.boxShadow = `0 8px 32px ${d.color}33, 0 0 0 1px ${d.color}66`;
-                  el.style.transform = "translateY(-6px)";
+                  transition: "transform 0.15s ease-out, box-shadow 0.3s, border-color 0.3s",
+                  transformStyle: "preserve-3d",
                 }}
                 onMouseLeave={e => {
                   const el = e.currentTarget as HTMLElement;
@@ -1610,6 +1726,9 @@ export default function HomePage() {
           </div>
         </div>
       </section>
+
+      {/* ══════ OLYMPIAD PULSE — countdown + leaderboard ═══════ */}
+      <OlympiadPulse />
 
       {/* ══════ ACTIVITIES CAROUSEL ══════════════════════════ */}
       <ActivitiesCarousel />

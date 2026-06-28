@@ -7,7 +7,7 @@ export async function POST(req: NextRequest) {
 
     if (!email || !password) {
       return NextResponse.json(
-        { error: 'ইমেইল এবং পাসওয়ার্ড দাও' },
+        { error: 'Email and password are required.' },
         { status: 400 }
       )
     }
@@ -20,7 +20,7 @@ export async function POST(req: NextRequest) {
 
     if (error) {
       return NextResponse.json(
-        { error: 'ইমেইল বা পাসওয়ার্ড ভুল' },
+        { error: 'Incorrect email or password.' },
         { status: 401 }
       )
     }
@@ -34,7 +34,7 @@ export async function POST(req: NextRequest) {
 
     if (memberError || !member) {
       return NextResponse.json(
-        { error: 'Member data পাওয়া যায়নি' },
+        { error: 'Member record not found.' },
         { status: 404 }
       )
     }
@@ -42,7 +42,7 @@ export async function POST(req: NextRequest) {
     // Verified কিনা check
     if (!member.is_verified) {
       return NextResponse.json(
-        { error: 'তোমার account এখনো approve হয়নি। Admin approval এর জন্য অপেক্ষা করো।' },
+        { error: 'Your account has not been approved yet. Please wait for admin approval.' },
         { status: 403 }
       )
     }
@@ -56,6 +56,8 @@ export async function POST(req: NextRequest) {
         email: member.email,
         role: member.role,
         wing: member.wing,
+        department: member.department,
+        college_roll: member.college_roll,
         batch: member.batch,
         avatar_url: member.avatar_url,
       }
@@ -63,7 +65,7 @@ export async function POST(req: NextRequest) {
 
   } catch (err) {
     return NextResponse.json(
-      { error: 'Server error' },
+      { error: 'Server error. Please try again.' },
       { status: 500 }
     )
   }

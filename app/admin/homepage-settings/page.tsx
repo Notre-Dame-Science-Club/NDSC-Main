@@ -7,6 +7,7 @@ const FIELDS = [
   { key: 'next_event_label', label: 'Next Event Text', placeholder: 'Science Sunday — This Friday' },
   { key: 'next_event_url', label: 'Next Event URL', placeholder: '/activities/slug' },
   { key: 'science_media_title', label: 'Science Media Section Title', placeholder: 'Check Out Our Science Media' },
+  { key: 'messenger_group_link', label: 'Member Messenger Group Link', placeholder: 'https://m.me/j/AbC123...' },
 ]
 
 export default function HomepageSettingsAdmin() {

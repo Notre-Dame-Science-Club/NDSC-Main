@@ -3,25 +3,44 @@ import { NextRequest, NextResponse } from 'next/server'
 
 export async function POST(req: NextRequest) {
   try {
-    const { 
-      email, 
-      password, 
-      full_name, 
-      phone, 
+    const {
+      email,
+      password,
+      full_name,
+      phone,
       ndsc_id,
-      college_role,
-      batch 
+      college_roll,
+      batch,
+      payment_slip_url,
     } = await req.json()
 
     // Basic validation
     if (!email || !password || !full_name) {
       return NextResponse.json(
-        { error: 'নাম, ইমেইল এবং পাসওয়ার্ড দেওয়া আবশ্যক' },
+        { error: 'Name, email, and password are required.' },
         { status: 400 }
       )
     }
 
-    // Supabase Auth এ user তৈরি
+    // College roll is the site's primary identifier for members — it must
+    // be exactly 8 digits, matching the same rule used on the public
+    // olympiad registration form, so the same identity system applies
+    // consistently everywhere.
+    if (!college_roll || !/^\d{8}$/.test(String(college_roll))) {
+      return NextResponse.json(
+        { error: 'College roll number must be exactly 8 digits.' },
+        { status: 400 }
+      )
+    }
+
+    if (!payment_slip_url) {
+      return NextResponse.json(
+        { error: 'Please upload a photo of your membership slip.' },
+        { status: 400 }
+      )
+    }
+
+    // Supabase Auth-এ user তৈরি
     const { data: authData, error: authError } = await supabaseAdmin
       .auth.admin.createUser({
         email,
@@ -36,7 +55,7 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    // members table এ save
+    // members টেবিলে save
     const { error: dbError } = await supabaseAdmin
       .from('members')
       .insert({
@@ -45,12 +64,14 @@ export async function POST(req: NextRequest) {
         full_name,
         phone: phone || null,
         ndsc_id: ndsc_id || null,
-        college_role: college_role || null,
+        college_roll: String(college_roll),
         batch: batch || null,
+        payment_slip_url,
+        is_verified: false,
       })
 
     if (dbError) {
-      // Auth user delete করো যদি db fail করে
+      // DB insert fail হলে auth user delete করে দাও যাতে orphan account না থাকে
       await supabaseAdmin.auth.admin.deleteUser(authData.user.id)
       return NextResponse.json(
         { error: dbError.message },
@@ -60,12 +81,12 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      message: 'Registration সফল!'
+      message: 'Registration successful! Your membership will be reviewed by an admin shortly.',
     })
 
   } catch (err) {
     return NextResponse.json(
-      { error: 'Server error' },
+      { error: 'Server error. Please try again.' },
       { status: 500 }
     )
   }

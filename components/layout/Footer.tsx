@@ -101,6 +101,7 @@ export default function Footer() {
             </h4>
             <div className="flex flex-col gap-2.5 items-center sm:items-start">
               {[
+                { href: "/membership", label: "Membership" },
                 { href: "/login", label: "Member Login" },
                 { href: "/register", label: "Register" },
                 { href: "/dashboard", label: "Dashboard" },

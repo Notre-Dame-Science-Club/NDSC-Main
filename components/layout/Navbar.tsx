@@ -21,6 +21,7 @@ const STATIC_NAV: NavItem[] = [
     ],
   },
   { href: "/olympiad", label: "Olympiad" },
+  { href: "/membership", label: "Membership" },
 ];
 
 const HIDE_NAVBAR_ON = ["/login", "/register", "/dashboard", "/admin"];

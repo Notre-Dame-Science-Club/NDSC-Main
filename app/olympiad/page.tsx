@@ -232,6 +232,7 @@ export default function OlympiadPage() {
     if (!form.hsc_session?.trim()) return setError('HSC session is required.')
     if (!form.college?.trim()) return setError('College name is required.')
     if (!form.college_roll?.trim()) return setError('College roll is required.')
+    if (!/^\d{8}$/.test(form.college_roll.trim())) return setError('College roll number must be exactly 8 digits.')
     for (const rf of selected.registration_fields || []) {
       if (rf.required && !form[rf.key]?.trim()) return setError(`"${rf.label}" is required.`)
     }
@@ -433,7 +434,7 @@ export default function OlympiadPage() {
             { key: 'email', label: 'Email', type: 'email', placeholder: 'you@example.com' },
             { key: 'hsc_session', label: 'HSC Session', type: 'text', placeholder: 'e.g. 2025–26' },
             { key: 'college', label: 'College', type: 'text', placeholder: selected.external_only ? 'Your college name' : 'Notre Dame College' },
-            { key: 'college_roll', label: 'College Roll', type: 'text', placeholder: 'Your college roll number' },
+            { key: 'college_roll', label: 'College Roll (8 digits)', type: 'text', placeholder: 'e.g. 24010123' },
           ].map(f => (
             <div key={f.key}>
               <label className="block text-xs mb-1" style={{ color: '#6a8faf' }}>{f.label} *</label>

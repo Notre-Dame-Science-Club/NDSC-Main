@@ -45,7 +45,7 @@ const DEPTS = [
     color: "#f59e0b",
     bg: "rgba(245,158,11,0.08)",
     border: "rgba(245,158,11,0.3)",
-    desc: "Life & Welfare Science — biology, environment, and health-oriented activities, awareness campaigns, and programs. Conducts seminars on environmental issues, public health, biodiversity, and sustainable development in Bangladesh.",
+    desc: "Library, Workshop & Seminar — the club's academics department. Manages the club library, organizes academic workshops, and hosts seminars bridging theoretical knowledge with practical learning.",
   },
   {
     name: "Quiz",
