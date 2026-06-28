@@ -1,7 +1,7 @@
 "use client";
 import { useState, useEffect, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
-import { Play, FileText, Mic, ChevronDown, ChevronUp } from "lucide-react";
+import { Play, FileText, Mic, ChevronDown, ChevronUp, Search, X } from "lucide-react";
 import Link from "next/link";
 
 type ActivityType = {
@@ -304,15 +304,94 @@ function ActivitiesContent() {
   );
 }
 
+/* ── Search Bar ───────────────────────────────────────────────── */
+type SearchResult = {
+  id: string; title: string; slug: string; description: string
+  cover_image_url: string; session_date: string; type_name: string | null; type_slug: string | null
+}
+
+function ActivitySearchBar() {
+  const [query, setQuery] = useState("");
+  const [results, setResults] = useState<SearchResult[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [open, setOpen] = useState(false);
+
+  useEffect(() => {
+    const q = query.trim();
+    if (q.length < 2) { setResults([]); setOpen(false); return; }
+    setLoading(true);
+    const handle = setTimeout(() => {
+      fetch(`/api/activity-search?q=${encodeURIComponent(q)}`)
+        .then(r => r.json())
+        .then(d => { setResults(Array.isArray(d) ? d : []); setOpen(true); })
+        .catch(() => setResults([]))
+        .finally(() => setLoading(false));
+    }, 300); // debounce so we don't fire a request on every keystroke
+    return () => clearTimeout(handle);
+  }, [query]);
+
+  return (
+    <div className="relative">
+      <div className="relative">
+        <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2" style={{ color: "var(--muted)" }} />
+        <input
+          value={query}
+          onChange={e => setQuery(e.target.value)}
+          onFocus={() => results.length > 0 && setOpen(true)}
+          placeholder="Search any activity..."
+          className="w-full pl-10 pr-9 py-2.5 rounded-xl text-sm outline-none border transition-colors"
+          style={{ background: "var(--card)", borderColor: "var(--border)", color: "var(--white)" }}
+        />
+        {query && (
+          <button onClick={() => { setQuery(""); setResults([]); setOpen(false); }}
+            className="absolute right-3 top-1/2 -translate-y-1/2" style={{ color: "var(--muted)" }}>
+            <X size={15} />
+          </button>
+        )}
+      </div>
+
+      {open && (
+        <div className="absolute left-0 right-0 mt-2 rounded-xl border overflow-hidden text-left z-40 max-h-96 overflow-y-auto"
+          style={{ background: "var(--bg2)", borderColor: "var(--border)" }}>
+          {loading ? (
+            <p className="px-4 py-3 text-sm" style={{ color: "var(--muted)" }}>Searching...</p>
+          ) : results.length === 0 ? (
+            <p className="px-4 py-3 text-sm" style={{ color: "var(--muted)" }}>No activities found.</p>
+          ) : (
+            results.map(r => (
+              <Link key={r.id} href={`/activities/${r.slug}`} onClick={() => setOpen(false)}
+                className="flex items-center gap-3 px-4 py-3 transition-colors hover:bg-white/5"
+                style={{ borderBottom: "1px solid var(--border)" }}>
+                {r.cover_image_url ? (
+                  <img src={r.cover_image_url} alt="" className="w-10 h-10 rounded-lg object-cover flex-shrink-0" />
+                ) : (
+                  <div className="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 text-lg" style={{ background: "var(--bg)" }}>🔬</div>
+                )}
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium truncate" style={{ color: "var(--white)" }}>{r.title}</p>
+                  {r.type_name && <p className="text-xs" style={{ color: "var(--muted)" }}>in {r.type_name}</p>}
+                </div>
+              </Link>
+            ))
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function ActivitiesPage() {
   return (
     <div className="min-h-screen relative z-10" style={{ paddingTop: "72px" }}>
       <div className="py-16 text-center border-b"
         style={{ background: "linear-gradient(180deg,var(--bg2),var(--bg))", borderColor: "var(--border)" }}>
         <div className="section-label justify-center mb-2">Explore</div>
-        <h1 className="text-4xl md:text-5xl font-black" style={{ fontFamily: "'Orbitron',sans-serif" }}>
+        <h1 className="text-4xl md:text-5xl font-black mb-6" style={{ fontFamily: "'Orbitron',sans-serif" }}>
           ALL <span style={{ color: "var(--blue)" }}>ACTIVITIES</span>
         </h1>
+        <div className="max-w-md mx-auto px-4">
+          <ActivitySearchBar />
+        </div>
       </div>
       <Suspense fallback={<div className="text-center py-20" style={{ color: "var(--muted)" }}>Loading...</div>}>
         <ActivitiesContent />

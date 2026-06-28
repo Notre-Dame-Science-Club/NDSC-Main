@@ -7,6 +7,7 @@ export async function GET() {
     .from('activity_sessions')
     .select(`
       id, title, slug, cover_image_url, session_date, youtube_url,
+      is_upcoming, registration_enabled, registration_note, event_dates,
       activity_types ( name, slug )
     `)
     .eq('is_published', true)

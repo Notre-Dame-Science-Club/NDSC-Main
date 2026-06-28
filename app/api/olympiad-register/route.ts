@@ -1,5 +1,6 @@
 import { supabaseAdmin } from '@/lib/supabase'
 import { NextRequest, NextResponse } from 'next/server'
+import { validateCollegeRoll } from '@/lib/validation'
 
 // GET is used to resume a student's session after a page refresh or closed
 // tab — the public olympiad page stores the registration id in the URL and
@@ -40,6 +41,10 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   const body = await req.json()
+
+  const rollError = validateCollegeRoll(body.college, body.college_roll)
+  if (rollError) return NextResponse.json({ error: rollError }, { status: 400 })
+
   const { data, error } = await supabaseAdmin
     .from('olympiad_registrations')
     .insert(body)

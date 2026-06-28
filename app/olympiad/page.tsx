@@ -72,7 +72,26 @@ export default function OlympiadPage() {
     // the URL first (so a shared/bookmarked link works), then localStorage.
     const params = new URLSearchParams(window.location.search)
     const savedId = params.get('reg') || localStorage.getItem(STORAGE_KEY)
-    if (!savedId) { setRestoring(false); return }
+    const directOlympiadId = params.get('id')
+
+    if (!savedId) {
+      // No registration to resume — but if we were linked here with a
+      // specific olympiad id (e.g. from an Activity registration category
+      // that's really an online-submission round), jump straight to that
+      // olympiad's registration form instead of showing the full list.
+      // This is what makes the Activity ↔ Olympiad auto-link actually work
+      // end-to-end: Activity hands off here, and the person lands directly
+      // on the right registration form rather than having to find it again.
+      if (directOlympiadId) {
+        fetch('/api/olympiad').then(r => r.json()).then(list => {
+          const found = Array.isArray(list) ? list.find((o: Olympiad) => o.id === directOlympiadId) : null
+          if (found) openRegister(found)
+        }).catch(() => {}).finally(() => setRestoring(false))
+        return
+      }
+      setRestoring(false)
+      return
+    }
 
     fetch(`/api/olympiad-register?id=${savedId}`)
       .then(async r => {
@@ -232,7 +251,11 @@ export default function OlympiadPage() {
     if (!form.hsc_session?.trim()) return setError('HSC session is required.')
     if (!form.college?.trim()) return setError('College name is required.')
     if (!form.college_roll?.trim()) return setError('College roll is required.')
-    if (!/^\d{8}$/.test(form.college_roll.trim())) return setError('College roll number must be exactly 8 digits.')
+    if (!/^\d+$/.test(form.college_roll.trim())) return setError('College roll number must contain digits only.')
+    const isNDC = (form.college || 'Notre Dame College').trim().toLowerCase() === 'notre dame college'
+    if (isNDC && form.college_roll.trim().length !== 8) {
+      return setError('Notre Dame College roll numbers are exactly 8 digits.')
+    }
     for (const rf of selected.registration_fields || []) {
       if (rf.required && !form[rf.key]?.trim()) return setError(`"${rf.label}" is required.`)
     }
@@ -434,7 +457,7 @@ export default function OlympiadPage() {
             { key: 'email', label: 'Email', type: 'email', placeholder: 'you@example.com' },
             { key: 'hsc_session', label: 'HSC Session', type: 'text', placeholder: 'e.g. 2025–26' },
             { key: 'college', label: 'College', type: 'text', placeholder: selected.external_only ? 'Your college name' : 'Notre Dame College' },
-            { key: 'college_roll', label: 'College Roll (8 digits)', type: 'text', placeholder: 'e.g. 24010123' },
+            { key: 'college_roll', label: 'College Roll', type: 'text', placeholder: 'e.g. 24010123 (8 digits for NDC)' },
           ].map(f => (
             <div key={f.key}>
               <label className="block text-xs mb-1" style={{ color: '#6a8faf' }}>{f.label} *</label>

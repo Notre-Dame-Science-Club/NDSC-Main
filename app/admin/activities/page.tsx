@@ -15,6 +15,8 @@ type ActivitySession = {
   title: string; slug: string; session_date: string; location: string;
   description: string; cover_image_url: string; youtube_url: string;
   pdf_url: string; gallery_urls: string[]; is_published: boolean;
+  is_upcoming?: boolean; registration_enabled?: boolean; registration_note?: string;
+  event_dates?: string[];
 };
 
 const S = { background: "#050d1a", border: "#0f2a4a", card: "#071220",
@@ -219,7 +221,12 @@ function SessionForm({ typeId, versionId, versions, initial, onSave, onClose }: 
     pdf_url: initial?.pdf_url || "",
     gallery_urls: initial?.gallery_urls || [] as string[],
     is_published: initial?.is_published ?? false,
+    is_upcoming: initial?.is_upcoming ?? false,
+    registration_enabled: initial?.registration_enabled ?? false,
+    registration_note: initial?.registration_note || "",
+    event_dates: initial?.event_dates || [] as string[],
   });
+  const [newEventDate, setNewEventDate] = useState("");
   const [uploading, setUploading] = useState("");
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState("");
@@ -260,6 +267,10 @@ function SessionForm({ typeId, versionId, versions, initial, onSave, onClose }: 
         pdf_url: form.pdf_url,
         gallery_urls: form.gallery_urls,
         is_published: form.is_published,
+        is_upcoming: form.is_upcoming,
+        registration_enabled: form.is_upcoming ? form.registration_enabled : false,
+        registration_note: form.registration_note,
+        event_dates: form.event_dates,
       };
       // only send version if selected
       if (form.activity_version_id) {
@@ -299,7 +310,7 @@ function SessionForm({ typeId, versionId, versions, initial, onSave, onClose }: 
       </Field>
 
       <div className="grid grid-cols-2 gap-3">
-        <Field label="Date">
+        <Field label="Date (single-day events)">
           <input type="date" className={inputCls} style={inputStyle}
             value={form.session_date} onChange={e => setForm(p => ({ ...p, session_date: e.target.value }))} />
         </Field>
@@ -308,6 +319,35 @@ function SessionForm({ typeId, versionId, versions, initial, onSave, onClose }: 
             value={form.location} onChange={e => setForm(p => ({ ...p, location: e.target.value }))} />
         </Field>
       </div>
+
+      <Field label="Multi-day event dates (optional — e.g. a 3-day fest)">
+        <div className="flex gap-2 mb-2">
+          <input type="date" className={inputCls} style={inputStyle} value={newEventDate}
+            onChange={e => setNewEventDate(e.target.value)} />
+          <button onClick={() => {
+            if (newEventDate && !form.event_dates.includes(newEventDate)) {
+              setForm(p => ({ ...p, event_dates: [...p.event_dates, newEventDate].sort() }));
+              setNewEventDate("");
+            }
+          }} className="px-3 py-1.5 rounded text-xs font-semibold" style={{ background: S.accent, color: "#000" }}>
+            + Add day
+          </button>
+        </div>
+        {form.event_dates.length > 0 && (
+          <div className="flex flex-wrap gap-2">
+            {form.event_dates.map(d => (
+              <span key={d} className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs"
+                style={{ background: "#00d4ff15", color: S.accent }}>
+                {new Date(d).toLocaleDateString("en-BD", { month: "short", day: "numeric" })}
+                <button onClick={() => setForm(p => ({ ...p, event_dates: p.event_dates.filter(x => x !== d) }))}>✕</button>
+              </span>
+            ))}
+          </div>
+        )}
+        <p className="text-xs mt-1" style={{ color: S.muted }}>
+          If set, this overrides the single date above for schedule display and for deciding when the event has "happened".
+        </p>
+      </Field>
 
       <Field label="Description">
         <textarea className={inputCls} style={{ ...inputStyle, resize: "vertical" }} rows={3}
@@ -364,6 +404,36 @@ function SessionForm({ typeId, versionId, versions, initial, onSave, onClose }: 
           <span className="text-sm" style={{ color: S.text }}>Published (visible on website)</span>
         </label>
       </Field>
+
+      <Field label="">
+        <label className="flex items-center gap-2 cursor-pointer">
+          <input type="checkbox" checked={form.is_upcoming}
+            onChange={e => setForm(p => ({ ...p, is_upcoming: e.target.checked, registration_enabled: e.target.checked ? p.registration_enabled : false }))} />
+          <span className="text-sm" style={{ color: S.text }}>This is an upcoming event (not yet happened)</span>
+        </label>
+      </Field>
+
+      {form.is_upcoming && (
+        <div className="rounded-lg p-3 mb-3" style={{ background: "#00d4ff0a", border: `1px solid ${S.border}` }}>
+          <label className="flex items-center gap-2 cursor-pointer mb-2">
+            <input type="checkbox" checked={form.registration_enabled}
+              onChange={e => setForm(p => ({ ...p, registration_enabled: e.target.checked }))} />
+            <span className="text-sm font-medium" style={{ color: S.accent }}>Enable online registration for this event</span>
+          </label>
+          {form.registration_enabled && (
+            <>
+              <p className="text-xs mb-2" style={{ color: S.muted }}>
+                Once saved, manage registration categories, fields, team settings, and payment from
+                the dedicated registration builder (link appears on this session's card after saving).
+              </p>
+              <Field label="Registration note (shown publicly, optional)">
+                <input className={inputCls} style={inputStyle} placeholder="e.g. Registration closes June 30"
+                  value={form.registration_note} onChange={e => setForm(p => ({ ...p, registration_note: e.target.value }))} />
+              </Field>
+            </>
+          )}
+        </div>
+      )}
 
       {err && <p className="text-xs mb-3" style={{ color: S.danger }}>{err}</p>}
       <div className="flex gap-3 justify-end">
@@ -552,7 +622,19 @@ export default function ActivitiesAdminPage() {
                           color: s.is_published ? S.accent : S.muted }}>
                         {s.is_published ? "Live" : "Draft"}
                       </span>
+                      {s.is_upcoming && (
+                        <span className="text-xs px-1.5 py-0.5 rounded" style={{ background: "#ffb34722", color: "#ffb347" }}>📅 Upcoming</span>
+                      )}
+                      {s.registration_enabled && (
+                        <span className="text-xs px-1.5 py-0.5 rounded" style={{ background: "#2ecc7122", color: "#2ecc71" }}>📝 Registration ON</span>
+                      )}
                     </div>
+                    {s.registration_enabled && (
+                      <a href={`/admin/activity-registration/${s.id}`}
+                        className="inline-block text-xs mt-1.5 underline" style={{ color: S.accent }}>
+                        Manage Registration →
+                      </a>
+                    )}
                   </div>
                   <div className="flex gap-1">
                     <button style={btnGhost} onClick={() => { setEditing(s); setModal("session"); }}>✏️</button>

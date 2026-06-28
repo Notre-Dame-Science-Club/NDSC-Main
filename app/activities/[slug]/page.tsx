@@ -138,14 +138,49 @@ export default async function SessionDetailPage({
         </h1>
 
         {/* Meta */}
-        <div className="flex flex-wrap gap-4 text-sm mb-10" style={{ color: 'var(--muted)' }}>
-          {session.session_date && (
+        <div className="flex flex-wrap gap-4 text-sm mb-6" style={{ color: 'var(--muted)' }}>
+          {session.event_dates && session.event_dates.length > 0 ? (
+            <span>
+              📅 {session.event_dates.map((d: string) =>
+                new Date(d).toLocaleDateString('en-BD', { month: 'short', day: 'numeric' })
+              ).join(' · ')}
+              {session.event_dates.length > 1 && ` (${session.event_dates.length}-day event)`}
+            </span>
+          ) : session.session_date && (
             <span>📅 {new Date(session.session_date).toLocaleDateString('en-BD', {
               weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
             })}</span>
           )}
           {session.location && <span>📍 {session.location}</span>}
         </div>
+
+        {/* Registration CTA */}
+        {session.is_upcoming && session.registration_enabled && (
+          <div className="rounded-2xl border p-6 mb-8 flex items-center justify-between gap-4 flex-wrap"
+            style={{ background: 'rgba(0,212,255,0.06)', borderColor: 'rgba(0,212,255,0.3)' }}>
+            <div>
+              <p className="font-bold text-base mb-1" style={{ color: 'var(--white)' }}>Registration is open</p>
+              {session.registration_note && (
+                <p className="text-sm" style={{ color: 'var(--muted)' }}>{session.registration_note}</p>
+              )}
+            </div>
+            <Link href={`/activities/${session.slug}/register`}
+              className="px-6 py-3 rounded-xl font-bold text-sm text-black flex-shrink-0 transition-all hover:-translate-y-0.5"
+              style={{ background: 'var(--blue)', fontFamily: "'Orbitron', sans-serif" }}>
+              Register Now →
+            </Link>
+          </div>
+        )}
+
+        {/* Returning registrant — link to their dashboard even after the event has passed */}
+        {!session.registration_enabled && (
+          <div className="mb-8">
+            <Link href={`/activities/${session.slug}/dashboard`}
+              className="inline-flex items-center gap-2 text-sm underline" style={{ color: 'var(--blue)' }}>
+              Already registered for this event? View your dashboard →
+            </Link>
+          </div>
+        )}
 
         {/* Description */}
         {session.description && (

@@ -77,6 +77,10 @@ export async function POST(req: NextRequest) {
     is_published: body.is_published ?? false,
     location: body.location || '',
     session_date: body.session_date || null,
+    is_upcoming: body.is_upcoming ?? false,
+    registration_enabled: body.is_upcoming ? (body.registration_enabled ?? false) : false,
+    registration_note: body.registration_note || '',
+    event_dates: body.event_dates || [],
   }
 
   // activity_type_id — সবসময় required
@@ -120,7 +124,12 @@ export async function PUT(req: NextRequest) {
   const updateData: any = { ...rest }
   if (rest.version_id) { updateData.activity_version_id = rest.version_id; delete updateData.version_id }
   if (rest.type_id) { updateData.activity_type_id = rest.type_id; delete updateData.type_id }
-  if (rest.session_date) updateData.event_date = rest.session_date
+  // NOTE: previously this also did `updateData.event_date = rest.session_date`, writing to a
+  // column called `event_date` that does not exist anywhere else in this schema (POST uses
+  // `session_date` directly, and that's the only date column on this table). That stray line
+  // appears to be leftover from an earlier refactor and would make Supabase reject any session
+  // update that included a date, since `event_date` isn't a real column. Removed — `session_date`
+  // already flows through correctly via the `...rest` spread above.
 
   const { data, error } = await supabaseAdmin
     .from('activity_sessions')

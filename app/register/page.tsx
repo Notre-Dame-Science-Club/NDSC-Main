@@ -69,7 +69,7 @@ export default function RegisterPage() {
       return setError('Password must be at least 6 characters.')
     }
     if (!/^\d{8}$/.test(form.college_roll)) {
-      return setError('College roll number must be exactly 8 digits.')
+      return setError('Notre Dame College roll numbers are exactly 8 digits.')
     }
     if (!slipFile) {
       return setError('Please upload a photo of your membership slip.')

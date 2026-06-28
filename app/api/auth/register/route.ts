@@ -1,5 +1,6 @@
 import { supabaseAdmin } from '@/lib/supabase'
 import { NextRequest, NextResponse } from 'next/server'
+import { validateCollegeRoll } from '@/lib/validation'
 
 export async function POST(req: NextRequest) {
   try {
@@ -22,15 +23,12 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    // College roll is the site's primary identifier for members — it must
-    // be exactly 8 digits, matching the same rule used on the public
-    // olympiad registration form, so the same identity system applies
-    // consistently everywhere.
-    if (!college_roll || !/^\d{8}$/.test(String(college_roll))) {
-      return NextResponse.json(
-        { error: 'College roll number must be exactly 8 digits.' },
-        { status: 400 }
-      )
+    // College roll is the site's primary identifier for members — required
+    // for everyone, with the exact-8-digits rule applying because NDSC
+    // membership is specifically for Notre Dame College students.
+    const rollError = validateCollegeRoll('Notre Dame College', college_roll)
+    if (rollError) {
+      return NextResponse.json({ error: rollError }, { status: 400 })
     }
 
     if (!payment_slip_url) {

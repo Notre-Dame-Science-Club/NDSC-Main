@@ -2,6 +2,7 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 import { MessageCircle, Award, Plus, Upload, X } from 'lucide-react'
 
 type Tab = 'home' | 'activities' | 'publications' | 'olympiads' | 'profile'
@@ -43,16 +44,23 @@ export default function DashboardPage() {
       setMember(m || { email: user.email, full_name: user.email })
 
       // Load public content (these should work without RLS issues)
-      const [{ data: a }, { data: act }, { data: pub }, { data: oly }, settingsRes] = await Promise.all([
+      const [{ data: a }, allActivities, { data: pub }, { data: oly }, settingsRes] = await Promise.all([
         supabase.from('announcements').select('*').order('created_at', { ascending: false }).limit(5),
-        supabase.from('activities').select('*').eq('is_published', true).order('date', { ascending: false }).limit(10),
+        // NOTE: this previously queried a table literally named `activities`
+        // with a `date` column — that table doesn't exist (it's dead/legacy
+        // code from before the Type→Version→Session activity system was
+        // built); the real table is `activity_sessions`. This means the
+        // dashboard's Activities tab was never actually showing real data.
+        // Fixed by using the same public route the real /activities page
+        // itself relies on.
+        fetch('/api/activity-sessions-public').then(r => r.json()).catch(() => []),
         supabase.from('publications').select('*').eq('is_published', true).order('created_at', { ascending: false }),
         supabase.from('olympiads').select('*').eq('is_active', true).order('exam_date', { ascending: true }),
         fetch('/api/admin/homepage-settings').catch(() => null),
       ])
 
       setAnnouncements(a || [])
-      setActivities(act || [])
+      setActivities(Array.isArray(allActivities) ? allActivities : [])
       setPublications(pub || [])
       setOlympiads(oly || [])
       if (settingsRes && settingsRes.ok) {
@@ -112,6 +120,35 @@ export default function DashboardPage() {
   const [achSubmitting, setAchSubmitting] = useState(false)
   const [achError, setAchError] = useState('')
 
+  // Profile self-edit state
+  const [editingProfile, setEditingProfile] = useState(false)
+  const [profileForm, setProfileForm] = useState<any>({})
+  const [profileSaving, setProfileSaving] = useState(false)
+  const [profileError, setProfileError] = useState('')
+
+  const saveProfile = async () => {
+    if (!profileForm.full_name?.trim()) { setProfileError('Name cannot be empty.'); return }
+    setProfileSaving(true)
+    setProfileError('')
+    try {
+      const { data: { session } } = await supabase.auth.getSession()
+      if (!session) throw new Error('Your session has expired. Please log in again.')
+      const res = await fetch('/api/member-profile', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
+        body: JSON.stringify(profileForm),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Could not save changes.')
+      setMember((prev: any) => ({ ...prev, ...profileForm }))
+      setEditingProfile(false)
+    } catch (e: any) {
+      setProfileError(e.message || 'Something went wrong.')
+    } finally {
+      setProfileSaving(false)
+    }
+  }
+
   const uploadAchievementImage = (file: File): Promise<string> => {
     return new Promise((resolve, reject) => {
       const fd = new FormData()
@@ -163,15 +200,6 @@ export default function DashboardPage() {
     { key: 'olympiads', label: 'Olympiads', icon: '🏆' },
     { key: 'profile', label: 'Profile', icon: '👤' },
   ]
-
-  const activityTypeColors: Record<string, string> = {
-    workshops: 'bg-purple-100 text-purple-700',
-    events: 'bg-blue-100 text-blue-700',
-    podcast: 'bg-green-100 text-green-700',
-    science_sunday: 'bg-yellow-100 text-yellow-700',
-    stem_insights: 'bg-orange-100 text-orange-700',
-    projects: 'bg-red-100 text-red-700',
-  }
 
   if (!authChecked || loading) return (
     <div className="min-h-screen flex items-center justify-center" style={{ background: 'var(--bg)' }}>
@@ -267,7 +295,7 @@ export default function DashboardPage() {
             <h3 className="font-semibold text-sm mt-2" style={{ color: 'var(--muted)', fontFamily: "'Orbitron', sans-serif" }}>
               📢 Updates
             </h3>
-            {announcements.length === 0 && olympiads.length === 0
+            {announcements.length === 0 && olympiads.length === 0 && activities.filter(a => a.registration_enabled).length === 0
               ? <p className="text-sm" style={{ color: 'var(--muted)' }}>No updates yet — check back soon.</p>
               : (
                 <>
@@ -282,7 +310,7 @@ export default function DashboardPage() {
                     </div>
                   ))}
                   {olympiads.slice(0, 3).map(o => (
-                    <div key={`oly-${o.id}`} className="rounded-xl p-4"
+                    <Link key={`oly-${o.id}`} href={`/olympiad?id=${o.id}`} className="block rounded-xl p-4 transition-transform hover:-translate-y-0.5"
                       style={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderLeftWidth: '3px', borderLeftColor: '#ffb347' }}>
                       <p className="font-semibold text-sm" style={{ color: 'var(--white)' }}>🏆 {o.name} is open</p>
                       <p className="text-sm mt-1" style={{ color: 'var(--muted)' }}>
@@ -290,7 +318,14 @@ export default function DashboardPage() {
                           ? `Register before ${new Date(o.registration_deadline).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`
                           : 'Registration is currently open.'}
                       </p>
-                    </div>
+                    </Link>
+                  ))}
+                  {activities.filter(a => a.registration_enabled).slice(0, 3).map(a => (
+                    <Link key={`act-${a.id}`} href={`/activities/${a.slug}`} className="block rounded-xl p-4 transition-transform hover:-translate-y-0.5"
+                      style={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderLeftWidth: '3px', borderLeftColor: '#34d399' }}>
+                      <p className="font-semibold text-sm" style={{ color: 'var(--white)' }}>📅 {a.title} — registration open</p>
+                      {a.registration_note && <p className="text-sm mt-1" style={{ color: 'var(--muted)' }}>{a.registration_note}</p>}
+                    </Link>
                   ))}
                 </>
               )
@@ -338,34 +373,26 @@ export default function DashboardPage() {
             {activities.length === 0
               ? <p className="text-sm" style={{ color: 'var(--muted)' }}>No activities published yet.</p>
               : activities.map(a => (
-                <div key={a.id} className="rounded-xl overflow-hidden"
+                <Link key={a.id} href={`/activities/${a.slug}`} className="block rounded-xl overflow-hidden transition-transform hover:-translate-y-0.5"
                   style={{ background: 'var(--bg2)', border: '1px solid var(--border)' }}>
-                  {a.banner_url && (
-                    <img src={a.banner_url} alt={a.title} className="w-full h-40 object-cover" />
+                  {a.cover_image_url && (
+                    <img src={a.cover_image_url} alt={a.title} className="w-full h-40 object-cover" />
                   )}
                   <div className="p-4">
-                    <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${activityTypeColors[a.activities_type] || 'bg-gray-100 text-gray-600'}`}>
-                      {a.activities_type?.replace('_', ' ').toUpperCase()}
-                    </span>
+                    {a.activity_types?.name && (
+                      <span className="text-xs px-2 py-0.5 rounded-full font-medium" style={{ background: 'rgba(0,212,255,0.1)', color: 'var(--blue)' }}>
+                        {a.activity_types.name}
+                      </span>
+                    )}
                     <h4 className="font-semibold mt-2" style={{ color: 'var(--white)' }}>{a.title}</h4>
-                    <p className="text-sm mt-1" style={{ color: 'var(--muted)' }}>{a.description}</p>
-                    <div className="flex items-center justify-between mt-3">
-                      <div className="text-xs space-y-0.5" style={{ color: 'var(--muted)' }}>
-                        {a.date && <p>📆 {new Date(a.date).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })}</p>}
-                        {a.location && <p>📍 {a.location}</p>}
-                      </div>
-                      {a.registration_link && (
-                        <a href={a.registration_link} target="_blank"
-                          className="text-xs px-4 py-1.5 rounded-lg text-black font-semibold"
-                          style={{ background: 'var(--blue)' }}>
-                          Register
-                        </a>
-                      )}
-                    </div>
+                    {a.session_date && (
+                      <p className="text-xs mt-2" style={{ color: 'var(--muted)' }}>
+                        📆 {new Date(a.session_date).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })}
+                      </p>
+                    )}
                   </div>
-                </div>
-              ))
-            }
+                </Link>
+              ))}
           </div>
         )}
 
@@ -450,7 +477,7 @@ export default function DashboardPage() {
                   style={{ background: 'rgba(0,212,255,0.1)', border: '2px solid rgba(0,212,255,0.3)', color: 'var(--blue)' }}>
                   {member?.full_name?.[0] || '?'}
                 </div>
-                <div>
+                <div className="flex-1">
                   <h2 className="font-bold text-lg" style={{ color: 'var(--white)' }}>{member?.full_name || '—'}</h2>
                   <p className="text-sm" style={{ color: 'var(--muted)' }}>{member?.email}</p>
                   {member?.department && (
@@ -460,21 +487,53 @@ export default function DashboardPage() {
                     </span>
                   )}
                 </div>
+                {!editingProfile && (
+                  <button onClick={() => { setEditingProfile(true); setProfileForm({ full_name: member?.full_name || '', phone: member?.phone || '', college_roll: member?.college_roll || '', batch: member?.batch || '' }) }}
+                    className="text-xs px-3 py-1.5 rounded-lg flex-shrink-0" style={{ background: 'rgba(0,212,255,0.1)', color: 'var(--blue)' }}>
+                    Edit
+                  </button>
+                )}
               </div>
-              <div className="space-y-0">
-                {[
-                  { label: 'NDSC ID', value: member?.ndsc_id },
-                  { label: 'Phone', value: member?.phone },
-                  { label: 'College Roll', value: member?.college_roll },
-                  { label: 'Batch', value: member?.batch },
-                ].map(row => (
-                  <div key={row.label} className="flex justify-between items-center py-3"
-                    style={{ borderBottom: '1px solid var(--border)' }}>
-                    <span className="text-sm" style={{ color: 'var(--muted)' }}>{row.label}</span>
-                    <span className="text-sm font-medium" style={{ color: 'var(--white)' }}>{row.value || '—'}</span>
+
+              {editingProfile ? (
+                <div className="space-y-2 mb-4">
+                  <input value={profileForm.full_name} onChange={e => setProfileForm((p: any) => ({ ...p, full_name: e.target.value }))}
+                    placeholder="Full name" className="w-full px-3 py-2 rounded-lg text-sm outline-none border"
+                    style={{ background: 'rgba(255,255,255,0.04)', borderColor: 'var(--border)', color: 'var(--white)' }} />
+                  <input value={profileForm.phone} onChange={e => setProfileForm((p: any) => ({ ...p, phone: e.target.value }))}
+                    placeholder="Phone" className="w-full px-3 py-2 rounded-lg text-sm outline-none border"
+                    style={{ background: 'rgba(255,255,255,0.04)', borderColor: 'var(--border)', color: 'var(--white)' }} />
+                  <input value={profileForm.college_roll} onChange={e => setProfileForm((p: any) => ({ ...p, college_roll: e.target.value }))}
+                    placeholder="College roll" className="w-full px-3 py-2 rounded-lg text-sm outline-none border"
+                    style={{ background: 'rgba(255,255,255,0.04)', borderColor: 'var(--border)', color: 'var(--white)' }} />
+                  <input value={profileForm.batch} onChange={e => setProfileForm((p: any) => ({ ...p, batch: e.target.value }))}
+                    placeholder="Batch" className="w-full px-3 py-2 rounded-lg text-sm outline-none border"
+                    style={{ background: 'rgba(255,255,255,0.04)', borderColor: 'var(--border)', color: 'var(--white)' }} />
+                  {profileError && <p className="text-xs" style={{ color: '#ff7070' }}>{profileError}</p>}
+                  <div className="flex gap-2 pt-1">
+                    <button onClick={saveProfile} disabled={profileSaving}
+                      className="flex-1 py-2 rounded-lg text-sm font-bold text-black disabled:opacity-50" style={{ background: 'var(--blue)' }}>
+                      {profileSaving ? 'Saving...' : 'Save'}
+                    </button>
+                    <button onClick={() => { setEditingProfile(false); setProfileError('') }} className="px-4 py-2 rounded-lg text-sm" style={{ color: 'var(--muted)' }}>Cancel</button>
                   </div>
-                ))}
-              </div>
+                </div>
+              ) : (
+                <div className="space-y-0">
+                  {[
+                    { label: 'NDSC ID', value: member?.ndsc_id },
+                    { label: 'Phone', value: member?.phone },
+                    { label: 'College Roll', value: member?.college_roll },
+                    { label: 'Batch', value: member?.batch },
+                  ].map(row => (
+                    <div key={row.label} className="flex justify-between items-center py-3"
+                      style={{ borderBottom: '1px solid var(--border)' }}>
+                      <span className="text-sm" style={{ color: 'var(--muted)' }}>{row.label}</span>
+                      <span className="text-sm font-medium" style={{ color: 'var(--white)' }}>{row.value || '—'}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
               <button onClick={logout}
                 className="mt-6 w-full py-2.5 rounded-lg text-sm border transition-colors"
                 style={{ borderColor: 'rgba(255,80,80,0.4)', color: '#ff7070' }}>
