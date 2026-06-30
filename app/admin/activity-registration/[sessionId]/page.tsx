@@ -164,10 +164,10 @@ export default function ActivityRegistrationBuilder() {
                 <span className="text-sm font-semibold flex-1" style={{ color: '#e8f4ff' }}>{cat.name}</span>
                 {leaf && (
                   <div className="flex items-center gap-1.5">
-                    {cat.requires_team && <Users size={13} style={{ color: '#a78bfa' }} title="Team registration" />}
-                    {cat.requires_payment && <CreditCard size={13} style={{ color: '#ffb347' }} title="Requires payment" />}
-                    {cat.is_online_submission && <Link2 size={13} style={{ color: '#00d4ff' }} title="Linked to Olympiad" />}
-                    {cat.schedule_date && <Calendar size={13} style={{ color: '#34d399' }} title="Has schedule" />}
+                    {cat.requires_team && <span title="Team registration"><Users size={13} style={{ color: '#a78bfa' }} /></span>}
+                    {cat.requires_payment && <span title="Requires payment"><CreditCard size={13} style={{ color: '#ffb347' }} /></span>}
+                    {cat.is_online_submission && <span title="Linked to Olympiad"><Link2 size={13} style={{ color: '#00d4ff' }} /></span>}
+                    {cat.schedule_date && <span title="Has schedule"><Calendar size={13} style={{ color: '#34d399' }} /></span>}
                     <span className="text-xs px-2 py-0.5 rounded-full" style={{ background: 'rgba(0,212,255,0.1)', color: '#00d4ff' }}>Leaf — registration form</span>
                   </div>
                 )}
