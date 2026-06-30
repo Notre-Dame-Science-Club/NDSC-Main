@@ -18,6 +18,7 @@ type Olympiad = {
   relay_mode: boolean; relay_type: 'sequential' | 'chain'
   subjects: Subject[]; subject_assignment_mode: 'self_select' | 'admin_assign' | 'auto'
   scheduled_start_at: string | null; scheduled_end_at: string | null
+  result_published?: boolean
 }
 
 const inputStyle = { background: 'rgba(255,255,255,0.04)', border: '1px solid var(--border)', color: 'var(--white)' }
