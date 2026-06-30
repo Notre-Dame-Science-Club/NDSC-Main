@@ -12,7 +12,7 @@ export async function GET(req: NextRequest) {
 
   const { data: session, error: sessionError } = await supabaseAdmin
     .from('activity_sessions')
-    .select('id, title, slug, is_upcoming, registration_enabled, registration_note')
+    .select('id, title, slug, description, cover_image_url, is_upcoming, registration_enabled, registration_note')
     .eq('slug', slug)
     .eq('is_published', true)
     .single()
@@ -32,5 +32,19 @@ export async function GET(req: NextRequest) {
 
   if (catError) return NextResponse.json({ error: catError.message }, { status: 400 })
 
-  return NextResponse.json({ session, categories: categories || [] })
+  // Drop any category whose registration is closed, AND every descendant
+  // under it (closing a primary field closes everything nested inside it
+  // too, even if a sub-category was individually left "open").
+  const all = categories || []
+  const closedIds = new Set(all.filter((c: any) => c.registration_open === false).map((c: any) => c.id))
+  let changed = true
+  while (changed) {
+    changed = false
+    for (const c of all) {
+      if (!closedIds.has(c.id) && c.parent_id && closedIds.has(c.parent_id)) { closedIds.add(c.id); changed = true }
+    }
+  }
+  const visible = all.filter((c: any) => !closedIds.has(c.id))
+
+  return NextResponse.json({ session, categories: visible })
 }

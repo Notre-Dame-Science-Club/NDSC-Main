@@ -1,7 +1,7 @@
 "use client";
 import { useState, useEffect, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
-import { Play, FileText, Mic, ChevronDown, ChevronUp, Search, X } from "lucide-react";
+import { Play, FileText, Mic, ChevronDown, ChevronUp, Search, X, UserPlus } from "lucide-react";
 import Link from "next/link";
 
 type ActivityType = {
@@ -18,6 +18,7 @@ type ActivitySession = {
   title: string; slug: string; session_date: string; location: string;
   description: string; cover_image_url: string; youtube_url: string;
   pdf_url: string; gallery_urls: string[]; is_published: boolean;
+  is_upcoming?: boolean; registration_enabled?: boolean; registration_note?: string;
 };
 
 function getYoutubeId(url: string) {
@@ -28,11 +29,16 @@ function getYoutubeId(url: string) {
 
 /* ── Session Card ─────────────────────────────────────────────── */
 function SessionCard({ s }: { s: ActivitySession }) {
+  const router = useRouter();
   const ytId = getYoutubeId(s.youtube_url);
   const thumb = ytId ? `https://img.youtube.com/vi/${ytId}/hqdefault.jpg` : s.cover_image_url;
+  const canRegister = s.is_upcoming && s.registration_enabled;
   return (
-    <Link href={`/activities/${s.slug}`}
-      className="group flex flex-col rounded-2xl border overflow-hidden transition-all duration-300 hover:border-[var(--blue)] hover:-translate-y-1"
+    <div
+      role="link" tabIndex={0}
+      onClick={() => router.push(`/activities/${s.slug}`)}
+      onKeyDown={(e) => { if (e.key === "Enter") router.push(`/activities/${s.slug}`); }}
+      className="group flex flex-col rounded-2xl border overflow-hidden transition-all duration-300 hover:border-[var(--blue)] hover:-translate-y-1 cursor-pointer"
       style={{ borderColor: "var(--border)", background: "var(--card)" }}>
       <div className="relative overflow-hidden" style={{ height: 200 }}>
         {thumb ? (
@@ -62,6 +68,15 @@ function SessionCard({ s }: { s: ActivitySession }) {
             🖼 {s.gallery_urls.length}
           </div>
         )}
+        {canRegister && (
+          <Link
+            href={`/activities/${s.slug}/register`}
+            onClick={(e) => e.stopPropagation()}
+            className="absolute top-3 left-3 flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-black z-10 transition-transform hover:scale-105"
+            style={{ background: "var(--blue)", color: "#000", fontFamily: "'Orbitron',sans-serif" }}>
+            <UserPlus size={12} /> Register Now
+          </Link>
+        )}
       </div>
       <div className="p-5 flex-1 flex flex-col">
         <h3 className="font-bold text-sm mb-2 group-hover:text-[var(--blue)] transition-colors line-clamp-2"
@@ -79,8 +94,11 @@ function SessionCard({ s }: { s: ActivitySession }) {
           )}
           {s.location && <span>📍 {s.location}</span>}
         </div>
+        {canRegister && s.registration_note && (
+          <p className="text-[11px] mt-2" style={{ color: "var(--blue)" }}>⏰ {s.registration_note}</p>
+        )}
       </div>
-    </Link>
+    </div>
   );
 }
 

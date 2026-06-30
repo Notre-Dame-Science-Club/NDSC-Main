@@ -23,6 +23,14 @@ const FORM_PRESETS = [
   { key: 'membership', label: 'Membership Form' },
 ]
 
+const THEME_PRESETS = [
+  { value: 'default', label: 'NDSC Blue (default)', swatch: '#00d4ff' },
+  { value: '#a78bfa', label: 'Violet', swatch: '#a78bfa' },
+  { value: '#34d399', label: 'Green', swatch: '#34d399' },
+  { value: '#ffb347', label: 'Amber', swatch: '#ffb347' },
+  { value: '#ff7070', label: 'Red', swatch: '#ff7070' },
+]
+
 type ExtraField = { key: string; label: string; description?: string; type: string; required: boolean; options?: string[] }
 type ContactPerson = { name: string; post: string; phone: string; email: string; whatsapp: string; facebook: string }
 type EcMember = { id: string; full_name: string; position: string; email: string; whatsapp: string; facebook_url: string }
@@ -204,14 +212,36 @@ export default function AdminFormsPage() {
                     <input value={editingConfig.subtitle} onChange={e => patch('subtitle', e.target.value)}
                       className={inputCls} style={inputStyle} />
                   </Field>
-                  <Field label="Cover photo URL (shown at top of form)">
+                  <Field label="Cover photo URL (shown at top of form, same ratio it was uploaded in)">
                     <input value={editingConfig.cover_photo_url} onChange={e => patch('cover_photo_url', e.target.value)}
                       placeholder="https://..." className={inputCls} style={inputStyle} />
                     {editingConfig.cover_photo_url && (
                       <img src={editingConfig.cover_photo_url} alt="" className="mt-2 rounded-lg w-full h-24 object-cover" />
                     )}
                   </Field>
+                  <Field label="Accent color / theme">
+                    <div className="flex flex-wrap gap-2">
+                      {THEME_PRESETS.map(t => (
+                        <button key={t.value} type="button" onClick={() => patch('bg_theme', t.value)}
+                          className="w-9 h-9 rounded-full border-2 flex items-center justify-center"
+                          style={{ background: t.swatch, borderColor: editingConfig.bg_theme === t.value ? '#fff' : 'transparent' }}
+                          title={t.label}>
+                          {editingConfig.bg_theme === t.value && <span style={{ color: '#000', fontSize: 11 }}>✓</span>}
+                        </button>
+                      ))}
+                      <input type="color"
+                        value={editingConfig.bg_theme?.startsWith('#') ? editingConfig.bg_theme : '#00d4ff'}
+                        onChange={e => patch('bg_theme', e.target.value)}
+                        className="w-9 h-9 rounded-full border-2 cursor-pointer"
+                        style={{ borderColor: editingConfig.bg_theme?.startsWith('#') ? '#fff' : 'transparent', padding: 0, background: 'none' }}
+                        title="Custom color" />
+                    </div>
+                    <p className="text-xs mt-1" style={{ color: '#3d5a78' }}>
+                      Controls the accent color (buttons, highlights, "*") and a subtle background tint on this form.
+                    </p>
+                  </Field>
                 </Section>
+
 
                 {/* Primary fields */}
                 <Section title="Primary Fields (name, phone, email, etc.)">

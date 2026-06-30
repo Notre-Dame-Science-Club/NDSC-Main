@@ -27,6 +27,18 @@ const inputCls = 'w-full px-3 py-2.5 rounded-lg text-sm outline-none'
 
 const BLANK_FORM = { full_name: '', phone: '', email: '', college: 'Notre Dame College', college_roll: '', hsc_session: '', division: '' }
 
+// Resolves formConfig.bg_theme ('default' | '#hexcolor') into an actual accent color.
+function resolveAccent(theme: string | undefined | null) {
+  if (theme && theme !== 'default' && /^#[0-9a-fA-F]{3,8}$/.test(theme)) return theme
+  return 'var(--blue)'
+}
+
+// Shared label style for EVERY field on this form — primary, custom, and
+// config extra fields all use the exact same title styling so nothing looks
+// "more important" than anything else (the inconsistency reported earlier).
+const fieldLabelCls = 'block text-sm font-medium mb-1'
+const fieldDescCls = 'text-xs mb-1.5'
+
 export default function ActivityRegisterPage() {
   const params = useParams()
   const router = useRouter()
@@ -55,6 +67,7 @@ export default function ActivityRegisterPage() {
 
   // Form config from admin (title overrides, extra fields, contact)
   const [formConfig, setFormConfig] = useState<any>(null)
+  const [showFullDesc, setShowFullDesc] = useState(false)
 
   useEffect(() => {
     fetch(`/api/activity-reg-categories-public?slug=${slug}`)
@@ -180,8 +193,12 @@ export default function ActivityRegisterPage() {
       xhr.send(fd)
     })
 
-  const handleCustomFileField = async (key: string, file: File | null) => {
+  const handleCustomFileField = async (key: string, file: File | null, maxSizeMb?: number) => {
     if (!file) return
+    if (maxSizeMb && file.size > maxSizeMb * 1024 * 1024) {
+      setError(`File too large — max ${maxSizeMb}MB allowed for this field.`)
+      return
+    }
     try { setCustomAnswers(prev => ({ ...prev, [key]: 'uploading...' }))
       const url = await uploadFieldFile(file)
       setCustomAnswers(prev => ({ ...prev, [key]: url }))
@@ -282,6 +299,9 @@ export default function ActivityRegisterPage() {
   if (error && !sessionInfo) return <div className="min-h-screen flex items-center justify-center px-4" style={{ background: 'var(--bg)' }}><p style={{ color: '#ff7070' }}>{error}</p></div>
 
   const contactPersons: any[] = formConfig?.contact_persons || []
+  const accent = resolveAccent(formConfig?.bg_theme)
+  const sessionDesc: string = sessionInfo?.description || ''
+  const isLongDesc = sessionDesc.length > 220
 
   return (
     <div className="min-h-screen py-12 px-4" style={{ background: 'var(--bg)', paddingTop: '88px' }}>
@@ -295,16 +315,33 @@ export default function ActivityRegisterPage() {
           {formConfig?.title || sessionInfo?.title}
         </h1>
         {formConfig?.subtitle && <p className="text-sm mb-2" style={{ color: 'var(--muted)' }}>{formConfig.subtitle}</p>}
+
+        {/* Cover image — form-specific override if set, else the activity session's own cover */}
+        {(formConfig?.cover_photo_url || sessionInfo?.cover_image_url) && (
+          <div className="rounded-2xl overflow-hidden mb-4 border" style={{ borderColor: 'var(--border)' }}>
+            <img src={formConfig?.cover_photo_url || sessionInfo?.cover_image_url} alt=""
+              style={{ width: '100%', maxHeight: '200px', objectFit: 'cover' }} />
+          </div>
+        )}
+
+        {/* Short event description — separate from the registration field's own description, expandable */}
+        {sessionDesc && (
+          <div className="mb-4">
+            <p className="text-sm leading-relaxed" style={{ color: 'var(--muted)' }}>
+              {isLongDesc && !showFullDesc ? `${sessionDesc.slice(0, 220).trim()}…` : sessionDesc}
+            </p>
+            {isLongDesc && (
+              <button onClick={() => setShowFullDesc(s => !s)} className="text-xs font-semibold mt-1" style={{ color: accent }}>
+                {showFullDesc ? 'Show less' : 'Show more'}
+              </button>
+            )}
+          </div>
+        )}
+
         <p className="text-sm mb-8" style={{ color: 'var(--muted)' }}>
           {path.length > 0 ? path.map(p => p.name).join(' → ') : 'Choose your category to begin'}
         </p>
 
-        {/* Cover image from config */}
-        {formConfig?.cover_photo_url && (
-          <div className="rounded-2xl overflow-hidden mb-6 border" style={{ borderColor: 'var(--border)' }}>
-            <img src={formConfig.cover_photo_url} alt="" style={{ width: '100%', maxHeight: '200px', objectFit: 'cover' }} />
-          </div>
-        )}
 
         {error && (
           <div className="mb-5 p-3 rounded-lg text-sm" style={{ background: 'rgba(255,80,80,0.1)', color: '#ff7070', border: '1px solid rgba(255,80,80,0.3)' }}>
@@ -386,53 +423,53 @@ export default function ActivityRegisterPage() {
               </div>
             )}
 
-            {/* Primary info fields — labels/visibility driven by formConfig */}
+            {/* Primary info fields — labels/visibility driven by formConfig, same styling as every other field below */}
             <div className="space-y-3">
               {fieldVisible('full_name') && (
                 <div>
-                  <label className="block text-xs mb-1" style={{ color: 'var(--muted)' }}>{fieldLabel('full_name', 'Full Name')} <span style={{ color: 'var(--blue)' }}>*</span></label>
-                  {fieldDesc('full_name') && <p className="text-xs mb-1" style={{ color: 'var(--muted)' }}>{fieldDesc('full_name')}</p>}
+                  <label className={fieldLabelCls} style={{ color: 'var(--white)' }}>{fieldLabel('full_name', 'Full Name')} <span style={{ color: accent }}>*</span></label>
+                  {fieldDesc('full_name') && <p className={fieldDescCls} style={{ color: 'var(--muted)' }}>{fieldDesc('full_name')}</p>}
                   <input value={form.full_name} onChange={e => setForm(f => ({ ...f, full_name: e.target.value }))} className={inputCls} style={inputStyle} />
                 </div>
               )}
               {fieldVisible('phone') && (
                 <div>
-                  <label className="block text-xs mb-1" style={{ color: 'var(--muted)' }}>{fieldLabel('phone', 'Phone Number')} <span style={{ color: 'var(--blue)' }}>*</span></label>
-                  {fieldDesc('phone') && <p className="text-xs mb-1" style={{ color: 'var(--muted)' }}>{fieldDesc('phone')}</p>}
+                  <label className={fieldLabelCls} style={{ color: 'var(--white)' }}>{fieldLabel('phone', 'Phone Number')} <span style={{ color: accent }}>*</span></label>
+                  {fieldDesc('phone') && <p className={fieldDescCls} style={{ color: 'var(--muted)' }}>{fieldDesc('phone')}</p>}
                   <input value={form.phone} onChange={e => setForm(f => ({ ...f, phone: e.target.value }))} className={inputCls} style={inputStyle} />
                 </div>
               )}
               {fieldVisible('email') && (
                 <div>
-                  <label className="block text-xs mb-1" style={{ color: 'var(--muted)' }}>{fieldLabel('email', 'Email Address')} <span style={{ color: 'var(--blue)' }}>*</span></label>
-                  {fieldDesc('email') && <p className="text-xs mb-1" style={{ color: 'var(--muted)' }}>{fieldDesc('email')}</p>}
+                  <label className={fieldLabelCls} style={{ color: 'var(--white)' }}>{fieldLabel('email', 'Email Address')} <span style={{ color: accent }}>*</span></label>
+                  {fieldDesc('email') && <p className={fieldDescCls} style={{ color: 'var(--muted)' }}>{fieldDesc('email')}</p>}
                   <input type="email" value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} className={inputCls} style={inputStyle} />
                 </div>
               )}
               <div className="grid grid-cols-2 gap-3">
                 {fieldVisible('college') && (
                   <div>
-                    <label className="block text-xs mb-1" style={{ color: 'var(--muted)' }}>{fieldLabel('college', 'College')}</label>
+                    <label className={fieldLabelCls} style={{ color: 'var(--white)' }}>{fieldLabel('college', 'College')}</label>
                     <input value={form.college} onChange={e => setForm(f => ({ ...f, college: e.target.value }))} className={inputCls} style={inputStyle} />
                   </div>
                 )}
                 {fieldVisible('college_roll') && (
                   <div>
-                    <label className="block text-xs mb-1" style={{ color: 'var(--muted)' }}>{fieldLabel('college_roll', 'College Roll')} <span style={{ color: 'var(--blue)' }}>*</span></label>
+                    <label className={fieldLabelCls} style={{ color: 'var(--white)' }}>{fieldLabel('college_roll', 'College Roll')} <span style={{ color: accent }}>*</span></label>
                     <input value={form.college_roll} onChange={e => setForm(f => ({ ...f, college_roll: e.target.value }))} className={inputCls} style={inputStyle} />
                   </div>
                 )}
               </div>
               {fieldVisible('hsc_session') && (
                 <div>
-                  <label className="block text-xs mb-1" style={{ color: 'var(--muted)' }}>{fieldLabel('hsc_session', 'HSC Session')}</label>
-                  {fieldDesc('hsc_session') && <p className="text-xs mb-1" style={{ color: 'var(--muted)' }}>{fieldDesc('hsc_session')}</p>}
+                  <label className={fieldLabelCls} style={{ color: 'var(--white)' }}>{fieldLabel('hsc_session', 'HSC Session')}</label>
+                  {fieldDesc('hsc_session') && <p className={fieldDescCls} style={{ color: 'var(--muted)' }}>{fieldDesc('hsc_session')}</p>}
                   <input value={form.hsc_session} onChange={e => setForm(f => ({ ...f, hsc_session: e.target.value }))} className={inputCls} style={inputStyle} />
                 </div>
               )}
               {fieldVisible('division') && (
                 <div>
-                  <label className="block text-xs mb-1" style={{ color: 'var(--muted)' }}>{fieldLabel('division', 'Division')}</label>
+                  <label className={fieldLabelCls} style={{ color: 'var(--white)' }}>{fieldLabel('division', 'Division')}</label>
                   <input value={form.division} onChange={e => setForm(f => ({ ...f, division: e.target.value }))} className={inputCls} style={inputStyle} />
                 </div>
               )}
@@ -441,8 +478,8 @@ export default function ActivityRegisterPage() {
             {/* Project name field */}
             {currentLeaf.project_name_enabled && (
               <div>
-                <label className="block text-xs mb-1" style={{ color: 'var(--muted)' }}>
-                  {currentLeaf.project_name_label || 'Project Name'} <span style={{ color: 'var(--blue)' }}>*</span>
+                <label className={fieldLabelCls} style={{ color: 'var(--white)' }}>
+                  {currentLeaf.project_name_label || 'Project Name'} <span style={{ color: accent }}>*</span>
                 </label>
                 <input value={projectName} onChange={e => setProjectName(e.target.value)} className={inputCls} style={inputStyle} />
               </div>
@@ -453,10 +490,10 @@ export default function ActivityRegisterPage() {
               <div className="space-y-3 pt-1">
                 {currentLeaf.custom_fields.map((field: any) => (
                   <div key={field.key}>
-                    <label className="block text-sm font-medium mb-1" style={{ color: 'var(--white)' }}>
-                      {field.label} {field.required && <span style={{ color: 'var(--blue)' }}>*</span>}
+                    <label className={fieldLabelCls} style={{ color: 'var(--white)' }}>
+                      {field.label} {field.required && <span style={{ color: accent }}>*</span>}
                     </label>
-                    {field.description && <p className="text-xs mb-1.5" style={{ color: 'var(--muted)' }}>{field.description}</p>}
+                    {field.description && <p className={fieldDescCls} style={{ color: 'var(--muted)' }}>{field.description}</p>}
                     {field.type === 'textarea' ? (
                       <textarea rows={3} value={customAnswers[field.key] || ''}
                         onChange={e => setCustomAnswers(p => ({ ...p, [field.key]: e.target.value }))}
@@ -468,11 +505,11 @@ export default function ActivityRegisterPage() {
                         {(field.options || []).map((opt: string) => <option key={opt} value={opt}>{opt}</option>)}
                       </select>
                     ) : field.type === 'photo' || field.type === 'file' ? (
-                      <label className="flex items-center gap-2 px-3 py-2.5 rounded-lg border cursor-pointer text-sm" style={{ ...inputStyle, color: 'var(--blue)' }}>
+                      <label className="flex items-center gap-2 px-3 py-2.5 rounded-lg border cursor-pointer text-sm" style={{ ...inputStyle, color: accent }}>
                         <Upload size={14} />
-                        {customAnswers[field.key] && customAnswers[field.key] !== 'uploading...' ? `${field.label} uploaded ✓` : customAnswers[field.key] === 'uploading...' ? 'Uploading…' : `Upload ${field.label}`}
+                        {customAnswers[field.key] && customAnswers[field.key] !== 'uploading...' ? `${field.label} uploaded ✓` : customAnswers[field.key] === 'uploading...' ? 'Uploading…' : `Upload ${field.label}${field.max_file_size_mb ? ` (max ${field.max_file_size_mb}MB)` : ''}`}
                         <input type="file" accept={field.type === 'photo' ? 'image/*' : undefined} className="hidden"
-                          onChange={e => handleCustomFileField(field.key, e.target.files?.[0] || null)} />
+                          onChange={e => handleCustomFileField(field.key, e.target.files?.[0] || null, field.max_file_size_mb)} />
                       </label>
                     ) : (
                       <input type={field.type === 'number' ? 'number' : field.type === 'date' ? 'date' : field.type === 'time' ? 'time' : 'text'}
@@ -490,10 +527,10 @@ export default function ActivityRegisterPage() {
               <div className="space-y-3 pt-1">
                 {formConfig.extra_fields.map((field: any) => (
                   <div key={field.key}>
-                    <label className="block text-sm font-medium mb-1" style={{ color: 'var(--white)' }}>
-                      {field.label} {field.required && <span style={{ color: 'var(--blue)' }}>*</span>}
+                    <label className={fieldLabelCls} style={{ color: 'var(--white)' }}>
+                      {field.label} {field.required && <span style={{ color: accent }}>*</span>}
                     </label>
-                    {field.description && <p className="text-xs mb-1.5" style={{ color: 'var(--muted)' }}>{field.description}</p>}
+                    {field.description && <p className={fieldDescCls} style={{ color: 'var(--muted)' }}>{field.description}</p>}
                     <input type="text" value={customAnswers[`cfg_${field.key}`] || ''}
                       onChange={e => setCustomAnswers(p => ({ ...p, [`cfg_${field.key}`]: e.target.value }))}
                       className={inputCls} style={inputStyle} />

@@ -7,7 +7,7 @@ import { Plus, Trash2, ChevronRight, ChevronDown, ArrowLeft, Users, CreditCard, 
 const uid = () => Math.random().toString(36).slice(2, 9)
 
 type FieldType = 'text' | 'textarea' | 'number' | 'photo' | 'file' | 'dropdown' | 'date' | 'time'
-type CustomField = { key: string; label: string; description?: string; type: FieldType; required: boolean; options?: string[] }
+type CustomField = { key: string; label: string; description?: string; type: FieldType; required: boolean; options?: string[]; max_file_size_mb?: number }
 type SubmissionField = {
   id: string; title: string; description?: string
   field_type: 'text' | 'textarea' | 'file'; required: boolean
@@ -35,6 +35,7 @@ type Category = {
   schedule_time: string | null
   schedule_room: string | null
   edit_window_hours: number | null
+  registration_open: boolean
   submission_config: SubmissionField[]
   submission_who: 'leader' | 'any_member'
   project_name_enabled: boolean
@@ -244,6 +245,7 @@ export default function ActivityRegistrationBuilder() {
 function CategoryEditor({ category, isLeaf, onSave }: { category: Category; isLeaf: boolean; onSave: (patch: Partial<Category>) => void }) {
   const [name, setName] = useState(category.name)
   const [description, setDescription] = useState(category.description || '')
+  const [registrationOpen, setRegistrationOpen] = useState(category.registration_open !== false)
   const [customFields, setCustomFields] = useState<CustomField[]>(category.custom_fields || [])
   const [requiresTeam, setRequiresTeam] = useState(category.requires_team)
   const [teamMin, setTeamMin] = useState(category.team_size_min?.toString() || '')
@@ -283,6 +285,7 @@ function CategoryEditor({ category, isLeaf, onSave }: { category: Category; isLe
     setSaving(true)
     await onSave({
       name, description,
+      registration_open: registrationOpen,
       custom_fields: customFields,
       requires_team: requiresTeam,
       team_size_min: teamMin ? Number(teamMin) : null,
@@ -322,6 +325,23 @@ function CategoryEditor({ category, isLeaf, onSave }: { category: Category; isLe
           <input placeholder="Description shown under the field title (optional)" value={f.description || ''}
             onChange={e => patchField(setter, f.key, { description: e.target.value })}
             className={inputCls} style={inputStyle} />
+          {f.type === 'dropdown' && (
+            <div>
+              <input placeholder="Options, comma-separated (e.g. Physics, Chemistry, Biology)"
+                value={(f.options || []).join(', ')}
+                onChange={e => patchField(setter, f.key, { options: e.target.value.split(',').map(o => o.trim()).filter(Boolean) })}
+                className={inputCls} style={inputStyle} />
+              <p className="text-xs mt-1" style={{ color: '#3d5a78' }}>This is what shows up in the dropdown on the registration form.</p>
+            </div>
+          )}
+          {(f.type === 'photo' || f.type === 'file') && (
+            <div className="flex items-center gap-2">
+              <label className="text-xs whitespace-nowrap" style={{ color: '#6a8faf' }}>Max file size (MB)</label>
+              <input type="number" min={1} placeholder="5" value={f.max_file_size_mb ?? ''}
+                onChange={e => patchField(setter, f.key, { max_file_size_mb: e.target.value ? Number(e.target.value) : undefined })}
+                className={inputCls} style={{ ...inputStyle, maxWidth: 100 }} />
+            </div>
+          )}
           <label className="flex items-center gap-2 text-xs" style={{ color: '#6a8faf' }}>
             <input type="checkbox" checked={f.required} onChange={e => patchField(setter, f.key, { required: e.target.checked })} />
             Required
@@ -345,6 +365,15 @@ function CategoryEditor({ category, isLeaf, onSave }: { category: Category; isLe
         <label className="block text-xs mb-1" style={{ color: '#6a8faf' }}>Description (optional, shown to students)</label>
         <textarea rows={2} value={description} onChange={e => setDescription(e.target.value)} className={inputCls + ' resize-none'} style={inputStyle} />
       </div>
+      <label className="flex items-center gap-2 text-sm cursor-pointer" style={{ color: registrationOpen ? '#34d399' : '#ff7070' }}>
+        <input type="checkbox" checked={registrationOpen} onChange={e => setRegistrationOpen(e.target.checked)} />
+        {registrationOpen ? 'Accepting new registrants' : 'Closed to new registrants'}
+      </label>
+      <p className="text-xs" style={{ color: '#3d5a78' }}>
+        {isLeaf
+          ? 'Turn off to stop new people from registering here, without hiding it or deleting anything (existing registrants are unaffected).'
+          : 'Closing this also closes every category nested under it, even if they\'re individually marked as open.'}
+      </p>
 
       {isLeaf && (
         <>

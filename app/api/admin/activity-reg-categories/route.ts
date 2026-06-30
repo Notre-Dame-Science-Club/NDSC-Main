@@ -86,6 +86,7 @@ export async function POST(req: NextRequest) {
     schedule_time: body.schedule_time || null,
     schedule_room: body.schedule_room || null,
     edit_window_hours: body.edit_window_hours ?? null,
+    registration_open: body.registration_open ?? true,
   }
 
   // Auto-create the linked Olympiad if this is a new online-submission leaf.

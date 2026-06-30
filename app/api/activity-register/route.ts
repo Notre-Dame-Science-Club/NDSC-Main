@@ -123,6 +123,24 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Registration category not found.' }, { status: 404 })
   }
 
+  // Registration must be open on this leaf AND on every ancestor above it
+  // (closing a primary field closes everything nested under it too).
+  {
+    let node: any = category
+    while (node) {
+      if (node.registration_open === false) {
+        return NextResponse.json({ error: 'Registration is closed for this category.' }, { status: 403 })
+      }
+      if (!node.parent_id) break
+      const { data: parent } = await supabaseAdmin
+        .from('activity_reg_categories')
+        .select('id, parent_id, registration_open')
+        .eq('id', node.parent_id)
+        .single()
+      node = parent
+    }
+  }
+
   // Validate required custom fields
   for (const field of category.custom_fields || []) {
     if (field.required && !custom_answers?.[field.key]) {

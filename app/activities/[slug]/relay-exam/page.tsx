@@ -53,6 +53,9 @@ export default function RelayExamPage() {
 
   const [mcqAnswers, setMcqAnswers] = useState<Record<string, string>>({})
   const [shortAnswers, setShortAnswers] = useState<Record<string, string>>({})
+  const [photoFiles, setPhotoFiles] = useState<Record<string, File>>({})
+  const [photoUrls, setPhotoUrls] = useState<Record<string, string>>({})
+  const [photoUploading, setPhotoUploading] = useState<Record<string, boolean>>({})
   const [currentQ, setCurrentQ] = useState(0)
   const [timeLeft, setTimeLeft] = useState(0)
   const timerRef = useRef<any>(null)
@@ -201,7 +204,15 @@ export default function RelayExamPage() {
     setSubmitting(true)
     clearInterval(timerRef.current)
     try {
-      const answers: Record<string, any> = { ...mcqAnswers, ...shortAnswers }
+      // Make sure every selected photo answer actually finished uploading —
+      // if one failed silently while the timer ran out, retry it here.
+      const resolvedPhotoUrls = { ...photoUrls }
+      for (const q of visibleQuestions.filter(q => q.type === 'photo')) {
+        if (photoFiles[q.id] && !resolvedPhotoUrls[q.id]) {
+          try { resolvedPhotoUrls[q.id] = await uploadExamPhoto(photoFiles[q.id]) } catch { /* skip — leaves unanswered */ }
+        }
+      }
+      const answers: Record<string, any> = { ...mcqAnswers, ...shortAnswers, ...resolvedPhotoUrls }
       const res = await fetch('/api/relay-exam', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'submit_member', registration_id: regId, olympiad_id: olympiadId, member_id: memberIdParam, answers }),
@@ -214,6 +225,36 @@ export default function RelayExamPage() {
   }
 
   const fmtTime = (s: number) => `${Math.floor(s / 60)}:${(s % 60).toString().padStart(2, '0')}`
+
+  // Photo question upload — same upload endpoint the rest of the activity
+  // flow already uses, so admin file-size/type rules stay consistent.
+  const uploadExamPhoto = (file: File): Promise<string> =>
+    new Promise((resolve, reject) => {
+      const fd = new FormData()
+      fd.append('file', file)
+      const xhr = new XMLHttpRequest()
+      xhr.addEventListener('load', () => {
+        try {
+          const data = JSON.parse(xhr.responseText)
+          if (xhr.status >= 200 && xhr.status < 300 && data.url) resolve(data.url)
+          else reject(new Error(data.error || 'Upload failed'))
+        } catch { reject(new Error('Upload failed.')) }
+      })
+      xhr.addEventListener('error', () => reject(new Error('Network error during upload.')))
+      xhr.open('POST', '/api/activity-upload')
+      xhr.send(fd)
+    })
+
+  const handlePhotoAnswer = async (qId: string, file: File | null) => {
+    if (!file) return
+    setPhotoFiles(p => ({ ...p, [qId]: file }))
+    setPhotoUploading(p => ({ ...p, [qId]: true }))
+    try {
+      const url = await uploadExamPhoto(file)
+      setPhotoUrls(p => ({ ...p, [qId]: url }))
+    } catch { /* left unresolved — submitMyTurn retries from photoFiles */ }
+    finally { setPhotoUploading(p => ({ ...p, [qId]: false })) }
+  }
 
   // ─────────────────────────────────────────────────────────────────────────
   if (loading) return <div className="min-h-screen flex items-center justify-center" style={{ background: 'var(--bg)' }}><p style={{ color: 'var(--muted)' }}>Loading exam…</p></div>
@@ -307,6 +348,18 @@ export default function RelayExamPage() {
                   {q.type === 'short' && (
                     <textarea rows={4} value={shortAnswers[q.id] || ''} onChange={e => setShortAnswers(p => ({ ...p, [q.id]: e.target.value }))}
                       className="w-full px-3 py-2.5 rounded-lg text-sm outline-none resize-none mt-2" style={inputStyle} />
+                  )}
+
+                  {q.type === 'photo' && (
+                    <label className="flex flex-col items-center gap-2 py-5 rounded-xl border-2 border-dashed cursor-pointer mt-2"
+                      style={{ borderColor: photoUrls[q.id] ? '#34d399' : photoFiles[q.id] ? 'var(--blue)' : 'var(--border)', color: 'var(--muted)' }}>
+                      <Upload size={18} />
+                      <span className="text-xs">
+                        {photoUploading[q.id] ? 'Uploading…' : photoUrls[q.id] ? '✓ Uploaded — tap to replace' : photoFiles[q.id] ? photoFiles[q.id].name : 'Tap to upload your photo answer'}
+                      </span>
+                      <input type="file" accept="image/*" capture="environment" className="hidden"
+                        onChange={e => handlePhotoAnswer(q.id, e.target.files?.[0] || null)} />
+                    </label>
                   )}
                 </div>
               )
