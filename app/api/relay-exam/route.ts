@@ -115,7 +115,43 @@ export async function POST(req: NextRequest) {
       })
     }
 
-    const newSubmissions = [...submissions, { member_id, answers, submitted_at: new Date().toISOString() }]
+    // Auto-score MCQ + build a per-question breakdown now, same as the
+    // legacy olympiad exam engine — this is what the results screen reads
+    // from once the admin publishes results, so a student sees exactly
+    // which questions they got right/wrong, not just a total.
+    const subjectId = body.subject_id || null
+    const relevantQuestions = (olympiad.questions || []).filter((q: any) => !subjectId || !q.subject_id || q.subject_id === subjectId)
+    let score = 0
+    const questionResults = relevantQuestions.map((q: any) => {
+      if (q.type === 'mcq') {
+        const isCorrect = answers[q.id] === q.correct_option_id
+        if (isCorrect) score += (q.marks || 1)
+        const chosen = (q.options || []).find((o: any) => o.id === answers[q.id])
+        const correct = (q.options || []).find((o: any) => o.id === q.correct_option_id)
+        return {
+          question_id: q.id, question_text: q.text, type: q.type,
+          student_answer: chosen?.text ?? null, correct_answer: correct?.text ?? null,
+          is_correct: isCorrect, marks_awarded: isCorrect ? (q.marks || 1) : 0, marks_possible: q.marks || 1,
+        }
+      }
+      if (q.type === 'photo') {
+        return {
+          question_id: q.id, question_text: q.text, type: q.type,
+          student_answer: answers[q.id] || null, correct_answer: null,
+          is_correct: null, marks_awarded: null, marks_possible: q.marks || 1,
+        }
+      }
+      return {
+        question_id: q.id, question_text: q.text, type: q.type,
+        student_answer: answers[q.id] || null, correct_answer: null,
+        is_correct: null, marks_awarded: null, marks_possible: q.marks || 1,
+      }
+    })
+
+    const newSubmissions = [...submissions, {
+      member_id, answers, submitted_at: new Date().toISOString(),
+      score, question_results: questionResults,
+    }]
     const nextIndex = state.current_member_index + 1
 
     // Fetch team to know total members

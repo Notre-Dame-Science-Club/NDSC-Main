@@ -162,7 +162,11 @@ export default function RelayExamPage() {
 
   // ── Start relay if needed, then start exam timer ────────────────────────
   const startExam = async () => {
-    if (olympiad?.relay_mode && !relayState) {
+    // The state row is needed for EVERY exam (not just relay-mode ones) —
+    // submit_member always requires it to exist. Previously this only ran
+    // for relay_mode, so a plain single-member online exam would silently
+    // fail at submit time with "Relay not started yet."
+    if (!relayState) {
       const res = await fetch('/api/relay-exam', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'start', registration_id: regId, olympiad_id: olympiadId }),
@@ -215,10 +219,11 @@ export default function RelayExamPage() {
       const answers: Record<string, any> = { ...mcqAnswers, ...shortAnswers, ...resolvedPhotoUrls }
       const res = await fetch('/api/relay-exam', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'submit_member', registration_id: regId, olympiad_id: olympiadId, member_id: memberIdParam, answers }),
+        body: JSON.stringify({ action: 'submit_member', registration_id: regId, olympiad_id: olympiadId, member_id: memberIdParam, subject_id: mySubjectId, answers }),
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error)
+      setRelayState(data.state)
       setPhase('done')
     } catch (e: any) { setError(e.message) }
     finally { setSubmitting(false) }
@@ -384,18 +389,71 @@ export default function RelayExamPage() {
           </div>
         )}
 
-        {phase === 'done' && (
-          <div className="rounded-2xl p-6 border text-center" style={{ background: 'rgba(52,211,153,0.08)', borderColor: 'rgba(52,211,153,0.25)' }}>
-            <CheckCircle size={32} style={{ color: '#34d399', margin: '0 auto 12px' }} />
-            <p className="text-sm font-bold mb-2" style={{ color: '#34d399' }}>Submitted!</p>
-            {olympiad?.relay_mode && (
-              <p className="text-xs" style={{ color: 'var(--muted)' }}>The next team member can now take their turn.</p>
-            )}
-            <Link href={`/activities/${slug}/dashboard?reg=${regId}`} className="inline-block mt-4 text-sm underline" style={{ color: 'var(--blue)' }}>
-              ← Back to dashboard
-            </Link>
-          </div>
-        )}
+        {phase === 'done' && (() => {
+          const mySubmission = (relayState?.member_submissions || []).find((s: any) => s.member_id === memberIdParam)
+          const showResults = !!olympiad?.result_published && mySubmission?.question_results?.length > 0
+          if (!showResults) {
+            return (
+              <div className="rounded-2xl p-6 border text-center" style={{ background: 'rgba(52,211,153,0.08)', borderColor: 'rgba(52,211,153,0.25)' }}>
+                <CheckCircle size={32} style={{ color: '#34d399', margin: '0 auto 12px' }} />
+                <p className="text-sm font-bold mb-2" style={{ color: '#34d399' }}>Submitted!</p>
+                {olympiad?.relay_mode && (
+                  <p className="text-xs" style={{ color: 'var(--muted)' }}>The next team member can now take their turn.</p>
+                )}
+                <Link href={`/activities/${slug}/dashboard?reg=${regId}`} className="inline-block mt-4 text-sm underline" style={{ color: 'var(--blue)' }}>
+                  ← Back to dashboard
+                </Link>
+              </div>
+            )
+          }
+          const results: any[] = mySubmission.question_results
+          const totalAwarded = results.reduce((sum, r) => sum + (r.marks_awarded || 0), 0)
+          const totalPossible = results.reduce((sum, r) => sum + (r.marks_possible || 0), 0)
+          return (
+            <div className="space-y-4">
+              <div className="rounded-2xl p-6 border text-center" style={{ background: 'var(--bg2)', borderColor: 'var(--border)' }}>
+                <p className="text-sm font-bold mb-1" style={{ color: 'var(--white)' }}>Your Result</p>
+                <p className="text-3xl font-black mt-2" style={{ color: '#34d399' }}>
+                  {mySubmission.score ?? totalAwarded}{totalPossible > 0 ? ` / ${totalPossible}` : ''}
+                </p>
+              </div>
+              <div className="space-y-3">
+                <h3 className="text-sm font-bold px-1" style={{ color: 'var(--muted)' }}>QUESTION BREAKDOWN</h3>
+                {results.map((r, i) => (
+                  <div key={r.question_id || i} className="p-4 rounded-xl" style={{ background: 'var(--bg2)', border: `1px solid ${r.is_correct === true ? 'rgba(52,211,153,0.3)' : r.is_correct === false ? 'rgba(255,77,77,0.3)' : 'var(--border)'}` }}>
+                    <div className="flex items-start justify-between gap-3">
+                      <p className="text-sm font-medium flex-1" style={{ color: 'var(--white)' }}>Q{i + 1}. {r.question_text}</p>
+                      {r.is_correct === true && <CheckCircle size={16} style={{ color: '#34d399', flexShrink: 0 }} />}
+                      {r.is_correct === false && <span style={{ color: '#ff4d4d', flexShrink: 0 }}>✗</span>}
+                    </div>
+                    {r.type === 'mcq' && (
+                      <div className="mt-2 text-xs space-y-1">
+                        <p style={{ color: r.is_correct ? '#34d399' : '#ff7070' }}>Your answer: {r.student_answer ?? '(not answered)'}</p>
+                        {!r.is_correct && <p style={{ color: 'var(--muted)' }}>Correct answer: {r.correct_answer}</p>}
+                      </div>
+                    )}
+                    {r.type === 'short' && (
+                      <div className="mt-2 text-xs" style={{ color: 'var(--muted)' }}>
+                        Your answer: <span style={{ color: 'var(--white)' }}>{r.student_answer || '(not answered)'}</span>
+                      </div>
+                    )}
+                    {r.type === 'photo' && r.student_answer && (
+                      <a href={r.student_answer} target="_blank" rel="noopener noreferrer" className="mt-2 text-xs underline inline-block" style={{ color: 'var(--blue)' }}>
+                        View your uploaded photo answer
+                      </a>
+                    )}
+                    <p className="text-xs mt-2" style={{ color: 'var(--muted)' }}>
+                      {r.marks_awarded != null ? `${r.marks_awarded} / ${r.marks_possible} marks` : `Out of ${r.marks_possible} marks — pending review`}
+                    </p>
+                  </div>
+                ))}
+              </div>
+              <Link href={`/activities/${slug}/dashboard?reg=${regId}`} className="block text-center text-sm underline py-2" style={{ color: 'var(--blue)' }}>
+                ← Back to dashboard
+              </Link>
+            </div>
+          )
+        })()}
       </div>
     </div>
   )

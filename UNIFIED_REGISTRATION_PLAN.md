@@ -132,8 +132,32 @@ site, since several of your listed bugs may already be fixed in here.
    - **Found and fixed a real regression**: the new engine's `relay-exam/page.tsx` declared a `'photo'` question type but **never actually rendered it** — only MCQ and short-answer questions showed up, so any olympiad with photo-answer questions would silently break on this newer page even though the legacy page handled photo questions fine. Added the missing photo upload UI (same upload pattern as the registration page), wired it into the existing `submitMyTurn` so a pending upload that hadn't finished when the timer ran out gets retried at submit time (mirroring exactly how the legacy engine handled this), and added an uploading/uploaded visual state. **No relay logic, timer logic, MCQ logic, short-answer logic, or submission-config logic was touched** — this was strictly additive.
    - **Not yet done** (tracked below, not lost): the new engine's "done" screen has no results/question-breakdown view yet (the legacy one does — score, correct/incorrect per question, marked answer sheet image). This needs to be ported over before the legacy `/olympiad` page can be safely retired, otherwise students lose that feature.
 
+5b. ✅ **Result-breakdown UI ported to the new exam engine** (prerequisite for step 7) — done:
+   - `api/relay-exam/route.ts` (`submit_member`): now auto-scores MCQ answers and builds the
+     same per-question breakdown (`question_id, question_text, type, student_answer,
+     correct_answer, is_correct, marks_awarded, marks_possible`) the legacy engine always
+     built, storing it on that member's entry in `member_submissions`. Subject-filtered (only
+     scores against the questions for the member's assigned subject, if any).
+   - `relay-exam/page.tsx` "done" screen: now shows the full score + question-breakdown view
+     (score, ✓/✗ per question, correct answer reveal for missed MCQs, uploaded-photo link)
+     once `olympiad.result_published` is true — identical UX to the legacy page's result
+     screen. Before publication, still shows the plain "Submitted!" message as before.
+   - **Found and fixed a second real bug while wiring this up**: `startExam()` only created
+     the `relay_exam_state` row when `olympiad.relay_mode` was true. For a plain single-person
+     online exam (not a team relay), no state row was ever created, so `submit_member` would
+     always fail at the end with "Relay not started yet." — meaning **any non-relay live exam
+     in the new engine was completely unsubmittable**. Fixed: the state row is now created for
+     every exam, relay or not (this table doubles as the generic per-registration exam-progress
+     tracker, not just a relay-specific one).
+   - **Not yet ported**: the legacy page's "marked answer sheet image" display (for offline
+     photo-only submissions reviewed by an organizer) and `organizer_note` — these belong to
+     the `olympiad_registrations` flow specifically and are a step-8/step-14 concern (organizer
+     marking against the new engine's data shape), not step-5.
+
 6. ⬜ Confirm dashboard layout (#6) — mostly done already (cover photo/title/short-desc present in `dashboard/page.tsx` per the earlier grep), needs one more pass once §7/§8 land.
-7. ⬜ **Rebuild `/olympiad` public page** (#7) — this is now precisely scoped:
+7. ⬜ **Rebuild `/olympiad` public page** (#7) — now the actual next step, and fully unblocked
+   since the new engine has feature parity (MCQ/short/photo, timer, relay, subjects, results).
+   Scope unchanged from before:
    - Replace its data source: instead of fetching `/api/olympiad` (the full legacy olympiad list) for the card list, fetch the activity category tree and show one card per **primary field whose sub-tree has at least one online leaf** (per §2), using that primary field's parent activity session's cover photo.
    - "Register" on an Olympiad card should deep-link into `/activities/[slug]/register` pre-seeded to start one level inside that primary field (skip the top-level picker step) — needs a small addition to `register/page.tsx` to accept e.g. `?start=<primaryFieldCategoryId>` and pre-populate `path`.
    - Port the legacy results-breakdown UI (score, per-question correct/incorrect, marked answer sheet) onto the dashboard/relay-exam "done" flow so nothing is lost when the legacy page is retired (see §5 note above).
