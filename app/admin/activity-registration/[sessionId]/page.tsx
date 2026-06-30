@@ -6,8 +6,13 @@ import { Plus, Trash2, ChevronRight, ChevronDown, ArrowLeft, Users, CreditCard, 
 
 const uid = () => Math.random().toString(36).slice(2, 9)
 
-type FieldType = 'text' | 'textarea' | 'number' | 'photo'
-type CustomField = { key: string; label: string; description?: string; type: FieldType; required: boolean }
+type FieldType = 'text' | 'textarea' | 'number' | 'photo' | 'file' | 'dropdown' | 'date' | 'time'
+type CustomField = { key: string; label: string; description?: string; type: FieldType; required: boolean; options?: string[] }
+type SubmissionField = {
+  id: string; title: string; description?: string
+  field_type: 'text' | 'textarea' | 'file'; required: boolean
+  file_types?: string[]; max_file_size_mb?: number; max_files?: number
+}
 
 type Category = {
   id: string
@@ -30,6 +35,10 @@ type Category = {
   schedule_time: string | null
   schedule_room: string | null
   edit_window_hours: number | null
+  submission_config: SubmissionField[]
+  submission_who: 'leader' | 'any_member'
+  project_name_enabled: boolean
+  project_name_label: string | null
 }
 
 const s = { background: '#050d1a', borderColor: '#0f2a4a' }
@@ -38,6 +47,7 @@ const inputCls = 'w-full px-3 py-2 rounded-lg text-sm outline-none border'
 const inputStyle = { background: '#0a1628', borderColor: '#0f2a4a', color: '#e8f4ff' }
 
 const BLANK_FIELD = (): CustomField => ({ key: uid(), label: '', description: '', type: 'text', required: false })
+const BLANK_SUBMISSION_FIELD = (): SubmissionField => ({ id: uid(), title: '', description: '', field_type: 'text', required: true })
 
 export default function ActivityRegistrationBuilder() {
   const params = useParams()
@@ -247,13 +257,21 @@ function CategoryEditor({ category, isLeaf, onSave }: { category: Category; isLe
   const [scheduleTime, setScheduleTime] = useState(category.schedule_time || '')
   const [scheduleRoom, setScheduleRoom] = useState(category.schedule_room || '')
   const [editWindowHours, setEditWindowHours] = useState(category.edit_window_hours?.toString() || '')
+  const [submissionConfig, setSubmissionConfig] = useState<SubmissionField[]>(category.submission_config || [])
+  const [submissionWho, setSubmissionWho] = useState<'leader' | 'any_member'>(category.submission_who || 'leader')
+  const [projectNameEnabled, setProjectNameEnabled] = useState(category.project_name_enabled || false)
+  const [projectNameLabel, setProjectNameLabel] = useState(category.project_name_label || 'Project Name')
   const [saving, setSaving] = useState(false)
 
   const fieldTypeOptions: { value: FieldType; label: string }[] = [
     { value: 'text', label: 'Short text' },
     { value: 'textarea', label: 'Long text' },
     { value: 'number', label: 'Number' },
+    { value: 'dropdown', label: 'Dropdown' },
+    { value: 'date', label: 'Date' },
+    { value: 'time', label: 'Time' },
     { value: 'photo', label: 'Photo upload' },
+    { value: 'file', label: 'File upload' },
   ]
 
   const addField = (setter: typeof setCustomFields) => setter(prev => [...prev, BLANK_FIELD()])
@@ -278,6 +296,10 @@ function CategoryEditor({ category, isLeaf, onSave }: { category: Category; isLe
       schedule_time: scheduleTime || null,
       schedule_room: scheduleRoom || null,
       edit_window_hours: editWindowHours ? Number(editWindowHours) : null,
+      submission_config: submissionConfig,
+      submission_who: submissionWho,
+      project_name_enabled: projectNameEnabled,
+      project_name_label: projectNameLabel || null,
     })
     setSaving(false)
   }
@@ -380,13 +402,124 @@ function CategoryEditor({ category, isLeaf, onSave }: { category: Category; isLe
           <div>
             <label className="flex items-center gap-2 text-sm font-semibold mb-1" style={{ color: '#00d4ff' }}>
               <input type="checkbox" checked={isOnlineSubmission} onChange={e => setIsOnlineSubmission(e.target.checked)} />
-              <Link2 size={14} /> This is an online-submission round
+              <Link2 size={14} /> This is an online-submission / exam round
             </label>
-            <p className="text-xs pl-6" style={{ color: '#3d5a78' }}>
+            <p className="text-xs pl-6 mb-2" style={{ color: '#3d5a78' }}>
               {category.linked_olympiad_id
-                ? 'Already linked to an Olympiad — registrants for this category go straight into that Olympiad\'s registration + dashboard + submission flow.'
-                : 'Saving with this on will automatically create a linked Olympiad behind the scenes — registrants here will be sent into that Olympiad\'s flow instead of a separate form.'}
+                ? 'Already linked to an Olympiad — registrants access exam/submission from their dashboard.'
+                : 'Saving with this on will automatically create a linked Olympiad behind the scenes.'}
             </p>
+            {category.linked_olympiad_id && (
+              <div className="pl-6">
+                <Link href={`/admin/olympiads?edit=${category.linked_olympiad_id}&back_session=${category.activity_session_id}`}
+                  className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-bold"
+                  style={{ background: 'rgba(0,212,255,0.12)', color: '#00d4ff', border: '1px solid rgba(0,212,255,0.3)' }}>
+                  ⚡ Configure Olympiad (exam type, questions, scheduling, relay) →
+                </Link>
+                <p className="text-xs mt-1" style={{ color: '#3d5a78' }}>Set up exam type, questions, relay mode, subject assignment, and scheduling there.</p>
+              </div>
+            )}
+          </div>
+
+          {isOnlineSubmission && (
+            <>
+              <hr style={{ borderColor: '#0f2a4a' }} />
+              <div>
+                <p className="text-xs font-bold mb-2" style={{ color: '#00d4ff' }}>
+                  📤 SUBMISSION FIELDS (what the student uploads / fills when they hit &quot;Submit Now&quot;)
+                </p>
+                <p className="text-xs mb-3" style={{ color: '#3d5a78' }}>
+                  Leave empty if this is a live MCQ exam (no file submission). Add fields for project uploads, answer sheets, videos, etc.
+                </p>
+                {submissionConfig.map((field, idx) => (
+                  <div key={field.id} className="p-3 rounded-lg mb-2 space-y-2" style={{ background: '#0a1628', border: '1px solid #0f2a4a' }}>
+                    <div className="flex gap-2 items-start">
+                      <div className="flex-1 space-y-2">
+                        <input placeholder="Field title (e.g. Answer Sheet, Project Video)" value={field.title}
+                          onChange={e => setSubmissionConfig(prev => prev.map((f, i) => i === idx ? { ...f, title: e.target.value } : f))}
+                          className={inputCls} style={inputStyle} />
+                        <input placeholder="Description (e.g. Upload your answer sheet as PDF, max 6 pages)" value={field.description || ''}
+                          onChange={e => setSubmissionConfig(prev => prev.map((f, i) => i === idx ? { ...f, description: e.target.value } : f))}
+                          className={inputCls} style={inputStyle} />
+                      </div>
+                      <button onClick={() => setSubmissionConfig(prev => prev.filter((_, i) => i !== idx))} style={{ color: '#ff7070', marginTop: '4px' }}>
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <label className="block text-xs mb-1" style={{ color: '#6a8faf' }}>Field type</label>
+                        <select value={field.field_type}
+                          onChange={e => setSubmissionConfig(prev => prev.map((f, i) => i === idx ? { ...f, field_type: e.target.value as any } : f))}
+                          className={inputCls} style={inputStyle}>
+                          <option value="text">Short text</option>
+                          <option value="textarea">Long text / paragraph</option>
+                          <option value="file">File upload</option>
+                        </select>
+                      </div>
+                      {field.field_type === 'file' && (
+                        <>
+                          <div>
+                            <label className="block text-xs mb-1" style={{ color: '#6a8faf' }}>Allowed file types (comma-separated)</label>
+                            <input placeholder="pdf,jpg,png,mp4" value={(field.file_types || []).join(',')}
+                              onChange={e => setSubmissionConfig(prev => prev.map((f, i) => i === idx ? { ...f, file_types: e.target.value.split(',').map(s => s.trim()).filter(Boolean) } : f))}
+                              className={inputCls} style={inputStyle} />
+                          </div>
+                          <div>
+                            <label className="block text-xs mb-1" style={{ color: '#6a8faf' }}>Max file size (MB)</label>
+                            <input type="number" placeholder="5" value={field.max_file_size_mb || ''}
+                              onChange={e => setSubmissionConfig(prev => prev.map((f, i) => i === idx ? { ...f, max_file_size_mb: Number(e.target.value) } : f))}
+                              className={inputCls} style={inputStyle} />
+                          </div>
+                          <div>
+                            <label className="block text-xs mb-1" style={{ color: '#6a8faf' }}>Max number of files</label>
+                            <input type="number" placeholder="1" value={field.max_files || ''}
+                              onChange={e => setSubmissionConfig(prev => prev.map((f, i) => i === idx ? { ...f, max_files: Number(e.target.value) } : f))}
+                              className={inputCls} style={inputStyle} />
+                          </div>
+                        </>
+                      )}
+                    </div>
+                    <label className="flex items-center gap-2 text-xs" style={{ color: '#6a8faf' }}>
+                      <input type="checkbox" checked={field.required}
+                        onChange={e => setSubmissionConfig(prev => prev.map((f, i) => i === idx ? { ...f, required: e.target.checked } : f))} />
+                      Required field
+                    </label>
+                  </div>
+                ))}
+                <button onClick={() => setSubmissionConfig(prev => [...prev, BLANK_SUBMISSION_FIELD()])}
+                  className="text-xs px-3 py-1.5 rounded flex items-center gap-1 mt-1"
+                  style={{ background: 'rgba(0,212,255,0.1)', color: '#00d4ff' }}>
+                  <Plus size={11} /> Add submission field
+                </button>
+
+                {submissionConfig.length > 0 && (
+                  <div className="mt-3">
+                    <label className="block text-xs mb-1" style={{ color: '#6a8faf' }}>Who can submit?</label>
+                    <select value={submissionWho} onChange={e => setSubmissionWho(e.target.value as any)}
+                      className={inputCls} style={inputStyle}>
+                      <option value="leader">Team leader only</option>
+                      <option value="any_member">Any team member</option>
+                    </select>
+                  </div>
+                )}
+              </div>
+            </>
+          )}
+
+          <hr style={{ borderColor: '#0f2a4a' }} />
+          <div>
+            <label className="flex items-center gap-2 text-sm font-semibold mb-2" style={{ color: '#a78bfa' }}>
+              <input type="checkbox" checked={projectNameEnabled} onChange={e => setProjectNameEnabled(e.target.checked)} />
+              🔬 Collect a project name during registration
+            </label>
+            {projectNameEnabled && (
+              <div className="pl-6">
+                <label className="block text-xs mb-1" style={{ color: '#6a8faf' }}>Field label shown to student</label>
+                <input value={projectNameLabel} onChange={e => setProjectNameLabel(e.target.value)}
+                  placeholder="Project Name" className={inputCls} style={inputStyle} />
+              </div>
+            )}
           </div>
 
           <hr style={{ borderColor: '#0f2a4a' }} />

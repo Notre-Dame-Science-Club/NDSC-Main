@@ -4,7 +4,7 @@ import { Clock, ChevronRight, ChevronLeft, Upload, CheckCircle, AlertCircle, Cam
 
 type QuestionType = 'mcq' | 'short' | 'photo'
 type McqOption = { id: string; text: string }
-type Question = { id: string; type: QuestionType; text: string; description?: string; options?: McqOption[]; correct_option_id?: string; marks?: number }
+type Question = { id: string; type: QuestionType; text: string; description?: string; options?: McqOption[]; correct_option_id?: string; marks?: number; subject_id?: string }
 type RegField = { key: string; label: string; type: string; required: boolean }
 type Olympiad = {
   id: string; name: string; description: string; cover_image_url?: string; pdf_url?: string
@@ -13,6 +13,7 @@ type Olympiad = {
   is_active: boolean; result_published: boolean; annotations_published?: boolean
   registration_deadline?: string; exam_date?: string
   eligibility?: string; external_only?: boolean; registration_fields: RegField[]; questions: Question[]
+  scheduled_start_at?: string | null; scheduled_end_at?: string | null
 }
 
 type Phase = 'list' | 'register' | 'dashboard' | 'exam' | 'done' | 'result'
@@ -377,6 +378,15 @@ export default function OlympiadPage() {
   }
 
   const startExam = async () => {
+    // Phase D: respect admin-set scheduling, if any.
+    if (selected?.scheduled_start_at && new Date(selected.scheduled_start_at) > new Date()) {
+      setError(`This exam hasn't started yet. It opens at ${new Date(selected.scheduled_start_at).toLocaleString()}.`)
+      return
+    }
+    if (selected?.scheduled_end_at && new Date(selected.scheduled_end_at) < new Date()) {
+      setError('The exam window has closed.')
+      return
+    }
     await fetch('/api/olympiad-register', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: regId, exam_started_at: new Date().toISOString() }) })
     setExamStarted(true)
     setCurrentQ(0)

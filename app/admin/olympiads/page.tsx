@@ -19,6 +19,7 @@ type Question = {
   options?: McqOption[]
   correct_option_id?: string
   marks?: number
+  subject_id?: string
 }
 
 type Olympiad = {
@@ -433,6 +434,95 @@ export default function AdminOlympiadsPage() {
             </div>
           </div>
 
+          {/* ── Phase D: Scheduling ────────────────────────────────── */}
+          <div className="rounded-xl p-5 space-y-4" style={s}>
+            <p className="text-xs font-bold tracking-widest" style={{ color: '#34d399' }}>⏰ EXAM SCHEDULING (auto-start at a set time)</p>
+            <p className="text-xs" style={{ color: '#3d5a78' }}>
+              If set, the exam page will show a countdown and auto-unlock at the scheduled start time.
+              Students cannot start early; submissions are locked after the end time.
+            </p>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-xs mb-1" style={{ color: '#6a8faf' }}>Scheduled Start</label>
+                <input type="datetime-local" className={inputClass} style={inputStyle}
+                  value={(editing as any).scheduled_start_at?.slice(0, 16) || ''}
+                  onChange={e => setEditing(p => ({ ...p, scheduled_start_at: e.target.value || null } as any))} />
+              </div>
+              <div>
+                <label className="block text-xs mb-1" style={{ color: '#6a8faf' }}>Scheduled End</label>
+                <input type="datetime-local" className={inputClass} style={inputStyle}
+                  value={(editing as any).scheduled_end_at?.slice(0, 16) || ''}
+                  onChange={e => setEditing(p => ({ ...p, scheduled_end_at: e.target.value || null } as any))} />
+              </div>
+            </div>
+          </div>
+
+          {/* ── Phase D: Relay / Sequential exam ──────────────────── */}
+          <div className="rounded-xl p-5 space-y-4" style={s}>
+            <p className="text-xs font-bold tracking-widest" style={{ color: '#a78bfa' }}>🔗 TEAM RELAY MODE</p>
+            <p className="text-xs" style={{ color: '#3d5a78' }}>
+              In relay mode, team members take turns. Member 1 submits → Member 2 can start → and so on.
+              In <strong>chain</strong> mode, a later member's questions can reference earlier answers using <code style={{ color: '#a78bfa' }}>{'{{chain.member1.FIELD_ID}}'}</code> variables.
+            </p>
+            <label className="flex items-center gap-2 text-sm cursor-pointer" style={{ color: '#a78bfa' }}>
+              <input type="checkbox" checked={(editing as any).relay_mode || false}
+                onChange={e => setEditing(p => ({ ...p, relay_mode: e.target.checked } as any))} />
+              Enable relay / sequential exam mode
+            </label>
+            {(editing as any).relay_mode && (
+              <div>
+                <label className="block text-xs mb-1" style={{ color: '#6a8faf' }}>Relay type</label>
+                <select className={inputClass} style={inputStyle}
+                  value={(editing as any).relay_type || 'sequential'}
+                  onChange={e => setEditing(p => ({ ...p, relay_type: e.target.value } as any))}>
+                  <option value="sequential">Sequential — each member waits for the previous one to finish</option>
+                  <option value="chain">Chain — next member's questions can use previous answers as variables</option>
+                </select>
+              </div>
+            )}
+          </div>
+
+          {/* ── Phase D: Subject assignment ───────────────────────── */}
+          <div className="rounded-xl p-5 space-y-4" style={s}>
+            <p className="text-xs font-bold tracking-widest" style={{ color: '#ffb347' }}>📚 SUBJECTS (assign different subjects to different team members)</p>
+            <p className="text-xs" style={{ color: '#3d5a78' }}>
+              Add subjects here. Members can self-select their subject from the exam dashboard (or you can assign them).
+              Each subject maps to a specific set of questions (set this in the Questions section above).
+            </p>
+            <div>
+              <label className="block text-xs mb-1" style={{ color: '#6a8faf' }}>Subject assignment mode</label>
+              <select className={inputClass} style={inputStyle}
+                value={(editing as any).subject_assignment_mode || 'self_select'}
+                onChange={e => setEditing(p => ({ ...p, subject_assignment_mode: e.target.value } as any))}>
+                <option value="self_select">Self-select — each member picks their own subject</option>
+                <option value="admin_assign">Admin assigns — you assign subjects from the admin panel</option>
+                <option value="auto">Auto — subjects are assigned automatically based on registration order</option>
+              </select>
+            </div>
+            <div>
+              <p className="text-xs font-semibold mb-2" style={{ color: '#ffb347' }}>Subject List</p>
+              {((editing as any).subjects || []).map((sub: any, idx: number) => (
+                <div key={sub.id} className="flex gap-2 mb-2">
+                  <input placeholder="Subject name (e.g. Physics, Mathematics)" value={sub.name}
+                    onChange={e => {
+                      const updated = [...((editing as any).subjects || [])]
+                      updated[idx] = { ...updated[idx], name: e.target.value }
+                      setEditing(p => ({ ...p, subjects: updated } as any))
+                    }}
+                    className={inputClass} style={inputStyle} />
+                  <button onClick={() => setEditing(p => ({ ...p, subjects: ((p as any).subjects || []).filter((_: any, i: number) => i !== idx) } as any))}
+                    style={{ color: '#ff7070' }}><Trash2 size={14} /></button>
+                </div>
+              ))}
+              <button
+                onClick={() => setEditing(p => ({ ...p, subjects: [...((p as any).subjects || []), { id: Math.random().toString(36).slice(2,9), name: '' }] } as any))}
+                className="text-xs px-3 py-1.5 rounded flex items-center gap-1"
+                style={{ background: 'rgba(255,179,71,0.1)', color: '#ffb347' }}>
+                <Plus size={11} /> Add subject
+              </button>
+            </div>
+          </div>
+
           {/* Cover & PDF */}
           <div className="rounded-xl p-5 space-y-4" style={s}>
             <p className="text-xs font-bold tracking-widest" style={{ color: '#00d4ff' }}>COVER IMAGE & PDF</p>
@@ -529,6 +619,11 @@ export default function AdminOlympiadsPage() {
                   <span className="text-xs px-2 py-0.5 rounded-full flex items-center gap-1" style={{ background: `${qTypeColor(q.type)}18`, color: qTypeColor(q.type) }}>
                     {qTypeIcon(q.type)} Q{qi + 1} · {qTypeLabel(q.type)}
                   </span>
+                  {(editing as any).relay_mode && (editing as any).relay_type === 'chain' && (
+                    <span className="text-xs px-1.5 py-0.5 rounded" style={{ background: 'rgba(167,139,250,0.1)', color: '#a78bfa' }} title="Use this as the QUESTION_ID in chain references">
+                      id: {q.id}
+                    </span>
+                  )}
                   <div className="flex items-center gap-1 ml-auto">
                     <input type="number" min={0} value={q.marks ?? 1} onChange={e => updateQuestion(q.id, { marks: Number(e.target.value) })} className="w-14 px-2 py-1 rounded text-xs border text-right" style={inputStyle} title="Marks for this question" />
                     <span className="text-xs" style={{ color: '#3d5a78' }}>marks</span>
@@ -543,6 +638,22 @@ export default function AdminOlympiadsPage() {
                   <label className="block text-xs mb-1" style={{ color: '#6a8faf' }}>Description / hint (optional)</label>
                   <input className={inputClass} style={inputStyle} value={q.description || ''} onChange={e => updateQuestion(q.id, { description: e.target.value })} placeholder="Additional context or instructions for this question" />
                 </div>
+                {((editing as any).subjects || []).length > 0 && (
+                  <div>
+                    <label className="block text-xs mb-1" style={{ color: '#ffb347' }}>Subject (which team member's question is this?)</label>
+                    <select className={inputClass} style={inputStyle} value={q.subject_id || ''} onChange={e => updateQuestion(q.id, { subject_id: e.target.value || undefined })}>
+                      <option value="">All subjects / not subject-specific</option>
+                      {((editing as any).subjects || []).map((sub: any) => (
+                        <option key={sub.id} value={sub.id}>{sub.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+                {(editing as any).relay_mode && (editing as any).relay_type === 'chain' && (
+                  <p className="text-xs px-2 py-1.5 rounded" style={{ background: 'rgba(167,139,250,0.08)', color: '#a78bfa' }}>
+                    💡 Chain mode: reference a previous member's answer in this question's text using <code>{'{{chain.member1.QUESTION_ID}}'}</code> — question ID is shown below the question text once saved.
+                  </p>
+                )}
                 {q.type === 'mcq' && (
                   <div className="space-y-2">
                     <label className="text-xs" style={{ color: '#6a8faf' }}>Options (click radio to mark correct answer)</label>

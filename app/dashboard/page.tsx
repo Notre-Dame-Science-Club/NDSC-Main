@@ -13,6 +13,8 @@ export default function DashboardPage() {
   const [member, setMember] = useState<any>(null)
   const [announcements, setAnnouncements] = useState<any[]>([])
   const [activities, setActivities] = useState<any[]>([])
+  const [myRegistrations, setMyRegistrations] = useState<any[]>([])
+  const [regsLoading, setRegsLoading] = useState(false)
   const [publications, setPublications] = useState<any[]>([])
   const [olympiads, setOlympiads] = useState<any[]>([])
   const [messengerLink, setMessengerLink] = useState('')
@@ -42,6 +44,16 @@ export default function DashboardPage() {
         .single()
 
       setMember(m || { email: user.email, full_name: user.email })
+
+      // Load member's event registrations
+      if (m?.id) {
+        setRegsLoading(true)
+        fetch(`/api/member-activity-registrations?member_id=${m.id}`)
+          .then(r => r.json())
+          .then(d => setMyRegistrations(d.registrations || []))
+          .catch(() => {})
+          .finally(() => setRegsLoading(false))
+      }
 
       // Load public content (these should work without RLS issues)
       const [{ data: a }, allActivities, { data: pub }, { data: oly }, settingsRes] = await Promise.all([
@@ -368,31 +380,102 @@ export default function DashboardPage() {
 
         {/* ACTIVITIES */}
         {tab === 'activities' && (
-          <div className="space-y-4">
-            <h3 className="font-semibold text-sm" style={{ color: 'var(--muted)', fontFamily: "'Orbitron', sans-serif" }}>All Activities</h3>
-            {activities.length === 0
-              ? <p className="text-sm" style={{ color: 'var(--muted)' }}>No activities published yet.</p>
-              : activities.map(a => (
-                <Link key={a.id} href={`/activities/${a.slug}`} className="block rounded-xl overflow-hidden transition-transform hover:-translate-y-0.5"
-                  style={{ background: 'var(--bg2)', border: '1px solid var(--border)' }}>
-                  {a.cover_image_url && (
-                    <img src={a.cover_image_url} alt={a.title} className="w-full h-40 object-cover" />
-                  )}
-                  <div className="p-4">
-                    {a.activity_types?.name && (
-                      <span className="text-xs px-2 py-0.5 rounded-full font-medium" style={{ background: 'rgba(0,212,255,0.1)', color: 'var(--blue)' }}>
-                        {a.activity_types.name}
-                      </span>
+          <div className="space-y-6">
+
+            {/* ── My Registrations ─────────────────────────────────── */}
+            <div>
+              <h3 className="font-semibold text-sm mb-3" style={{ color: 'var(--muted)', fontFamily: "'Orbitron', sans-serif" }}>
+                🎫 My Registrations
+              </h3>
+              {regsLoading ? (
+                <p className="text-sm" style={{ color: 'var(--muted)' }}>Loading your registrations…</p>
+              ) : myRegistrations.length === 0 ? (
+                <p className="text-sm" style={{ color: 'var(--muted)' }}>You haven't registered for any events yet.</p>
+              ) : (
+                <div className="space-y-3">
+                  {myRegistrations.map(reg => (
+                    <div key={reg.id} className="rounded-xl p-4 flex items-start justify-between gap-3"
+                      style={{ background: 'var(--bg2)', border: '1px solid var(--border)' }}>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-semibold text-sm truncate" style={{ color: 'var(--white)' }}>
+                          {reg.session?.title || 'Event'}
+                        </p>
+                        <p className="text-xs mt-0.5" style={{ color: 'var(--muted)' }}>
+                          {reg.category?.name}
+                          {reg.project_name && <span style={{ color: 'var(--blue)' }}> — {reg.project_name}</span>}
+                        </p>
+                        <div className="flex gap-2 mt-1.5 flex-wrap">
+                          {reg.category?.schedule_date && (
+                            <span className="text-xs" style={{ color: '#34d399' }}>
+                              📅 {new Date(reg.category.schedule_date).toLocaleDateString('en-BD', { month: 'short', day: 'numeric' })}
+                            </span>
+                          )}
+                          {reg.payment_status && reg.payment_status !== 'not_required' && (
+                            <span className="text-xs px-1.5 py-0.5 rounded-full" style={{
+                              background: reg.payment_status === 'paid' ? 'rgba(0,255,128,0.1)' : 'rgba(255,179,71,0.1)',
+                              color: reg.payment_status === 'paid' ? '#00ff80' : '#ffb347',
+                            }}>
+                              💳 {reg.payment_status}
+                            </span>
+                          )}
+                          {reg.category?.is_online_submission && (
+                            <span className="text-xs px-1.5 py-0.5 rounded-full" style={{ background: 'rgba(0,212,255,0.1)', color: 'var(--blue)' }}>
+                              🔗 Online round
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                      {reg.session?.slug && (
+                        <Link href={`/activities/${reg.session.slug}/dashboard?reg=${reg.id}`}
+                          className="flex-shrink-0 px-3 py-1.5 rounded-lg text-xs font-bold"
+                          style={{ background: 'rgba(0,212,255,0.1)', color: 'var(--blue)', border: '1px solid rgba(0,212,255,0.3)', whiteSpace: 'nowrap' }}>
+                          Dashboard →
+                        </Link>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* ── All Activities ────────────────────────────────────── */}
+            <div>
+              <h3 className="font-semibold text-sm mb-3" style={{ color: 'var(--muted)', fontFamily: "'Orbitron', sans-serif" }}>
+                📅 All Activities
+              </h3>
+              {activities.length === 0
+                ? <p className="text-sm" style={{ color: 'var(--muted)' }}>No activities published yet.</p>
+                : activities.map(a => (
+                  <Link key={a.id} href={`/activities/${a.slug}`} className="block rounded-xl overflow-hidden transition-transform hover:-translate-y-0.5 mb-3"
+                    style={{ background: 'var(--bg2)', border: '1px solid var(--border)' }}>
+                    {a.cover_image_url && (
+                      <img src={a.cover_image_url} alt={a.title} className="w-full h-40 object-cover" />
                     )}
-                    <h4 className="font-semibold mt-2" style={{ color: 'var(--white)' }}>{a.title}</h4>
-                    {a.session_date && (
-                      <p className="text-xs mt-2" style={{ color: 'var(--muted)' }}>
-                        📆 {new Date(a.session_date).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })}
-                      </p>
-                    )}
-                  </div>
-                </Link>
-              ))}
+                    <div className="p-4 flex items-start justify-between gap-3">
+                      <div className="flex-1 min-w-0">
+                        {a.activity_types?.name && (
+                          <span className="text-xs px-2 py-0.5 rounded-full font-medium" style={{ background: 'rgba(0,212,255,0.1)', color: 'var(--blue)' }}>
+                            {a.activity_types.name}
+                          </span>
+                        )}
+                        <h4 className="font-semibold mt-2 truncate" style={{ color: 'var(--white)' }}>{a.title}</h4>
+                        {a.session_date && (
+                          <p className="text-xs mt-1" style={{ color: 'var(--muted)' }}>
+                            📆 {new Date(a.session_date).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })}
+                          </p>
+                        )}
+                      </div>
+                      {/* If member already registered for this session, show dashboard link */}
+                      {myRegistrations.find(r => r.session?.id === a.id) && (
+                        <span className="text-xs px-2 py-1 rounded-full flex-shrink-0" style={{ background: 'rgba(52,211,153,0.1)', color: '#34d399' }}>
+                          ✓ Registered
+                        </span>
+                      )}
+                    </div>
+                  </Link>
+                ))}
+            </div>
+
           </div>
         )}
 

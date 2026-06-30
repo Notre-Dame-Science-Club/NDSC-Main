@@ -66,7 +66,7 @@ export async function PUT(req: NextRequest) {
     return NextResponse.json({ error: 'The edit window for this registration has closed.' }, { status: 403 })
   }
 
-  const allowedFields = ['full_name', 'phone', 'email', 'college', 'college_roll', 'hsc_session']
+  const allowedFields = ['full_name', 'phone', 'email', 'college', 'college_roll', 'hsc_session', 'project_name']
   const patch: Record<string, any> = {}
   for (const key of allowedFields) {
     if (body[key] !== undefined) patch[key] = body[key]
@@ -92,7 +92,8 @@ export async function POST(req: NextRequest) {
 
   const {
     category_id,
-    full_name, phone, email, college, college_roll, hsc_session,
+    full_name, phone, email, college, college_roll, hsc_session, division,
+    project_name,
     custom_answers,
     team_members, // TeamMemberInput[] — only relevant if the category requires_team
     member_id, // optional — set if the registrant was a logged-in member
@@ -107,6 +108,8 @@ export async function POST(req: NextRequest) {
   const rollError = validateCollegeRoll(college, college_roll)
   if (rollError) return NextResponse.json({ error: rollError }, { status: 400 })
 
+  // Load category first (needed below) before validating project_name,
+  // since project_name_enabled lives on the category.
   // Load the leaf category to know what's actually required here (team,
   // payment, custom fields) — never trust the client's claims about its own
   // requirements, since this is a public route.
@@ -125,6 +128,10 @@ export async function POST(req: NextRequest) {
     if (field.required && !custom_answers?.[field.key]) {
       return NextResponse.json({ error: `"${field.label}" is required.` }, { status: 400 })
     }
+  }
+
+  if (category.project_name_enabled && !project_name?.trim()) {
+    return NextResponse.json({ error: `"${category.project_name_label || 'Project Name'}" is required.` }, { status: 400 })
   }
 
   // Validate + prepare team members
@@ -185,6 +192,8 @@ export async function POST(req: NextRequest) {
       college: college.trim(),
       college_roll: college_roll.trim(),
       hsc_session: hsc_session?.trim() || null,
+      division: division?.trim() || null,
+      project_name: category.project_name_enabled ? (project_name?.trim() || null) : null,
       custom_answers: custom_answers || {},
       team_members: preparedTeamMembers,
       member_id: member_id || null,

@@ -1,16 +1,40 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { normalizeUploadUrl } from '@/lib/uploadUrl'
 
-// Public route — used for any photo-type custom field on an activity
-// registration form (own photo or a team member's photo). Same proxy
-// pattern as /api/olympiad-upload and /api/member-upload: the Hostinger
-// secret stays server-side, folder is fixed, size/type are capped here.
+// Public route — used for:
+//  1. Photo/file-type custom fields on activity registration forms
+//  2. Submission fields (Phase D) — answer sheets, project videos, PDFs, etc.
+// The Hostinger secret stays server-side, folder is fixed, size/type are
+// capped here based on either the default photo allowlist or an explicit
+// extension list passed by the client (which itself reflects what the
+// admin configured for that submission field — but we still re-validate
+// server-side since client-side checks can be bypassed).
 
-export const maxDuration = 60
+export const maxDuration = 120
 export const dynamic = 'force-dynamic'
 
-const MAX_SIZE = 10 * 1024 * 1024 // 10MB
-const ALLOWED_TYPES = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/heic', 'image/heif']
+const DEFAULT_MAX_SIZE = 10 * 1024 * 1024 // 10MB default (photo fields)
+const IMAGE_TYPES = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/heic', 'image/heif']
+
+// Extension -> mime types, used when the client specifies allowed_types
+// (e.g. submission fields configured by admin: pdf, mp4, docx, etc.)
+const EXT_MIME_MAP: Record<string, string[]> = {
+  pdf: ['application/pdf'],
+  doc: ['application/msword'],
+  docx: ['application/vnd.openxmlformats-officedocument.wordprocessingml.document'],
+  ppt: ['application/vnd.ms-powerpoint'],
+  pptx: ['application/vnd.openxmlformats-officedocument.presentationml.presentation'],
+  jpg: ['image/jpeg', 'image/jpg'],
+  jpeg: ['image/jpeg'],
+  png: ['image/png'],
+  webp: ['image/webp'],
+  heic: ['image/heic', 'image/heif'],
+  mp4: ['video/mp4'],
+  mov: ['video/quicktime'],
+  zip: ['application/zip', 'application/x-zip-compressed'],
+  txt: ['text/plain'],
+}
+
 const FOLDER = 'activity-registrations'
 
 export async function POST(req: NextRequest) {
@@ -24,11 +48,31 @@ export async function POST(req: NextRequest) {
   const file = formData.get('file') as File | null
   if (!file) return NextResponse.json({ error: 'No file provided' }, { status: 400 })
 
-  if (file.size > MAX_SIZE) {
-    return NextResponse.json({ error: `File too large. Maximum size is ${MAX_SIZE / (1024 * 1024)}MB.` }, { status: 413 })
+  // Optional: client tells us what's allowed for this specific submission
+  // field (comma-separated extensions) and the max size in MB, mirroring
+  // the admin's configuration for that field.
+  const allowedExtsRaw = formData.get('allowed_types') as string | null
+  const maxSizeMbRaw = formData.get('max_size_mb') as string | null
+
+  const maxSize = maxSizeMbRaw ? Number(maxSizeMbRaw) * 1024 * 1024 : DEFAULT_MAX_SIZE
+  if (file.size > maxSize) {
+    return NextResponse.json({ error: `File too large. Maximum size is ${Math.round(maxSize / (1024 * 1024))}MB.` }, { status: 413 })
   }
-  if (file.type && !ALLOWED_TYPES.includes(file.type)) {
-    return NextResponse.json({ error: 'Invalid file type. Please upload a JPG, PNG, WEBP, or HEIC image.' }, { status: 400 })
+
+  if (allowedExtsRaw) {
+    const exts = allowedExtsRaw.split(',').map(e => e.trim().toLowerCase()).filter(Boolean)
+    const allowedMimes = exts.flatMap(e => EXT_MIME_MAP[e] || [])
+    const fileExt = file.name.split('.').pop()?.toLowerCase() || ''
+    const extOk = exts.includes(fileExt)
+    const mimeOk = !file.type || allowedMimes.length === 0 || allowedMimes.includes(file.type)
+    if (!extOk && !mimeOk) {
+      return NextResponse.json({ error: `Invalid file type. Allowed: ${exts.join(', ')}` }, { status: 400 })
+    }
+  } else {
+    // Default behaviour (no explicit allowlist given) — treat as a photo field
+    if (file.type && !IMAGE_TYPES.includes(file.type)) {
+      return NextResponse.json({ error: 'Invalid file type. Please upload a JPG, PNG, WEBP, or HEIC image.' }, { status: 400 })
+    }
   }
 
   const hostingerUploadUrl = process.env.HOSTINGER_UPLOAD_URL

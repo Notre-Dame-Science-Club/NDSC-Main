@@ -1,10 +1,24 @@
 import { supabaseAdmin } from '@/lib/supabase'
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 
 // Public route — no auth required.
 // Uses supabaseAdmin so it bypasses RLS (which restricts anon reads).
-// Only returns is_active=true olympiads — safe to expose publicly.
-export async function GET() {
+// GET (no params)  -> list of all active olympiads
+// GET ?id=UUID      -> single olympiad by id (used by the activity dashboard
+//                      to fetch relay/subject/scheduling info for a linked olympiad)
+export async function GET(req: NextRequest) {
+  const id = req.nextUrl.searchParams.get('id')
+
+  if (id) {
+    const { data, error } = await supabaseAdmin
+      .from('olympiads')
+      .select('*')
+      .eq('id', id)
+      .single()
+    if (error || !data) return NextResponse.json({ error: 'Olympiad not found.' }, { status: 404 })
+    return NextResponse.json({ olympiad: data })
+  }
+
   const { data, error } = await supabaseAdmin
     .from('olympiads')
     .select('*')

@@ -3,6 +3,8 @@ import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import PdfViewer from './PdfViewer'
 import { normalizeUploadUrl, normalizeUploadUrls } from '@/lib/uploadUrl'
+import ActivityRegisterButton from './ActivityRegisterButton'
+
 export const dynamic = 'force-dynamic'
 
 function getYoutubeId(url: string) {
@@ -28,7 +30,6 @@ export default async function SessionDetailPage({
 }) {
   const { slug } = await params
 
-  // Query WITHOUT join — simple select
   const { data: session } = await supabaseAdmin
     .from('activity_sessions')
     .select('*')
@@ -38,12 +39,10 @@ export default async function SessionDetailPage({
 
   if (!session) notFound()
 
-  // Normalize upload URLs
   session.cover_image_url = normalizeUploadUrl(session.cover_image_url)
   session.pdf_url = normalizeUploadUrl(session.pdf_url)
   session.gallery_urls = normalizeUploadUrls(session.gallery_urls)
 
-  // Get type info separately if type_id exists
   let typeName = 'Activities'
   let typeSlug = ''
   let typeIcon = '🔬'
@@ -54,14 +53,9 @@ export default async function SessionDetailPage({
       .select('name, slug, icon')
       .eq('id', session.activity_type_id)
       .single()
-    if (typeData) {
-      typeName = typeData.name
-      typeSlug = typeData.slug
-      typeIcon = typeData.icon || '🔬'
-    }
+    if (typeData) { typeName = typeData.name; typeSlug = typeData.slug; typeIcon = typeData.icon || '🔬' }
   }
 
-  // Get version info separately if version_id exists
   let versionLabel = ''
   if (session.activity_version_id) {
     const { data: verData } = await supabaseAdmin
@@ -69,9 +63,7 @@ export default async function SessionDetailPage({
       .select('version_number, version_label')
       .eq('id', session.activity_version_id)
       .single()
-    if (verData) {
-      versionLabel = verData.version_label || `v${verData.version_number}`
-    }
+    if (verData) versionLabel = verData.version_label || `v${verData.version_number}`
   }
 
   const ytId = getYoutubeId(session.youtube_url)
@@ -79,10 +71,8 @@ export default async function SessionDetailPage({
   return (
     <div className="min-h-screen" style={{ paddingTop: '72px', background: 'var(--bg)' }}>
 
-      {/* Back */}
       <div className="max-w-4xl mx-auto px-4 pt-8 pb-4">
-        <Link
-          href={typeSlug ? `/activities?tab=${typeSlug}` : '/activities'}
+        <Link href={typeSlug ? `/activities?tab=${typeSlug}` : '/activities'}
           className="inline-flex items-center gap-2 text-sm transition-colors hover:text-white"
           style={{ color: 'var(--muted)' }}>
           ← Back to {typeName}
@@ -91,33 +81,24 @@ export default async function SessionDetailPage({
 
       <div className="max-w-4xl mx-auto px-4 pb-20">
 
-        {/* YouTube embed */}
         {ytId && (
           <div className="rounded-2xl overflow-hidden mb-8 border" style={{ borderColor: 'var(--border)' }}>
             <div style={{ position: 'relative', paddingBottom: '56.25%', height: 0 }}>
-              <iframe
-                src={`https://www.youtube.com/embed/${ytId}`}
-                title={session.title}
+              <iframe src={`https://www.youtube.com/embed/${ytId}`} title={session.title}
                 allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                 allowFullScreen
-                style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', border: 'none' }}
-              />
+                style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', border: 'none' }} />
             </div>
           </div>
         )}
 
-        {/* Cover image */}
         {!ytId && session.cover_image_url && (
           <div className="rounded-2xl overflow-hidden mb-8 border" style={{ borderColor: 'var(--border)' }}>
-            <img
-              src={session.cover_image_url}
-              alt={session.title}
-              style={{ width: '100%', maxHeight: '480px', objectFit: 'cover' }}
-            />
+            <img src={session.cover_image_url} alt={session.title}
+              style={{ width: '100%', maxHeight: '480px', objectFit: 'cover' }} />
           </div>
         )}
 
-        {/* Badges */}
         <div className="flex items-center gap-2 mb-4 flex-wrap">
           <span className="px-3 py-1 rounded-full text-xs font-bold"
             style={{ background: 'rgba(0,212,255,0.1)', color: 'var(--blue)', border: '1px solid rgba(0,212,255,0.3)' }}>
@@ -131,13 +112,11 @@ export default async function SessionDetailPage({
           )}
         </div>
 
-        {/* Title */}
         <h1 className="text-3xl md:text-4xl font-black mb-5"
           style={{ fontFamily: "'Orbitron',sans-serif", color: 'var(--white)' }}>
           {session.title}
         </h1>
 
-        {/* Meta */}
         <div className="flex flex-wrap gap-4 text-sm mb-6" style={{ color: 'var(--muted)' }}>
           {session.event_dates && session.event_dates.length > 0 ? (
             <span>
@@ -154,7 +133,7 @@ export default async function SessionDetailPage({
           {session.location && <span>📍 {session.location}</span>}
         </div>
 
-        {/* Registration CTA */}
+        {/* ── Registration CTA — smart Register / Dashboard toggle ── */}
         {session.is_upcoming && session.registration_enabled && (
           <div className="rounded-2xl border p-6 mb-8 flex items-center justify-between gap-4 flex-wrap"
             style={{ background: 'rgba(0,212,255,0.06)', borderColor: 'rgba(0,212,255,0.3)' }}>
@@ -164,25 +143,21 @@ export default async function SessionDetailPage({
                 <p className="text-sm" style={{ color: 'var(--muted)' }}>{session.registration_note}</p>
               )}
             </div>
-            <Link href={`/activities/${session.slug}/register`}
-              className="px-6 py-3 rounded-xl font-bold text-sm text-black flex-shrink-0 transition-all hover:-translate-y-0.5"
-              style={{ background: 'var(--blue)', fontFamily: "'Orbitron', sans-serif" }}>
-              Register Now →
-            </Link>
+            {/* Client component: checks localStorage and shows Register or Go to Dashboard */}
+            <ActivityRegisterButton slug={session.slug} sessionId={session.id} />
           </div>
         )}
 
-        {/* Returning registrant — link to their dashboard even after the event has passed */}
+        {/* Always-visible dashboard link for returning participants */}
         {!session.registration_enabled && (
           <div className="mb-8">
             <Link href={`/activities/${session.slug}/dashboard`}
               className="inline-flex items-center gap-2 text-sm underline" style={{ color: 'var(--blue)' }}>
-              Already registered for this event? View your dashboard →
+              Already registered? View your dashboard →
             </Link>
           </div>
         )}
 
-        {/* Description */}
         {session.description && (
           <div className="rounded-2xl border p-8 mb-8"
             style={{ background: 'var(--card)', borderColor: 'var(--border)' }}>
@@ -191,28 +166,24 @@ export default async function SessionDetailPage({
           </div>
         )}
 
-        {/* PDF */}
-        
-{session.pdf_url && (
-  <div className="rounded-2xl border overflow-hidden mb-8"
-    style={{ background: 'var(--card)', borderColor: 'var(--border)' }}>
-    <div className="flex items-center justify-between px-6 py-4 border-b"
-      style={{ borderColor: 'var(--border)' }}>
-      <span className="font-bold text-sm flex items-center gap-2"
-        style={{ fontFamily: "'Orbitron',sans-serif", color: 'var(--blue)' }}>
-        📄 Session Notes / PDF
-      </span>
-      <a href={session.pdf_url} target="_blank" rel="noopener noreferrer"
-        className="text-xs px-3 py-1 rounded font-bold"
-        style={{ background: 'rgba(0,212,255,0.1)', color: 'var(--blue)' }}>
-        ↓ Download
-      </a>
-    </div>
-<PdfViewer url={session.pdf_url} />
-  </div>
-)}
-        
-        {/* Gallery */}
+        {session.pdf_url && (
+          <div className="rounded-2xl border overflow-hidden mb-8"
+            style={{ background: 'var(--card)', borderColor: 'var(--border)' }}>
+            <div className="flex items-center justify-between px-6 py-4 border-b" style={{ borderColor: 'var(--border)' }}>
+              <span className="font-bold text-sm flex items-center gap-2"
+                style={{ fontFamily: "'Orbitron',sans-serif", color: 'var(--blue)' }}>
+                📄 Session Notes / PDF
+              </span>
+              <a href={session.pdf_url} target="_blank" rel="noopener noreferrer"
+                className="text-xs px-3 py-1 rounded font-bold"
+                style={{ background: 'rgba(0,212,255,0.1)', color: 'var(--blue)' }}>
+                ↓ Download
+              </a>
+            </div>
+            <PdfViewer url={session.pdf_url} />
+          </div>
+        )}
+
         {session.gallery_urls && session.gallery_urls.length > 0 && (
           <div className="mb-8">
             <h2 className="text-xl font-bold mb-5"
@@ -223,12 +194,9 @@ export default async function SessionDetailPage({
               {session.gallery_urls.map((url: string, i: number) => (
                 <a key={i} href={url} target="_blank" rel="noopener noreferrer"
                   className="group overflow-hidden rounded-xl block">
-                  <img
-                    src={url}
-                    alt={`Photo ${i + 1}`}
+                  <img src={url} alt={`Photo ${i + 1}`}
                     className="w-full object-cover transition-transform duration-300 group-hover:scale-105"
-                    style={{ height: '200px' }}
-                  />
+                    style={{ height: '200px' }} />
                 </a>
               ))}
             </div>
