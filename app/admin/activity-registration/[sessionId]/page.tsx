@@ -60,6 +60,7 @@ export default function ActivityRegistrationBuilder() {
   const [error, setError] = useState('')
   const [editingId, setEditingId] = useState<string | null>(null)
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set())
+  const [tab, setTab] = useState<'builder' | 'registrants'>('builder')
 
   const load = async () => {
     try {
@@ -217,6 +218,21 @@ export default function ActivityRegistrationBuilder() {
         </div>
       )}
 
+      <div className="flex gap-2 mb-4">
+        <button onClick={() => setTab('builder')} className="px-4 py-2 rounded-lg text-sm font-semibold"
+          style={tab === 'builder' ? { background: 'rgba(0,212,255,0.15)', color: '#00d4ff', border: '1px solid rgba(0,212,255,0.4)' } : { background: '#061420', color: '#6a8faf', border: '1px solid #0f2a4a' }}>
+          Builder
+        </button>
+        <button onClick={() => setTab('registrants')} className="px-4 py-2 rounded-lg text-sm font-semibold"
+          style={tab === 'registrants' ? { background: 'rgba(0,212,255,0.15)', color: '#00d4ff', border: '1px solid rgba(0,212,255,0.4)' } : { background: '#061420', color: '#6a8faf', border: '1px solid #0f2a4a' }}>
+          Registrants
+        </button>
+      </div>
+
+      {tab === 'registrants' ? (
+        <RegistrantsPanel sessionId={sessionId} />
+      ) : (
+      <>
       <div className="mb-4 p-4 rounded-xl text-sm" style={{ background: 'rgba(0,212,255,0.05)', border: '1px solid rgba(0,212,255,0.2)', color: '#6a8faf' }}>
         Build as many layers as this event needs (e.g. Offline/Online → Class → Subject).
         Registration only happens at the bottom-most category in each branch — that's where you
@@ -237,6 +253,109 @@ export default function ActivityRegistrationBuilder() {
           if this event doesn't need sub-segments — registration works even with a single
           top-level leaf category.
         </p>
+      )}
+      </>
+      )}
+    </div>
+  )
+}
+
+function RegistrantsPanel({ sessionId }: { sessionId: string }) {
+  const [loading, setLoading] = useState(true)
+  const [registrations, setRegistrations] = useState<any[]>([])
+  const [error, setError] = useState('')
+  const [search, setSearch] = useState('')
+  const [viewing, setViewing] = useState<any | null>(null)
+
+  useEffect(() => {
+    fetch(`/api/admin/activity-registrations-list?sessionId=${sessionId}`)
+      .then(r => r.json())
+      .then(d => { if (d.error) setError(d.error); else setRegistrations(d.registrations || []) })
+      .catch(() => setError('Could not load registrants.'))
+      .finally(() => setLoading(false))
+  }, [sessionId])
+
+  const filtered = registrations.filter(r => {
+    if (!search.trim()) return true
+    const q = search.toLowerCase()
+    return r.full_name?.toLowerCase().includes(q) || r.phone?.includes(q) || r.email?.toLowerCase().includes(q) || r.breadcrumb.join(' ').toLowerCase().includes(q)
+  })
+
+  if (loading) return <p className="text-sm" style={{ color: '#3d5a78' }}>Loading registrants…</p>
+  if (error) return <p className="text-sm" style={{ color: '#ff7070' }}>{error}</p>
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-3">
+        <input placeholder="Search by name, phone, email, or category…" value={search} onChange={e => setSearch(e.target.value)}
+          className="px-3 py-2 rounded-lg text-sm outline-none border w-full max-w-sm"
+          style={{ background: '#0a1f35', borderColor: '#0f2a4a', color: '#e0f0ff' }} />
+        <span className="text-xs ml-3 whitespace-nowrap" style={{ color: '#3d5a78' }}>{filtered.length} of {registrations.length} registrant(s)</span>
+      </div>
+
+      {filtered.length === 0 && (
+        <p className="text-sm py-8 text-center" style={{ color: '#3d5a78' }}>
+          {registrations.length === 0 ? 'No one has registered for this event yet.' : 'No registrants match your search.'}
+        </p>
+      )}
+
+      <div className="space-y-2">
+        {filtered.map(r => (
+          <div key={r.id} className="rounded-xl border p-3 flex items-center gap-3" style={{ background: '#061420', borderColor: '#0f2a4a' }}>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="text-sm font-semibold" style={{ color: '#e8f4ff' }}>{r.full_name}</span>
+                {r.team_size > 1 && <span className="text-xs px-1.5 py-0.5 rounded" style={{ background: '#a78bfa22', color: '#a78bfa' }}>Team of {r.team_size}</span>}
+                {r.is_online_category && <span className="text-xs px-1.5 py-0.5 rounded" style={{ background: '#00d4ff22', color: '#00d4ff' }}>Online</span>}
+                {r.payment_status && r.payment_status !== 'not_required' && (
+                  <span className="text-xs px-1.5 py-0.5 rounded" style={{
+                    background: r.payment_status === 'paid' ? '#34d39922' : r.payment_status === 'failed' ? '#ff707022' : '#ffb34722',
+                    color: r.payment_status === 'paid' ? '#34d399' : r.payment_status === 'failed' ? '#ff7070' : '#ffb347',
+                  }}>{r.payment_status}</span>
+                )}
+              </div>
+              <p className="text-xs mt-0.5 truncate" style={{ color: '#6a8faf' }}>{r.breadcrumb.join(' → ')}</p>
+              <p className="text-xs mt-0.5" style={{ color: '#3d5a78' }}>{r.phone} · {r.email} · {r.college}{r.college_roll ? ` · Roll ${r.college_roll}` : ''}</p>
+            </div>
+            <button onClick={() => setViewing(r)} className="text-xs px-3 py-1.5 rounded-lg flex-shrink-0"
+              style={{ background: 'rgba(0,212,255,0.1)', color: '#00d4ff', border: '1px solid rgba(0,212,255,0.2)' }}>
+              View
+            </button>
+          </div>
+        ))}
+      </div>
+
+      {viewing && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.6)' }} onClick={() => setViewing(null)}>
+          <div className="max-w-md w-full rounded-2xl p-5 space-y-2 max-h-[80vh] overflow-y-auto" style={{ background: '#061420', border: '1px solid #0f2a4a' }} onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-1">
+              <h3 className="font-bold" style={{ color: '#e8f4ff' }}>{viewing.full_name}</h3>
+              <button onClick={() => setViewing(null)} style={{ color: '#6a8faf' }}><X size={16} /></button>
+            </div>
+            <p className="text-xs" style={{ color: '#6a8faf' }}>{viewing.breadcrumb.join(' → ')}</p>
+            <div className="text-sm pt-2 space-y-1" style={{ color: '#cfe8ff' }}>
+              <p>Phone: {viewing.phone}</p>
+              <p>Email: {viewing.email}</p>
+              <p>College: {viewing.college} {viewing.college_roll && `(Roll ${viewing.college_roll})`}</p>
+              {viewing.hsc_session && <p>HSC Session: {viewing.hsc_session}</p>}
+              <p>Registered: {new Date(viewing.created_at).toLocaleString()}</p>
+              {viewing.payment_status && <p>Payment: {viewing.payment_status}</p>}
+            </div>
+            {(viewing.team_members || []).length > 0 && (
+              <div className="pt-2 border-t" style={{ borderColor: '#0f2a4a' }}>
+                <p className="text-xs font-bold mb-1" style={{ color: '#a78bfa' }}>TEAM MEMBERS</p>
+                {viewing.team_members.map((m: any, i: number) => (
+                  <p key={i} className="text-xs" style={{ color: '#6a8faf' }}>{m.full_name} — {m.email || m.college_roll}</p>
+                ))}
+              </div>
+            )}
+            {viewing.is_online_category && (
+              <p className="text-xs pt-2" style={{ color: '#3d5a78' }}>
+                Submission/exam content for this registrant is on the Olympiad admin page, not here.
+              </p>
+            )}
+          </div>
+        </div>
       )}
     </div>
   )

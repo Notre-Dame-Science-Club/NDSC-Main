@@ -1,5 +1,6 @@
 'use client'
 import { useState, useEffect, useRef, useCallback } from 'react'
+import { useRouter } from 'next/navigation'
 import { Clock, ChevronRight, ChevronLeft, Upload, CheckCircle, AlertCircle, Camera } from 'lucide-react'
 
 type QuestionType = 'mcq' | 'short' | 'photo'
@@ -20,7 +21,16 @@ type Phase = 'list' | 'register' | 'dashboard' | 'exam' | 'done' | 'result'
 const MAX_PHOTO_MB = 15
 
 export default function OlympiadPage() {
+  const router = useRouter()
   const [olympiads, setOlympiads] = useState<Olympiad[]>([])
+  // New unified source: one card per Activity primary field that has an
+  // open online leaf underneath it. This is what the list view now shows —
+  // "Olympiad" is just this filtered view into the Activity system, not a
+  // separately-registered thing anymore. `olympiads` above is kept loaded
+  // purely so an already-in-progress legacy registration (old saved `reg`
+  // links, or a direct `?id=` link) can still resume and finish here.
+  const [onlineCards, setOnlineCards] = useState<any[]>([])
+  const [cardsLoading, setCardsLoading] = useState(true)
   const [loading, setLoading] = useState(true)
   const [selected, setSelected] = useState<Olympiad | null>(null)
   const [phase, setPhase] = useState<Phase>('list')
@@ -68,6 +78,7 @@ export default function OlympiadPage() {
 
   useEffect(() => {
     fetch('/api/olympiad').then(r => r.json()).then(d => { setOlympiads(Array.isArray(d) ? d : []) }).catch(() => {}).finally(() => setLoading(false))
+    fetch('/api/activity-online-categories-public').then(r => r.json()).then(d => { setOnlineCards(Array.isArray(d) ? d : []) }).catch(() => {}).finally(() => setCardsLoading(false))
 
     // Resume a previous session if we have a registration id saved — check
     // the URL first (so a shared/bookmarked link works), then localStorage.
@@ -424,24 +435,21 @@ export default function OlympiadPage() {
           <h1 className="text-3xl font-bold mb-3" style={{ fontFamily: 'Orbitron, monospace', color: '#00d4ff' }}>NDSC Olympiads</h1>
           <p style={{ color: '#6a8faf' }}>Take part in NDSC science olympiads, test your knowledge, and win prizes.</p>
         </div>
-        {loading && <p className="text-center" style={{ color: '#3d5a78' }}>Loading…</p>}
-        {!loading && olympiads.length === 0 && <p className="text-center py-12" style={{ color: '#3d5a78' }}>No active olympiads right now. Check back soon.</p>}
+        {cardsLoading && <p className="text-center" style={{ color: '#3d5a78' }}>Loading…</p>}
+        {!cardsLoading && onlineCards.length === 0 && <p className="text-center py-12" style={{ color: '#3d5a78' }}>No online olympiad rounds open right now. Check back soon.</p>}
         <div className="space-y-4">
-          {olympiads.map(o => (
-            <div key={o.id} className="flex gap-5 p-5" style={card}>
-              {o.cover_image_url && <img src={o.cover_image_url} alt="" className="w-24 h-24 rounded-xl object-cover flex-shrink-0" />}
+          {onlineCards.map(c => (
+            <div key={c.category_id} className="flex gap-5 p-5" style={card}>
+              {c.cover_image_url && <img src={c.cover_image_url} alt="" className="w-24 h-24 rounded-xl object-cover flex-shrink-0" />}
               <div className="flex-1">
-                <h2 className="font-bold text-lg mb-1" style={{ color: '#e0f0ff' }}>{o.name}</h2>
-                {o.description && <p className="text-sm mb-2" style={{ color: '#6a8faf' }}>{o.description}</p>}
-                <div className="flex gap-4 text-xs flex-wrap" style={{ color: '#3d5a78' }}>
-                  {o.exam_date && <span>Exam: {fmtDate(o.exam_date)}</span>}
-                  {o.registration_deadline && <span>Register by: {fmtDate(o.registration_deadline)}</span>}
-                  {o.eligibility && <span>Eligibility: {o.eligibility}</span>}
-                  {o.timer_minutes && <span className="flex items-center gap-1"><Clock size={10} /> {o.timer_minutes} min</span>}
-                  <span>{(o.questions || []).length} questions</span>
-                </div>
+                <p className="text-xs mb-1" style={{ color: '#3d5a78' }}>{c.session_title}</p>
+                <h2 className="font-bold text-lg mb-1" style={{ color: '#e0f0ff' }}>{c.name}</h2>
+                {c.description && <p className="text-sm" style={{ color: '#6a8faf' }}>{c.description}</p>}
               </div>
-              <button onClick={() => openRegister(o)} className="self-center px-5 py-2.5 rounded-xl text-sm font-bold flex-shrink-0" style={{ background: 'linear-gradient(90deg,#00d4ff,#0070ff)', color: '#fff' }}>
+              <button
+                onClick={() => router.push(`/activities/${c.session_slug}/register?start=${c.category_id}`)}
+                className="self-center px-5 py-2.5 rounded-xl text-sm font-bold flex-shrink-0"
+                style={{ background: 'linear-gradient(90deg,#00d4ff,#0070ff)', color: '#fff' }}>
                 Register Now
               </button>
             </div>

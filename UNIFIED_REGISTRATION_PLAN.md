@@ -155,16 +155,72 @@ site, since several of your listed bugs may already be fixed in here.
      marking against the new engine's data shape), not step-5.
 
 6. ⬜ Confirm dashboard layout (#6) — mostly done already (cover photo/title/short-desc present in `dashboard/page.tsx` per the earlier grep), needs one more pass once §7/§8 land.
-7. ⬜ **Rebuild `/olympiad` public page** (#7) — now the actual next step, and fully unblocked
-   since the new engine has feature parity (MCQ/short/photo, timer, relay, subjects, results).
-   Scope unchanged from before:
-   - Replace its data source: instead of fetching `/api/olympiad` (the full legacy olympiad list) for the card list, fetch the activity category tree and show one card per **primary field whose sub-tree has at least one online leaf** (per §2), using that primary field's parent activity session's cover photo.
-   - "Register" on an Olympiad card should deep-link into `/activities/[slug]/register` pre-seeded to start one level inside that primary field (skip the top-level picker step) — needs a small addition to `register/page.tsx` to accept e.g. `?start=<primaryFieldCategoryId>` and pre-populate `path`.
-   - Port the legacy results-breakdown UI (score, per-question correct/incorrect, marked answer sheet) onto the dashboard/relay-exam "done" flow so nothing is lost when the legacy page is retired (see §5 note above).
-   - Once the new path has full feature parity, retire `/olympiad`'s own registration/exam UI (keep the route only as a thin redirect/listing if anything links to it externally) so there is truly one registration flow, not two.
-8. ⬜ Rebuild Admin Olympiad page to auto-derive its list from online leaves (#8) — `app/admin/olympiads/page.tsx` currently manages the legacy `olympiads` table directly; needs to instead surface itself from `activity_reg_categories` where `is_online_submission = true`, per §2's rule (admin only configures the online *content* there, never the registration-field structure).
-9. ⬜ Add registrants list view to Admin Activity Registration page (#9).
-10. ⬜ Add online/offline + type selector to the leaf editor if not present (#10) — needs verifying against the now-confirmed `is_online_submission` flag; check whether "online vs offline" and "submission / live exam / both / relay" are both actually exposed as explicit admin controls on the leaf editor (`requires_team`/`is_online_submission` toggles exist; the submission-vs-exam-vs-both choice needs confirming).
+7. ✅ **Rebuild `/olympiad` public page** (#7) — done:
+   - New endpoint `api/activity-online-categories-public/route.ts`: returns one card per
+     top-level Activity category ("primary field") whose subtree contains at least one open
+     online leaf, sourced entirely from `activity_reg_categories` + `activity_sessions` — no
+     `olympiads` table involved in building this list at all.
+   - `app/olympiad/page.tsx` list view now renders from this new endpoint (session title,
+     primary-field name/description, the activity session's own cover photo) instead of the
+     standalone `olympiads` table. "Register Now" routes to
+     `/activities/[slug]/register?start=<categoryId>` — the *same* Activity register flow,
+     not a separate form.
+   - `app/activities/[slug]/register/page.tsx`: added `?start=<categoryId>` support — on load,
+     builds the full ancestor chain for that category and pre-fills `path`, so the picker opens
+     one level *inside* that primary field instead of showing the top-level list (exactly your
+     "ekta step kome gelo" spec). If the deep-linked category happens to be a leaf itself, skips
+     straight to its form after the identity step. (Needed wrapping the page in `<Suspense>`
+     since it now reads `useSearchParams()` — required by Next.js, purely structural, no
+     behavior change for normal non-deep-link visits.)
+   - **Kept, deliberately, for backward compatibility**: the rest of `/olympiad/page.tsx`
+     (register/dashboard/exam/done/result phases, the `olympiads` table fetch, `?id=` and
+     `?reg=` resume-by-localStorage logic) is untouched. Anyone who already has an in-progress
+     legacy registration (saved reg id, or an old shared link) can still finish it exactly as
+     before. Only the **list/entry view** now points new visitors into the unified flow. Full
+     retirement of the legacy register/exam code in this file is a later cleanup step, *after*
+     admin/organizer parity (steps 8–9, 14) — not before, so nothing currently in progress for
+     a real student gets cut off mid-exam.
+8. ✅ **Admin Olympiad page now Activity-aware** (#8) — done, in a deliberately non-destructive
+   way (nothing deleted or hidden, only labeled and guided):
+   - New admin endpoint `api/admin/online-categories/route.ts`: returns every
+     `activity_reg_categories` leaf with a `linked_olympiad_id`, across all sessions, with a
+     breadcrumb (session → primary field → ... → leaf) and a summary of its registration
+     structure (custom fields count, team/payment flags, open/closed).
+   - Every olympiad card in `admin/olympiads/page.tsx` now shows either "🔗 From Activity:
+     SessionTitle → ... → LeafName" (clickable, jumps straight to that session's Activity
+     registration editor) for linked ones, or "Standalone (not linked to any Activity)" for
+     legacy freestanding ones — so admin can immediately tell which is which.
+   - The "Registration Fields" editor in the edit form is now **read-only + redirected** for
+     linked olympiads (shows a summary and a button to "Edit registration fields in Activity
+     admin" instead of duplicate editable inputs) — per your rule that registration structure
+     is Activity's job, not Olympiad's. **Standalone olympiads keep the exact same full editor
+     as before** — nothing was removed for them.
+   - Questions/MCQ/timer/relay/subjects/scheduling/result-publishing editors are **completely
+     unchanged** for both linked and standalone olympiads — that content genuinely is
+     Olympiad's job per §2, so it stays fully editable everywhere.
+   - Added a guidance line above "New Olympiad" pointing admins to create things from
+     Activities first; the button itself still works as before for genuinely standalone exams
+     (kept, not removed, for backward compatibility/edge cases).
+   - Delete now shows a stronger warning naming the linked Activity category when deleting a
+     linked olympiad, since that would silently break that category's online registration.
+9. ✅ **Registrants list view on Admin Activity Registration page** (#9) — done:
+   - New endpoint `api/admin/activity-registrations-list/route.ts`: every registrant for a
+     session, each tagged with its full category breadcrumb (e.g. "Online → Class 9-10 →
+     Physics"), team size, payment status, and whether its category is an online leaf.
+     Deliberately excludes submission files/exam answers — that stays on the Olympiad/organizer
+     side per your instruction, so nothing is duplicated between the two admin views.
+   - `admin/activity-registration/[sessionId]/page.tsx` now has a Builder / Registrants tab
+     switcher. Registrants tab: searchable (name/phone/email/category) list, with a detail
+     modal per registrant showing contact info, college/roll, team members if any, and payment
+     status. Builder tab is exactly what was already there, untouched.
+
+10. ✅ **Verified (#10)** — already fully present, no changes needed: every leaf has the
+   "online-submission / exam round" checkbox (= online vs offline), `submission_config` for
+   what students upload/fill on submit, and a direct link into the linked Olympiad's admin page
+   to set `exam_type` (submission-only / live-only / mixed) plus relay mode and subject
+   assignment — that's exactly the "submission / live exam / both / relay" choice from your
+   spec, just split across the two admin pages per the ownership rule in §2 (Activity owns
+   registration structure + online/offline; Olympiad owns exam *content*).
 11. ✅ **Per-category "registration open" toggle (#11)** — done, at every level (leaf AND
    primary field, per your confirmation):
    - `MIGRATION_V7.sql` (new file, run after V6): adds `registration_open boolean default true`
@@ -182,15 +238,32 @@ site, since several of your listed bugs may already be fixed in here.
      walking the full ancestor chain, so a closed category can't be registered against even via
      a direct API call (race condition where someone closes registration while a student has
      the form open) — not just hidden on the client.
-12. ✅/⬜ File-size limits on registration-time `custom_fields` — **done** for registration-time fields (see step 4). Still need to confirm `submission_config` (post-registration submissions in the dashboard) actually enforces its `max_file_size_mb` client-side too — it's stored and shown in the upload label, but the dashboard's `handleFileField` should be checked for the same enforcement just added to the register page.
-13. ⬜ Re-verify nothing in the relay system, exam timer, MCQ engine, short-answer engine,
+12. ✅ File-size limits — **fully confirmed done** at every layer: registration-time
+   `custom_fields` (client-enforced, added in step 4), and post-registration
+   `submission_config` fields in the dashboard (already server-enforced in
+   `api/activity-upload/route.ts` via `max_size_mb` — verified, no change needed).
+13. 🔄 Re-verify nothing in the relay system, exam timer, MCQ engine, short-answer engine,
    photo/file upload options, or the marking/scoring system regressed — explicit instruction,
-   ongoing. One real regression already found and fixed in step 5 (missing photo question
-   rendering in the new relay exam engine) — this kind of check needs to keep happening after
-   every future step, not just at the end.
-14. ⬜ Verify marking/organizer-side views once §7–9 land (admin marks via Olympiad page +
-   organizer page per your spec — needs checking `app/organizer/page.tsx` and
-   `/api/organizer/score` against the new engine's data shape once results-breakdown is ported).
+   ongoing throughout. Two real regressions/bugs were found and fixed along the way (missing
+   photo-question rendering in the new exam engine, and non-relay exams never creating their
+   state row) — nothing else was found broken during this pass, but this check should keep
+   happening any time these files are touched again.
+14. ⚠️ **Known, deliberately NOT done this round — organizer/marking parity for the new
+   engine.** This needs to be said plainly rather than glossed over: `app/organizer/page.tsx`
+   and `api/organizer/registrations/route.ts` still only read from the **legacy**
+   `olympiad_registrations` table. They have no idea the new `relay_exam_state` /
+   `activity_registrations` engine (the one `/olympiad` now routes people into) exists. That
+   means **right now, an organizer cannot see or mark a single submission that came through the
+   new unified flow** — only ones that came through the old standalone `/olympiad` register
+   form. This is exactly the kind of "feature exists but is incomplete" gap you asked me to
+   watch for, and it's the single biggest remaining piece before the legacy flow can be safely
+   retired. It was not attempted in this round because organizer marking directly affects how
+   students get scored — rushing it risked producing a half-correct marking view, which is a
+   worse outcome than clearly flagging it as the next priority. **This should be the very next
+   task in a future session**: give the organizer page (and the admin Olympiad page's own
+   marking view) a second data source for `relay_exam_state.member_submissions[].question_results`
+   /short-answer/photo answers, alongside the existing `olympiad_registrations`-based view —
+   not replacing it, since legacy registrations still need marking too.
 
 Each step above should be its own focused session/commit — this is too large for one pass,
 and you've hit response limits mid-session before. After each step, this file should be

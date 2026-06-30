@@ -68,6 +68,9 @@ export default function AdminOlympiadsPage() {
   const [uploading, setUploading] = useState<'cover' | 'pdf' | null>(null)
   const [uploadProgress, setUploadProgress] = useState(0)
   const [uploadError, setUploadError] = useState('')
+  // Which olympiads are actually derived from an Activity online leaf, vs
+  // legacy freestanding ones created directly here. Keyed by olympiad id.
+  const [linkInfo, setLinkInfo] = useState<Record<string, any>>({})
 
   const h = { fontFamily: 'Orbitron, monospace', color: '#00d4ff' }
   const s = { background: '#061420', border: '1px solid #0f2a4a' }
@@ -81,6 +84,13 @@ export default function AdminOlympiadsPage() {
     const res = await fetch('/api/admin/olympiads')
     if (res.ok) setOlympiads(await res.json() || [])
     else setPageError('Failed to load olympiads.')
+    try {
+      const linkRes = await fetch('/api/admin/online-categories')
+      if (linkRes.ok) {
+        const links = await linkRes.json()
+        setLinkInfo(Object.fromEntries((links || []).map((l: any) => [l.olympiad_id, l])))
+      }
+    } catch { /* non-critical — falls back to treating everything as standalone */ }
     setLoading(false)
   }
 
@@ -216,7 +226,10 @@ export default function AdminOlympiadsPage() {
   }
 
   const del = async (id: string) => {
-    if (!confirm('Delete this olympiad and all its registrations?')) return
+    const warning = linkInfo[id]
+      ? `This olympiad is linked to an Activity category (${linkInfo[id].breadcrumb.join(' → ')}). Deleting it will break online registration for that category. Delete anyway?`
+      : 'Delete this olympiad and all its registrations?'
+    if (!confirm(warning)) return
     const res = await fetch('/api/admin/olympiads', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id }) })
     if (!res.ok) { const d = await res.json().catch(() => ({})); setPageError(d.error || 'Delete failed.') }
     load()
@@ -563,7 +576,25 @@ export default function AdminOlympiadsPage() {
             )}
           </div>
 
-          {/* Registration fields */}
+          {/* Registration fields — only editable for standalone olympiads.
+              For Activity-linked ones, the registration structure (fields,
+              team settings, payment) is owned by the Activity category
+              editor, not here — editing it in two places would drift apart. */}
+          {editing.id && linkInfo[editing.id] ? (
+            <div className="rounded-xl p-5 space-y-2" style={s}>
+              <p className="text-xs font-bold tracking-widest" style={{ color: '#00d4ff' }}>REGISTRATION FIELDS</p>
+              <p className="text-xs" style={{ color: '#6a8faf' }}>
+                This olympiad's registration form is controlled from its Activity category — editing it here would
+                create two different forms for the same thing. {(linkInfo[editing.id].custom_fields || []).length > 0
+                  ? `Currently has ${linkInfo[editing.id].custom_fields.length} custom field(s), ${linkInfo[editing.id].requires_team ? 'team registration' : 'individual registration'}${linkInfo[editing.id].requires_payment ? ', with payment' : ''}.`
+                  : 'Uses just the standard Name/Phone/Email/College fields right now.'}
+              </p>
+              <Link href={`/admin/activity-registration/${linkInfo[editing.id].session_id}`}
+                className="inline-flex items-center gap-1 text-xs mt-1 px-3 py-1.5 rounded-lg" style={{ background: 'rgba(0,212,255,0.1)', color: '#00d4ff', border: '1px solid rgba(0,212,255,0.2)' }}>
+                Edit registration fields in Activity admin <ArrowRight size={11} />
+              </Link>
+            </div>
+          ) : (
           <div className="rounded-xl p-5 space-y-4" style={s}>
             <div className="flex items-center justify-between">
               <div>
@@ -590,6 +621,7 @@ export default function AdminOlympiadsPage() {
               </div>
             ))}
           </div>
+          )}
 
           {/* Questions */}
           <div className="rounded-xl p-5 space-y-4" style={s}>
@@ -681,7 +713,7 @@ export default function AdminOlympiadsPage() {
   // ── Main list view ──────────────────────────────────────────────────────────
   return (
     <div>
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex items-center justify-between mb-2">
         <h1 className="text-2xl font-bold" style={h}>Olympiads</h1>
         <button onClick={() => { setEditing({ ...BLANK }); setUploadError(''); setUploadProgress(0); setUploading(null) }}
           className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold"
@@ -689,6 +721,11 @@ export default function AdminOlympiadsPage() {
           <Plus size={16} /> New Olympiad
         </button>
       </div>
+      <p className="text-xs mb-6" style={{ color: '#3d5a78' }}>
+        Most olympiads should be created from <Link href="/admin/activities" className="underline" style={{ color: '#00d4ff' }}>Activities</Link> —
+        mark a registration leaf as "online" there and it shows up here automatically, with its registration form already matching the
+        rest of that activity. Use "New Olympiad" only for a fully standalone exam with no associated Activity registration.
+      </p>
 
       {pageError && (
         <div className="mb-4 px-4 py-3 rounded-lg text-sm flex items-center justify-between" style={{ background: 'rgba(255,80,80,0.12)', border: '1px solid rgba(255,80,80,0.4)', color: '#ff6b6b' }}>
@@ -733,6 +770,17 @@ export default function AdminOlympiadsPage() {
                   <span className="text-xs" style={{ color: '#3d5a78' }}>{(o.questions || []).length} questions</span>
                 </div>
                 {o.description && <p className="text-xs mt-1 truncate" style={{ color: '#3d5a78' }}>{o.description}</p>}
+                {linkInfo[o.id] ? (
+                  <Link href={`/admin/activity-registration/${linkInfo[o.id].session_id}`}
+                    className="text-xs mt-1 inline-flex items-center gap-1.5 hover:underline" style={{ color: '#6a8faf' }}>
+                    🔗 From Activity: {linkInfo[o.id].session_title} → {linkInfo[o.id].breadcrumb.join(' → ')}
+                    {linkInfo[o.id].registration_open === false && (
+                      <span className="px-1.5 py-0.5 rounded" style={{ background: '#ff707022', color: '#ff7070' }}>Registration closed</span>
+                    )}
+                  </Link>
+                ) : (
+                  <span className="text-xs mt-1 inline-block" style={{ color: '#5a7a3a' }}>Standalone (not linked to any Activity)</span>
+                )}
               </div>
               <div className="flex items-center gap-2 flex-shrink-0">
                 <button onClick={() => toggleField(o.id, 'is_active', !o.is_active)} title={o.is_active ? 'Hide' : 'Activate'} className="p-1.5 rounded" style={{ color: '#3d5a78' }}>

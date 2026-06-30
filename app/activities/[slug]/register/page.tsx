@@ -1,6 +1,6 @@
 'use client'
-import { useEffect, useState } from 'react'
-import { useParams, useRouter } from 'next/navigation'
+import { useEffect, useState, Suspense } from 'react'
+import { useParams, useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { ChevronRight, ArrowLeft, Upload, Users, Plus, X } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
@@ -39,9 +39,11 @@ function resolveAccent(theme: string | undefined | null) {
 const fieldLabelCls = 'block text-sm font-medium mb-1'
 const fieldDescCls = 'text-xs mb-1.5'
 
-export default function ActivityRegisterPage() {
+function ActivityRegisterPageInner() {
   const params = useParams()
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const startCategoryId = searchParams.get('start')
   const slug = params.slug as string
 
   const [phase, setPhase] = useState<Phase>('identity')
@@ -57,6 +59,7 @@ export default function ActivityRegisterPage() {
   const [lookupLoading, setLookupLoading] = useState(false)
   const [knownInfo, setKnownInfo] = useState<any>(null)
   const [memberId, setMemberId] = useState<string | null>(null)
+  const [deepLinkIsLeaf, setDeepLinkIsLeaf] = useState(false)
 
   // Form fields
   const [form, setForm] = useState(BLANK_FORM)
@@ -76,6 +79,28 @@ export default function ActivityRegisterPage() {
         if (d.error) { setError(d.error); return }
         setSessionInfo(d.session)
         setCategories(d.categories || [])
+
+        // Deep-link from the Olympiad page (?start=<categoryId>) — jump the
+        // picker straight to that primary field's children instead of the
+        // top-level list, since the person already chose it by clicking
+        // that specific Olympiad card.
+        if (startCategoryId) {
+          const list: Category[] = d.categories || []
+          const byId = new Map(list.map((c: Category) => [c.id, c]))
+          const target = byId.get(startCategoryId)
+          if (target) {
+            const chain: Category[] = []
+            let node: Category | undefined = target
+            while (node) { chain.unshift(node); node = node.parent_id ? byId.get(node.parent_id) : undefined }
+            setPath(chain)
+            const targetIsLeaf = !list.some(c => c.parent_id === target.id)
+            if (targetIsLeaf) {
+              const min = target.team_size_min || 0
+              setTeamMembers(Array.from({ length: min }, () => ({ id: uid(), full_name: '', email: '', college_roll: '', password: '', custom_answers: {} })))
+              setDeepLinkIsLeaf(true)
+            }
+          }
+        }
 
         // Load per-session form config
         if (d.session?.id) {
@@ -138,8 +163,12 @@ export default function ActivityRegisterPage() {
 
   const isLeaf = (cat: Category) => !categories.some(c => c.parent_id === cat.id)
 
+  // After identity is confirmed, go straight to the form if we arrived via
+  // a leaf-level Olympiad deep-link, otherwise go to the picker as normal.
+  const proceedAfterIdentity = () => setPhase(deepLinkIsLeaf ? 'form' : 'picker')
+
   const lookupIdentity = async () => {
-    if (!lookupQuery.trim()) { setIdentityChecked(true); setPhase('picker'); return }
+    if (!lookupQuery.trim()) { setIdentityChecked(true); proceedAfterIdentity(); return }
     setLookupLoading(true)
     try {
       const res = await fetch('/api/identity-lookup', {
@@ -154,7 +183,7 @@ export default function ActivityRegisterPage() {
     } catch { /* non-critical */ }
     setLookupLoading(false)
     setIdentityChecked(true)
-    setPhase('picker')
+    proceedAfterIdentity()
   }
 
   const pickCategory = (cat: Category) => {
@@ -364,7 +393,7 @@ export default function ActivityRegisterPage() {
               style={{ background: 'var(--blue)' }}>
               {lookupLoading ? 'Checking...' : 'Continue'}
             </button>
-            <button onClick={() => { setIdentityChecked(true); setPhase('picker') }}
+            <button onClick={() => { setIdentityChecked(true); proceedAfterIdentity() }}
               className="w-full mt-2 py-2 text-sm" style={{ color: 'var(--muted)' }}>
               Skip — I'll fill in my info manually
             </button>
@@ -635,5 +664,13 @@ export default function ActivityRegisterPage() {
         )}
       </div>
     </div>
+  )
+}
+
+export default function ActivityRegisterPage() {
+  return (
+    <Suspense fallback={null}>
+      <ActivityRegisterPageInner />
+    </Suspense>
   )
 }
