@@ -1,11 +1,16 @@
 'use client'
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
-import { Clock, ChevronRight, ChevronLeft, Upload, CheckCircle, AlertCircle, Camera } from 'lucide-react'
+import { Clock, ChevronRight, ChevronLeft, Upload, CheckCircle, AlertCircle, Camera, Image as ImageIcon } from 'lucide-react'
+import MathText from '@/components/olympiad/MathText'
 
-type QuestionType = 'mcq' | 'short' | 'photo'
+type QuestionType = 'mcq' | 'checkbox' | 'short' | 'photo'
 type McqOption = { id: string; text: string }
-type Question = { id: string; type: QuestionType; text: string; description?: string; options?: McqOption[]; correct_option_id?: string; marks?: number; subject_id?: string }
+type Question = {
+  id: string; type: QuestionType; text: string; description?: string; image_url?: string
+  options?: McqOption[]; correct_option_id?: string; correct_option_ids?: string[]
+  required?: boolean; marks?: number; subject_id?: string
+}
 type RegField = { key: string; label: string; type: string; required: boolean }
 type Olympiad = {
   id: string; name: string; description: string; cover_image_url?: string; pdf_url?: string
@@ -41,7 +46,7 @@ export default function OlympiadPage() {
   const [regData, setRegData] = useState<any>(null)
 
   // Exam state
-  const [mcqAnswers, setMcqAnswers] = useState<Record<string, string>>({})
+  const [mcqAnswers, setMcqAnswers] = useState<Record<string, string | string[]>>({})
   const [shortAnswers, setShortAnswers] = useState<Record<string, string>>({})
   const [photoFiles, setPhotoFiles] = useState<Record<string, File>>({})
   const [photoUploading, setPhotoUploading] = useState<Record<string, number>>({})
@@ -139,6 +144,12 @@ export default function OlympiadPage() {
             let score = 0
             for (const q of olympiad.questions.filter((q: any) => q.type === 'mcq')) {
               if ((registration.mcq_answers || {})[q.id] === q.correct_option_id) score += (q.marks || 1)
+            }
+            for (const q of olympiad.questions.filter((q: any) => q.type === 'checkbox')) {
+              const chosen: string[] = Array.isArray((registration.mcq_answers || {})[q.id]) ? (registration.mcq_answers || {})[q.id] : []
+              const correct: string[] = q.correct_option_ids || []
+              const isCorrect = chosen.length > 0 && chosen.length === correct.length && chosen.every((id: string) => correct.includes(id))
+              if (isCorrect) score += (q.marks || 1)
             }
             fetch('/api/olympiad-register', {
               method: 'PUT',
@@ -329,6 +340,19 @@ export default function OlympiadPage() {
           return {
             question_id: q.id, question_text: q.text, type: q.type,
             student_answer: chosen?.text ?? null, correct_answer: correct?.text ?? null,
+            is_correct: isCorrect, marks_awarded: isCorrect ? (q.marks || 1) : 0, marks_possible: q.marks || 1,
+          }
+        }
+        if (q.type === 'checkbox') {
+          const chosenIds: string[] = Array.isArray(mcqAnswers[q.id]) ? (mcqAnswers[q.id] as string[]) : []
+          const correctIds: string[] = q.correct_option_ids || []
+          const isCorrect = chosenIds.length > 0 && chosenIds.length === correctIds.length && chosenIds.every(id => correctIds.includes(id))
+          if (isCorrect) score += (q.marks || 1)
+          const chosenText = (q.options || []).filter(o => chosenIds.includes(o.id)).map(o => o.text).join(', ')
+          const correctText = (q.options || []).filter(o => correctIds.includes(o.id)).map(o => o.text).join(', ')
+          return {
+            question_id: q.id, question_text: q.text, type: q.type,
+            student_answer: chosenText || null, correct_answer: correctText || null,
             is_correct: isCorrect, marks_awarded: isCorrect ? (q.marks || 1) : 0, marks_possible: q.marks || 1,
           }
         }
@@ -569,15 +593,27 @@ export default function OlympiadPage() {
     const isOneByOne = selected.question_display === 'one_by_one'
     const currentQuestion = questions[currentQ]
 
+    const isAnswered = (q: Question) => {
+      if (q.type === 'mcq') return !!mcqAnswers[q.id]
+      if (q.type === 'checkbox') return Array.isArray(mcqAnswers[q.id]) && (mcqAnswers[q.id] as string[]).length > 0
+      if (q.type === 'short') return !!(shortAnswers[q.id] || '').trim()
+      return !!photoUrls[q.id]
+    }
+
+    const typeColor = (t: QuestionType) => t === 'mcq' ? 'var(--blue)' : t === 'checkbox' ? 'var(--accent2)' : t === 'short' ? 'var(--success)' : 'var(--warning)'
+    const typeLabel = (t: QuestionType) => t === 'mcq' ? 'MCQ' : t === 'checkbox' ? 'Select all that apply' : t === 'short' ? 'Short Answer' : 'Photo Upload'
+
     const renderQuestion = (q: Question, idx: number) => (
       <div key={q.id} className="p-5 rounded-xl space-y-3" style={{ background: 'var(--surface-alt)', border: '1px solid var(--border)' }}>
         <div className="flex items-start justify-between gap-3">
           <div className="flex-1">
-            <span className="text-xs px-2 py-0.5 rounded-full mr-2" style={{ background: q.type === 'mcq' ? 'rgba(var(--blue-rgb), 0.09)' : q.type === 'short' ? 'rgba(var(--success-rgb), 0.09)' : 'rgba(var(--warning-rgb), 0.09)', color: q.type === 'mcq' ? 'var(--blue)' : q.type === 'short' ? 'var(--success)' : 'var(--warning)' }}>
-              Q{idx + 1} · {q.type === 'mcq' ? 'MCQ' : q.type === 'short' ? 'Short Answer' : 'Photo Upload'} · {q.marks || 1} mark{(q.marks || 1) > 1 ? 's' : ''}
+            <span className="text-xs px-2 py-0.5 rounded-full mr-2" style={{ background: `${typeColor(q.type)}18`, color: typeColor(q.type) }}>
+              Q{idx + 1} · {typeLabel(q.type)} · {q.marks || 1} mark{(q.marks || 1) > 1 ? 's' : ''}
             </span>
-            <p className="mt-2 text-sm font-medium" style={{ color: 'var(--white-soft)' }}>{q.text}</p>
-            {q.description && <p className="text-xs mt-1" style={{ color: 'var(--muted)' }}>{q.description}</p>}
+            {q.required !== false && <span className="text-xs" style={{ color: 'var(--danger-soft)' }}>*required</span>}
+            <p className="mt-2 text-sm font-medium" style={{ color: 'var(--white-soft)' }}><MathText text={q.text} /></p>
+            {q.description && <p className="text-xs mt-1" style={{ color: 'var(--muted)' }}><MathText text={q.description} /></p>}
+            {q.image_url && <img src={q.image_url} alt="" className="mt-2 max-h-56 rounded-lg border" style={{ borderColor: 'var(--border)' }} />}
           </div>
         </div>
 
@@ -586,9 +622,31 @@ export default function OlympiadPage() {
             {(q.options || []).map(o => (
               <label key={o.id} className="flex items-center gap-3 p-3 rounded-lg cursor-pointer" style={{ background: mcqAnswers[q.id] === o.id ? 'rgba(var(--blue-rgb), 0.12)' : 'rgba(255,255,255,0.02)', border: `1px solid ${mcqAnswers[q.id] === o.id ? 'var(--blue)' : 'var(--border)'}` }}>
                 <input type="radio" name={`q-${q.id}`} checked={mcqAnswers[q.id] === o.id} onChange={() => setMcqAnswers(p => ({ ...p, [q.id]: o.id }))} style={{ accentColor: 'var(--blue)' }} />
-                <span className="text-sm" style={{ color: 'var(--white-soft)' }}>{o.text}</span>
+                <span className="text-sm" style={{ color: 'var(--white-soft)' }}><MathText text={o.text} /></span>
               </label>
             ))}
+          </div>
+        )}
+
+        {q.type === 'checkbox' && (
+          <div className="space-y-2">
+            {(q.options || []).map(o => {
+              const chosen: string[] = Array.isArray(mcqAnswers[q.id]) ? (mcqAnswers[q.id] as string[]) : []
+              const isChecked = chosen.includes(o.id)
+              return (
+                <label key={o.id} className="flex items-center gap-3 p-3 rounded-lg cursor-pointer" style={{ background: isChecked ? 'rgba(var(--accent2-rgb), 0.12)' : 'rgba(255,255,255,0.02)', border: `1px solid ${isChecked ? 'var(--accent2)' : 'var(--border)'}` }}>
+                  <input
+                    type="checkbox" checked={isChecked} style={{ accentColor: 'var(--accent2)' }}
+                    onChange={() => setMcqAnswers(p => {
+                      const cur: string[] = Array.isArray(p[q.id]) ? (p[q.id] as string[]) : []
+                      const next = cur.includes(o.id) ? cur.filter(id => id !== o.id) : [...cur, o.id]
+                      return { ...p, [q.id]: next }
+                    })}
+                  />
+                  <span className="text-sm" style={{ color: 'var(--white-soft)' }}><MathText text={o.text} /></span>
+                </label>
+              )
+            })}
           </div>
         )}
 
@@ -627,6 +685,18 @@ export default function OlympiadPage() {
       </div>
     )
 
+    const validateRequired = (): boolean => {
+      const missing = questions.find(q => q.required !== false && !isAnswered(q))
+      if (missing) {
+        const idx = questions.indexOf(missing)
+        setError(`Please answer question ${idx + 1} — it's required.`)
+        if (isOneByOne) setCurrentQ(idx)
+        return false
+      }
+      setError('')
+      return true
+    }
+
     return (
       <div className="min-h-screen py-8 px-4" style={{ background: bg }}>
         <div className="max-w-2xl mx-auto">
@@ -638,7 +708,7 @@ export default function OlympiadPage() {
               <span className="font-mono text-lg font-bold" style={{ color: timeLeft < 300 ? 'var(--danger-soft)' : 'var(--blue)' }}>{fmtTime(timeLeft)}</span>
             </div>
             {!isOneByOne && (
-              <button onClick={() => submitExam()} disabled={submitting} className="px-4 py-1.5 rounded-lg text-sm font-bold" style={{ background: 'linear-gradient(90deg,var(--blue),var(--blue2))', color: '#fff', opacity: submitting ? 0.6 : 1 }}>
+              <button onClick={() => { if (validateRequired()) submitExam() }} disabled={submitting} className="px-4 py-1.5 rounded-lg text-sm font-bold" style={{ background: 'linear-gradient(90deg,var(--blue),var(--blue2))', color: '#fff', opacity: submitting ? 0.6 : 1 }}>
                 {submitting ? 'Submitting…' : 'Submit'}
               </button>
             )}
@@ -668,11 +738,14 @@ export default function OlympiadPage() {
                   <ChevronLeft size={14} /> Previous
                 </button>
                 {currentQ < questions.length - 1 ? (
-                  <button onClick={() => setCurrentQ(p => p + 1)} className="px-4 py-2 rounded-lg text-sm flex items-center gap-1 font-medium" style={{ background: 'rgba(var(--blue-rgb), 0.12)', color: 'var(--blue)', border: '1px solid rgba(var(--blue-rgb), 0.3)' }}>
+                  <button onClick={() => {
+                    if (currentQuestion.required !== false && !isAnswered(currentQuestion)) { setError(`Please answer question ${currentQ + 1} — it's required.`); return }
+                    setError(''); setCurrentQ(p => p + 1)
+                  }} className="px-4 py-2 rounded-lg text-sm flex items-center gap-1 font-medium" style={{ background: 'rgba(var(--blue-rgb), 0.12)', color: 'var(--blue)', border: '1px solid rgba(var(--blue-rgb), 0.3)' }}>
                     Next <ChevronRight size={14} />
                   </button>
                 ) : (
-                  <button onClick={() => submitExam()} disabled={submitting} className="px-5 py-2 rounded-lg text-sm font-bold" style={{ background: 'linear-gradient(90deg,var(--blue),var(--blue2))', color: '#fff', opacity: submitting ? 0.6 : 1 }}>
+                  <button onClick={() => { if (validateRequired()) submitExam() }} disabled={submitting} className="px-5 py-2 rounded-lg text-sm font-bold" style={{ background: 'linear-gradient(90deg,var(--blue),var(--blue2))', color: '#fff', opacity: submitting ? 0.6 : 1 }}>
                     {submitting ? 'Submitting…' : 'Submit Exam →'}
                   </button>
                 )}
@@ -681,7 +754,7 @@ export default function OlympiadPage() {
               <div className="flex flex-wrap gap-1.5 mt-4">
                 {questions.map((q, i) => (
                   <button key={q.id} onClick={() => setCurrentQ(i)} className="w-8 h-8 rounded-lg text-xs font-medium"
-                    style={{ background: i === currentQ ? 'var(--blue)' : (mcqAnswers[q.id] || shortAnswers[q.id] || photoUrls[q.id]) ? 'rgba(var(--success-rgb), 0.15)' : 'var(--surface-alt)', color: i === currentQ ? '#000' : (mcqAnswers[q.id] || shortAnswers[q.id] || photoUrls[q.id]) ? 'var(--success)' : 'var(--border-soft)', border: '1px solid var(--border)' }}>
+                    style={{ background: i === currentQ ? 'var(--blue)' : isAnswered(q) ? 'rgba(var(--success-rgb), 0.15)' : 'var(--surface-alt)', color: i === currentQ ? '#000' : isAnswered(q) ? 'var(--success)' : 'var(--border-soft)', border: '1px solid var(--border)' }}>
                     {i + 1}
                   </button>
                 ))}
@@ -690,7 +763,7 @@ export default function OlympiadPage() {
           ) : (
             <div className="space-y-4">
               {questions.map((q, i) => renderQuestion(q, i))}
-              <button onClick={() => submitExam()} disabled={submitting} className="w-full py-3 rounded-xl font-bold text-sm mt-4" style={{ background: 'linear-gradient(90deg,var(--blue),var(--blue2))', color: '#fff', opacity: submitting ? 0.6 : 1 }}>
+              <button onClick={() => { if (validateRequired()) submitExam() }} disabled={submitting} className="w-full py-3 rounded-xl font-bold text-sm mt-4" style={{ background: 'linear-gradient(90deg,var(--blue),var(--blue2))', color: '#fff', opacity: submitting ? 0.6 : 1 }}>
                 {submitting ? 'Submitting…' : 'Submit Exam →'}
               </button>
             </div>
@@ -752,11 +825,11 @@ export default function OlympiadPage() {
               {results.map((r, i) => (
                 <div key={r.question_id || i} className="p-4 rounded-xl" style={{ background: 'var(--surface-alt)', border: `1px solid ${r.is_correct === true ? 'rgba(var(--success-rgb), 0.27)' : r.is_correct === false ? '#ff4d4d44' : 'var(--border)'}` }}>
                   <div className="flex items-start justify-between gap-3">
-                    <p className="text-sm font-medium flex-1" style={{ color: 'var(--white-soft)' }}>Q{i + 1}. {r.question_text}</p>
+                    <p className="text-sm font-medium flex-1" style={{ color: 'var(--white-soft)' }}>Q{i + 1}. <MathText text={r.question_text} /></p>
                     {r.is_correct === true && <CheckCircle size={16} style={{ color: 'var(--success)', flexShrink: 0 }} />}
                     {r.is_correct === false && <span style={{ color: 'var(--danger)', flexShrink: 0 }}>✗</span>}
                   </div>
-                  {r.type === 'mcq' && (
+                  {(r.type === 'mcq' || r.type === 'checkbox') && (
                     <div className="mt-2 text-xs space-y-1">
                       <p style={{ color: r.is_correct ? 'var(--success)' : 'var(--danger-soft)' }}>Your answer: {r.student_answer ?? '(not answered)'}</p>
                       {!r.is_correct && <p style={{ color: 'var(--muted)' }}>Correct answer: {r.correct_answer}</p>}
