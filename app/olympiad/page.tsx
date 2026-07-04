@@ -3,6 +3,7 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { Clock, ChevronRight, ChevronLeft, Upload, CheckCircle, AlertCircle, Camera, Image as ImageIcon } from 'lucide-react'
 import MathText from '@/components/olympiad/MathText'
+import MathInputField from '@/components/olympiad/MathInputField'
 
 type QuestionType = 'mcq' | 'checkbox' | 'short' | 'photo'
 type McqOption = { id: string; text: string }
@@ -25,6 +26,19 @@ type Olympiad = {
 type Phase = 'list' | 'register' | 'dashboard' | 'exam' | 'done' | 'result'
 const MAX_PHOTO_MB = 15
 
+// Lightweight shape returned by /api/olympiad?listing=1 — a standalone
+// olympiad (i.e. not routed through the Activity registration system) that
+// may or may not currently be open to the visitor. Used purely to decide
+// whether to show a card as registrable or greyed-out at the bottom.
+type OlympiadListing = {
+  id: string; name: string; description?: string; cover_image_url?: string
+  is_active: boolean; registration_deadline?: string; exam_date?: string
+  scheduled_start_at?: string | null; scheduled_end_at?: string | null
+  eligibility?: string; external_only?: boolean
+}
+type ListingStatus = 'open' | 'inactive' | 'closed' | 'ineligible'
+const PROFILE_KEY = 'ndsc_olympiad_profile'
+
 export default function OlympiadPage() {
   const router = useRouter()
   const [olympiads, setOlympiads] = useState<Olympiad[]>([])
@@ -36,6 +50,12 @@ export default function OlympiadPage() {
   // links, or a direct `?id=` link) can still resume and finish here.
   const [onlineCards, setOnlineCards] = useState<any[]>([])
   const [cardsLoading, setCardsLoading] = useState(true)
+  // Standalone olympiads (created directly in Admin → Olympiads, never linked
+  // to an Activity category) — shown alongside onlineCards, but greyed out
+  // and sorted to the bottom when they're inactive, out of their time window,
+  // or don't match what we know about the visitor's eligibility.
+  const [standaloneListing, setStandaloneListing] = useState<OlympiadListing[]>([])
+  const [standaloneLoading, setStandaloneLoading] = useState(true)
   const [loading, setLoading] = useState(true)
   const [selected, setSelected] = useState<Olympiad | null>(null)
   const [phase, setPhase] = useState<Phase>('list')
@@ -84,6 +104,7 @@ export default function OlympiadPage() {
   useEffect(() => {
     fetch('/api/olympiad').then(r => r.json()).then(d => { setOlympiads(Array.isArray(d) ? d : []) }).catch(() => {}).finally(() => setLoading(false))
     fetch('/api/activity-online-categories-public').then(r => r.json()).then(d => { setOnlineCards(Array.isArray(d) ? d : []) }).catch(() => {}).finally(() => setCardsLoading(false))
+    fetch('/api/olympiad?listing=1').then(r => r.json()).then(d => { setStandaloneListing(Array.isArray(d) ? d : []) }).catch(() => {}).finally(() => setStandaloneLoading(false))
 
     // Resume a previous session if we have a registration id saved — check
     // the URL first (so a shared/bookmarked link works), then localStorage.
@@ -186,6 +207,61 @@ export default function OlympiadPage() {
 
   const openRegister = (o: Olympiad) => {
     setSelected(o); setPhase('register'); setError(''); setForm({}); setFileError(''); setAnswerSheetFile(null)
+  }
+
+  // We have no login system on this page, so "my criteria" can only mean
+  // what we already know from a previous registration on this browser
+  // (saved right after a successful submission below). If nothing has been
+  // saved yet, we don't have enough to say someone is ineligible, so we
+  // default to letting them through rather than hiding something wrongly.
+  const getProfile = (): { college?: string; hsc_session?: string } => {
+    try { return JSON.parse(localStorage.getItem(PROFILE_KEY) || '{}') } catch { return {} }
+  }
+  const saveProfile = (college?: string, hsc_session?: string) => {
+    try { localStorage.setItem(PROFILE_KEY, JSON.stringify({ college, hsc_session })) } catch { /* ignore */ }
+  }
+
+  // Decide whether a standalone olympiad should be shown as registrable, and
+  // if not, why — so the card can explain itself instead of just vanishing
+  // or looking broken.
+  const getListingStatus = (o: OlympiadListing): { status: ListingStatus; reason: string } => {
+    if (!o.is_active) return { status: 'inactive', reason: 'Not currently active' }
+
+    const now = Date.now()
+    if (o.registration_deadline && now > new Date(o.registration_deadline).getTime()) {
+      return { status: 'closed', reason: `Registration closed ${fmtDate(o.registration_deadline)}` }
+    }
+    if (o.scheduled_end_at && now > new Date(o.scheduled_end_at).getTime()) {
+      return { status: 'closed', reason: 'Exam window has ended' }
+    }
+    if (!o.scheduled_end_at && o.exam_date) {
+      const end = new Date(o.exam_date); end.setHours(23, 59, 59, 999)
+      if (now > end.getTime()) return { status: 'closed', reason: `Exam was on ${fmtDate(o.exam_date)}` }
+    }
+
+    if (o.external_only === false) {
+      const profile = getProfile()
+      if (profile.college && profile.college.trim().toLowerCase() !== 'notre dame college') {
+        return { status: 'ineligible', reason: 'Open to Notre Dame College students only' }
+      }
+    }
+
+    return { status: 'open', reason: '' }
+  }
+
+  // Standalone cards only carry the lightweight listing fields — to actually
+  // register we need the full olympiad (questions, registration_fields,
+  // etc.), which for an active one is already sitting in `olympiads`
+  // (fetched above). Falling back to a direct fetch covers any edge case
+  // where it isn't there yet.
+  const openStandaloneOlympiad = async (id: string) => {
+    const full = olympiads.find(o => o.id === id)
+    if (full) { openRegister(full); return }
+    try {
+      const r = await fetch(`/api/olympiad?id=${id}`)
+      const d = await r.json()
+      if (d?.olympiad) openRegister(d.olympiad)
+    } catch { /* ignore — card stays put */ }
   }
 
   // Timer
@@ -299,6 +375,7 @@ export default function OlympiadPage() {
       const res = await fetch('/api/olympiad-register', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Registration failed.')
+      saveProfile(payload.college, payload.hsc_session)
       setRegId(data.id || '')
       setRegData(data)
       setPhase('dashboard')
@@ -452,18 +529,30 @@ export default function OlympiadPage() {
   )
 
   // ── LIST ────────────────────────────────────────────────────────────────────
-  if (phase === 'list') return (
+  if (phase === 'list') {
+    const listLoading = cardsLoading || standaloneLoading
+    const standaloneWithStatus = standaloneListing.map(o => ({ o, ...getListingStatus(o) }))
+    const openStandalone = standaloneWithStatus.filter(s => s.status === 'open')
+    // Greyed-out ones always sink to the very bottom, worst offense last:
+    // temporarily ineligible/closed above permanently inactive.
+    const rank: Record<ListingStatus, number> = { open: 0, ineligible: 1, closed: 2, inactive: 3 }
+    const greyedStandalone = standaloneWithStatus
+      .filter(s => s.status !== 'open')
+      .sort((a, b) => rank[a.status] - rank[b.status])
+    const totalCount = onlineCards.length + standaloneListing.length
+
+    return (
     <div className="min-h-screen py-16 px-4" style={{ background: bg }}>
       <div className="max-w-4xl mx-auto">
         <div className="text-center mb-12">
           <h1 className="text-3xl font-bold mb-3" style={{ fontFamily: 'Orbitron, monospace', color: 'var(--blue)' }}>NDSC Olympiads</h1>
           <p style={{ color: 'var(--muted)' }}>Take part in NDSC science olympiads, test your knowledge, and win prizes.</p>
         </div>
-        {cardsLoading && <p className="text-center" style={{ color: 'var(--border-soft)' }}>Loading…</p>}
-        {!cardsLoading && onlineCards.length === 0 && <p className="text-center py-12" style={{ color: 'var(--border-soft)' }}>No online olympiad rounds open right now. Check back soon.</p>}
+        {listLoading && <p className="text-center" style={{ color: 'var(--border-soft)' }}>Loading…</p>}
+        {!listLoading && totalCount === 0 && <p className="text-center py-12" style={{ color: 'var(--border-soft)' }}>No online olympiad rounds open right now. Check back soon.</p>}
         <div className="space-y-4">
           {onlineCards.map(c => (
-            <div key={c.category_id} className="flex gap-5 p-5" style={card}>
+            <div key={`activity-${c.category_id}`} className="flex gap-5 p-5" style={card}>
               {c.cover_image_url && <img src={c.cover_image_url} alt="" className="w-24 h-24 rounded-xl object-cover flex-shrink-0" />}
               <div className="flex-1">
                 <p className="text-xs mb-1" style={{ color: 'var(--border-soft)' }}>{c.session_title}</p>
@@ -478,10 +567,45 @@ export default function OlympiadPage() {
               </button>
             </div>
           ))}
+
+          {openStandalone.map(({ o }) => (
+            <div key={`oly-${o.id}`} className="flex gap-5 p-5" style={card}>
+              {o.cover_image_url && <img src={o.cover_image_url} alt="" className="w-24 h-24 rounded-xl object-cover flex-shrink-0" />}
+              <div className="flex-1">
+                <h2 className="font-bold text-lg mb-1" style={{ color: 'var(--white-soft)' }}>{o.name}</h2>
+                {o.description && <p className="text-sm" style={{ color: 'var(--muted)' }}>{o.description}</p>}
+                {o.registration_deadline && <p className="text-xs mt-1" style={{ color: 'var(--border-soft)' }}>Register by {fmtDate(o.registration_deadline)}</p>}
+              </div>
+              <button
+                onClick={() => openStandaloneOlympiad(o.id)}
+                className="self-center px-5 py-2.5 rounded-xl text-sm font-bold flex-shrink-0"
+                style={{ background: 'linear-gradient(90deg,var(--blue),var(--blue2))', color: '#fff' }}>
+                Register Now
+              </button>
+            </div>
+          ))}
+
+          {greyedStandalone.map(({ o, reason }) => (
+            <div key={`oly-${o.id}`} className="flex gap-5 p-5 opacity-50" style={{ ...card, filter: 'grayscale(0.6)' }}>
+              {o.cover_image_url && <img src={o.cover_image_url} alt="" className="w-24 h-24 rounded-xl object-cover flex-shrink-0" />}
+              <div className="flex-1">
+                <h2 className="font-bold text-lg mb-1" style={{ color: 'var(--white-soft)' }}>{o.name}</h2>
+                {o.description && <p className="text-sm" style={{ color: 'var(--muted)' }}>{o.description}</p>}
+                <p className="text-xs mt-1" style={{ color: 'var(--danger-soft)' }}>{reason}</p>
+              </div>
+              <button
+                disabled
+                className="self-center px-5 py-2.5 rounded-xl text-sm font-bold flex-shrink-0 cursor-not-allowed"
+                style={{ background: 'var(--surface-alt)', color: 'var(--border-soft)', border: '1px solid var(--border)' }}>
+                Unavailable
+              </button>
+            </div>
+          ))}
         </div>
       </div>
     </div>
-  )
+    )
+  }
 
   // ── REGISTER ────────────────────────────────────────────────────────────────
   if (phase === 'register' && selected) return (
@@ -651,10 +775,22 @@ export default function OlympiadPage() {
         )}
 
         {q.type === 'short' && (
-          <textarea rows={3} className="w-full px-4 py-3 rounded-lg text-sm outline-none resize-none" style={inp}
-            placeholder="Type your answer here…"
-            value={shortAnswers[q.id] || ''}
-            onChange={e => setShortAnswers(p => ({ ...p, [q.id]: e.target.value }))} />
+          <div className="space-y-1.5">
+            <MathInputField
+              multiline rows={3}
+              className="w-full px-4 py-3 rounded-lg text-sm outline-none resize-none"
+              style={inp}
+              placeholder="Type your answer here… (tap Σ, or wrap LaTeX in $...$, for equations)"
+              value={shortAnswers[q.id] || ''}
+              onChange={v => setShortAnswers(p => ({ ...p, [q.id]: v }))}
+            />
+            {(shortAnswers[q.id] || '').includes('$') && (
+              <div className="px-3 py-2 rounded-lg text-sm" style={{ background: 'rgba(255,255,255,0.02)', border: '1px dashed var(--border)', color: 'var(--white-soft)' }}>
+                <span className="text-xs mr-2" style={{ color: 'var(--border-soft)' }}>Preview:</span>
+                <MathText text={shortAnswers[q.id]} />
+              </div>
+            )}
+          </div>
         )}
 
         {q.type === 'photo' && (
