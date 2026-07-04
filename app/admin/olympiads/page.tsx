@@ -49,6 +49,13 @@ type Olympiad = {
   registration_fields: RegField[]
   questions: Question[]
   created_at: string
+  // Appearance — all optional, blank means "use the site default"
+  theme_bg_color?: string | null
+  theme_bg_image_url?: string | null
+  theme_accent_color?: string | null
+  theme_header_title?: string | null
+  theme_header_subtitle?: string | null
+  theme_header_logo_url?: string | null
 }
 
 const BLANK: Partial<Olympiad> = {
@@ -72,7 +79,7 @@ export default function AdminOlympiadsPage() {
   const [registrations, setRegistrations] = useState<Record<string, any[]>>({})
   const [viewingReg, setViewingReg] = useState<any | null>(null)
   const [viewingResponseReg, setViewingResponseReg] = useState<any | null>(null)
-  const [uploading, setUploading] = useState<'cover' | 'pdf' | null>(null)
+  const [uploading, setUploading] = useState<'cover' | 'pdf' | 'bg' | 'logo' | null>(null)
   const [uploadProgress, setUploadProgress] = useState(0)
   const [uploadError, setUploadError] = useState('')
   // Which olympiads are actually derived from an Activity online leaf, vs
@@ -162,6 +169,26 @@ export default function AdminOlympiadsPage() {
     try {
       const url = await uploadFile(file, 'olympiad-pdfs', MAX_PDF_MB, ['application/pdf'])
       setEditing(p => ({ ...p, pdf_url: url }))
+    } catch (e: any) { setUploadError(e.message) }
+    setUploading(null)
+  }
+
+  const handleBgImageUpload = async (file: File | null) => {
+    if (!file) return
+    setUploading('bg'); setUploadError(''); setUploadProgress(0)
+    try {
+      const url = await uploadFile(file, 'olympiad-backgrounds', MAX_COVER_MB, ['image/jpeg', 'image/png', 'image/webp'])
+      setEditing(p => ({ ...p, theme_bg_image_url: url }))
+    } catch (e: any) { setUploadError(e.message) }
+    setUploading(null)
+  }
+
+  const handleHeaderLogoUpload = async (file: File | null) => {
+    if (!file) return
+    setUploading('logo'); setUploadError(''); setUploadProgress(0)
+    try {
+      const url = await uploadFile(file, 'olympiad-logos', MAX_COVER_MB, ['image/jpeg', 'image/png', 'image/webp'])
+      setEditing(p => ({ ...p, theme_header_logo_url: url }))
     } catch (e: any) { setUploadError(e.message) }
     setUploading(null)
   }
@@ -272,6 +299,12 @@ export default function AdminOlympiadsPage() {
       organizer_password: editing.organizer_password || null,
       registration_fields: editing.registration_fields || [],
       questions: editing.questions || [],
+      theme_bg_color: editing.theme_bg_color || null,
+      theme_bg_image_url: editing.theme_bg_image_url || null,
+      theme_accent_color: editing.theme_accent_color || null,
+      theme_header_title: editing.theme_header_title || null,
+      theme_header_subtitle: editing.theme_header_subtitle || null,
+      theme_header_logo_url: editing.theme_header_logo_url || null,
     }
     const res = await fetch('/api/admin/olympiads', {
       method: editing.id ? 'PUT' : 'POST',
@@ -673,6 +706,108 @@ export default function AdminOlympiadsPage() {
             )}
           </div>
 
+          {/* Appearance — per-olympiad theme override for the public
+              register/exam/result pages. Everything here is optional; blank
+              fields just fall back to the site's normal look. */}
+          <div className="rounded-xl p-5 space-y-4" style={s}>
+            <p className="text-xs font-bold tracking-widest" style={{ color: 'var(--blue)' }}>APPEARANCE</p>
+            <p className="text-xs" style={{ color: 'var(--border-soft)' }}>
+              Customize how this specific olympiad looks to students on the register, exam, and result pages. Leave anything blank to use the site's normal look.
+            </p>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-xs mb-1" style={{ color: 'var(--muted)' }}>Background Color</label>
+                <div className="flex items-center gap-2">
+                  <input type="color" value={editing.theme_bg_color || '#0b1220'}
+                    onChange={e => setEditing(p => ({ ...p, theme_bg_color: e.target.value }))}
+                    className="w-10 h-9 rounded border cursor-pointer flex-shrink-0" style={{ borderColor: 'var(--border)', background: 'transparent' }} />
+                  <input type="text" className={inputClass} style={inputStyle} placeholder="e.g. #0b1220 — blank uses the default"
+                    value={editing.theme_bg_color || ''} onChange={e => setEditing(p => ({ ...p, theme_bg_color: e.target.value || null }))} />
+                  {editing.theme_bg_color && <button onClick={() => setEditing(p => ({ ...p, theme_bg_color: null }))} title="Clear" style={{ color: 'var(--danger-soft)' }}><X size={14} /></button>}
+                </div>
+              </div>
+              <div>
+                <label className="block text-xs mb-1" style={{ color: 'var(--muted)' }}>Accent Color (buttons & highlights)</label>
+                <div className="flex items-center gap-2">
+                  <input type="color" value={editing.theme_accent_color || '#3b82f6'}
+                    onChange={e => setEditing(p => ({ ...p, theme_accent_color: e.target.value }))}
+                    className="w-10 h-9 rounded border cursor-pointer flex-shrink-0" style={{ borderColor: 'var(--border)', background: 'transparent' }} />
+                  <input type="text" className={inputClass} style={inputStyle} placeholder="e.g. #3b82f6 — blank uses the default blue"
+                    value={editing.theme_accent_color || ''} onChange={e => setEditing(p => ({ ...p, theme_accent_color: e.target.value || null }))} />
+                  {editing.theme_accent_color && <button onClick={() => setEditing(p => ({ ...p, theme_accent_color: null }))} title="Clear" style={{ color: 'var(--danger-soft)' }}><X size={14} /></button>}
+                </div>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-xs mb-1" style={{ color: 'var(--muted)' }}>Background Image (optional, max {MAX_COVER_MB}MB)</label>
+                <label className="flex items-center justify-center gap-2 w-full px-3 py-2.5 rounded-lg text-sm border cursor-pointer" style={{ ...inputStyle, color: 'var(--blue)', opacity: uploading === 'bg' ? 0.6 : 1 }}>
+                  <ImageIcon size={15} />
+                  {uploading === 'bg' ? `${uploadProgress}%` : editing.theme_bg_image_url ? 'Replace image' : 'Upload image'}
+                  <input type="file" accept="image/jpeg,image/png,image/webp" className="hidden" disabled={uploading === 'bg'} onChange={e => handleBgImageUpload(e.target.files?.[0] || null)} />
+                </label>
+                {editing.theme_bg_image_url && uploading !== 'bg' && (
+                  <div className="relative w-fit mt-2">
+                    <img src={editing.theme_bg_image_url} alt="background" className="h-16 rounded object-cover border" style={{ borderColor: 'var(--border)' }} />
+                    <button onClick={() => setEditing(p => ({ ...p, theme_bg_image_url: '' }))} className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full text-xs flex items-center justify-center" style={{ background: 'rgba(var(--danger-rgb), 0.85)', color: 'white' }}>✕</button>
+                  </div>
+                )}
+                <p className="text-[11px] mt-1" style={{ color: 'var(--border-soft)' }}>Shown behind the register/exam/result pages, tinted with the background color above.</p>
+              </div>
+              <div>
+                <label className="block text-xs mb-1" style={{ color: 'var(--muted)' }}>Header Logo (optional, max {MAX_COVER_MB}MB)</label>
+                <label className="flex items-center justify-center gap-2 w-full px-3 py-2.5 rounded-lg text-sm border cursor-pointer" style={{ ...inputStyle, color: 'var(--blue)', opacity: uploading === 'logo' ? 0.6 : 1 }}>
+                  <ImageIcon size={15} />
+                  {uploading === 'logo' ? `${uploadProgress}%` : editing.theme_header_logo_url ? 'Replace logo' : 'Upload logo'}
+                  <input type="file" accept="image/jpeg,image/png,image/webp" className="hidden" disabled={uploading === 'logo'} onChange={e => handleHeaderLogoUpload(e.target.files?.[0] || null)} />
+                </label>
+                {editing.theme_header_logo_url && uploading !== 'logo' && (
+                  <div className="relative w-fit mt-2">
+                    <img src={editing.theme_header_logo_url} alt="logo" className="h-12 rounded object-contain border p-1" style={{ borderColor: 'var(--border)', background: 'rgba(255,255,255,0.05)' }} />
+                    <button onClick={() => setEditing(p => ({ ...p, theme_header_logo_url: '' }))} className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full text-xs flex items-center justify-center" style={{ background: 'rgba(var(--danger-rgb), 0.85)', color: 'white' }}>✕</button>
+                  </div>
+                )}
+                <p className="text-[11px] mt-1" style={{ color: 'var(--border-soft)' }}>Shown above the olympiad's name on register/exam/result pages.</p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-xs mb-1" style={{ color: 'var(--muted)' }}>Header Title (overrides the olympiad name)</label>
+                <input type="text" className={inputClass} style={inputStyle} placeholder={editing.name || 'Defaults to the olympiad name'}
+                  value={editing.theme_header_title || ''} onChange={e => setEditing(p => ({ ...p, theme_header_title: e.target.value || null }))} />
+              </div>
+              <div>
+                <label className="block text-xs mb-1" style={{ color: 'var(--muted)' }}>Header Subtitle</label>
+                <input type="text" className={inputClass} style={inputStyle} placeholder="e.g. Presented by ..."
+                  value={editing.theme_header_subtitle || ''} onChange={e => setEditing(p => ({ ...p, theme_header_subtitle: e.target.value || null }))} />
+              </div>
+            </div>
+
+            <div>
+              <p className="text-xs mb-1.5" style={{ color: 'var(--muted)' }}>Preview</p>
+              <div className="rounded-xl p-5 flex items-center gap-3" style={{
+                background: editing.theme_bg_image_url
+                  ? `linear-gradient(${editing.theme_bg_color || 'rgba(0,0,0,0.45)'}, ${editing.theme_bg_color || 'rgba(0,0,0,0.45)'}), url(${editing.theme_bg_image_url}) center/cover`
+                  : (editing.theme_bg_color || 'var(--surface-deep)'),
+                border: '1px solid var(--border)',
+              }}>
+                {editing.theme_header_logo_url && <img src={editing.theme_header_logo_url} alt="" className="h-9 object-contain flex-shrink-0" />}
+                <div className="flex-1 min-w-0">
+                  <p className="font-bold text-sm truncate" style={{ color: editing.theme_accent_color || 'var(--blue)', fontFamily: 'Orbitron, monospace' }}>
+                    {editing.theme_header_title || editing.name || 'Olympiad Name'}
+                  </p>
+                  {editing.theme_header_subtitle && <p className="text-xs truncate" style={{ color: 'var(--muted)' }}>{editing.theme_header_subtitle}</p>}
+                </div>
+                <button className="px-3 py-1.5 rounded-lg text-xs font-bold flex-shrink-0" style={{ background: editing.theme_accent_color || 'linear-gradient(90deg,var(--blue),var(--blue2))', color: '#fff' }}>
+                  Register Now
+                </button>
+              </div>
+            </div>
+          </div>
+
           {/* Registration fields — only editable for standalone olympiads.
               For Activity-linked ones, the registration structure (fields,
               team settings, payment) is owned by the Activity category
@@ -781,6 +916,12 @@ export default function AdminOlympiadsPage() {
                 <div>
                   <label className="block text-xs mb-1" style={{ color: 'var(--muted)' }}>Description / hint (optional)</label>
                   <MathInputField className={inputClass} style={inputStyle} value={q.description || ''} onChange={v => updateQuestion(q.id, { description: v })} placeholder="Additional context or instructions for this question" />
+                  {q.description?.includes('$') && (
+                    <div className="mt-1.5 px-3 py-2 rounded text-sm" style={{ background: 'var(--surface-deep)', border: '1px dashed var(--border)' }}>
+                      <span className="text-[10px] block mb-1" style={{ color: 'var(--border-soft)' }}>PREVIEW</span>
+                      <MathText text={q.description} style={{ color: 'var(--white-soft)' }} />
+                    </div>
+                  )}
                 </div>
                 <div>
                   <label className="block text-xs mb-1" style={{ color: 'var(--muted)' }}>Question image (optional — diagrams, graphs, etc.)</label>
@@ -816,10 +957,18 @@ export default function AdminOlympiadsPage() {
                   <div className="space-y-2">
                     <label className="text-xs" style={{ color: 'var(--muted)' }}>Options (click radio to mark correct answer)</label>
                     {(q.options || []).map(o => (
-                      <div key={o.id} className="flex items-center gap-2">
-                        <input type="radio" name={`correct-${q.id}`} checked={q.correct_option_id === o.id} onChange={() => updateQuestion(q.id, { correct_option_id: o.id })} style={{ accentColor: 'var(--success)' }} />
-                        <MathInputField className={inputClass} style={inputStyle} value={o.text} onChange={v => updateOption(q.id, o.id, v)} placeholder="Option text" />
-                        <button onClick={() => removeOption(q.id, o.id)} style={{ color: 'var(--danger-soft)' }}><X size={13} /></button>
+                      <div key={o.id} className="space-y-1">
+                        <div className="flex items-center gap-2">
+                          <input type="radio" name={`correct-${q.id}`} checked={q.correct_option_id === o.id} onChange={() => updateQuestion(q.id, { correct_option_id: o.id })} style={{ accentColor: 'var(--success)' }} />
+                          <MathInputField className={inputClass} style={inputStyle} value={o.text} onChange={v => updateOption(q.id, o.id, v)} placeholder="Option text" />
+                          <button onClick={() => removeOption(q.id, o.id)} style={{ color: 'var(--danger-soft)' }}><X size={13} /></button>
+                        </div>
+                        {o.text?.includes('$') && (
+                          <div className="ml-6 px-3 py-1.5 rounded text-sm" style={{ background: 'var(--surface-deep)', border: '1px dashed var(--border)' }}>
+                            <span className="text-[10px] block mb-0.5" style={{ color: 'var(--border-soft)' }}>PREVIEW</span>
+                            <MathText text={o.text} style={{ color: 'var(--white-soft)' }} />
+                          </div>
+                        )}
                       </div>
                     ))}
                     <button onClick={() => addOption(q.id)} className="text-xs flex items-center gap-1" style={{ color: 'var(--blue)' }}><Plus size={11} /> Add option</button>
@@ -829,10 +978,18 @@ export default function AdminOlympiadsPage() {
                   <div className="space-y-2">
                     <label className="text-xs" style={{ color: 'var(--muted)' }}>Options (check all correct answers — students may select multiple)</label>
                     {(q.options || []).map(o => (
-                      <div key={o.id} className="flex items-center gap-2">
-                        <input type="checkbox" checked={(q.correct_option_ids || []).includes(o.id)} onChange={() => toggleCheckboxCorrect(q.id, o.id)} style={{ accentColor: 'var(--success)' }} />
-                        <MathInputField className={inputClass} style={inputStyle} value={o.text} onChange={v => updateOption(q.id, o.id, v)} placeholder="Option text" />
-                        <button onClick={() => removeOption(q.id, o.id)} style={{ color: 'var(--danger-soft)' }}><X size={13} /></button>
+                      <div key={o.id} className="space-y-1">
+                        <div className="flex items-center gap-2">
+                          <input type="checkbox" checked={(q.correct_option_ids || []).includes(o.id)} onChange={() => toggleCheckboxCorrect(q.id, o.id)} style={{ accentColor: 'var(--success)' }} />
+                          <MathInputField className={inputClass} style={inputStyle} value={o.text} onChange={v => updateOption(q.id, o.id, v)} placeholder="Option text" />
+                          <button onClick={() => removeOption(q.id, o.id)} style={{ color: 'var(--danger-soft)' }}><X size={13} /></button>
+                        </div>
+                        {o.text?.includes('$') && (
+                          <div className="ml-6 px-3 py-1.5 rounded text-sm" style={{ background: 'var(--surface-deep)', border: '1px dashed var(--border)' }}>
+                            <span className="text-[10px] block mb-0.5" style={{ color: 'var(--border-soft)' }}>PREVIEW</span>
+                            <MathText text={o.text} style={{ color: 'var(--white-soft)' }} />
+                          </div>
+                        )}
                       </div>
                     ))}
                     <button onClick={() => addOption(q.id)} className="text-xs flex items-center gap-1" style={{ color: 'var(--blue)' }}><Plus size={11} /> Add option</button>

@@ -41,7 +41,7 @@ export async function GET(req: NextRequest) {
 
     const { data, error } = await supabaseAdmin
       .from('olympiads')
-      .select('id, name, description, cover_image_url, is_active, mode, exam_type, registration_deadline, exam_date, scheduled_start_at, scheduled_end_at, eligibility, external_only, created_at')
+      .select('id, name, description, cover_image_url, is_active, mode, exam_type, registration_deadline, exam_date, scheduled_start_at, scheduled_end_at, eligibility, external_only, created_at, theme_bg_color, theme_accent_color, theme_header_logo_url')
       .order('created_at', { ascending: false })
     if (error) return apiError(error, 400)
     return apiOk((data || []).filter((o: any) => !linkedIds.has(o.id)))

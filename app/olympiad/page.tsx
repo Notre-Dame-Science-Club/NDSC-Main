@@ -21,6 +21,14 @@ type Olympiad = {
   registration_deadline?: string; exam_date?: string
   eligibility?: string; external_only?: boolean; registration_fields: RegField[]; questions: Question[]
   scheduled_start_at?: string | null; scheduled_end_at?: string | null
+  // Per-olympiad appearance, set in Admin → Olympiads → Appearance. All optional —
+  // anything left blank just falls back to the site's normal look.
+  theme_bg_color?: string | null
+  theme_bg_image_url?: string | null
+  theme_accent_color?: string | null
+  theme_header_title?: string | null
+  theme_header_subtitle?: string | null
+  theme_header_logo_url?: string | null
 }
 
 type Phase = 'list' | 'register' | 'dashboard' | 'exam' | 'done' | 'result'
@@ -35,6 +43,7 @@ type OlympiadListing = {
   is_active: boolean; registration_deadline?: string; exam_date?: string
   scheduled_start_at?: string | null; scheduled_end_at?: string | null
   eligibility?: string; external_only?: boolean
+  theme_bg_color?: string | null; theme_accent_color?: string | null; theme_header_logo_url?: string | null
 }
 type ListingStatus = 'open' | 'inactive' | 'closed' | 'ineligible'
 const PROFILE_KEY = 'ndsc_olympiad_profile'
@@ -521,6 +530,35 @@ export default function OlympiadPage() {
     return o.questions?.some(q => q.type === 'photo') || !!o.pdf_url
   }
 
+  // Turns an olympiad's admin-configured appearance overrides (background
+  // color/image, accent color, header text/logo) into ready-to-use style
+  // objects for the register/dashboard/exam/done/result pages. Anything not
+  // set by the organizer just falls back to the site's normal look, so this
+  // is always safe to call even for olympiads with no custom theme at all.
+  const getTheme = (o?: Olympiad | null) => {
+    const accent = o?.theme_accent_color || null
+    const pageStyle: React.CSSProperties = o?.theme_bg_image_url
+      ? {
+          backgroundImage: `linear-gradient(${o.theme_bg_color || 'rgba(0,0,0,0.45)'}, ${o.theme_bg_color || 'rgba(0,0,0,0.45)'}), url(${o.theme_bg_image_url})`,
+          backgroundSize: 'cover', backgroundPosition: 'center', backgroundAttachment: 'fixed',
+        }
+      : { background: o?.theme_bg_color || bg }
+    return {
+      pageStyle,
+      accent,
+      // Drop-in replacement for the site's default blue CTA gradient — pass
+      // this as a button's `style` (spread it) to have primary actions pick
+      // up the olympiad's accent color when one's set.
+      ctaStyle: (accent
+        ? { background: accent, color: '#fff' }
+        : { background: 'linear-gradient(90deg,var(--blue),var(--blue2))', color: '#fff' }) as React.CSSProperties,
+      headerTitle: o?.theme_header_title || o?.name || '',
+      headerSubtitle: o?.theme_header_subtitle || '',
+      headerLogo: o?.theme_header_logo_url || '',
+    }
+  }
+  const theme = getTheme(selected)
+
   // ── RESTORING ────────────────────────────────────────────────────────────────
   if (restoring) return (
     <div className="min-h-screen flex items-center justify-center" style={{ background: bg }}>
@@ -569,8 +607,8 @@ export default function OlympiadPage() {
           ))}
 
           {openStandalone.map(({ o }) => (
-            <div key={`oly-${o.id}`} className="flex gap-5 p-5" style={card}>
-              {o.cover_image_url && <img src={o.cover_image_url} alt="" className="w-24 h-24 rounded-xl object-cover flex-shrink-0" />}
+            <div key={`oly-${o.id}`} className="flex gap-5 p-5" style={{ ...card, borderLeft: o.theme_accent_color ? `3px solid ${o.theme_accent_color}` : card.border }}>
+              {(o.theme_header_logo_url || o.cover_image_url) && <img src={o.theme_header_logo_url || o.cover_image_url} alt="" className="w-24 h-24 rounded-xl object-cover flex-shrink-0" />}
               <div className="flex-1">
                 <h2 className="font-bold text-lg mb-1" style={{ color: 'var(--white-soft)' }}>{o.name}</h2>
                 {o.description && <p className="text-sm" style={{ color: 'var(--muted)' }}>{o.description}</p>}
@@ -579,7 +617,7 @@ export default function OlympiadPage() {
               <button
                 onClick={() => openStandaloneOlympiad(o.id)}
                 className="self-center px-5 py-2.5 rounded-xl text-sm font-bold flex-shrink-0"
-                style={{ background: 'linear-gradient(90deg,var(--blue),var(--blue2))', color: '#fff' }}>
+                style={{ background: o.theme_accent_color || 'linear-gradient(90deg,var(--blue),var(--blue2))', color: '#fff' }}>
                 Register Now
               </button>
             </div>
@@ -609,11 +647,15 @@ export default function OlympiadPage() {
 
   // ── REGISTER ────────────────────────────────────────────────────────────────
   if (phase === 'register' && selected) return (
-    <div className="min-h-screen py-12 px-4" style={{ background: bg }}>
+    <div className="min-h-screen py-12 px-4" style={theme.pageStyle}>
       <div className="max-w-lg mx-auto">
         <button onClick={() => setPhase('list')} className="text-sm mb-6 flex items-center gap-1" style={{ color: 'var(--muted)' }}>← Back</button>
         <div className="p-6 space-y-4" style={card}>
-          <h2 className="text-xl font-bold" style={{ fontFamily: 'Orbitron, monospace', color: 'var(--blue)' }}>Register — {selected.name}</h2>
+          {theme.headerLogo && <img src={theme.headerLogo} alt="" className="h-12 mx-auto object-contain" />}
+          <div>
+            <h2 className="text-xl font-bold" style={{ fontFamily: 'Orbitron, monospace', color: theme.accent || 'var(--blue)' }}>Register — {theme.headerTitle}</h2>
+            {theme.headerSubtitle && <p className="text-xs mt-1" style={{ color: 'var(--muted)' }}>{theme.headerSubtitle}</p>}
+          </div>
           {error && <div className="p-3 rounded-lg text-sm flex items-center gap-2" style={{ background: 'rgba(var(--danger-rgb), 0.1)', border: '1px solid rgba(var(--danger-rgb), 0.3)', color: 'var(--danger-soft)' }}><AlertCircle size={14} />{error}</div>}
 
           {/* Mandatory fields */}
@@ -644,7 +686,7 @@ export default function OlympiadPage() {
             </div>
           ))}
 
-          <button onClick={submitRegistration} disabled={submitting} className="w-full py-3 rounded-xl font-bold text-sm" style={{ background: 'linear-gradient(90deg,var(--blue),var(--blue2))', color: '#fff', opacity: submitting ? 0.6 : 1 }}>
+          <button onClick={submitRegistration} disabled={submitting} className="w-full py-3 rounded-xl font-bold text-sm" style={{ ...theme.ctaStyle, opacity: submitting ? 0.6 : 1 }}>
             {submitting ? 'Registering…' : 'Complete Registration →'}
           </button>
         </div>
@@ -654,14 +696,16 @@ export default function OlympiadPage() {
 
   // ── DASHBOARD ────────────────────────────────────────────────────────────────
   if (phase === 'dashboard' && selected) return (
-    <div className="min-h-screen py-12 px-4" style={{ background: bg }}>
+    <div className="min-h-screen py-12 px-4" style={theme.pageStyle}>
       <div className="max-w-lg mx-auto space-y-4">
         <div className="p-6" style={card}>
+          {theme.headerLogo && <img src={theme.headerLogo} alt="" className="h-10 mb-3 object-contain" />}
           <div className="flex items-center gap-2 mb-1">
             <CheckCircle size={18} style={{ color: 'var(--success)' }} />
             <h2 className="font-bold text-lg" style={{ color: 'var(--success)' }}>Registration Successful!</h2>
           </div>
-          <p className="text-sm" style={{ color: 'var(--muted)' }}>{selected.name}</p>
+          <p className="text-sm" style={{ color: 'var(--muted)' }}>{theme.headerTitle}</p>
+          {theme.headerSubtitle && <p className="text-xs mt-0.5" style={{ color: 'var(--border-soft)' }}>{theme.headerSubtitle}</p>}
         </div>
 
         {hasOnlineQuestions(selected) && (
@@ -671,7 +715,7 @@ export default function OlympiadPage() {
               {selected.questions.length} questions · {selected.timer_minutes} minutes · {selected.question_display === 'one_by_one' ? 'One question at a time' : 'All questions at once'}
             </p>
             <p className="text-xs" style={{ color: 'var(--border-soft)' }}>Once you start, the timer begins. It will auto-submit when time runs out.</p>
-            <button onClick={startExam} className="w-full py-3 rounded-xl font-bold text-sm" style={{ background: 'linear-gradient(90deg,var(--blue),var(--blue2))', color: '#fff' }}>
+            <button onClick={startExam} className="w-full py-3 rounded-xl font-bold text-sm" style={theme.ctaStyle}>
               Start Exam →
             </button>
           </div>
@@ -834,17 +878,20 @@ export default function OlympiadPage() {
     }
 
     return (
-      <div className="min-h-screen py-8 px-4" style={{ background: bg }}>
+      <div className="min-h-screen py-8 px-4" style={theme.pageStyle}>
         <div className="max-w-2xl mx-auto">
           {/* Timer bar */}
           <div className="sticky top-4 z-10 flex items-center justify-between px-5 py-3 rounded-xl mb-6" style={{ background: 'var(--surface-deep)', border: '1px solid var(--border)' }}>
-            <span className="font-semibold text-sm" style={{ color: 'var(--white-soft)' }}>{selected.name}</span>
+            <span className="font-semibold text-sm flex items-center gap-2" style={{ color: 'var(--white-soft)' }}>
+              {theme.headerLogo && <img src={theme.headerLogo} alt="" className="h-6 object-contain" />}
+              {theme.headerTitle}
+            </span>
             <div className="flex items-center gap-2">
-              <Clock size={14} style={{ color: timeLeft < 300 ? 'var(--danger-soft)' : 'var(--blue)' }} />
-              <span className="font-mono text-lg font-bold" style={{ color: timeLeft < 300 ? 'var(--danger-soft)' : 'var(--blue)' }}>{fmtTime(timeLeft)}</span>
+              <Clock size={14} style={{ color: timeLeft < 300 ? 'var(--danger-soft)' : (theme.accent || 'var(--blue)') }} />
+              <span className="font-mono text-lg font-bold" style={{ color: timeLeft < 300 ? 'var(--danger-soft)' : (theme.accent || 'var(--blue)') }}>{fmtTime(timeLeft)}</span>
             </div>
             {!isOneByOne && (
-              <button onClick={() => { if (validateRequired()) submitExam() }} disabled={submitting} className="px-4 py-1.5 rounded-lg text-sm font-bold" style={{ background: 'linear-gradient(90deg,var(--blue),var(--blue2))', color: '#fff', opacity: submitting ? 0.6 : 1 }}>
+              <button onClick={() => { if (validateRequired()) submitExam() }} disabled={submitting} className="px-4 py-1.5 rounded-lg text-sm font-bold" style={{ ...theme.ctaStyle, opacity: submitting ? 0.6 : 1 }}>
                 {submitting ? 'Submitting…' : 'Submit'}
               </button>
             )}
@@ -881,7 +928,7 @@ export default function OlympiadPage() {
                     Next <ChevronRight size={14} />
                   </button>
                 ) : (
-                  <button onClick={() => { if (validateRequired()) submitExam() }} disabled={submitting} className="px-5 py-2 rounded-lg text-sm font-bold" style={{ background: 'linear-gradient(90deg,var(--blue),var(--blue2))', color: '#fff', opacity: submitting ? 0.6 : 1 }}>
+                  <button onClick={() => { if (validateRequired()) submitExam() }} disabled={submitting} className="px-5 py-2 rounded-lg text-sm font-bold" style={{ ...theme.ctaStyle, opacity: submitting ? 0.6 : 1 }}>
                     {submitting ? 'Submitting…' : 'Submit Exam →'}
                   </button>
                 )}
@@ -899,7 +946,7 @@ export default function OlympiadPage() {
           ) : (
             <div className="space-y-4">
               {questions.map((q, i) => renderQuestion(q, i))}
-              <button onClick={() => { if (validateRequired()) submitExam() }} disabled={submitting} className="w-full py-3 rounded-xl font-bold text-sm mt-4" style={{ background: 'linear-gradient(90deg,var(--blue),var(--blue2))', color: '#fff', opacity: submitting ? 0.6 : 1 }}>
+              <button onClick={() => { if (validateRequired()) submitExam() }} disabled={submitting} className="w-full py-3 rounded-xl font-bold text-sm mt-4" style={{ ...theme.ctaStyle, opacity: submitting ? 0.6 : 1 }}>
                 {submitting ? 'Submitting…' : 'Submit Exam →'}
               </button>
             </div>
@@ -920,13 +967,14 @@ export default function OlympiadPage() {
   }
 
   if (phase === 'done') return (
-    <div className="min-h-screen flex items-center justify-center py-12 px-4" style={{ background: bg }}>
+    <div className="min-h-screen flex items-center justify-center py-12 px-4" style={theme.pageStyle}>
       <div className="max-w-md w-full p-8 text-center space-y-4" style={card}>
+        {theme.headerLogo && <img src={theme.headerLogo} alt="" className="h-12 mx-auto object-contain" />}
         <CheckCircle size={48} className="mx-auto" style={{ color: 'var(--success)' }} />
         <h2 className="text-xl font-bold" style={{ fontFamily: 'Orbitron, monospace', color: 'var(--success)' }}>Submitted!</h2>
         <p className="text-sm" style={{ color: 'var(--muted)' }}>Your response has been recorded. Results will be announced by the organizers.</p>
         <button onClick={clearSession}
-          className="px-6 py-2.5 rounded-xl text-sm font-medium" style={{ background: 'rgba(var(--blue-rgb), 0.1)', color: 'var(--blue)', border: '1px solid rgba(var(--blue-rgb), 0.2)' }}>
+          className="px-6 py-2.5 rounded-xl text-sm font-medium" style={{ background: 'rgba(var(--blue-rgb), 0.1)', color: theme.accent || 'var(--blue)', border: '1px solid rgba(var(--blue-rgb), 0.2)' }}>
           Back to Olympiads
         </button>
       </div>
@@ -941,10 +989,11 @@ export default function OlympiadPage() {
     const finalScore = regData.final_score ?? regData.mcq_score ?? totalAwarded
 
     return (
-      <div className="min-h-screen py-12 px-4" style={{ background: bg }}>
+      <div className="min-h-screen py-12 px-4" style={theme.pageStyle}>
         <div className="max-w-2xl mx-auto space-y-5">
           <div className="p-6 text-center" style={card}>
-            <h2 className="text-xl font-bold mb-1" style={{ fontFamily: 'Orbitron, monospace', color: 'var(--blue)' }}>{selected.name} — Result</h2>
+            {theme.headerLogo && <img src={theme.headerLogo} alt="" className="h-12 mx-auto mb-2 object-contain" />}
+            <h2 className="text-xl font-bold mb-1" style={{ fontFamily: 'Orbitron, monospace', color: theme.accent || 'var(--blue)' }}>{theme.headerTitle} — Result</h2>
             <p className="text-3xl font-black mt-3" style={{ color: 'var(--success)' }}>
               {finalScore}{totalPossible > 0 ? ` / ${totalPossible}` : ''}
             </p>
