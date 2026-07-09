@@ -1,5 +1,5 @@
 import { supabaseAdmin } from '@/lib/supabase'
-import { NextRequest } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { requireAdmin } from '@/lib/api/admin-auth'
 import { apiError, apiOk } from '@/lib/api/response'
 

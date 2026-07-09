@@ -7,7 +7,7 @@ import { Plus, Trash2, ChevronRight, ChevronDown, ArrowLeft, Users, CreditCard, 
 const uid = () => Math.random().toString(36).slice(2, 9)
 
 type FieldType = 'text' | 'textarea' | 'number' | 'photo' | 'file' | 'dropdown' | 'date' | 'time'
-type CustomField = { key: string; label: string; description?: string; type: FieldType; required: boolean; options?: string[]; max_file_size_mb?: number }
+type CustomField = { key: string; label: string; description?: string; type: FieldType; required: boolean; options?: string[]; allow_other?: boolean; max_file_size_mb?: number; max_files?: number }
 type SubmissionField = {
   id: string; title: string; description?: string
   field_type: 'text' | 'textarea' | 'file'; required: boolean
@@ -31,6 +31,7 @@ type Category = {
   payment_label: string | null
   is_online_submission: boolean
   linked_olympiad_id: string | null
+  linked_olympiad?: { id: string; exam_type: 'photo_only' | 'live_only' | 'mixed'; relay_mode: boolean; relay_type: string | null } | null
   schedule_date: string | null
   schedule_time: string | null
   schedule_room: string | null
@@ -40,6 +41,14 @@ type Category = {
   submission_who: 'leader' | 'any_member'
   project_name_enabled: boolean
   project_name_label: string | null
+}
+
+const deriveOnlineType = (o?: Category['linked_olympiad']): string => {
+  if (!o) return 'full_quiz'
+  if (o.relay_mode) return 'science_relay'
+  if (o.exam_type === 'photo_only') return 'pure_submission'
+  if (o.exam_type === 'live_only') return 'full_quiz'
+  return 'mixed'
 }
 
 const s = { background: 'var(--bg2)', borderColor: 'var(--border)' }
@@ -112,7 +121,7 @@ export default function ActivityRegistrationBuilder() {
     }
   }
 
-  const updateCategory = async (id: string, patch: Partial<Category>) => {
+  const updateCategory = async (id: string, patch: Partial<Category> & { online_type?: string }) => {
     setError('')
     try {
       const res = await fetch('/api/admin/activity-reg-categories', {
@@ -361,7 +370,7 @@ function RegistrantsPanel({ sessionId }: { sessionId: string }) {
   )
 }
 
-function CategoryEditor({ category, isLeaf, onSave }: { category: Category; isLeaf: boolean; onSave: (patch: Partial<Category>) => void }) {
+function CategoryEditor({ category, isLeaf, onSave }: { category: Category; isLeaf: boolean; onSave: (patch: Partial<Category> & { online_type?: string }) => void }) {
   const [name, setName] = useState(category.name)
   const [description, setDescription] = useState(category.description || '')
   const [registrationOpen, setRegistrationOpen] = useState(category.registration_open !== false)
@@ -374,6 +383,7 @@ function CategoryEditor({ category, isLeaf, onSave }: { category: Category; isLe
   const [paymentAmount, setPaymentAmount] = useState(category.payment_amount?.toString() || '')
   const [paymentLabel, setPaymentLabel] = useState(category.payment_label || '')
   const [isOnlineSubmission, setIsOnlineSubmission] = useState(category.is_online_submission)
+  const [onlineType, setOnlineType] = useState(deriveOnlineType(category.linked_olympiad))
   const [scheduleDate, setScheduleDate] = useState(category.schedule_date || '')
   const [scheduleTime, setScheduleTime] = useState(category.schedule_time || '')
   const [scheduleRoom, setScheduleRoom] = useState(category.schedule_room || '')
@@ -414,6 +424,7 @@ function CategoryEditor({ category, isLeaf, onSave }: { category: Category; isLe
       payment_amount: paymentAmount ? Number(paymentAmount) : null,
       payment_label: paymentLabel || null,
       is_online_submission: isOnlineSubmission,
+      online_type: isOnlineSubmission ? onlineType : undefined,
       schedule_date: scheduleDate || null,
       schedule_time: scheduleTime || null,
       schedule_room: scheduleRoom || null,
@@ -451,14 +462,26 @@ function CategoryEditor({ category, isLeaf, onSave }: { category: Category; isLe
                 onChange={e => patchField(setter, f.key, { options: e.target.value.split(',').map(o => o.trim()).filter(Boolean) })}
                 className={inputCls} style={inputStyle} />
               <p className="text-xs mt-1" style={{ color: 'var(--border-soft)' }}>This is what shows up in the dropdown on the registration form.</p>
+              <label className="flex items-center gap-2 text-xs mt-1.5" style={{ color: 'var(--muted)' }}>
+                <input type="checkbox" checked={!!f.allow_other} onChange={e => patchField(setter, f.key, { allow_other: e.target.checked })} />
+                Let registrants type their own option (adds an &quot;Other&quot; choice)
+              </label>
             </div>
           )}
           {(f.type === 'photo' || f.type === 'file') && (
-            <div className="flex items-center gap-2">
-              <label className="text-xs whitespace-nowrap" style={{ color: 'var(--muted)' }}>Max file size (MB)</label>
-              <input type="number" min={1} placeholder="5" value={f.max_file_size_mb ?? ''}
-                onChange={e => patchField(setter, f.key, { max_file_size_mb: e.target.value ? Number(e.target.value) : undefined })}
-                className={inputCls} style={{ ...inputStyle, maxWidth: 100 }} />
+            <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2">
+                <label className="text-xs whitespace-nowrap" style={{ color: 'var(--muted)' }}>Max file size (MB)</label>
+                <input type="number" min={1} placeholder="5" value={f.max_file_size_mb ?? ''}
+                  onChange={e => patchField(setter, f.key, { max_file_size_mb: e.target.value ? Number(e.target.value) : undefined })}
+                  className={inputCls} style={{ ...inputStyle, maxWidth: 100 }} />
+              </div>
+              <div className="flex items-center gap-2">
+                <label className="text-xs whitespace-nowrap" style={{ color: 'var(--muted)' }}>Max files</label>
+                <input type="number" min={1} placeholder="1" value={f.max_files ?? ''}
+                  onChange={e => patchField(setter, f.key, { max_files: e.target.value ? Number(e.target.value) : undefined })}
+                  className={inputCls} style={{ ...inputStyle, maxWidth: 100 }} />
+              </div>
             </div>
           )}
           <label className="flex items-center gap-2 text-xs" style={{ color: 'var(--muted)' }}>
@@ -558,13 +581,23 @@ function CategoryEditor({ category, isLeaf, onSave }: { category: Category; isLe
                 : 'Saving with this on will automatically create a linked Olympiad behind the scenes.'}
             </p>
             {category.linked_olympiad_id && (
-              <div className="pl-6">
+              <div className="pl-6 space-y-2">
+                <div>
+                  <label className="block text-xs mb-1" style={{ color: 'var(--muted)' }}>Online Type</label>
+                  <select value={onlineType} onChange={e => setOnlineType(e.target.value)}
+                    className="px-2 py-2 rounded-lg text-sm border outline-none w-full max-w-xs" style={inputStyle}>
+                    <option value="pure_submission">Pure Submission — students just upload their work</option>
+                    <option value="full_quiz">Full Quiz System — fully online, timed exam</option>
+                    <option value="mixed">Mixed — students can do both</option>
+                    <option value="science_relay">Science Relay — team members take turns</option>
+                  </select>
+                </div>
                 <Link href={`/admin/olympiads?edit=${category.linked_olympiad_id}&back_session=${category.activity_session_id}`}
                   className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-bold"
                   style={{ background: 'rgba(var(--blue-rgb), 0.12)', color: 'var(--blue)', border: '1px solid rgba(var(--blue-rgb), 0.3)' }}>
-                  ⚡ Configure Olympiad (exam type, questions, scheduling, relay) →
+                  ⚡ Configure questions, scheduling & relay details →
                 </Link>
-                <p className="text-xs mt-1" style={{ color: 'var(--border-soft)' }}>Set up exam type, questions, relay mode, subject assignment, and scheduling there.</p>
+                <p className="text-xs mt-1" style={{ color: 'var(--border-soft)' }}>Add questions, subject assignment, relay sequencing, and scheduling there.</p>
               </div>
             )}
           </div>

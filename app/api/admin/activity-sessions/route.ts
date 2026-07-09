@@ -78,6 +78,7 @@ export async function POST(req: NextRequest) {
     registration_enabled: body.is_upcoming ? (body.registration_enabled ?? false) : false,
     registration_note: body.registration_note || '',
     event_dates: body.event_dates || [],
+    bg_color: body.bg_color || null,
   }
 
   // activity_type_id — সবসময় required

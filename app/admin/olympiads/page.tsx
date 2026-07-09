@@ -538,15 +538,28 @@ export default function AdminOlympiadsPage() {
             <p className="text-xs font-bold tracking-widest" style={{ color: 'var(--blue)' }}>EXAM SETTINGS</p>
             <div>
               <label className="block text-xs mb-1" style={{ color: 'var(--muted)' }}>Exam Format</label>
-              <select className={inputClass} style={inputStyle} value={editing.exam_type || 'mixed'}
-                onChange={e => setEditing(p => ({ ...p, exam_type: e.target.value as any }))}>
-                <option value="photo_only">Photo Submission Only — students just upload a photo of their answer sheet</option>
-                <option value="live_only">Live Exam Only — fully online, timed, on this website</option>
-                <option value="mixed">Mixed — students can do both</option>
-              </select>
-              <p className="text-xs mt-1" style={{ color: 'var(--border-soft)' }}>
-                Controls which option(s) students see on their dashboard after registering.
-              </p>
+              {editing.id && linkInfo[editing.id] ? (
+                <>
+                  <div className="px-3 py-2 rounded-lg text-sm border" style={{ ...inputStyle, opacity: 0.7 }}>
+                    {editing.exam_type === 'photo_only' ? 'Pure Submission' : editing.exam_type === 'live_only' ? ((editing as any).relay_mode ? 'Science Relay' : 'Full Quiz System') : 'Mixed'}
+                  </div>
+                  <p className="text-xs mt-1" style={{ color: 'var(--border-soft)' }}>
+                    Inherited from Activity Admin — <Link href={`/admin/activity-registration/${linkInfo[editing.id].session_id}`} className="hover:underline" style={{ color: 'var(--blue)' }}>edit the Online Type there</Link>.
+                  </p>
+                </>
+              ) : (
+                <>
+                  <select className={inputClass} style={inputStyle} value={editing.exam_type || 'mixed'}
+                    onChange={e => setEditing(p => ({ ...p, exam_type: e.target.value as any }))}>
+                    <option value="photo_only">Photo Submission Only — students just upload a photo of their answer sheet</option>
+                    <option value="live_only">Live Exam Only — fully online, timed, on this website</option>
+                    <option value="mixed">Mixed — students can do both</option>
+                  </select>
+                  <p className="text-xs mt-1" style={{ color: 'var(--border-soft)' }}>
+                    Controls which option(s) students see on their dashboard after registering.
+                  </p>
+                </>
+              )}
             </div>
             <div className="grid grid-cols-3 gap-4">
               <div>
@@ -607,11 +620,17 @@ export default function AdminOlympiadsPage() {
               In relay mode, team members take turns. Member 1 submits → Member 2 can start → and so on.
               In <strong>chain</strong> mode, a later member's questions can reference earlier answers using <code style={{ color: 'var(--accent2)' }}>{'{{chain.member1.FIELD_ID}}'}</code> variables.
             </p>
-            <label className="flex items-center gap-2 text-sm cursor-pointer" style={{ color: 'var(--accent2)' }}>
-              <input type="checkbox" checked={(editing as any).relay_mode || false}
-                onChange={e => setEditing(p => ({ ...p, relay_mode: e.target.checked } as any))} />
-              Enable relay / sequential exam mode
-            </label>
+            {editing.id && linkInfo[editing.id] ? (
+              <p className="text-xs" style={{ color: 'var(--border-soft)' }}>
+                Relay mode is currently <strong style={{ color: 'var(--accent2)' }}>{(editing as any).relay_mode ? 'ON' : 'OFF'}</strong> — inherited from Activity Admin's Online Type setting (choose &quot;Science Relay&quot; there to enable it).
+              </p>
+            ) : (
+              <label className="flex items-center gap-2 text-sm cursor-pointer" style={{ color: 'var(--accent2)' }}>
+                <input type="checkbox" checked={(editing as any).relay_mode || false}
+                  onChange={e => setEditing(p => ({ ...p, relay_mode: e.target.checked } as any))} />
+                Enable relay / sequential exam mode
+              </label>
+            )}
             {(editing as any).relay_mode && (
               <div>
                 <label className="block text-xs mb-1" style={{ color: 'var(--muted)' }}>Relay type</label>
@@ -1050,8 +1069,19 @@ export default function AdminOlympiadsPage() {
         </div>
       )}
 
-      <div className="space-y-3">
-        {olympiads.map(o => (
+      {(() => {
+        const groupsMap = new Map<string, { label: string; sessionId: string; items: typeof olympiads }>()
+        const standaloneList: typeof olympiads = []
+        for (const o of olympiads) {
+          const li = linkInfo[o.id]
+          if (!li) { standaloneList.push(o); continue }
+          const key = `${li.session_id}::${li.breadcrumb[0]}`
+          if (!groupsMap.has(key)) groupsMap.set(key, { label: `${li.session_title} — ${li.breadcrumb[0]}`, sessionId: li.session_id, items: [] })
+          groupsMap.get(key)!.items.push(o)
+        }
+        const linkedGroups = [...groupsMap.values()]
+
+        const OlympiadRow = (o: (typeof olympiads)[number], hideBreadcrumbHead: boolean) => (
           <div key={o.id} className="rounded-xl overflow-hidden" style={s}>
             <div className="flex items-center gap-4 px-5 py-4">
               {o.cover_image_url && <img src={o.cover_image_url} alt="" className="w-14 h-14 rounded-lg object-cover flex-shrink-0" />}
@@ -1069,7 +1099,7 @@ export default function AdminOlympiadsPage() {
                 {linkInfo[o.id] ? (
                   <Link href={`/admin/activity-registration/${linkInfo[o.id].session_id}`}
                     className="text-xs mt-1 inline-flex items-center gap-1.5 hover:underline" style={{ color: 'var(--muted)' }}>
-                    🔗 From Activity: {linkInfo[o.id].session_title} → {linkInfo[o.id].breadcrumb.join(' → ')}
+                    🔗 {hideBreadcrumbHead ? linkInfo[o.id].breadcrumb.slice(1).join(' → ') || linkInfo[o.id].breadcrumb.join(' → ') : `From Activity: ${linkInfo[o.id].session_title} → ${linkInfo[o.id].breadcrumb.join(' → ')}`}
                     {linkInfo[o.id].registration_open === false && (
                       <span className="px-1.5 py-0.5 rounded" style={{ background: 'rgba(var(--danger-soft-rgb), 0.13)', color: 'var(--danger-soft)' }}>Registration closed</span>
                     )}
@@ -1117,8 +1147,38 @@ export default function AdminOlympiadsPage() {
               </div>
             )}
           </div>
-        ))}
-      </div>
+        )
+
+        return (
+          <>
+            {linkedGroups.length > 0 && (
+              <div className="space-y-4 mb-6">
+                <p className="text-xs font-bold tracking-widest" style={{ color: 'var(--blue)' }}>🔗 LINKED FROM ACTIVITIES</p>
+                {linkedGroups.map(g => (
+                  <div key={g.label} className="rounded-xl p-3 space-y-3" style={{ background: 'rgba(var(--blue-rgb), 0.03)', border: '1px dashed rgba(var(--blue-rgb), 0.25)' }}>
+                    <div className="flex items-center justify-between px-2">
+                      <p className="text-sm font-semibold" style={{ color: 'var(--white-soft)' }}>{g.label}</p>
+                      <Link href={`/admin/activity-registration/${g.sessionId}`} className="text-xs hover:underline flex items-center gap-1" style={{ color: 'var(--blue)' }}>
+                        Manage in Activity Admin <ArrowRight size={11} />
+                      </Link>
+                    </div>
+                    <div className="space-y-3">
+                      {g.items.map(o => OlympiadRow(o, true))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {standaloneList.length > 0 && (
+              <div className="space-y-3">
+                {linkedGroups.length > 0 && <p className="text-xs font-bold tracking-widest mb-1" style={{ color: 'var(--border-soft)' }}>STANDALONE OLYMPIADS</p>}
+                {standaloneList.map(o => OlympiadRow(o, false))}
+              </div>
+            )}
+          </>
+        )
+      })()}
     </div>
   )
 }

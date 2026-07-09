@@ -32,7 +32,21 @@ export async function GET(req: NextRequest) {
     .order('display_order', { ascending: true })
 
   if (error) return apiError(error, 400)
-  return apiOk({ categories: data || [] })
+
+  const categories = data || []
+  const olympiadIds = [...new Set(categories.map(c => c.linked_olympiad_id).filter(Boolean))]
+  if (olympiadIds.length > 0) {
+    const { data: olympiads } = await supabaseAdmin
+      .from('olympiads')
+      .select('id, exam_type, relay_mode, relay_type')
+      .in('id', olympiadIds)
+    const byId = new Map((olympiads || []).map(o => [o.id, o]))
+    for (const c of categories) {
+      if (c.linked_olympiad_id) (c as any).linked_olympiad = byId.get(c.linked_olympiad_id) || null
+    }
+  }
+
+  return apiOk({ categories })
 }
 
 async function createLinkedOlympiad(categoryName: string, sessionTitle: string) {
@@ -54,6 +68,27 @@ async function createLinkedOlympiad(categoryName: string, sessionTitle: string) 
 
   if (error) throw new Error(error.message)
   return data.id as string
+}
+
+// Activity Admin exposes a single "Online Type" selector (Pure Submission /
+// Full Quiz System / Mixed / Science Relay) that is really shorthand for the
+// linked Olympiad's exam_type + relay_mode/relay_type columns — those stay
+// the source of truth, but Activity Admin is now the place that sets them
+// (Olympiad Admin shows them read-only for linked olympiads).
+function onlineTypeToOlympiadPatch(onlineType: string): Record<string, any> | null {
+  switch (onlineType) {
+    case 'pure_submission': return { exam_type: 'photo_only', relay_mode: false }
+    case 'full_quiz': return { exam_type: 'live_only', relay_mode: false }
+    case 'mixed': return { exam_type: 'mixed', relay_mode: false }
+    case 'science_relay': return { exam_type: 'live_only', relay_mode: true }
+    default: return null
+  }
+}
+
+async function applyOnlineType(linkedOlympiadId: string, onlineType: string) {
+  const patch = onlineTypeToOlympiadPatch(onlineType)
+  if (!patch) return
+  await supabaseAdmin.from('olympiads').update(patch).eq('id', linkedOlympiadId)
 }
 
 export async function POST(req: NextRequest) {
@@ -96,6 +131,7 @@ export async function POST(req: NextRequest) {
       .single()
     try {
       insertData.linked_olympiad_id = await createLinkedOlympiad(insertData.name, session?.title || 'Activity')
+      if (body.online_type) await applyOnlineType(insertData.linked_olympiad_id, body.online_type)
     } catch (e: any) {
       return apiError(`Could not create the linked olympiad: ${e.message}`, 400)
     }
@@ -119,7 +155,7 @@ export async function PUT(req: NextRequest) {
   if (!body || !body.id) {
     return apiError('A category id is required.', 400)
   }
-  const { id, ...rest } = body
+  const { id, online_type, ...rest } = body
 
   // If is_online_submission is being turned on and there's no link yet, create one now.
   if (rest.is_online_submission) {
@@ -151,6 +187,19 @@ export async function PUT(req: NextRequest) {
     .single()
 
   if (error) return apiError(error, 400)
+
+  // online_type is Activity Admin's shorthand for the linked olympiad's
+  // exam_type/relay_mode/relay_type — apply it there, not on this table.
+  if (online_type && data?.linked_olympiad_id) {
+    await applyOnlineType(data.linked_olympiad_id, online_type)
+    const { data: olympiad } = await supabaseAdmin
+      .from('olympiads')
+      .select('id, exam_type, relay_mode, relay_type')
+      .eq('id', data.linked_olympiad_id)
+      .single()
+    if (olympiad) (data as any).linked_olympiad = olympiad
+  }
+
   return apiOk({ category: data })
 }
 

@@ -144,8 +144,16 @@ export async function POST(req: NextRequest) {
 
   // Validate required custom fields
   for (const field of category.custom_fields || []) {
-    if (field.required && !custom_answers?.[field.key]) {
+    const val = custom_answers?.[field.key]
+    const isEmpty = val === undefined || val === null || val === '' || (Array.isArray(val) && val.length === 0)
+    if (field.required && isEmpty) {
       return apiError(`"${field.label}" is required.`, 400)
+    }
+    if ((field.type === 'photo' || field.type === 'file') && Array.isArray(val)) {
+      const maxFiles = field.max_files && field.max_files > 1 ? field.max_files : 1
+      if (val.length > maxFiles) {
+        return apiError(`"${field.label}" allows at most ${maxFiles} file${maxFiles > 1 ? 's' : ''}.`, 400)
+      }
     }
   }
 

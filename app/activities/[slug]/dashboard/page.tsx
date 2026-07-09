@@ -65,6 +65,7 @@ export default function ActivityDashboardPage() {
   const [selectedSubject, setSelectedSubject] = useState<string>('')
   const [examScheduledStart, setExamScheduledStart] = useState<string | null>(null)
   const [examStarted, setExamStarted] = useState(false)
+  const [showFullDesc, setShowFullDesc] = useState(false)
 
   const loadRegistration = async (id: string) => {
     setLoading(true)
@@ -327,18 +328,38 @@ export default function ActivityDashboardPage() {
   const examEnded = olympiad?.scheduled_end_at && new Date(olympiad.scheduled_end_at) < new Date()
 
   return (
-    <div className="min-h-screen py-12 px-4" style={{ background: 'var(--bg)', paddingTop: '88px' }}>
+    <div className="min-h-screen py-12 px-4" style={{ background: session?.bg_color || 'var(--bg)', paddingTop: '88px' }}>
       <div className="max-w-lg mx-auto space-y-5">
 
         <Link href={`/activities/${slug}`} className="inline-flex items-center gap-2 text-sm" style={{ color: 'var(--muted)' }}>
           <ArrowLeft size={14} /> Back to activity
         </Link>
 
+        {session?.cover_image_url && (
+          <div className="rounded-2xl overflow-hidden border" style={{ borderColor: 'var(--border)' }}>
+            <img src={session.cover_image_url} alt="" style={{ width: '100%', maxHeight: '200px', objectFit: 'cover' }} />
+          </div>
+        )}
+
         <div>
           <h1 className="text-2xl font-black mb-1" style={{ fontFamily: "'Orbitron', sans-serif", color: 'var(--white)' }}>
             {session?.title}
           </h1>
           <p className="text-sm" style={{ color: 'var(--muted)' }}>{category?.name}</p>
+          {session?.description && (
+            <div className="mt-2">
+              <p className="text-sm leading-relaxed" style={{ color: 'var(--muted)' }}>
+                {session.description.length > 220 && !showFullDesc
+                  ? `${session.description.slice(0, 220).trim()}…`
+                  : session.description}
+              </p>
+              {session.description.length > 220 && (
+                <button onClick={() => setShowFullDesc(s => !s)} className="text-xs font-semibold mt-1" style={{ color: 'var(--blue)' }}>
+                  {showFullDesc ? 'Show less' : 'Show more'}
+                </button>
+              )}
+            </div>
+          )}
           {registration.project_name && (
             <p className="text-sm mt-1 font-semibold" style={{ color: 'var(--blue)' }}>🔬 {registration.project_name}</p>
           )}

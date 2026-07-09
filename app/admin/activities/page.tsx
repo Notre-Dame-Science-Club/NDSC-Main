@@ -16,7 +16,7 @@ type ActivitySession = {
   description: string; cover_image_url: string; youtube_url: string;
   pdf_url: string; gallery_urls: string[]; is_published: boolean;
   is_upcoming?: boolean; registration_enabled?: boolean; registration_note?: string;
-  event_dates?: string[];
+  event_dates?: string[]; bg_color?: string | null;
 };
 
 const S = { background: "var(--bg2)", border: "var(--border)", card: "var(--surface-deep)",
@@ -225,6 +225,7 @@ function SessionForm({ typeId, versionId, versions, initial, onSave, onClose }: 
     registration_enabled: initial?.registration_enabled ?? false,
     registration_note: initial?.registration_note || "",
     event_dates: initial?.event_dates || [] as string[],
+    bg_color: initial?.bg_color || "",
   });
   const [newEventDate, setNewEventDate] = useState("");
   const [uploading, setUploading] = useState("");
@@ -271,6 +272,7 @@ function SessionForm({ typeId, versionId, versions, initial, onSave, onClose }: 
         registration_enabled: form.is_upcoming ? form.registration_enabled : false,
         registration_note: form.registration_note,
         event_dates: form.event_dates,
+        bg_color: form.bg_color || null,
       };
       // only send version if selected
       if (form.activity_version_id) {
@@ -363,6 +365,30 @@ function SessionForm({ typeId, versionId, versions, initial, onSave, onClose }: 
             className="text-xs" style={{ color: S.muted }} />
           {uploading === "cover_image_url" && <span className="text-xs" style={{ color: S.accent }}>Uploading…</span>}
         </div>
+      </Field>
+
+      <Field label="Registration Page Background">
+        <div className="flex items-center gap-2 flex-wrap">
+          {[
+            { value: "", label: "Default", swatch: "var(--bg)" },
+            { value: "#0f172a", label: "Midnight", swatch: "#0f172a" },
+            { value: "#1a1030", label: "Violet", swatch: "#1a1030" },
+            { value: "#0d211d", label: "Forest", swatch: "#0d211d" },
+            { value: "#2a1210", label: "Ember", swatch: "#2a1210" },
+          ].map(t => (
+            <button key={t.value} type="button" onClick={() => setForm(p => ({ ...p, bg_color: t.value }))}
+              className="w-7 h-7 rounded-full border-2 flex items-center justify-center"
+              style={{ background: t.swatch, borderColor: form.bg_color === t.value ? "#fff" : "transparent" }}
+              title={t.label}>
+              {form.bg_color === t.value && <span style={{ color: "#fff", fontSize: 11 }}>✓</span>}
+            </button>
+          ))}
+          <input type="color" value={form.bg_color?.startsWith("#") ? form.bg_color : "#0f172a"}
+            onChange={e => setForm(p => ({ ...p, bg_color: e.target.value }))}
+            className="w-7 h-7 rounded-full border-2 cursor-pointer"
+            style={{ borderColor: form.bg_color && !["", "#0f172a", "#1a1030", "#0d211d", "#2a1210"].includes(form.bg_color) ? "#fff" : "transparent", padding: 0, background: "none" }} />
+        </div>
+        <p className="text-xs mt-1" style={{ color: S.muted }}>Sets the page background for this event's registration &amp; dashboard pages. Leave on Default for the standard site background.</p>
       </Field>
 
       <Field label="YouTube URL">

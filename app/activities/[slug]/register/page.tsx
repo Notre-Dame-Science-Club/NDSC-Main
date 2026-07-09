@@ -64,7 +64,9 @@ function ActivityRegisterPageInner() {
   // Form fields
   const [form, setForm] = useState(BLANK_FORM)
   const [projectName, setProjectName] = useState('')
-  const [customAnswers, setCustomAnswers] = useState<Record<string, string>>({})
+  const [customAnswers, setCustomAnswers] = useState<Record<string, any>>({})
+  const [otherActive, setOtherActive] = useState<Record<string, boolean>>({})
+  const [uploadingFields, setUploadingFields] = useState<Record<string, boolean>>({})
   const [teamMembers, setTeamMembers] = useState<any[]>([])
   const [submitting, setSubmitting] = useState(false)
 
@@ -222,16 +224,36 @@ function ActivityRegisterPageInner() {
       xhr.send(fd)
     })
 
-  const handleCustomFileField = async (key: string, file: File | null, maxSizeMb?: number) => {
-    if (!file) return
-    if (maxSizeMb && file.size > maxSizeMb * 1024 * 1024) {
-      setError(`File too large — max ${maxSizeMb}MB allowed for this field.`)
+  const handleCustomFileField = async (key: string, fileList: FileList | null, field: any) => {
+    if (!fileList || fileList.length === 0) return
+    const files = Array.from(fileList)
+    const maxFiles = field.max_files && field.max_files > 1 ? field.max_files : 1
+    const maxSizeMb = field.max_file_size_mb
+    const existing: string[] = maxFiles > 1 && Array.isArray(customAnswers[key]) ? customAnswers[key] : []
+    if (existing.length + files.length > maxFiles) {
+      setError(`You can upload at most ${maxFiles} file${maxFiles > 1 ? 's' : ''} for "${field.label}".`)
       return
     }
-    try { setCustomAnswers(prev => ({ ...prev, [key]: 'uploading...' }))
-      const url = await uploadFieldFile(file)
-      setCustomAnswers(prev => ({ ...prev, [key]: url }))
+    for (const file of files) {
+      if (maxSizeMb && file.size > maxSizeMb * 1024 * 1024) {
+        setError(`File too large — max ${maxSizeMb}MB allowed for this field.`)
+        return
+      }
+    }
+    setUploadingFields(p => ({ ...p, [key]: true }))
+    try {
+      const urls = await Promise.all(files.map(f => uploadFieldFile(f)))
+      setCustomAnswers(prev => ({ ...prev, [key]: maxFiles > 1 ? [...existing, ...urls] : urls[0] }))
     } catch (e: any) { setError(e.message || 'Upload failed.') }
+    finally { setUploadingFields(p => ({ ...p, [key]: false })) }
+  }
+
+  const removeCustomFile = (key: string, idx: number) => {
+    setCustomAnswers(prev => {
+      const arr = Array.isArray(prev[key]) ? [...prev[key]] : []
+      arr.splice(idx, 1)
+      return { ...prev, [key]: arr }
+    })
   }
 
   const handleTeamFileField = async (memberIdx: number, key: string, file: File | null) => {
@@ -333,7 +355,7 @@ function ActivityRegisterPageInner() {
   const isLongDesc = sessionDesc.length > 220
 
   return (
-    <div className="min-h-screen py-12 px-4" style={{ background: 'var(--bg)', paddingTop: '88px' }}>
+    <div className="min-h-screen py-12 px-4" style={{ background: sessionInfo?.bg_color || 'var(--bg)', paddingTop: '88px' }}>
       <div className="max-w-lg mx-auto">
         <Link href={`/activities/${slug}`} className="inline-flex items-center gap-2 text-sm mb-6" style={{ color: 'var(--muted)' }}>
           <ArrowLeft size={14} /> Back to activity
@@ -528,19 +550,58 @@ function ActivityRegisterPageInner() {
                         onChange={e => setCustomAnswers(p => ({ ...p, [field.key]: e.target.value }))}
                         className={inputCls + ' resize-none'} style={inputStyle} />
                     ) : field.type === 'dropdown' ? (
-                      <select value={customAnswers[field.key] || ''} onChange={e => setCustomAnswers(p => ({ ...p, [field.key]: e.target.value }))}
-                        className={inputCls} style={inputStyle}>
-                        <option value="">Select...</option>
-                        {(field.options || []).map((opt: string) => <option key={opt} value={opt}>{opt}</option>)}
-                      </select>
-                    ) : field.type === 'photo' || field.type === 'file' ? (
-                      <label className="flex items-center gap-2 px-3 py-2.5 rounded-lg border cursor-pointer text-sm" style={{ ...inputStyle, color: accent }}>
-                        <Upload size={14} />
-                        {customAnswers[field.key] && customAnswers[field.key] !== 'uploading...' ? `${field.label} uploaded ✓` : customAnswers[field.key] === 'uploading...' ? 'Uploading…' : `Upload ${field.label}${field.max_file_size_mb ? ` (max ${field.max_file_size_mb}MB)` : ''}`}
-                        <input type="file" accept={field.type === 'photo' ? 'image/*' : undefined} className="hidden"
-                          onChange={e => handleCustomFileField(field.key, e.target.files?.[0] || null, field.max_file_size_mb)} />
-                      </label>
-                    ) : (
+                      <div>
+                        <select
+                          value={otherActive[field.key] ? '__other__' : (customAnswers[field.key] || '')}
+                          onChange={e => {
+                            if (e.target.value === '__other__') {
+                              setOtherActive(p => ({ ...p, [field.key]: true }))
+                              setCustomAnswers(p => ({ ...p, [field.key]: '' }))
+                            } else {
+                              setOtherActive(p => ({ ...p, [field.key]: false }))
+                              setCustomAnswers(p => ({ ...p, [field.key]: e.target.value }))
+                            }
+                          }}
+                          className={inputCls} style={inputStyle}>
+                          <option value="">Select...</option>
+                          {(field.options || []).map((opt: string) => <option key={opt} value={opt}>{opt}</option>)}
+                          {field.allow_other && <option value="__other__">Other…</option>}
+                        </select>
+                        {field.allow_other && otherActive[field.key] && (
+                          <input placeholder="Please specify" value={customAnswers[field.key] || ''}
+                            onChange={e => setCustomAnswers(p => ({ ...p, [field.key]: e.target.value }))}
+                            className={inputCls + ' mt-2'} style={inputStyle} />
+                        )}
+                      </div>
+                    ) : field.type === 'photo' || field.type === 'file' ? (() => {
+                      const maxFiles = field.max_files && field.max_files > 1 ? field.max_files : 1
+                      const val = customAnswers[field.key]
+                      const urls: string[] = Array.isArray(val) ? val : (val ? [val] : [])
+                      const isUploading = !!uploadingFields[field.key]
+                      const atCap = urls.length >= maxFiles
+                      return (
+                        <div className="space-y-2">
+                          {urls.length > 0 && (
+                            <div className="flex flex-wrap gap-2">
+                              {urls.map((u, i) => (
+                                <span key={i} className="flex items-center gap-1 px-2 py-1 rounded text-xs" style={{ background: 'var(--bg2)', color: accent }}>
+                                  {field.label}{maxFiles > 1 ? ` #${i + 1}` : ''} ✓
+                                  <button type="button" onClick={() => removeCustomFile(field.key, i)}><X size={11} /></button>
+                                </span>
+                              ))}
+                            </div>
+                          )}
+                          {!atCap && (
+                            <label className="flex items-center gap-2 px-3 py-2.5 rounded-lg border cursor-pointer text-sm" style={{ ...inputStyle, color: accent }}>
+                              <Upload size={14} />
+                              {isUploading ? 'Uploading…' : `Upload ${field.label}${field.max_file_size_mb ? ` (max ${field.max_file_size_mb}MB${maxFiles > 1 ? ` each, up to ${maxFiles} files` : ''})` : maxFiles > 1 ? ` (up to ${maxFiles} files)` : ''}`}
+                              <input type="file" multiple={maxFiles > 1} accept={field.type === 'photo' ? 'image/*' : undefined} className="hidden"
+                                onChange={e => { handleCustomFileField(field.key, e.target.files, field); e.target.value = '' }} />
+                            </label>
+                          )}
+                        </div>
+                      )
+                    })() : (
                       <input type={field.type === 'number' ? 'number' : field.type === 'date' ? 'date' : field.type === 'time' ? 'time' : 'text'}
                         value={customAnswers[field.key] || ''}
                         onChange={e => setCustomAnswers(p => ({ ...p, [field.key]: e.target.value }))}
