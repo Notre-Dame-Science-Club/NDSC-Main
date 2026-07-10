@@ -595,7 +595,7 @@ function CategoryEditor({ category, isLeaf, onSave }: { category: Category; isLe
                 <Link href={`/admin/olympiads?edit=${category.linked_olympiad_id}&back_session=${category.activity_session_id}`}
                   className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-bold"
                   style={{ background: 'rgba(var(--blue-rgb), 0.12)', color: 'var(--blue)', border: '1px solid rgba(var(--blue-rgb), 0.3)' }}>
-                  ⚡ Configure questions, scheduling & relay details →
+                  Configure questions, scheduling & relay details →
                 </Link>
                 <p className="text-xs mt-1" style={{ color: 'var(--border-soft)' }}>Add questions, subject assignment, relay sequencing, and scheduling there.</p>
               </div>
@@ -607,7 +607,7 @@ function CategoryEditor({ category, isLeaf, onSave }: { category: Category; isLe
               <hr style={{ borderColor: 'var(--border)' }} />
               <div>
                 <p className="text-xs font-bold mb-2" style={{ color: 'var(--blue)' }}>
-                  📤 SUBMISSION FIELDS (what the student uploads / fills when they hit &quot;Submit Now&quot;)
+                  SUBMISSION FIELDS (what the student uploads / fills when they hit &quot;Submit Now&quot;)
                 </p>
                 <p className="text-xs mb-3" style={{ color: 'var(--border-soft)' }}>
                   Leave empty if this is a live MCQ exam (no file submission). Add fields for project uploads, answer sheets, videos, etc.
@@ -692,7 +692,7 @@ function CategoryEditor({ category, isLeaf, onSave }: { category: Category; isLe
           <div>
             <label className="flex items-center gap-2 text-sm font-semibold mb-2" style={{ color: 'var(--accent2)' }}>
               <input type="checkbox" checked={projectNameEnabled} onChange={e => setProjectNameEnabled(e.target.checked)} />
-              🔬 Collect a project name during registration
+              Collect a project name during registration
             </label>
             {projectNameEnabled && (
               <div className="pl-6">

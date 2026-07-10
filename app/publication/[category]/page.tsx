@@ -1,7 +1,7 @@
 'use client'
 import { useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
-import { ArrowLeft, BookOpen, Download, X } from 'lucide-react'
+import { ArrowLeft, BookOpen, Download, X, Inbox, Newspaper, Gem, Microscope, type LucideIcon } from 'lucide-react'
 
 type Publication = {
   id: string; title: string; description: string; category: string
@@ -14,18 +14,18 @@ const formatCategoryLabel = (category: string) => {
   return cleaned.replace(/\b\w/g, (char) => char.toUpperCase())
 }
 
-const CATEGORY_META: Record<string, { label: string; emoji: string; color: string }> = {
-  wall_magazine: { label: 'Wall Magazine',     emoji: '🗞️',  color: 'var(--blue)' },
-  trimatrik:     { label: 'Trimatrik',         emoji: '🔷', color: 'var(--accent2)' },
-  abhishkar:     { label: 'Abhishkar Focus',   emoji: '🔬', color: 'var(--accent)' },
-  annual_magazine: { label: 'AUDRI Archive',   emoji: '📘', color: 'var(--blue)' },
+const CATEGORY_META: Record<string, { label: string; icon: LucideIcon; color: string }> = {
+  wall_magazine: { label: 'Wall Magazine',     icon: Newspaper,   color: 'var(--blue)' },
+  trimatrik:     { label: 'Trimatrik',         icon: Gem,         color: 'var(--accent2)' },
+  abhishkar:     { label: 'Abhishkar Focus',   icon: Microscope, color: 'var(--accent)' },
+  annual_magazine: { label: 'AUDRI Archive',   icon: BookOpen,    color: 'var(--blue)' },
 }
 
 export default function PublicationArchivePage() {
   const params = useParams()
   const router = useRouter()
   const category = params.category as string
-  const meta = CATEGORY_META[category] || { label: formatCategoryLabel(category), emoji: '📚', color: 'var(--blue)' }
+  const meta = CATEGORY_META[category] || { label: formatCategoryLabel(category), icon: BookOpen, color: 'var(--blue)' }
 
   const [items, setItems] = useState<Publication[]>([])
   const [loading, setLoading] = useState(true)
@@ -80,7 +80,7 @@ export default function PublicationArchivePage() {
           </button>
           <div className="section-label mb-2">Archive</div>
           <h1 className="text-3xl md:text-4xl font-black" style={{ fontFamily: "'Orbitron',sans-serif" }}>
-            {meta.emoji} <span style={{ color: meta.color }}>{meta.label}</span>
+            <meta.icon className="inline w-7 h-7 -mt-1 mr-2" style={{ color: meta.color }} strokeWidth={1.75} /> <span style={{ color: meta.color }}>{meta.label}</span>
           </h1>
           <p className="mt-2 text-sm" style={{ color: 'var(--muted)' }}>
             {items.length} issue{items.length !== 1 ? 's' : ''} found
@@ -94,7 +94,7 @@ export default function PublicationArchivePage() {
           <div className="text-center py-24" style={{ color: 'var(--muted)' }}>Loading...</div>
         ) : items.length === 0 ? (
           <div className="text-center py-24">
-            <p className="text-4xl mb-4">📭</p>
+            <div className="flex justify-center mb-4"><Inbox size={38} strokeWidth={1.5} className="opacity-30" /></div>
             <p style={{ color: 'var(--muted)' }}>No {meta.label} issues found yet.</p>
           </div>
         ) : (
@@ -109,9 +109,9 @@ export default function PublicationArchivePage() {
                     <img src={pub.cover_image_url} alt={pub.title}
                       className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" />
                   ) : (
-                    <div className="w-full h-full flex items-center justify-center text-4xl"
+                    <div className="w-full h-full flex items-center justify-center"
                       style={{ background: 'var(--bg2)' }}>
-                      {meta.emoji}
+                      <meta.icon size={36} strokeWidth={1.5} style={{ color: meta.color, opacity: 0.6 }} />
                     </div>
                   )}
                   <div className="absolute inset-0"

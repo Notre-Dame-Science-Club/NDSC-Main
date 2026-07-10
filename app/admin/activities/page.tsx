@@ -1,5 +1,7 @@
 "use client";
 import { useState, useEffect, useCallback } from "react";
+import { ActivityIcon, ACTIVITY_ICON_OPTIONS } from "@/lib/activityIcons";
+import { Pencil } from "lucide-react";
 
 type ActivityType = {
   id: string; name: string; slug: string; icon: string;
@@ -21,8 +23,6 @@ type ActivitySession = {
 
 const S = { background: "var(--bg2)", border: "var(--border)", card: "var(--surface-deep)",
   accent: "var(--blue)", text: "var(--white)", muted: "var(--muted)", danger: "var(--danger-soft)" };
-
-const ICON_OPTIONS = ["🔬","🎤","☀️","📚","🏆","📡","🧪","💡","🌍","🎯","🧬","⚗️","🔭","🎓"];
 
 function Modal({ title, onClose, children }: { title: string; onClose: () => void; children: React.ReactNode }) {
   return (
@@ -68,7 +68,7 @@ function TypeForm({ initial, onSave, onClose }: {
 }) {
   const [form, setForm] = useState({
     name: initial?.name || "", slug: initial?.slug || "",
-    icon: initial?.icon || "🔬", description: initial?.description || "",
+    icon: initial?.icon || "", description: initial?.description || "",
     display_order: initial?.display_order ?? 0,
   });
   const [saving, setSaving] = useState(false);
@@ -101,12 +101,12 @@ function TypeForm({ initial, onSave, onClose }: {
       </Field>
       <Field label="Icon">
         <div className="flex flex-wrap gap-2">
-          {ICON_OPTIONS.map(ic => (
+          {ACTIVITY_ICON_OPTIONS.map(ic => (
             <button key={ic} onClick={() => setForm(p => ({ ...p, icon: ic }))}
-              className="w-9 h-9 rounded-lg text-xl flex items-center justify-center"
+              className="w-9 h-9 rounded-lg flex items-center justify-center"
               style={{ background: form.icon === ic ? S.accent + "30" : S.background,
                 border: `1px solid ${form.icon === ic ? S.accent : S.border}` }}>
-              {ic}
+              <ActivityIcon name={ic} size={17} />
             </button>
           ))}
         </div>
@@ -555,15 +555,15 @@ export default function ActivitiesAdminPage() {
                 style={{ background: selType?.id === t.id ? S.accent + "18" : S.background,
                   border: `1px solid ${selType?.id === t.id ? S.accent : S.border}` }}
                 onClick={() => selectType(t)}>
-                <span className="text-xl">{t.icon}</span>
+                <ActivityIcon name={t.icon} size={20} />
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium truncate">{t.name}</p>
                   <p className="text-xs truncate" style={{ color: S.muted }}>/{t.slug}</p>
                 </div>
                 <div className="flex gap-1">
-                  <button style={btnGhost} onClick={e => { e.stopPropagation(); setEditing(t); setModal("type"); }}>✏️</button>
+                  <button style={btnGhost} onClick={e => { e.stopPropagation(); setEditing(t); setModal("type"); }}><Pencil size={14} /></button>
                   <button style={{ ...btnGhost, color: S.danger }}
-                    onClick={e => { e.stopPropagation(); del("/api/admin/activity-types", t.id, loadTypes); }}>🗑</button>
+                    onClick={e => { e.stopPropagation(); del("/api/admin/activity-types", t.id, loadTypes); }}></button>
                 </div>
               </div>
             ))}
@@ -600,9 +600,9 @@ export default function ActivitiesAdminPage() {
                   </p>
                 </div>
                 <div className="flex gap-1">
-                  <button style={btnGhost} onClick={e => { e.stopPropagation(); setEditing(v); setModal("version"); }}>✏️</button>
+                  <button style={btnGhost} onClick={e => { e.stopPropagation(); setEditing(v); setModal("version"); }}><Pencil size={14} /></button>
                   <button style={{ ...btnGhost, color: S.danger }}
-                    onClick={e => { e.stopPropagation(); del("/api/admin/activity-versions", v.id, () => selType && loadVersions(selType.id)); }}>🗑</button>
+                    onClick={e => { e.stopPropagation(); del("/api/admin/activity-versions", v.id, () => selType && loadVersions(selType.id)); }}></button>
                 </div>
               </div>
             ))}
@@ -641,18 +641,18 @@ export default function ActivitiesAdminPage() {
                         </span>
                       )}
                       {s.youtube_url && <span className="text-xs px-1.5 py-0.5 rounded" style={{ background: "rgba(var(--danger-rgb), 0.13)", color: "var(--danger)" }}>▶ YT</span>}
-                      {s.pdf_url && <span className="text-xs px-1.5 py-0.5 rounded" style={{ background: "rgba(var(--warning-rgb), 0.13)", color: "var(--warning)" }}>📄 PDF</span>}
-                      {s.gallery_urls?.length > 0 && <span className="text-xs px-1.5 py-0.5 rounded" style={{ background: "rgba(var(--success-rgb), 0.13)", color: "var(--success)" }}>🖼 {s.gallery_urls.length}</span>}
+                      {s.pdf_url && <span className="text-xs px-1.5 py-0.5 rounded" style={{ background: "rgba(var(--warning-rgb), 0.13)", color: "var(--warning)" }}>PDF</span>}
+                      {s.gallery_urls?.length > 0 && <span className="text-xs px-1.5 py-0.5 rounded" style={{ background: "rgba(var(--success-rgb), 0.13)", color: "var(--success)" }}>{s.gallery_urls.length}</span>}
                       <span className="text-xs px-1.5 py-0.5 rounded"
                         style={{ background: s.is_published ? "rgba(var(--blue-rgb), 0.13)" : "rgba(var(--muted-rgb), 0.13)",
                           color: s.is_published ? S.accent : S.muted }}>
                         {s.is_published ? "Live" : "Draft"}
                       </span>
                       {s.is_upcoming && (
-                        <span className="text-xs px-1.5 py-0.5 rounded" style={{ background: "rgba(var(--warning-rgb), 0.13)", color: "var(--warning)" }}>📅 Upcoming</span>
+                        <span className="text-xs px-1.5 py-0.5 rounded" style={{ background: "rgba(var(--warning-rgb), 0.13)", color: "var(--warning)" }}>Upcoming</span>
                       )}
                       {s.registration_enabled && (
-                        <span className="text-xs px-1.5 py-0.5 rounded" style={{ background: "rgba(var(--success-rgb), 0.13)", color: "var(--success)" }}>📝 Registration ON</span>
+                        <span className="text-xs px-1.5 py-0.5 rounded" style={{ background: "rgba(var(--success-rgb), 0.13)", color: "var(--success)" }}>Registration ON</span>
                       )}
                     </div>
                     {s.registration_enabled && (
@@ -663,9 +663,9 @@ export default function ActivitiesAdminPage() {
                     )}
                   </div>
                   <div className="flex gap-1">
-                    <button style={btnGhost} onClick={() => { setEditing(s); setModal("session"); }}>✏️</button>
+                    <button style={btnGhost} onClick={() => { setEditing(s); setModal("session"); }}><Pencil size={14} /></button>
                     <button style={{ ...btnGhost, color: S.danger }}
-                      onClick={() => del("/api/admin/activity-sessions", s.id, () => selType && loadSessions(selType.id))}>🗑</button>
+                      onClick={() => del("/api/admin/activity-sessions", s.id, () => selType && loadSessions(selType.id))}></button>
                   </div>
                 </div>
               </div>

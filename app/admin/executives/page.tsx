@@ -1,5 +1,6 @@
 'use client'
 import { useEffect, useRef, useState, useCallback } from 'react'
+import { UserRound, Pencil, Plus, ImageUp, Loader2, AlertTriangle } from 'lucide-react'
 
 /* ══════════════════════════════════
    TYPES
@@ -64,9 +65,9 @@ function ImagePositionPicker({
   const onTouchEnd = () => setDragging(false)
 
   const presets = [
-    { label: '👤 Face (Top)', val: '50% 10%' },
+    { label: 'Face (Top)', val: '50% 10%' },
     { label: '⊙ Center',     val: '50% 50%' },
-    { label: '⬇ Bottom',     val: '50% 80%' },
+    { label: 'Bottom',     val: '50% 80%' },
   ]
 
   return (
@@ -217,7 +218,7 @@ export default function AdminExecutivesPage() {
     })
     setLoading(false)
     if (res.ok) {
-      setMsg('✅ Saved!'); setMsgOk(true); setEditing(null); setForm(empty); load()
+      setMsg('Saved successfully.'); setMsgOk(true); setEditing(null); setForm(empty); load()
     } else {
       const d = await res.json(); setMsg(d.error || 'Save failed'); setMsgOk(false)
     }
@@ -268,7 +269,7 @@ export default function AdminExecutivesPage() {
       {/* ── Form ── */}
       <div className="rounded-xl p-6 mb-8" style={{ background: 'var(--bg2)', border: '1px solid var(--border)' }}>
         <h2 className="text-lg font-bold mb-4" style={{ color: 'var(--blue)' }}>
-          {editing ? '✏️ Edit Executive' : '➕ Add Executive'}
+          <span className="inline-flex items-center gap-2">{editing ? <Pencil size={14} /> : <Plus size={14} />} {editing ? 'Edit Executive' : 'Add Executive'}</span>
         </h2>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -329,14 +330,14 @@ export default function AdminExecutivesPage() {
                     fontSize: 13, cursor: 'pointer', minWidth: 160,
                     display: 'block', marginBottom: 8,
                   }}>
-                  {uploading ? `⏳ ${uploadProgress}%` : '📷 Upload Photo'}
+                  <span className="inline-flex items-center gap-2">{uploading ? <Loader2 size={14} className="animate-spin" /> : <ImageUp size={14} />} {uploading ? `${uploadProgress}%` : 'Upload Photo'}</span>
                 </button>
                 {uploading && (
                   <div style={{ width: 160, height: 4, background: 'rgba(255,255,255,0.06)', borderRadius: 4, marginBottom: 8, overflow: 'hidden' }}>
                     <div style={{ width: `${uploadProgress}%`, height: '100%', background: 'linear-gradient(90deg,var(--blue),#0099cc)', transition: 'width 0.2s' }} />
                   </div>
                 )}
-                {uploadError && <p style={{ color: 'var(--danger-soft)', fontSize: 11, marginBottom: 6 }}>⚠️ {uploadError}</p>}
+                {uploadError && <p style={{ color: 'var(--danger-soft)', fontSize: 11, marginBottom: 6 }} className="inline-flex items-center gap-1"><AlertTriangle size={12} /> {uploadError}</p>}
                 <p style={{ fontSize: 10, color: '#3a5a7a' }}>Max 4.5 MB · JPG/PNG/WEBP</p>
                 <input ref={photoRef} type="file" accept="image/*" aria-label="Upload executive photo" style={{ display: 'none' }} onChange={uploadPhoto} />
               </div>
@@ -352,7 +353,7 @@ export default function AdminExecutivesPage() {
                   <button type="button"
                     onClick={() => setForm(f => ({ ...f, photo_url: '', photo_position: '50% 15%' }))}
                     style={{ marginTop: 8, fontSize: 11, color: 'var(--danger)', background: 'none', border: 'none', cursor: 'pointer' }}>
-                    ✕ Remove photo
+                    Remove photo
                   </button>
                 </div>
               )}
@@ -392,7 +393,7 @@ export default function AdminExecutivesPage() {
           <button onClick={save} disabled={loading}
             className="px-6 py-2.5 rounded-lg text-sm font-bold text-black"
             style={{ background: 'var(--blue)', opacity: loading ? 0.6 : 1 }}>
-            {loading ? 'Saving...' : editing ? '✅ Update' : '➕ Add Executive'}
+            {loading ? 'Saving...' : editing ? 'Update' : 'Add Executive'}
           </button>
           {editing && (
             <button onClick={() => { setEditing(null); setForm(empty) }}
@@ -453,7 +454,7 @@ export default function AdminExecutivesPage() {
                           style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: pos }} />
                       </div>
                     ) : (
-                      <div style={{ width: 40, height: 48, borderRadius: 6, background: 'var(--surface)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16 }}>👤</div>
+                      <div style={{ width: 40, height: 48, borderRadius: 6, background: 'var(--surface)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><UserRound size={18} strokeWidth={1.75} /></div>
                     )}
                   </td>
                   <td className="px-4 py-3 font-medium" style={{ color: 'var(--white-soft)' }}>{item.full_name}</td>

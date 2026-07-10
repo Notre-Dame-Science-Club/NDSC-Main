@@ -462,7 +462,7 @@ function ActivityRegisterPageInner() {
 
             {currentLeaf.schedule_date && (
               <div className="p-3 rounded-lg text-sm" style={{ background: 'rgba(var(--cat-teal-rgb), 0.08)', color: 'var(--cat-teal)' }}>
-                📅 {new Date(currentLeaf.schedule_date).toLocaleDateString('en-BD', { month: 'short', day: 'numeric' })}
+                {new Date(currentLeaf.schedule_date).toLocaleDateString('en-BD', { month: 'short', day: 'numeric' })}
                 {currentLeaf.schedule_time && ` — ${currentLeaf.schedule_time}`}
                 {currentLeaf.schedule_room && ` — ${currentLeaf.schedule_room}`}
               </div>
@@ -682,13 +682,13 @@ function ActivityRegisterPageInner() {
 
             {currentLeaf.requires_payment && (
               <div className="p-3 rounded-lg text-sm" style={{ background: 'rgba(var(--warning-rgb), 0.08)', color: 'var(--warning)' }}>
-                💳 {currentLeaf.payment_label || 'Registration fee'}: ৳{currentLeaf.payment_amount} — you'll be redirected to pay after submitting.
+                {currentLeaf.payment_label || 'Registration fee'}: ৳{currentLeaf.payment_amount} — you'll be redirected to pay after submitting.
               </div>
             )}
 
             {currentLeaf.is_online_submission && (
               <div className="p-3 rounded-lg text-sm" style={{ background: 'rgba(var(--blue-rgb), 0.06)', color: 'var(--blue)', border: '1px solid rgba(var(--blue-rgb), 0.2)' }}>
-                🔗 This category includes an online round. You'll find the exam / submission link in your dashboard after registering.
+                This category includes an online round. You'll find the exam / submission link in your dashboard after registering.
               </div>
             )}
 
@@ -706,9 +706,9 @@ function ActivityRegisterPageInner() {
                   {contactPersons.map((cp: any, i: number) => (
                     <div key={i} className="text-xs space-y-0.5" style={{ color: 'var(--muted)' }}>
                       <p className="font-medium" style={{ color: 'var(--white)' }}>{cp.name} {cp.post && `— ${cp.post}`}</p>
-                      {cp.phone && <p>📞 {cp.phone}</p>}
-                      {cp.email && <p>✉️ {cp.email}</p>}
-                      {cp.whatsapp && <a href={`https://wa.me/${cp.whatsapp.replace(/\D/g, '')}`} target="_blank" rel="noopener noreferrer" className="block" style={{ color: 'var(--cat-teal)' }}>💬 WhatsApp</a>}
+                      {cp.phone && <p>{cp.phone}</p>}
+                      {cp.email && <p>{cp.email}</p>}
+                      {cp.whatsapp && <a href={`https://wa.me/${cp.whatsapp.replace(/\D/g, '')}`} target="_blank" rel="noopener noreferrer" className="block" style={{ color: 'var(--cat-teal)' }}>WhatsApp</a>}
                       {cp.facebook && <a href={cp.facebook} target="_blank" rel="noopener noreferrer" className="block" style={{ color: 'var(--blue)' }}>Facebook →</a>}
                     </div>
                   ))}

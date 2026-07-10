@@ -361,7 +361,7 @@ export default function ActivityDashboardPage() {
             </div>
           )}
           {registration.project_name && (
-            <p className="text-sm mt-1 font-semibold" style={{ color: 'var(--blue)' }}>🔬 {registration.project_name}</p>
+            <p className="text-sm mt-1 font-semibold" style={{ color: 'var(--blue)' }}>{registration.project_name}</p>
           )}
           {viewingMember && (
             <span className="text-xs mt-1 px-2.5 py-1 rounded-full inline-block" style={{ background: 'rgba(var(--accent2-rgb), 0.1)', color: 'var(--accent2)' }}>
@@ -378,9 +378,9 @@ export default function ActivityDashboardPage() {
             color: paymentRedirectStatus === 'success' ? 'var(--success)' : 'var(--danger-soft)',
             border: `1px solid ${paymentRedirectStatus === 'success' ? 'rgba(var(--success-rgb), 0.25)' : 'rgba(var(--danger-rgb), 0.25)'}`,
           }}>
-            {paymentRedirectStatus === 'success' && '✅ Payment received! It may take a moment to fully confirm below.'}
-            {paymentRedirectStatus === 'failed' && '❌ Payment failed. You can try again from your dashboard.'}
-            {paymentRedirectStatus === 'cancelled' && '⚠️ Payment was cancelled.'}
+            {paymentRedirectStatus === 'success' && 'Payment received! It may take a moment to fully confirm below.'}
+            {paymentRedirectStatus === 'failed' && 'Payment failed. You can try again from your dashboard.'}
+            {paymentRedirectStatus === 'cancelled' && 'Payment was cancelled.'}
           </div>
         )}
 
@@ -405,7 +405,7 @@ export default function ActivityDashboardPage() {
             border: `1px solid ${registration.payment_status === 'paid' ? 'rgba(var(--success-rgb), 0.25)' : 'rgba(var(--warning-rgb), 0.25)'}`,
           }}>
             <p className="text-sm font-bold" style={{ color: registration.payment_status === 'paid' ? 'var(--success)' : 'var(--warning)' }}>
-              💳 Payment: {registration.payment_status === 'paid' ? 'Completed ✓' : registration.payment_status === 'pending' ? 'Pending verification' : 'Failed'}
+              Payment: {registration.payment_status === 'paid' ? 'Completed ✓' : registration.payment_status === 'pending' ? 'Pending verification' : 'Failed'}
             </p>
             {registration.payment_amount && <p className="text-xs mt-1" style={{ color: 'var(--muted)' }}>৳{registration.payment_amount}</p>}
           </div>
@@ -421,7 +421,7 @@ export default function ActivityDashboardPage() {
             {/* Exam scheduled but not started yet */}
             {examNotYetStarted && (
               <div className="text-sm" style={{ color: 'var(--warning)' }}>
-                ⏳ Exam starts in: <strong><Countdown target={examScheduledStart!} /></strong>
+                Exam starts in: <strong><Countdown target={examScheduledStart!} /></strong>
                 <br /><span style={{ color: 'var(--muted)', fontSize: '0.75rem' }}>
                   {new Date(examScheduledStart!).toLocaleString('en-BD', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
                 </span>
@@ -430,7 +430,7 @@ export default function ActivityDashboardPage() {
 
             {/* Exam ended */}
             {examEnded && (
-              <p className="text-sm" style={{ color: 'var(--danger-soft)' }}>⛔ Submission window has closed.</p>
+              <p className="text-sm" style={{ color: 'var(--danger-soft)' }}>Submission window has closed.</p>
             )}
 
             {/* Subject assignment */}
@@ -464,7 +464,7 @@ export default function ActivityDashboardPage() {
                   return (
                     <div key={m.id} className="flex items-center gap-2">
                       <span style={{ color: done ? 'var(--cat-teal)' : isCurrent ? 'var(--blue)' : 'var(--muted)' }}>
-                        {done ? '✅' : isCurrent ? '▶' : '⏸'}
+                        {done ? '' : isCurrent ? '▶' : '⏸'}
                       </span>
                       <span style={{ color: done ? 'var(--cat-teal)' : isCurrent ? 'var(--white)' : 'var(--muted)' }}>
                         {m.full_name} {i === 0 ? '(Leader)' : ''}
@@ -478,7 +478,7 @@ export default function ActivityDashboardPage() {
             {/* Relay: not my turn yet */}
             {olympiad?.relay_mode && !isMyRelayTurn && !relayState?.completed_at && (
               <p className="text-sm" style={{ color: 'var(--warning)' }}>
-                ⏳ Waiting for the previous team member to complete their round…
+                Waiting for the previous team member to complete their round…
               </p>
             )}
 
@@ -504,7 +504,7 @@ export default function ActivityDashboardPage() {
             {hasSubmissionConfig && canSubmit && !examNotYetStarted && !examEnded && isMyRelayTurn && (
               <div className="space-y-4">
                 <p className="text-sm font-semibold" style={{ color: 'var(--white)' }}>
-                  {mySubmission?.is_final ? '✅ Submitted' : mySubmission ? 'Update Submission' : 'Submit Now'}
+                  {mySubmission?.is_final ? 'Submitted' : mySubmission ? 'Update Submission' : 'Submit Now'}
                 </p>
 
                 {mySubmission?.is_final ? (
@@ -571,7 +571,7 @@ export default function ActivityDashboardPage() {
                       </button>
                     </div>
                     <p className="text-xs" style={{ color: 'var(--muted)' }}>
-                      ⚠️ Final submission cannot be changed. Save as draft to continue later.
+                      Final submission cannot be changed. Save as draft to continue later.
                     </p>
                   </>
                 )}
@@ -638,7 +638,7 @@ export default function ActivityDashboardPage() {
                   </span>
                   {relayState && (
                     <span className="text-xs" style={{ color: (relayState.member_submissions as any[]).find((s: any) => s.member_id === m.id) ? 'var(--cat-teal)' : 'var(--muted)' }}>
-                      {(relayState.member_submissions as any[]).find((s: any) => s.member_id === m.id) ? '✅ Done' : '⏳ Pending'}
+                      {(relayState.member_submissions as any[]).find((s: any) => s.member_id === m.id) ? 'Done' : 'Pending'}
                     </span>
                   )}
                 </div>

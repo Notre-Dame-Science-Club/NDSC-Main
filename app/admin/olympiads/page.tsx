@@ -1,7 +1,7 @@
 'use client'
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
-import { Plus, Trash2, Edit2, ChevronDown, ChevronUp, Eye, EyeOff, X, Megaphone, ArrowRight, Image as ImageIcon, FileText, Clock, AlignLeft, List, Camera, ArrowUp, ArrowDown, Copy, CheckSquare, ClipboardList } from 'lucide-react'
+import { Plus, Trash2, Edit2, ChevronDown, ChevronUp, Eye, EyeOff, X, Megaphone, ArrowRight, Image as ImageIcon, FileText, Clock, AlignLeft, List, Camera, ArrowUp, ArrowDown, Copy, CheckSquare, ClipboardList, Link2, Lightbulb } from 'lucide-react'
 import AnnotationViewer, { Annotation } from '@/components/olympiad/AnnotationViewer'
 import MathInputField from '@/components/olympiad/MathInputField'
 import MathText from '@/components/olympiad/MathText'
@@ -592,7 +592,7 @@ export default function AdminOlympiadsPage() {
 
           {/* ── Phase D: Scheduling ────────────────────────────────── */}
           <div className="rounded-xl p-5 space-y-4" style={s}>
-            <p className="text-xs font-bold tracking-widest" style={{ color: 'var(--cat-teal)' }}>⏰ EXAM SCHEDULING (auto-start at a set time)</p>
+            <p className="text-xs font-bold tracking-widest" style={{ color: 'var(--cat-teal)' }}>EXAM SCHEDULING (auto-start at a set time)</p>
             <p className="text-xs" style={{ color: 'var(--border-soft)' }}>
               If set, the exam page will show a countdown and auto-unlock at the scheduled start time.
               Students cannot start early; submissions are locked after the end time.
@@ -615,7 +615,7 @@ export default function AdminOlympiadsPage() {
 
           {/* ── Phase D: Relay / Sequential exam ──────────────────── */}
           <div className="rounded-xl p-5 space-y-4" style={s}>
-            <p className="text-xs font-bold tracking-widest" style={{ color: 'var(--accent2)' }}>🔗 TEAM RELAY MODE</p>
+            <p className="text-xs font-bold tracking-widest inline-flex items-center gap-1.5" style={{ color: 'var(--accent2)' }}><Link2 size={13} /> TEAM RELAY MODE</p>
             <p className="text-xs" style={{ color: 'var(--border-soft)' }}>
               In relay mode, team members take turns. Member 1 submits → Member 2 can start → and so on.
               In <strong>chain</strong> mode, a later member's questions can reference earlier answers using <code style={{ color: 'var(--accent2)' }}>{'{{chain.member1.FIELD_ID}}'}</code> variables.
@@ -646,7 +646,7 @@ export default function AdminOlympiadsPage() {
 
           {/* ── Phase D: Subject assignment ───────────────────────── */}
           <div className="rounded-xl p-5 space-y-4" style={s}>
-            <p className="text-xs font-bold tracking-widest" style={{ color: 'var(--warning)' }}>📚 SUBJECTS (assign different subjects to different team members)</p>
+            <p className="text-xs font-bold tracking-widest" style={{ color: 'var(--warning)' }}>SUBJECTS (assign different subjects to different team members)</p>
             <p className="text-xs" style={{ color: 'var(--border-soft)' }}>
               Add subjects here. Members can self-select their subject from the exam dashboard (or you can assign them).
               Each subject maps to a specific set of questions (set this in the Questions section above).
@@ -969,7 +969,7 @@ export default function AdminOlympiadsPage() {
                 )}
                 {(editing as any).relay_mode && (editing as any).relay_type === 'chain' && (
                   <p className="text-xs px-2 py-1.5 rounded" style={{ background: 'rgba(var(--accent2-rgb), 0.08)', color: 'var(--accent2)' }}>
-                    💡 Chain mode: reference a previous member's answer in this question's text using <code>{'{{chain.member1.QUESTION_ID}}'}</code> — question ID is shown below the question text once saved.
+                    <Lightbulb size={13} className="inline -mt-0.5 mr-1" /> Chain mode: reference a previous member's answer in this question's text using <code>{'{{chain.member1.QUESTION_ID}}'}</code> — question ID is shown below the question text once saved.
                   </p>
                 )}
                 {q.type === 'mcq' && (
@@ -1099,7 +1099,7 @@ export default function AdminOlympiadsPage() {
                 {linkInfo[o.id] ? (
                   <Link href={`/admin/activity-registration/${linkInfo[o.id].session_id}`}
                     className="text-xs mt-1 inline-flex items-center gap-1.5 hover:underline" style={{ color: 'var(--muted)' }}>
-                    🔗 {hideBreadcrumbHead ? linkInfo[o.id].breadcrumb.slice(1).join(' → ') || linkInfo[o.id].breadcrumb.join(' → ') : `From Activity: ${linkInfo[o.id].session_title} → ${linkInfo[o.id].breadcrumb.join(' → ')}`}
+                    <Link2 size={12} className="inline -mt-0.5 mr-1" /> {hideBreadcrumbHead ? linkInfo[o.id].breadcrumb.slice(1).join(' → ') || linkInfo[o.id].breadcrumb.join(' → ') : `From Activity: ${linkInfo[o.id].session_title} → ${linkInfo[o.id].breadcrumb.join(' → ')}`}
                     {linkInfo[o.id].registration_open === false && (
                       <span className="px-1.5 py-0.5 rounded" style={{ background: 'rgba(var(--danger-soft-rgb), 0.13)', color: 'var(--danger-soft)' }}>Registration closed</span>
                     )}
@@ -1153,7 +1153,7 @@ export default function AdminOlympiadsPage() {
           <>
             {linkedGroups.length > 0 && (
               <div className="space-y-4 mb-6">
-                <p className="text-xs font-bold tracking-widest" style={{ color: 'var(--blue)' }}>🔗 LINKED FROM ACTIVITIES</p>
+                <p className="text-xs font-bold tracking-widest inline-flex items-center gap-1.5" style={{ color: 'var(--blue)' }}><Link2 size={13} /> LINKED FROM ACTIVITIES</p>
                 {linkedGroups.map(g => (
                   <div key={g.label} className="rounded-xl p-3 space-y-3" style={{ background: 'rgba(var(--blue-rgb), 0.03)', border: '1px dashed rgba(var(--blue-rgb), 0.25)' }}>
                     <div className="flex items-center justify-between px-2">

@@ -1,5 +1,6 @@
 'use client'
 import { type ChangeEvent, useEffect, useRef, useState } from 'react'
+import { Pencil, Plus, ImageUp, FileUp, Loader2, FileText, BookOpen } from 'lucide-react'
 
 type Publication = {
   id: string
@@ -263,7 +264,7 @@ const handlePdf = async (e: ChangeEvent<HTMLInputElement>) => {
     })
     setLoading(false)
     if (res.ok) {
-      setMsg('✅ Saved!')
+      setMsg('Saved successfully.')
       setMsgOk(true)
       setForm(createEmptyForm(categories[0]?.value || DEFAULT_CATEGORIES[0].value))
       setEditing(null)
@@ -315,7 +316,7 @@ const handlePdf = async (e: ChangeEvent<HTMLInputElement>) => {
         style={{ background: 'var(--bg2)', borderColor: 'var(--border)' }}>
         <h2 className="font-bold mb-5 text-sm uppercase tracking-wider"
           style={{ color: 'var(--blue)' }}>
-          {editing ? '✏️ Edit Publication' : '➕ Add Publication'}
+          <span className="inline-flex items-center gap-2">{editing ? <Pencil size={14} /> : <Plus size={14} />} {editing ? 'Edit Publication' : 'Add Publication'}</span>
         </h2>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -378,7 +379,7 @@ const handlePdf = async (e: ChangeEvent<HTMLInputElement>) => {
             <button onClick={() => coverRef.current?.click()}
               className="w-full py-2.5 rounded-lg text-sm border-dashed border-2 mb-2"
               style={{ borderColor: 'var(--border)', color: 'var(--muted)' }}>
-              {uploading === 'cover' ? '⏳ Uploading...' : '📷 Upload Cover'}
+              <span className="inline-flex items-center gap-2">{uploading === 'cover' ? <Loader2 size={14} className="animate-spin" /> : <ImageUp size={14} />} {uploading === 'cover' ? 'Uploading...' : 'Upload Cover'}</span>
             </button>
             {uploading === 'cover' && (
   <div className="mt-2">
@@ -400,7 +401,7 @@ const handlePdf = async (e: ChangeEvent<HTMLInputElement>) => {
                   className="w-32 h-44 object-cover rounded-lg" />
                 <button onClick={() => setForm({ ...form, cover_image_url: '' })}
                   className="absolute top-1 right-1 w-5 h-5 rounded-full text-xs flex items-center justify-center"
-                  style={{ background: 'rgba(var(--danger-rgb), 0.8)', color: 'white' }}>✕</button>
+                  style={{ background: 'rgba(var(--danger-rgb), 0.8)', color: 'white' }}>&times;</button>
               </div>
             )}
           </div>
@@ -411,7 +412,7 @@ const handlePdf = async (e: ChangeEvent<HTMLInputElement>) => {
             <button onClick={() => pdfRef.current?.click()}
               className="w-full py-2.5 rounded-lg text-sm border-dashed border-2 mb-2"
               style={{ borderColor: 'var(--border)', color: 'var(--muted)' }}>
-              {uploading === 'pdf' ? '⏳ Uploading...' : '📄 Upload PDF'}
+              <span className="inline-flex items-center gap-2">{uploading === 'pdf' ? <Loader2 size={14} className="animate-spin" /> : <FileUp size={14} />} {uploading === 'pdf' ? 'Uploading...' : 'Upload PDF'}</span>
             </button>
             {uploading === 'pdf' && (
   <div className="mt-2 mb-2">
@@ -430,8 +431,8 @@ const handlePdf = async (e: ChangeEvent<HTMLInputElement>) => {
             {form.pdf_url && (
               <div className="flex items-center gap-2 px-3 py-2 rounded-lg"
                 style={{ background: 'rgba(var(--blue-rgb), 0.05)', border: '1px solid var(--border)' }}>
-                <span>📄</span>
-                <span className="text-xs flex-1 truncate" style={{ color: 'var(--blue)' }}>PDF uploaded ✓</span>
+                <FileText size={14} style={{ color: 'var(--blue)' }} />
+                <span className="text-xs flex-1 truncate" style={{ color: 'var(--blue)' }}>PDF uploaded</span>
                 <button onClick={() => setForm({ ...form, pdf_url: '' })}
                   className="text-xs" style={{ color: 'var(--danger)' }}>Remove</button>
               </div>
@@ -456,7 +457,7 @@ const handlePdf = async (e: ChangeEvent<HTMLInputElement>) => {
           <button onClick={save} disabled={loading}
             className="px-6 py-2.5 rounded-lg text-sm font-bold text-black"
             style={{ background: 'var(--blue)', opacity: loading ? 0.6 : 1 }}>
-            {loading ? 'Saving...' : editing ? '✅ Update' : '➕ Add Publication'}
+            {loading ? 'Saving...' : editing ? 'Update' : 'Add Publication'}
           </button>
           {editing && (
             <button onClick={() => { setEditing(null); setForm(createEmptyForm(categories[0]?.value || DEFAULT_CATEGORIES[0].value)) }}
@@ -480,7 +481,7 @@ const handlePdf = async (e: ChangeEvent<HTMLInputElement>) => {
               ) : (
                 <div className="w-full h-full flex items-center justify-center"
                   style={{ background: 'var(--surface-alt)' }}>
-                  <span className="text-4xl opacity-30">📚</span>
+                  <BookOpen size={40} className="opacity-30" />
                 </div>
               )}
               <div className="absolute top-2 left-2 px-2 py-1 rounded text-xs font-bold"
@@ -490,7 +491,7 @@ const handlePdf = async (e: ChangeEvent<HTMLInputElement>) => {
               {item.pdf_url && (
                 <div className="absolute top-2 right-2 px-2 py-1 rounded text-xs font-bold"
                   style={{ background: 'rgba(var(--blue-rgb), 0.8)', color: '#000' }}>
-                  PDF ✓
+                  PDF
                 </div>
               )}
             </div>

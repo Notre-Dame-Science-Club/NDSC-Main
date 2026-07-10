@@ -285,7 +285,7 @@ export default function RelayExamPage() {
 
         {phase === 'waiting_turn' && (
           <div className="rounded-2xl p-6 border text-center" style={{ background: 'var(--bg2)', borderColor: 'var(--border)' }}>
-            <p className="text-sm mb-2" style={{ color: 'var(--warning)' }}>⏳ Waiting for your turn…</p>
+            <p className="text-sm mb-2" style={{ color: 'var(--warning)' }}>Waiting for your turn…</p>
             <p className="text-xs" style={{ color: 'var(--muted)' }}>
               This event uses team relay mode — the previous member needs to submit before you can start. This page refreshes automatically.
             </p>

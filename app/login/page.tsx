@@ -3,6 +3,7 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import Link from 'next/link'
+import { Microscope } from 'lucide-react'
 
 export default function LoginPage() {
   const router = useRouter()
@@ -60,7 +61,7 @@ export default function LoginPage() {
           <div className="text-center mb-8">
             <div className="inline-flex items-center justify-center w-14 h-14 rounded-full mb-4"
               style={{ background: 'rgba(var(--blue-rgb), 0.1)', border: '1px solid rgba(var(--blue-rgb), 0.3)' }}>
-              <span className="text-2xl">🔬</span>
+              <Microscope size={26} strokeWidth={1.75} style={{ color: 'var(--blue)' }} />
             </div>
             <h1 className="text-xl font-bold mb-1"
               style={{ fontFamily: "'Orbitron', sans-serif", color: 'var(--blue)' }}>

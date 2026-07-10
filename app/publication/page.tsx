@@ -1,7 +1,7 @@
 'use client'
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
-import { BookOpen, Download, X, ChevronRight } from 'lucide-react'
+import { BookOpen, Download, X, ChevronRight, Inbox } from 'lucide-react'
 import PdfViewer from './PdfViewer'
 
 type Publication = {
@@ -119,7 +119,7 @@ export default function PublicationPage() {
                   ) : (
                     <div className="w-full flex items-center justify-center text-6xl"
                       style={{ height: 320, background: 'var(--bg2)' }}>
-                      📘
+                     
                     </div>
                   )}
                   {audri.pdf_url && (
@@ -136,7 +136,7 @@ export default function PublicationPage() {
             ) : (
               <div className="shrink-0 w-60 rounded-xl flex items-center justify-center text-6xl opacity-20"
                 style={{ height: 320, border: '2px dashed var(--border)', background: 'var(--bg2)' }}>
-                📘
+               
               </div>
             )}
 
@@ -353,7 +353,7 @@ function PrevCover({ pub, accentColor }: { pub: Publication; accentColor: string
           ) : (
             <div className="w-full flex items-center justify-center text-3xl opacity-30"
               style={{ height: 160, background: 'var(--bg2)' }}>
-              📘
+             
             </div>
           )}
           {pub.pdf_url && (
@@ -383,7 +383,7 @@ function FeatureCard({
       ) : (
         <div className="w-full flex items-center justify-center text-6xl opacity-20"
           style={{ height: 340, border: '2px dashed var(--border)', background: 'var(--bg2)', borderRadius: 16 }}>
-          🔷
+         
         </div>
       )}
     </div>
@@ -425,7 +425,7 @@ function EmptyState({ label }: { label: string }) {
   return (
     <div className="rounded-2xl border p-12 text-center"
       style={{ borderColor: 'var(--border)', background: 'var(--card)' }}>
-      <p className="text-4xl mb-3">📭</p>
+      <div className="flex justify-center mb-3"><Inbox size={38} strokeWidth={1.5} className="opacity-30" /></div>
       <p className="text-sm" style={{ color: 'var(--muted)' }}>No {label} published yet.</p>
     </div>
   )

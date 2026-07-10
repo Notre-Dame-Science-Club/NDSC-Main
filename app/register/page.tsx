@@ -2,7 +2,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { Upload, CheckCircle } from 'lucide-react'
+import { Upload, CheckCircle, UserPlus } from 'lucide-react'
 
 export default function RegisterPage() {
   const router = useRouter()
@@ -112,7 +112,9 @@ export default function RegisterPage() {
           style={{ background: 'radial-gradient(circle, var(--success) 0%, transparent 70%)' }} />
         <div className="relative rounded-2xl p-10 border"
           style={{ background: 'var(--bg2)', borderColor: 'var(--border)' }}>
-          <div className="text-6xl mb-4">✅</div>
+          <div className="flex justify-center mb-4">
+            <CheckCircle size={56} strokeWidth={1.75} style={{ color: 'var(--success)' }} />
+          </div>
           <h2 className="text-xl font-bold mb-2" style={{ fontFamily: "'Orbitron', sans-serif", color: 'var(--success)' }}>
             Registration Successful!
           </h2>
@@ -154,7 +156,7 @@ export default function RegisterPage() {
           <div className="text-center mb-8">
             <div className="inline-flex items-center justify-center w-14 h-14 rounded-full mb-4"
               style={{ background: 'rgba(var(--blue-rgb), 0.1)', border: '1px solid rgba(var(--blue-rgb), 0.3)' }}>
-              <span className="text-2xl">🚀</span>
+              <UserPlus size={24} strokeWidth={1.75} style={{ color: 'var(--blue)' }} />
             </div>
             <h1 className="text-xl font-bold mb-1" style={{ fontFamily: "'Orbitron', sans-serif", color: 'var(--blue)' }}>
               Create Account

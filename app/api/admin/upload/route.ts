@@ -72,7 +72,7 @@ export async function POST(req: NextRequest) {
     return apiError(data.error || 'Upload failed', 400)
   }
 
-  // ✅ Normalize the URL before returning — fixes /uploads/ prefix issue
+  // Normalize the URL before returning — fixes /uploads/ prefix issue
   const cleanUrl = normalizeUploadUrl(data.url)
 
   return apiOk({ url: cleanUrl })

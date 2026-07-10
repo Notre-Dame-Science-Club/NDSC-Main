@@ -2,6 +2,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
+import { Landmark, Microscope, Globe2, Trophy, Newspaper, Globe, Gem } from "lucide-react";
 
 /* ═══════════════════════════════════════════
    DATA
@@ -76,7 +77,7 @@ const GOALS = [
 /* All 40+ milestones from PDF */
 const ERAS = [
   {
-    year: "1953–1955", label: "Foundation", color: "var(--blue)", icon: "🏛️",
+    year: "1953–1955", label: "Foundation", color: "var(--blue)", icon: Landmark,
     summary: "Fr. Richard William Timm, C.S.C. begins lab sessions in 1953. The Science Club is officially inaugurated on September 18, 1955, with 19 founding student members.",
     milestones: [
       { y: "1953", text: "Fr. Timm starts laying the groundwork by hosting advanced laboratory experimentation sessions for interested students at the Motijheel campus." },
@@ -84,7 +85,7 @@ const ERAS = [
     ],
   },
   {
-    year: "1960s", label: "Science Fairs", color: "var(--cat-teal)", icon: "🔬",
+    year: "1960s", label: "Science Fairs", color: "var(--cat-teal)", icon: Microscope,
     summary: "NDSC pioneers the first-ever college-level Annual Science Fairs in East Pakistan, expanding to multi-institutional festivals impacting youth across Dhaka.",
     milestones: [
       { y: "1960s", text: "First college-level Annual Science Fairs introduced in East Pakistan — the first of their kind in the entire region." },
@@ -93,7 +94,7 @@ const ERAS = [
     ],
   },
   {
-    year: "1970s", label: "War & Reform", color: "var(--accent2)", icon: "🌏",
+    year: "1970s", label: "War & Reform", color: "var(--accent2)", icon: Globe2,
     summary: "Relief work during the 1970 cyclone & 1971 Liberation War. Constitution amended for inclusivity in 1972. Topped the 1st National Science Fair of independent Bangladesh in 1973. Presidential visit in 1977. BTV broadcast in 1978.",
     milestones: [
       { y: "1970 (Nov)", text: "Bhola Cyclone — club suspends academic displays to lead field relief teams across affected communities." },
@@ -107,7 +108,7 @@ const ERAS = [
     ],
   },
   {
-    year: "1980s", label: "Championships", color: "var(--cat-amber)", icon: "🏆",
+    year: "1980s", label: "Championships", color: "var(--cat-amber)", icon: Trophy,
     summary: "Electronic scoreboard invention (1984), low-cost offset printing (1987). 9/10 national awards at Mahakhali Fair (1982). National debate champion (1983). 5th place globally for steam-pump design (1988). Geiger-Müller counter earns Japanese government recognition (1989).",
     milestones: [
       { y: "1982 (Feb)", text: "NDSC wins 9 distinct national awards out of 10 submitted project categories at the Mahakhali National Fair." },
@@ -120,7 +121,7 @@ const ERAS = [
     ],
   },
   {
-    year: "1990s", label: "Publications", color: "var(--cat-red)", icon: "📰",
+    year: "1990s", label: "Publications", color: "var(--cat-red)", icon: Newspaper,
     summary: "First Inter-College GK & Science Competition (1990). 36th Anniversary Grand Reunion (1992). Library inaugurated (1992). Wall magazine 'Mohona' launched (1993). UNESCO Week representation (1994). 40th Anniversary souvenir 'Arghya' (1995). National Science Week champion 4 consecutive times (1997). Permanent office suite inaugurated (1998).",
     milestones: [
       { y: "1990 (Dec 20)", text: "Club organizes the historic first-ever Inter-College General Knowledge and Science Competition in Dhaka." },
@@ -135,7 +136,7 @@ const ERAS = [
     ],
   },
   {
-    year: "2000s", label: "Global Reach", color: "var(--info)", icon: "🌐",
+    year: "2000s", label: "Global Reach", color: "var(--info)", icon: Globe,
     summary: "1st National Science Festival (2001). Website & 'Ablaze' digital magazine launched (2003). 3rd National ICT Fair (2005). Golden Jubilee 2005. 2nd place at International Science Festival, Lucknow India (2006). 8th globally out of 128 teams at ISSF 2007. Cultural Fusion Fair (2008). 19th GK Festival (2009).",
     milestones: [
       { y: "2001", text: "Annual Science Fair upgraded to the 'First National Science Festival', welcoming schools from all over Bangladesh." },
@@ -152,7 +153,7 @@ const ERAS = [
     ],
   },
   {
-    year: "2010s–2026", label: "Platinum Era", color: "var(--cat-orange)", icon: "✨",
+    year: "2010s–2026", label: "Platinum Era", color: "var(--cat-orange)", icon: Gem,
     summary: "Sweeps 20th National GK Festival — 1st in Astronomy, Biology & Math (2010). Education Secretary as Chief Guest at 21st Festival (2011). BCSIR dominance (2012). Diamond Jubilee 60th Anniversary (2015). Platinum Jubilee 70th Anniversary (2025–2026).",
     milestones: [
       { y: "2010 (Sept)", text: "Sweeping National Olympiads — NDSC wins absolute 1st place in Astronomy, 1st in Biology, and 1st in the Math Olympiad at the 20th National GK Festival, inaugurated by Industries Minister Mr. Dilip Barua." },
@@ -240,6 +241,7 @@ function CollapsibleText2({
 ═══════════════════════════════════════════ */
 export default function AboutPage() {
   const [activeEra, setActiveEra] = useState(0);
+  const ActiveEraIcon = ERAS[activeEra].icon;
 
   return (
     <div className="min-h-screen relative z-10" style={{ paddingTop: "64px" }}>
@@ -553,7 +555,7 @@ export default function AboutPage() {
                       boxShadow: activeEra === i ? `0 0 14px ${e.color}55` : "none",
                     }}
                   >
-                    {e.icon} {e.year}
+                    <e.icon className="inline w-3.5 h-3.5 -mt-0.5 mr-1" strokeWidth={2.5} /> {e.year}
                   </button>
                 ))}
               </div>
@@ -564,7 +566,7 @@ export default function AboutPage() {
                 style={{ borderColor: ERAS[activeEra].color + "55", background: ERAS[activeEra].color + "0a" }}
               >
                 <div className="flex items-center gap-3 mb-4">
-                  <span className="text-3xl">{ERAS[activeEra].icon}</span>
+                  <ActiveEraIcon className="w-8 h-8" style={{ color: ERAS[activeEra].color }} strokeWidth={2} />
                   <div>
                     <p
                       className="text-xs font-bold tracking-widest"
@@ -636,7 +638,7 @@ export default function AboutPage() {
                       }}
                     >
                       <div className="flex items-center gap-2 mb-2">
-                        <span>{e.icon}</span>
+                        <e.icon className="w-4 h-4" style={{ color: e.color }} strokeWidth={2.25} />
                         <span
                           className="text-xs font-black tracking-wider"
                           style={{ fontFamily: "'Orbitron',sans-serif", color: activeEra === i ? e.color : "var(--muted)", fontSize: "0.65rem" }}

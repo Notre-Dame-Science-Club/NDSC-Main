@@ -176,7 +176,7 @@ export default function AnnotationViewer({
                 }}
                 title={a.text || ''}
               >
-                {a.type === 'tick' ? '✓' : a.type === 'cross' ? '✗' : '📝'}
+                {a.type === 'tick' ? '✓' : a.type === 'cross' ? '✗' : ''}
                 {!readOnly && (
                   <button
                     onClick={e => { e.stopPropagation(); removeMark(a.id) }}
