@@ -1,6 +1,6 @@
 'use client'
 import { useEffect, useState } from 'react'
-import { Send, Users, UserCheck, UserX } from 'lucide-react'
+import { Send, Users, UserCheck, UserX, Megaphone } from 'lucide-react'
 
 type Announcement = {
   id: string
@@ -78,8 +78,8 @@ export default function AdminAnnouncementsPage() {
           announcements; the Olympiad admin page links here instead of
           duplicating this form. */}
       <div className="rounded-xl border p-6 mb-6" style={s}>
-        <h2 className="font-bold text-sm mb-4" style={{ color: 'var(--blue)', fontFamily: "'Orbitron', sans-serif" }}>
-          Compose Announcement
+        <h2 className="font-bold text-sm mb-4 inline-flex items-center gap-2" style={{ color: 'var(--blue)', fontFamily: "'Orbitron', sans-serif" }}>
+          <Megaphone size={15} /> Compose Announcement
         </h2>
 
         <div className="mb-3">

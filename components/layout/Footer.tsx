@@ -181,7 +181,7 @@ export default function Footer() {
             <Link href="/developers"
               className="text-xs font-bold tracking-widest hover:text-[var(--blue)] transition-colors flex items-center gap-1"
               style={{ color: "rgba(0,212,255,0.45)", fontFamily: "'Share Tech Mono',monospace" }}>
-              <Code2 size={12} strokeWidth={2.25} /> Developers
+              <Code2 size={12} /> Developers
             </Link>
           </div>
         </div>

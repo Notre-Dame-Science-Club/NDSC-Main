@@ -61,7 +61,7 @@ export default function LoginPage() {
           <div className="text-center mb-8">
             <div className="inline-flex items-center justify-center w-14 h-14 rounded-full mb-4"
               style={{ background: 'rgba(var(--blue-rgb), 0.1)', border: '1px solid rgba(var(--blue-rgb), 0.3)' }}>
-              <Microscope size={26} strokeWidth={1.75} style={{ color: 'var(--blue)' }} />
+              <Microscope size={22} style={{ color: 'var(--blue)' }} />
             </div>
             <h1 className="text-xl font-bold mb-1"
               style={{ fontFamily: "'Orbitron', sans-serif", color: 'var(--blue)' }}>

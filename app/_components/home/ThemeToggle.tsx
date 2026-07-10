@@ -18,9 +18,7 @@ export function ThemeToggle() {
     else document.documentElement.removeAttribute("data-theme");
   };
   return (
-    <button onClick={toggle} className="theme-toggle" title="Toggle theme" aria-label="Toggle theme">
-      {dark ? <Sun size={16} strokeWidth={2.25} /> : <Moon size={16} strokeWidth={2.25} />}
-    </button>
+    <button onClick={toggle} className="theme-toggle" title="Toggle theme" aria-label="Toggle theme">{dark ? <Sun size={16} /> : <Moon size={16} />}</button>
   );
 }
 

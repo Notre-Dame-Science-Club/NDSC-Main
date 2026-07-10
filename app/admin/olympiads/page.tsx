@@ -1,7 +1,7 @@
 'use client'
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
-import { Plus, Trash2, Edit2, ChevronDown, ChevronUp, Eye, EyeOff, X, Megaphone, ArrowRight, Image as ImageIcon, FileText, Clock, AlignLeft, List, Camera, ArrowUp, ArrowDown, Copy, CheckSquare, ClipboardList, Link2, Lightbulb } from 'lucide-react'
+import { Plus, Trash2, Edit2, ChevronDown, ChevronUp, Eye, EyeOff, X, Megaphone, ArrowRight, Image as ImageIcon, FileText, Clock, AlignLeft, List, Camera, ArrowUp, ArrowDown, Copy, CheckSquare, ClipboardList, Link2, Lightbulb, BookOpen, CheckCircle2 } from 'lucide-react'
 import AnnotationViewer, { Annotation } from '@/components/olympiad/AnnotationViewer'
 import MathInputField from '@/components/olympiad/MathInputField'
 import MathText from '@/components/olympiad/MathText'
@@ -433,7 +433,7 @@ export default function AdminOlympiadsPage() {
                         View{(r.annotations?.length ?? 0) > 0 ? ` (${r.annotations.length} marks)` : ''}
                       </button>
                     )}
-                    {!r.answer_sheet_url && r.exam_submitted_at && <span className="text-xs" style={{ color: 'var(--success)' }}>Online ✓</span>}
+                    {!r.answer_sheet_url && r.exam_submitted_at && <span className="text-xs inline-flex items-center gap-1" style={{ color: 'var(--success)' }}>Online <CheckCircle2 size={12} /></span>}
                     {!r.answer_sheet_url && !r.exam_submitted_at && <span className="text-xs" style={{ color: 'var(--border-soft)' }}>—</span>}
                   </td>
                 </tr>
@@ -592,7 +592,7 @@ export default function AdminOlympiadsPage() {
 
           {/* ── Phase D: Scheduling ────────────────────────────────── */}
           <div className="rounded-xl p-5 space-y-4" style={s}>
-            <p className="text-xs font-bold tracking-widest" style={{ color: 'var(--cat-teal)' }}>EXAM SCHEDULING (auto-start at a set time)</p>
+            <p className="text-xs font-bold tracking-widest" style={{ color: 'var(--cat-teal)' }}>⏰ EXAM SCHEDULING (auto-start at a set time)</p>
             <p className="text-xs" style={{ color: 'var(--border-soft)' }}>
               If set, the exam page will show a countdown and auto-unlock at the scheduled start time.
               Students cannot start early; submissions are locked after the end time.
@@ -646,7 +646,7 @@ export default function AdminOlympiadsPage() {
 
           {/* ── Phase D: Subject assignment ───────────────────────── */}
           <div className="rounded-xl p-5 space-y-4" style={s}>
-            <p className="text-xs font-bold tracking-widest" style={{ color: 'var(--warning)' }}>SUBJECTS (assign different subjects to different team members)</p>
+            <p className="text-xs font-bold tracking-widest inline-flex items-center gap-1.5" style={{ color: 'var(--warning)' }}><BookOpen size={13} /> SUBJECTS (assign different subjects to different team members)</p>
             <p className="text-xs" style={{ color: 'var(--border-soft)' }}>
               Add subjects here. Members can self-select their subject from the exam dashboard (or you can assign them).
               Each subject maps to a specific set of questions (set this in the Questions section above).
@@ -699,7 +699,7 @@ export default function AdminOlympiadsPage() {
                 {editing.cover_image_url && uploading !== 'cover' && (
                   <div className="relative w-fit mt-2">
                     <img src={editing.cover_image_url} alt="cover" className="h-16 rounded object-cover border" style={{ borderColor: 'var(--border)' }} />
-                    <button onClick={() => setEditing(p => ({ ...p, cover_image_url: '' }))} className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full text-xs flex items-center justify-center" style={{ background: 'rgba(var(--danger-rgb), 0.85)', color: 'white' }}>✕</button>
+                    <button onClick={() => setEditing(p => ({ ...p, cover_image_url: '' }))} className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full flex items-center justify-center" style={{ background: 'rgba(var(--danger-rgb), 0.85)', color: 'white' }}><X size={11} /></button>
                   </div>
                 )}
               </div>
@@ -713,7 +713,7 @@ export default function AdminOlympiadsPage() {
                 {editing.pdf_url && uploading !== 'pdf' && (
                   <div className="flex items-center gap-2 mt-2 text-xs">
                     <a href={editing.pdf_url} target="_blank" className="underline" style={{ color: 'var(--blue)' }}>View PDF</a>
-                    <button onClick={() => setEditing(p => ({ ...p, pdf_url: '' }))} style={{ color: 'var(--danger-soft)' }}>✕ Remove</button>
+                    <button onClick={() => setEditing(p => ({ ...p, pdf_url: '' }))} className="inline-flex items-center gap-1" style={{ color: 'var(--danger-soft)' }}><X size={12} /> Remove</button>
                   </div>
                 )}
               </div>
@@ -770,7 +770,7 @@ export default function AdminOlympiadsPage() {
                 {editing.theme_bg_image_url && uploading !== 'bg' && (
                   <div className="relative w-fit mt-2">
                     <img src={editing.theme_bg_image_url} alt="background" className="h-16 rounded object-cover border" style={{ borderColor: 'var(--border)' }} />
-                    <button onClick={() => setEditing(p => ({ ...p, theme_bg_image_url: '' }))} className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full text-xs flex items-center justify-center" style={{ background: 'rgba(var(--danger-rgb), 0.85)', color: 'white' }}>✕</button>
+                    <button onClick={() => setEditing(p => ({ ...p, theme_bg_image_url: '' }))} className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full flex items-center justify-center" style={{ background: 'rgba(var(--danger-rgb), 0.85)', color: 'white' }}><X size={11} /></button>
                   </div>
                 )}
                 <p className="text-[11px] mt-1" style={{ color: 'var(--border-soft)' }}>Shown behind the register/exam/result pages, tinted with the background color above.</p>
@@ -785,7 +785,7 @@ export default function AdminOlympiadsPage() {
                 {editing.theme_header_logo_url && uploading !== 'logo' && (
                   <div className="relative w-fit mt-2">
                     <img src={editing.theme_header_logo_url} alt="logo" className="h-12 rounded object-contain border p-1" style={{ borderColor: 'var(--border)', background: 'rgba(255,255,255,0.05)' }} />
-                    <button onClick={() => setEditing(p => ({ ...p, theme_header_logo_url: '' }))} className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full text-xs flex items-center justify-center" style={{ background: 'rgba(var(--danger-rgb), 0.85)', color: 'white' }}>✕</button>
+                    <button onClick={() => setEditing(p => ({ ...p, theme_header_logo_url: '' }))} className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full flex items-center justify-center" style={{ background: 'rgba(var(--danger-rgb), 0.85)', color: 'white' }}><X size={11} /></button>
                   </div>
                 )}
                 <p className="text-[11px] mt-1" style={{ color: 'var(--border-soft)' }}>Shown above the olympiad's name on register/exam/result pages.</p>
@@ -947,7 +947,7 @@ export default function AdminOlympiadsPage() {
                   {q.image_url ? (
                     <div className="relative inline-block">
                       <img src={q.image_url} alt="" className="h-20 rounded object-cover border" style={{ borderColor: 'var(--border)' }} />
-                      <button onClick={() => updateQuestion(q.id, { image_url: '' })} className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full text-xs flex items-center justify-center" style={{ background: 'rgba(var(--danger-rgb), 0.85)', color: 'white' }}>✕</button>
+                      <button onClick={() => updateQuestion(q.id, { image_url: '' })} className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full flex items-center justify-center" style={{ background: 'rgba(var(--danger-rgb), 0.85)', color: 'white' }}><X size={11} /></button>
                     </div>
                   ) : (
                     <label className="text-xs px-3 py-1.5 rounded-lg border cursor-pointer inline-flex items-center gap-1" style={{ borderColor: 'var(--border)', color: 'var(--muted)' }}>
@@ -968,8 +968,9 @@ export default function AdminOlympiadsPage() {
                   </div>
                 )}
                 {(editing as any).relay_mode && (editing as any).relay_type === 'chain' && (
-                  <p className="text-xs px-2 py-1.5 rounded" style={{ background: 'rgba(var(--accent2-rgb), 0.08)', color: 'var(--accent2)' }}>
-                    <Lightbulb size={13} className="inline -mt-0.5 mr-1" /> Chain mode: reference a previous member's answer in this question's text using <code>{'{{chain.member1.QUESTION_ID}}'}</code> — question ID is shown below the question text once saved.
+                  <p className="text-xs px-2 py-1.5 rounded flex items-start gap-1.5" style={{ background: 'rgba(var(--accent2-rgb), 0.08)', color: 'var(--accent2)' }}>
+                    <Lightbulb size={13} className="shrink-0 mt-0.5" />
+                    <span>Chain mode: reference a previous member's answer in this question's text using <code>{'{{chain.member1.QUESTION_ID}}'}</code> — question ID is shown below the question text once saved.</span>
                   </p>
                 )}
                 {q.type === 'mcq' && (
@@ -1099,7 +1100,7 @@ export default function AdminOlympiadsPage() {
                 {linkInfo[o.id] ? (
                   <Link href={`/admin/activity-registration/${linkInfo[o.id].session_id}`}
                     className="text-xs mt-1 inline-flex items-center gap-1.5 hover:underline" style={{ color: 'var(--muted)' }}>
-                    <Link2 size={12} className="inline -mt-0.5 mr-1" /> {hideBreadcrumbHead ? linkInfo[o.id].breadcrumb.slice(1).join(' → ') || linkInfo[o.id].breadcrumb.join(' → ') : `From Activity: ${linkInfo[o.id].session_title} → ${linkInfo[o.id].breadcrumb.join(' → ')}`}
+                    <Link2 size={12} /> {hideBreadcrumbHead ? linkInfo[o.id].breadcrumb.slice(1).join(' → ') || linkInfo[o.id].breadcrumb.join(' → ') : `From Activity: ${linkInfo[o.id].session_title} → ${linkInfo[o.id].breadcrumb.join(' → ')}`}
                     {linkInfo[o.id].registration_open === false && (
                       <span className="px-1.5 py-0.5 rounded" style={{ background: 'rgba(var(--danger-soft-rgb), 0.13)', color: 'var(--danger-soft)' }}>Registration closed</span>
                     )}
@@ -1136,12 +1137,12 @@ export default function AdminOlympiadsPage() {
                 </div>
                 <div className="flex gap-3 pt-1">
                   <button onClick={() => toggleField(o.id, 'result_published', !o.result_published)}
-                    className="text-xs px-3 py-1.5 rounded-lg border" style={{ borderColor: o.result_published ? 'rgba(var(--success-rgb), 0.27)' : 'var(--border)', color: o.result_published ? 'var(--success)' : 'var(--border-soft)' }}>
-                    {o.result_published ? '✓ Results Published' : 'Publish Results'}
+                    className="text-xs px-3 py-1.5 rounded-lg border inline-flex items-center gap-1.5" style={{ borderColor: o.result_published ? 'rgba(var(--success-rgb), 0.27)' : 'var(--border)', color: o.result_published ? 'var(--success)' : 'var(--border-soft)' }}>
+                    {o.result_published && <CheckCircle2 size={13} />} {o.result_published ? 'Results Published' : 'Publish Results'}
                   </button>
                   <button onClick={() => toggleField(o.id, 'annotations_published', !o.annotations_published)}
-                    className="text-xs px-3 py-1.5 rounded-lg border" style={{ borderColor: o.annotations_published ? 'rgba(var(--blue-rgb), 0.27)' : 'var(--border)', color: o.annotations_published ? 'var(--blue)' : 'var(--border-soft)' }}>
-                    {o.annotations_published ? '✓ Annotations Published' : 'Publish Annotations'}
+                    className="text-xs px-3 py-1.5 rounded-lg border inline-flex items-center gap-1.5" style={{ borderColor: o.annotations_published ? 'rgba(var(--blue-rgb), 0.27)' : 'var(--border)', color: o.annotations_published ? 'var(--blue)' : 'var(--border-soft)' }}>
+                    {o.annotations_published && <CheckCircle2 size={13} />} {o.annotations_published ? 'Annotations Published' : 'Publish Annotations'}
                   </button>
                 </div>
               </div>

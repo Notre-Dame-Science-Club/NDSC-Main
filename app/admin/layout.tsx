@@ -1,17 +1,20 @@
 import { cookies } from 'next/headers'
 import Link from 'next/link'
 import { authCookies } from '@/lib/config/site'
-import { Home, Users, Calendar, BookOpen, Megaphone, Trophy, Clapperboard, Settings, LogOut } from 'lucide-react'
+import {
+  LayoutDashboard, Users, CalendarDays, BookOpen, UserCog,
+  Megaphone, Trophy, Film, Settings, Power,
+} from 'lucide-react'
 
 const NAV_LINKS = [
-  { href: '/admin', label: 'Dashboard', icon: Home },
+  { href: '/admin', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/admin/members', label: 'Members', icon: Users },
-  { href: '/admin/activities', label: 'Activities', icon: Calendar },
+  { href: '/admin/activities', label: 'Activities', icon: CalendarDays },
   { href: '/admin/publications', label: 'Publications', icon: BookOpen },
-  { href: '/admin/executives', label: 'Executives', icon: Users },
+  { href: '/admin/executives', label: 'Executives', icon: UserCog },
   { href: '/admin/announcements', label: 'Announcements', icon: Megaphone },
   { href: '/admin/olympiads', label: 'Olympiads', icon: Trophy },
-  { href: '/admin/science-media', label: 'Science Media', icon: Clapperboard },
+  { href: '/admin/science-media', label: 'Science Media', icon: Film },
   { href: '/admin/homepage-settings', label: 'Homepage Settings', icon: Settings },
 ]
 
@@ -45,7 +48,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
               className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-colors hover:text-white"
               style={{ color: 'var(--muted)' }}
             >
-              <link.icon size={17} strokeWidth={1.9} />
+              <link.icon size={17} />
               <span>{link.label}</span>
             </Link>
           ))}
@@ -57,7 +60,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
             className="flex items-center gap-2 text-xs transition-colors hover:text-red-400"
             style={{ color: 'var(--muted)' }}
           >
-            <LogOut size={14} strokeWidth={2} /> Logout
+            <Power size={15} /> Logout
           </a>
         </div>
       </aside>

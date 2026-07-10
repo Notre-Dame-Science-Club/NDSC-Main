@@ -1,5 +1,6 @@
 "use client";
 import { useState } from "react";
+import { Wrench, Loader2, Search, Zap, XCircle, CheckCircle2, AlertTriangle, Info } from "lucide-react";
 
 const S = {
   bg: "var(--bg)", card: "var(--surface-deep)", border: "var(--border)",
@@ -40,8 +41,8 @@ export default function FixUrlsPage() {
 
   return (
     <div className="p-6 max-w-3xl mx-auto" style={{ color: S.text, fontFamily: "'Poppins',sans-serif" }}>
-      <h1 className="text-2xl font-black mb-2" style={{ fontFamily: "'Orbitron',sans-serif", color: S.accent }}>
-        Fix Upload URLs
+      <h1 className="text-2xl font-black mb-2 flex items-center gap-2" style={{ fontFamily: "'Orbitron',sans-serif", color: S.accent }}>
+        <Wrench size={22} /> Fix Upload URLs
       </h1>
       <p className="text-sm mb-6" style={{ color: S.muted }}>
         Database এর সব broken upload URL গুলো fix করবে।<br />
@@ -71,7 +72,10 @@ export default function FixUrlsPage() {
             cursor: status === "fixing" ? "not-allowed" : "pointer",
           }}
         >
-          {status === "scanning" ? "Scanning..." : "Scan Now"}
+          <span className="inline-flex items-center gap-2">
+            {status === "scanning" ? <Loader2 size={14} className="animate-spin" /> : <Search size={14} />}
+            {status === "scanning" ? "Scanning..." : "Scan Now"}
+          </span>
         </button>
       </div>
 
@@ -94,13 +98,16 @@ export default function FixUrlsPage() {
             cursor: status === "scanning" ? "not-allowed" : "pointer",
           }}
         >
-          {status === "fixing" ? "Fixing..." : "Apply Fix to Database"}
+          <span className="inline-flex items-center gap-2">
+            {status === "fixing" ? <Loader2 size={14} className="animate-spin" /> : <Zap size={14} />}
+            {status === "fixing" ? "Fixing..." : "Apply Fix to Database"}
+          </span>
         </button>
       </div>
 
       {error && (
-        <div className="rounded-lg p-4 mb-4 text-sm" style={{ background: "rgba(255,71,87,0.1)", border: `1px solid ${S.danger}`, color: S.danger }}>
-          {error}
+        <div className="rounded-lg p-4 mb-4 text-sm flex items-center gap-2" style={{ background: "rgba(255,71,87,0.1)", border: `1px solid ${S.danger}`, color: S.danger }}>
+          <XCircle size={16} /> {error}
         </div>
       )}
 
@@ -108,7 +115,7 @@ export default function FixUrlsPage() {
       {result && status === "done" && (
         <div className="rounded-xl border p-5" style={{ borderColor: result.dry_run ? S.accent : S.success, background: S.card }}>
           <div className="flex items-center gap-3 mb-4">
-            <span className="text-2xl">{result.dry_run ? "" : ""}</span>
+            <span style={{ color: result.dry_run ? S.accent : S.success }}>{result.dry_run ? <Search size={24} /> : <CheckCircle2 size={24} />}</span>
             <div>
               <p className="font-bold text-sm" style={{ color: result.dry_run ? S.accent : S.success }}>
                 {result.dry_run ? "Scan Complete" : "Fix Applied!"}
@@ -133,11 +140,11 @@ export default function FixUrlsPage() {
                 </div>
                 {r.errors.length > 0 && (
                   <div className="mt-2 text-xs" style={{ color: S.danger }}>
-                    {r.errors.map((e, i) => <div key={i}>{e}</div>)}
+                    {r.errors.map((e, i) => <div key={i} className="flex items-center gap-1"><AlertTriangle size={11} /> {e}</div>)}
                   </div>
                 )}
                 {r.fixed === 0 && r.errors.length === 0 && (
-                  <p className="text-xs mt-1" style={{ color: S.success }}>✓ All URLs are correct</p>
+                  <p className="text-xs mt-1 flex items-center gap-1" style={{ color: S.success }}><CheckCircle2 size={12} /> All URLs are correct</p>
                 )}
               </div>
             ))}
@@ -149,15 +156,15 @@ export default function FixUrlsPage() {
             </div>
           )}
           {!result.dry_run && (
-            <div className="mt-4 p-3 rounded-lg text-xs text-center" style={{ background: "rgba(var(--cat-teal-rgb), 0.08)", border: `1px solid ${S.success}`, color: S.success }}>
-              সব URLs database এ fix হয়ে গেছে। এখন website এ সব ছবি দেখা যাবে।
+            <div className="mt-4 p-3 rounded-lg text-xs text-center flex items-center justify-center gap-2" style={{ background: "rgba(var(--cat-teal-rgb), 0.08)", border: `1px solid ${S.success}`, color: S.success }}>
+              <CheckCircle2 size={14} /> সব URLs database এ fix হয়ে গেছে। এখন website এ সব ছবি দেখা যাবে।
             </div>
           )}
         </div>
       )}
 
       <div className="mt-8 p-4 rounded-lg text-xs" style={{ background: "rgba(var(--blue-rgb), 0.04)", border: `1px solid rgba(var(--blue-rgb), 0.15)`, color: S.muted }}>
-        <p className="font-bold mb-1" style={{ color: S.accent }}>এই fix কী কী করে?</p>
+        <p className="font-bold mb-1 flex items-center gap-1.5" style={{ color: S.accent }}><Info size={13} /> এই fix কী কী করে?</p>
         <ul className="space-y-1 list-none">
           <li>• <code>activity_sessions</code> → cover_image_url, pdf_url, gallery_urls</li>
           <li>• <code>executives</code> → photo_url</li>

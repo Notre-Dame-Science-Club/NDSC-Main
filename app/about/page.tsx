@@ -2,7 +2,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { Landmark, Microscope, Globe2, Trophy, Newspaper, Globe, Gem } from "lucide-react";
+import { Landmark, Microscope, Globe2, Trophy, Newspaper, Globe, Sparkles } from "lucide-react";
 
 /* ═══════════════════════════════════════════
    DATA
@@ -153,7 +153,7 @@ const ERAS = [
     ],
   },
   {
-    year: "2010s–2026", label: "Platinum Era", color: "var(--cat-orange)", icon: Gem,
+    year: "2010s–2026", label: "Platinum Era", color: "var(--cat-orange)", icon: Sparkles,
     summary: "Sweeps 20th National GK Festival — 1st in Astronomy, Biology & Math (2010). Education Secretary as Chief Guest at 21st Festival (2011). BCSIR dominance (2012). Diamond Jubilee 60th Anniversary (2015). Platinum Jubilee 70th Anniversary (2025–2026).",
     milestones: [
       { y: "2010 (Sept)", text: "Sweeping National Olympiads — NDSC wins absolute 1st place in Astronomy, 1st in Biology, and 1st in the Math Olympiad at the 20th National GK Festival, inaugurated by Industries Minister Mr. Dilip Barua." },
@@ -241,7 +241,6 @@ function CollapsibleText2({
 ═══════════════════════════════════════════ */
 export default function AboutPage() {
   const [activeEra, setActiveEra] = useState(0);
-  const ActiveEraIcon = ERAS[activeEra].icon;
 
   return (
     <div className="min-h-screen relative z-10" style={{ paddingTop: "64px" }}>
@@ -555,18 +554,19 @@ export default function AboutPage() {
                       boxShadow: activeEra === i ? `0 0 14px ${e.color}55` : "none",
                     }}
                   >
-                    <e.icon className="inline w-3.5 h-3.5 -mt-0.5 mr-1" strokeWidth={2.5} /> {e.year}
+                    <e.icon size={13} className="inline mr-1 -mt-0.5" /> {e.year}
                   </button>
                 ))}
               </div>
 
               {/* Active era detail card */}
+              {(() => { const EraIcon = ERAS[activeEra].icon; return (
               <div
                 className="p-6 sm:p-8 rounded-2xl border mb-6 transition-all duration-300"
                 style={{ borderColor: ERAS[activeEra].color + "55", background: ERAS[activeEra].color + "0a" }}
               >
                 <div className="flex items-center gap-3 mb-4">
-                  <ActiveEraIcon className="w-8 h-8" style={{ color: ERAS[activeEra].color }} strokeWidth={2} />
+                  <EraIcon size={30} style={{ color: ERAS[activeEra].color }} />
                   <div>
                     <p
                       className="text-xs font-bold tracking-widest"
@@ -602,6 +602,7 @@ export default function AboutPage() {
                   ))}
                 </div>
               </div>
+              ); })()}
             </div>
 
             {/* Right: compact all-era vertical timeline */}
@@ -638,7 +639,7 @@ export default function AboutPage() {
                       }}
                     >
                       <div className="flex items-center gap-2 mb-2">
-                        <e.icon className="w-4 h-4" style={{ color: e.color }} strokeWidth={2.25} />
+                        <e.icon size={13} style={{ color: activeEra === i ? e.color : "var(--muted)" }} />
                         <span
                           className="text-xs font-black tracking-wider"
                           style={{ fontFamily: "'Orbitron',sans-serif", color: activeEra === i ? e.color : "var(--muted)", fontSize: "0.65rem" }}

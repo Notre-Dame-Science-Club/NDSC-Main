@@ -2,7 +2,7 @@
 import { useEffect, useState, Suspense } from 'react'
 import { useParams, useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
-import { ChevronRight, ArrowLeft, Upload, Users, Plus, X } from 'lucide-react'
+import { ChevronRight, ArrowLeft, Upload, Users, Plus, X, CalendarDays, CheckCircle, CreditCard, Link2, Phone, Mail, MessageCircle } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 
 const uid = () => Math.random().toString(36).slice(2, 9)
@@ -461,16 +461,16 @@ function ActivityRegisterPageInner() {
             </button>
 
             {currentLeaf.schedule_date && (
-              <div className="p-3 rounded-lg text-sm" style={{ background: 'rgba(var(--cat-teal-rgb), 0.08)', color: 'var(--cat-teal)' }}>
-                {new Date(currentLeaf.schedule_date).toLocaleDateString('en-BD', { month: 'short', day: 'numeric' })}
+              <div className="p-3 rounded-lg text-sm flex items-center gap-1.5" style={{ background: 'rgba(var(--cat-teal-rgb), 0.08)', color: 'var(--cat-teal)' }}>
+                <CalendarDays size={14} /> {new Date(currentLeaf.schedule_date).toLocaleDateString('en-BD', { month: 'short', day: 'numeric' })}
                 {currentLeaf.schedule_time && ` — ${currentLeaf.schedule_time}`}
                 {currentLeaf.schedule_room && ` — ${currentLeaf.schedule_room}`}
               </div>
             )}
 
             {knownInfo && (
-              <div className="px-3 py-2 rounded-lg text-xs" style={{ background: 'rgba(var(--blue-rgb), 0.06)', color: 'var(--blue)', border: '1px solid rgba(var(--blue-rgb), 0.2)' }}>
-                ✓ We've pre-filled your info from a previous registration — update anything that's changed.
+              <div className="px-3 py-2 rounded-lg text-xs flex items-start gap-1.5" style={{ background: 'rgba(var(--blue-rgb), 0.06)', color: 'var(--blue)', border: '1px solid rgba(var(--blue-rgb), 0.2)' }}>
+                <CheckCircle size={13} className="shrink-0 mt-0.5" /> <span>We've pre-filled your info from a previous registration — update anything that's changed.</span>
               </div>
             )}
 
@@ -585,7 +585,7 @@ function ActivityRegisterPageInner() {
                             <div className="flex flex-wrap gap-2">
                               {urls.map((u, i) => (
                                 <span key={i} className="flex items-center gap-1 px-2 py-1 rounded text-xs" style={{ background: 'var(--bg2)', color: accent }}>
-                                  {field.label}{maxFiles > 1 ? ` #${i + 1}` : ''} ✓
+                                  {field.label}{maxFiles > 1 ? ` #${i + 1}` : ''} <CheckCircle size={11} />
                                   <button type="button" onClick={() => removeCustomFile(field.key, i)}><X size={11} /></button>
                                 </span>
                               ))}
@@ -657,7 +657,7 @@ function ActivityRegisterPageInner() {
                         <div key={field.key}>
                           {field.type === 'photo' ? (
                             <label className="flex items-center gap-2 px-3 py-2 rounded-lg border cursor-pointer text-xs" style={{ ...inputStyle, color: 'var(--blue)' }}>
-                              <Upload size={12} /> {m.custom_answers?.[field.key] ? `${field.label} ✓` : field.label}
+                              <Upload size={12} /> {m.custom_answers?.[field.key] ? <>{field.label} <CheckCircle size={11} /></> : field.label}
                               <input type="file" accept="image/*" className="hidden" onChange={e => handleTeamFileField(idx, field.key, e.target.files?.[0] || null)} />
                             </label>
                           ) : (
@@ -681,14 +681,14 @@ function ActivityRegisterPageInner() {
             )}
 
             {currentLeaf.requires_payment && (
-              <div className="p-3 rounded-lg text-sm" style={{ background: 'rgba(var(--warning-rgb), 0.08)', color: 'var(--warning)' }}>
-                {currentLeaf.payment_label || 'Registration fee'}: ৳{currentLeaf.payment_amount} — you'll be redirected to pay after submitting.
+              <div className="p-3 rounded-lg text-sm flex items-center gap-1.5" style={{ background: 'rgba(var(--warning-rgb), 0.08)', color: 'var(--warning)' }}>
+                <CreditCard size={14} /> {currentLeaf.payment_label || 'Registration fee'}: ৳{currentLeaf.payment_amount} — you'll be redirected to pay after submitting.
               </div>
             )}
 
             {currentLeaf.is_online_submission && (
-              <div className="p-3 rounded-lg text-sm" style={{ background: 'rgba(var(--blue-rgb), 0.06)', color: 'var(--blue)', border: '1px solid rgba(var(--blue-rgb), 0.2)' }}>
-                This category includes an online round. You'll find the exam / submission link in your dashboard after registering.
+              <div className="p-3 rounded-lg text-sm flex items-start gap-1.5" style={{ background: 'rgba(var(--blue-rgb), 0.06)', color: 'var(--blue)', border: '1px solid rgba(var(--blue-rgb), 0.2)' }}>
+                <Link2 size={14} className="shrink-0 mt-0.5" /> <span>This category includes an online round. You'll find the exam / submission link in your dashboard after registering.</span>
               </div>
             )}
 
@@ -706,9 +706,9 @@ function ActivityRegisterPageInner() {
                   {contactPersons.map((cp: any, i: number) => (
                     <div key={i} className="text-xs space-y-0.5" style={{ color: 'var(--muted)' }}>
                       <p className="font-medium" style={{ color: 'var(--white)' }}>{cp.name} {cp.post && `— ${cp.post}`}</p>
-                      {cp.phone && <p>{cp.phone}</p>}
-                      {cp.email && <p>{cp.email}</p>}
-                      {cp.whatsapp && <a href={`https://wa.me/${cp.whatsapp.replace(/\D/g, '')}`} target="_blank" rel="noopener noreferrer" className="block" style={{ color: 'var(--cat-teal)' }}>WhatsApp</a>}
+                      {cp.phone && <p className="flex items-center gap-1"><Phone size={11} /> {cp.phone}</p>}
+                      {cp.email && <p className="flex items-center gap-1"><Mail size={11} /> {cp.email}</p>}
+                      {cp.whatsapp && <a href={`https://wa.me/${cp.whatsapp.replace(/\D/g, '')}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1" style={{ color: 'var(--cat-teal)' }}><MessageCircle size={11} /> WhatsApp</a>}
                       {cp.facebook && <a href={cp.facebook} target="_blank" rel="noopener noreferrer" className="block" style={{ color: 'var(--blue)' }}>Facebook →</a>}
                     </div>
                   ))}

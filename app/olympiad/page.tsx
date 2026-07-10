@@ -1,7 +1,7 @@
 'use client'
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
-import { Clock, ChevronRight, ChevronLeft, Upload, CheckCircle, AlertCircle, Camera, Image as ImageIcon } from 'lucide-react'
+import { Clock, ChevronRight, ChevronLeft, Upload, CheckCircle, AlertCircle, Camera, Image as ImageIcon, X } from 'lucide-react'
 import MathText from '@/components/olympiad/MathText'
 import MathInputField from '@/components/olympiad/MathInputField'
 
@@ -841,7 +841,7 @@ export default function OlympiadPage() {
           <div>
             <label className="flex flex-col items-center gap-2 py-5 rounded-xl border-2 border-dashed cursor-pointer" style={{ borderColor: photoUrls[q.id] ? 'var(--success)' : photoFiles[q.id] ? 'var(--blue)' : 'var(--border)', color: 'var(--muted)' }}>
               <Camera size={20} />
-              <span className="text-xs">{photoUrls[q.id] ? '✓ Uploaded' : photoFiles[q.id] ? photoFiles[q.id].name : 'Tap to upload photo answer'}</span>
+              <span className="text-xs inline-flex items-center gap-1">{photoUrls[q.id] ? <><CheckCircle size={12} /> Uploaded</> : photoFiles[q.id] ? photoFiles[q.id].name : 'Tap to upload photo answer'}</span>
               <input type="file" accept="image/*" capture="environment" className="hidden" onChange={async e => {
                 const file = e.target.files?.[0]
                 if (!file) return
@@ -1012,7 +1012,7 @@ export default function OlympiadPage() {
                   <div className="flex items-start justify-between gap-3">
                     <p className="text-sm font-medium flex-1" style={{ color: 'var(--white-soft)' }}>Q{i + 1}. <MathText text={r.question_text} /></p>
                     {r.is_correct === true && <CheckCircle size={16} style={{ color: 'var(--success)', flexShrink: 0 }} />}
-                    {r.is_correct === false && <span style={{ color: 'var(--danger)', flexShrink: 0 }}>✗</span>}
+                    {r.is_correct === false && <X size={13} style={{ color: 'var(--danger)', flexShrink: 0 }} strokeWidth={3} />}
                   </div>
                   {(r.type === 'mcq' || r.type === 'checkbox') && (
                     <div className="mt-2 text-xs space-y-1">

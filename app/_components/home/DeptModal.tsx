@@ -2,13 +2,14 @@
 
 import Link from "next/link";
 import Image from "next/image";
+import { X } from "lucide-react";
 import { DEPTS } from "./data";
 
 export function DeptModal({ dept, onClose }: { dept: typeof DEPTS[0]; onClose: () => void }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "rgba(0,0,0,0.88)" }} onClick={onClose}>
       <div className="relative w-full max-w-sm rounded-2xl border p-8 text-center" style={{ borderColor: dept.color, background: "var(--bg2)" }} onClick={e => e.stopPropagation()}>
-        <button onClick={onClose} className="absolute top-4 right-4 text-xs font-bold" style={{ color: "var(--muted)" }}>✕</button>
+        <button onClick={onClose} className="absolute top-4 right-4" style={{ color: "var(--muted)" }} aria-label="Close"><X size={16} /></button>
         <div className="w-20 h-20 mx-auto mb-4 relative">
           <Image src={dept.icon} alt={dept.name} fill className="object-contain" style={{ filter: `drop-shadow(0 0 12px ${dept.color})` }} />
         </div>

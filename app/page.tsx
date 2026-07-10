@@ -130,7 +130,7 @@ export default function HomePage() {
       {/* ══════ MARQUEE ══════════════════════════════════════ */}
       <div className="w-full overflow-hidden py-3.5 relative z-10" style={{ background: "var(--blue)" }}>
         <div className="marquee-track">
-          {Array(18).fill("✦ LEGACY OF 70 YEARS").map((txt, i) => (
+          {Array(18).fill("— LEGACY OF 70 YEARS").map((txt, i) => (
             <span key={i} className="mx-8 font-bold text-sm tracking-[.28em] whitespace-nowrap text-black" style={{ fontFamily: "'Poppins',sans-serif" }}>{txt}</span>
           ))}
         </div>

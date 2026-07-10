@@ -2,7 +2,7 @@
 import { useEffect, useState, useRef, useCallback } from 'react'
 import { useParams, useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
-import { Clock, ChevronRight, ChevronLeft, CheckCircle, ArrowLeft, Upload } from 'lucide-react'
+import { Clock, ChevronRight, ChevronLeft, CheckCircle, ArrowLeft, Upload, X } from 'lucide-react'
 
 type QuestionType = 'mcq' | 'short' | 'photo'
 type McqOption = { id: string; text: string }
@@ -285,7 +285,7 @@ export default function RelayExamPage() {
 
         {phase === 'waiting_turn' && (
           <div className="rounded-2xl p-6 border text-center" style={{ background: 'var(--bg2)', borderColor: 'var(--border)' }}>
-            <p className="text-sm mb-2" style={{ color: 'var(--warning)' }}>Waiting for your turn…</p>
+            <p className="text-sm mb-2" style={{ color: 'var(--warning)' }}>⏳ Waiting for your turn…</p>
             <p className="text-xs" style={{ color: 'var(--muted)' }}>
               This event uses team relay mode — the previous member needs to submit before you can start. This page refreshes automatically.
             </p>
@@ -360,8 +360,8 @@ export default function RelayExamPage() {
                     <label className="flex flex-col items-center gap-2 py-5 rounded-xl border-2 border-dashed cursor-pointer mt-2"
                       style={{ borderColor: photoUrls[q.id] ? 'var(--cat-teal)' : photoFiles[q.id] ? 'var(--blue)' : 'var(--border)', color: 'var(--muted)' }}>
                       <Upload size={18} />
-                      <span className="text-xs">
-                        {photoUploading[q.id] ? 'Uploading…' : photoUrls[q.id] ? '✓ Uploaded — tap to replace' : photoFiles[q.id] ? photoFiles[q.id].name : 'Tap to upload your photo answer'}
+                      <span className="text-xs inline-flex items-center gap-1">
+                        {photoUploading[q.id] ? 'Uploading…' : photoUrls[q.id] ? <><CheckCircle size={12} /> Uploaded — tap to replace</> : photoFiles[q.id] ? photoFiles[q.id].name : 'Tap to upload your photo answer'}
                       </span>
                       <input type="file" accept="image/*" capture="environment" className="hidden"
                         onChange={e => handlePhotoAnswer(q.id, e.target.files?.[0] || null)} />
@@ -382,8 +382,8 @@ export default function RelayExamPage() {
                   Next <ChevronRight size={14} />
                 </button>
               ) : (
-                <button onClick={submitMyTurn} disabled={submitting} className="flex-1 py-2.5 rounded-lg text-sm font-bold text-black disabled:opacity-60" style={{ background: 'var(--cat-teal)' }}>
-                  {submitting ? 'Submitting…' : 'Submit Final ✓'}
+                <button onClick={submitMyTurn} disabled={submitting} className="flex-1 py-2.5 rounded-lg text-sm font-bold text-black disabled:opacity-60 flex items-center justify-center gap-1.5" style={{ background: 'var(--cat-teal)' }}>
+                  {submitting ? 'Submitting…' : <>Submit Final <CheckCircle size={14} /></>}
                 </button>
               )}
             </div>
@@ -425,7 +425,7 @@ export default function RelayExamPage() {
                     <div className="flex items-start justify-between gap-3">
                       <p className="text-sm font-medium flex-1" style={{ color: 'var(--white)' }}>Q{i + 1}. {r.question_text}</p>
                       {r.is_correct === true && <CheckCircle size={16} style={{ color: 'var(--cat-teal)', flexShrink: 0 }} />}
-                      {r.is_correct === false && <span style={{ color: 'var(--danger)', flexShrink: 0 }}>✗</span>}
+                      {r.is_correct === false && <X size={16} style={{ color: 'var(--danger)', flexShrink: 0 }} strokeWidth={3} />}
                     </div>
                     {r.type === 'mcq' && (
                       <div className="mt-2 text-xs space-y-1">

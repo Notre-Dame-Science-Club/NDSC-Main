@@ -112,9 +112,7 @@ export default function RegisterPage() {
           style={{ background: 'radial-gradient(circle, var(--success) 0%, transparent 70%)' }} />
         <div className="relative rounded-2xl p-10 border"
           style={{ background: 'var(--bg2)', borderColor: 'var(--border)' }}>
-          <div className="flex justify-center mb-4">
-            <CheckCircle size={56} strokeWidth={1.75} style={{ color: 'var(--success)' }} />
-          </div>
+          <div className="mb-4 flex justify-center" style={{ color: 'var(--success)' }}><CheckCircle size={56} /></div>
           <h2 className="text-xl font-bold mb-2" style={{ fontFamily: "'Orbitron', sans-serif", color: 'var(--success)' }}>
             Registration Successful!
           </h2>
@@ -156,7 +154,7 @@ export default function RegisterPage() {
           <div className="text-center mb-8">
             <div className="inline-flex items-center justify-center w-14 h-14 rounded-full mb-4"
               style={{ background: 'rgba(var(--blue-rgb), 0.1)', border: '1px solid rgba(var(--blue-rgb), 0.3)' }}>
-              <UserPlus size={24} strokeWidth={1.75} style={{ color: 'var(--blue)' }} />
+              <UserPlus size={22} style={{ color: 'var(--blue)' }} />
             </div>
             <h1 className="text-xl font-bold mb-1" style={{ fontFamily: "'Orbitron', sans-serif", color: 'var(--blue)' }}>
               Create Account

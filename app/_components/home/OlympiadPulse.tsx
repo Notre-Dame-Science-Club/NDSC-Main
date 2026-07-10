@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { ChevronRight } from "lucide-react";
+import { ChevronRight, Trophy } from "lucide-react";
 import type { PulseOlympiad, Leaderboard } from "./types";
 import { useCountdown } from "./hooks";
 import { LetterAnim } from "./LetterAnim";
@@ -78,8 +78,8 @@ export function OlympiadPulse() {
               <div className="space-y-2">
                 {leaderboards[0].entries.map((e, i) => (
                   <div key={i} className="flex items-center gap-3 rounded-xl px-4 py-2.5" style={{ background: i === 0 ? "rgba(var(--warning-rgb), 0.1)" : "rgba(255,255,255,0.02)" }}>
-                    <span className="w-6 text-center font-black text-sm" style={{ color: i === 0 ? "var(--warning)" : "var(--muted)", fontFamily: "'Orbitron',sans-serif" }}>
-                      {i === 0 ? "" : `#${i + 1}`}
+                    <span className="w-6 text-center font-black text-sm inline-flex items-center justify-center" style={{ color: i === 0 ? "var(--warning)" : "var(--muted)", fontFamily: "'Orbitron',sans-serif" }}>
+                      {i === 0 ? <Trophy size={15} /> : `#${i + 1}`}
                     </span>
                     <span className="flex-1 text-sm font-medium truncate" style={{ color: "var(--white)" }}>{e.name}</span>
                     <span className="text-sm font-bold tabular-nums" style={{ color: "var(--warning)" }}>{e.score}</span>

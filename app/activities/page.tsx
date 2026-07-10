@@ -1,7 +1,7 @@
 "use client";
 import { useState, useEffect, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
-import { Play, FileText, Mic, ChevronDown, ChevronUp, Search, X, UserPlus, MapPin } from "lucide-react";
+import { Play, FileText, Mic, ChevronDown, ChevronUp, Search, X, UserPlus, Image as ImageIcon, Images, CalendarDays, MapPin, Clock, Microscope } from "lucide-react";
 import { ActivityIcon } from "@/lib/activityIcons";
 import Link from "next/link";
 
@@ -46,8 +46,8 @@ function SessionCard({ s }: { s: ActivitySession }) {
           <img src={thumb} alt={s.title}
             className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" />
         ) : (
-          <div className="w-full h-full flex items-center justify-center text-5xl opacity-20"
-            style={{ background: "var(--bg2)" }}></div>
+          <div className="w-full h-full flex items-center justify-center opacity-20"
+            style={{ background: "var(--bg2)" }}><ImageIcon size={48} /></div>
         )}
         <div className="absolute inset-0"
           style={{ background: "linear-gradient(0deg,rgba(2,8,16,.75) 0%,transparent 60%)" }} />
@@ -64,9 +64,9 @@ function SessionCard({ s }: { s: ActivitySession }) {
           </div>
         )}
         {s.gallery_urls?.length > 0 && (
-          <div className="absolute bottom-3 left-3 px-2 py-1 rounded text-xs font-bold"
+          <div className="absolute bottom-3 left-3 px-2 py-1 rounded text-xs font-bold flex items-center gap-1"
             style={{ background: "rgba(46,204,113,.85)", color: "#000" }}>
-            {s.gallery_urls.length}
+            <Images size={11} /> {s.gallery_urls.length}
           </div>
         )}
         {canRegister && (
@@ -89,14 +89,14 @@ function SessionCard({ s }: { s: ActivitySession }) {
         )}
         <div className="mt-auto flex flex-wrap gap-2 text-xs" style={{ color: "var(--muted)" }}>
           {s.session_date && (
-            <span>{new Date(s.session_date).toLocaleDateString("en-BD", {
+            <span className="inline-flex items-center gap-1"><CalendarDays size={12} /> {new Date(s.session_date).toLocaleDateString("en-BD", {
               day: "numeric", month: "short", year: "numeric"
             })}</span>
           )}
           {s.location && <span className="inline-flex items-center gap-1"><MapPin size={12} /> {s.location}</span>}
         </div>
         {canRegister && s.registration_note && (
-          <p className="text-[11px] mt-2" style={{ color: "var(--blue)" }}>{s.registration_note}</p>
+          <p className="text-[11px] mt-2 inline-flex items-center gap-1" style={{ color: "var(--blue)" }}><Clock size={11} /> {s.registration_note}</p>
         )}
       </div>
     </div>
@@ -201,7 +201,7 @@ function DynamicActivityTab({ type }: { type: ActivityType }) {
     <div>
       {/* Header */}
       <div className="mb-12">
-        <div className="section-label mb-2 inline-flex items-center gap-1.5"><ActivityIcon name={type.icon} size={13} /> Activity</div>
+        <div className="section-label mb-2 inline-flex items-center gap-1.5"><ActivityIcon icon={type.icon} size={13} /> Activity</div>
         <h2 className="text-3xl font-black mb-2" style={{ fontFamily: "'Orbitron',sans-serif" }}>
           <span style={{ color: "var(--blue)" }}>{type.name.toUpperCase()}</span>
         </h2>
@@ -214,7 +214,7 @@ function DynamicActivityTab({ type }: { type: ActivityType }) {
 
       {!hasContent ? (
         <div className="text-center py-24">
-          <div className="flex justify-center mb-4"><ActivityIcon name={type.icon} size={44} strokeWidth={1.5} className="opacity-40" /></div>
+          <div className="mb-4 flex justify-center" style={{ color: 'var(--muted)' }}><ActivityIcon icon={type.icon} size={44} /></div>
           <p className="text-sm" style={{ color: "var(--muted)" }}>No sessions yet. Check back soon!</p>
         </div>
       ) : (
@@ -302,7 +302,7 @@ function ActivitiesContent() {
                   color: activeTab === t.slug ? "#000" : "var(--muted)",
                   borderColor: activeTab === t.slug ? "var(--blue)" : "var(--border)",
                 }}>
-                <ActivityIcon name={t.icon} size={14} /> {t.name}
+                <ActivityIcon icon={t.icon} size={13} /> {t.name}
               </button>
             ))
           )}
@@ -314,7 +314,7 @@ function ActivitiesContent() {
           <DynamicActivityTab key={activeType.id} type={activeType} />
         ) : !loadingTypes ? (
           <div className="text-center py-24" style={{ color: "var(--muted)" }}>
-            <div className="flex justify-center mb-4"><ChevronUp size={40} strokeWidth={1.5} className="opacity-30" /></div>
+            <div className="mb-4 flex justify-center"><Microscope size={44} /></div>
             <p>Select an activity tab above.</p>
           </div>
         ) : null}
@@ -384,7 +384,7 @@ function ActivitySearchBar() {
                 {r.cover_image_url ? (
                   <img src={r.cover_image_url} alt="" className="w-10 h-10 rounded-lg object-cover flex-shrink-0" />
                 ) : (
-                  <div className="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: "var(--bg)" }}><FileText size={16} className="opacity-50" /></div>
+                  <div className="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: "var(--bg)" }}><Microscope size={17} /></div>
                 )}
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium truncate" style={{ color: "var(--white)" }}>{r.title}</p>

@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { MessageCircle, Award, Plus, Upload, X, Home, Calendar, BookOpen, Trophy, UserRound } from 'lucide-react'
+import { MessageCircle, Award, Plus, Upload, X, Home, CalendarDays, BookOpen, Trophy, User, Megaphone, Ticket, Link2, CheckCircle, FileText, CalendarCheck, CreditCard } from 'lucide-react'
 
 type Tab = 'home' | 'activities' | 'publications' | 'olympiads' | 'profile'
 type Achievement = { id: string; title: string; description?: string; image_url?: string; status: 'pending' | 'approved'; created_at: string }
@@ -207,10 +207,10 @@ export default function DashboardPage() {
 
   const tabs: { key: Tab; label: string; icon: typeof Home }[] = [
     { key: 'home', label: 'Home', icon: Home },
-    { key: 'activities', label: 'Activities', icon: Calendar },
+    { key: 'activities', label: 'Activities', icon: CalendarDays },
     { key: 'publications', label: 'Publications', icon: BookOpen },
     { key: 'olympiads', label: 'Olympiads', icon: Trophy },
-    { key: 'profile', label: 'Profile', icon: UserRound },
+    { key: 'profile', label: 'Profile', icon: User },
   ]
 
   if (!authChecked || loading) return (
@@ -253,7 +253,7 @@ export default function DashboardPage() {
               borderColor: tab === t.key ? 'var(--blue)' : 'transparent',
               color: tab === t.key ? 'var(--blue)' : 'var(--muted)',
             }}>
-            <t.icon size={15} strokeWidth={2} /> {t.label}
+            <t.icon size={15} /> {t.label}
           </button>
         ))}
       </div>
@@ -304,8 +304,8 @@ export default function DashboardPage() {
               </a>
             )}
 
-            <h3 className="font-semibold text-sm mt-2" style={{ color: 'var(--muted)', fontFamily: "'Orbitron', sans-serif" }}>
-              Updates
+            <h3 className="font-semibold text-sm mt-2 flex items-center gap-2" style={{ color: 'var(--muted)', fontFamily: "'Orbitron', sans-serif" }}>
+              <Megaphone size={14} /> Updates
             </h3>
             {announcements.length === 0 && olympiads.length === 0 && activities.filter(a => a.registration_enabled).length === 0
               ? <p className="text-sm" style={{ color: 'var(--muted)' }}>No updates yet — check back soon.</p>
@@ -324,7 +324,7 @@ export default function DashboardPage() {
                   {olympiads.slice(0, 3).map(o => (
                     <Link key={`oly-${o.id}`} href={`/olympiad?id=${o.id}`} className="block rounded-xl p-4 transition-transform hover:-translate-y-0.5"
                       style={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderLeftWidth: '3px', borderLeftColor: 'var(--warning)' }}>
-                      <p className="font-semibold text-sm" style={{ color: 'var(--white)' }}>{o.name} is open</p>
+                      <p className="font-semibold text-sm flex items-center gap-1.5" style={{ color: 'var(--white)' }}><Trophy size={14} /> {o.name} is open</p>
                       <p className="text-sm mt-1" style={{ color: 'var(--muted)' }}>
                         {o.registration_deadline
                           ? `Register before ${new Date(o.registration_deadline).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`
@@ -335,7 +335,7 @@ export default function DashboardPage() {
                   {activities.filter(a => a.registration_enabled).slice(0, 3).map(a => (
                     <Link key={`act-${a.id}`} href={`/activities/${a.slug}`} className="block rounded-xl p-4 transition-transform hover:-translate-y-0.5"
                       style={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderLeftWidth: '3px', borderLeftColor: 'var(--cat-teal)' }}>
-                      <p className="font-semibold text-sm" style={{ color: 'var(--white)' }}>{a.title} — registration open</p>
+                      <p className="font-semibold text-sm flex items-center gap-1.5" style={{ color: 'var(--white)' }}><CalendarDays size={14} /> {a.title} — registration open</p>
                       {a.registration_note && <p className="text-sm mt-1" style={{ color: 'var(--muted)' }}>{a.registration_note}</p>}
                     </Link>
                   ))}
@@ -345,7 +345,7 @@ export default function DashboardPage() {
 
             {/* SHOUTBOX */}
             <h3 className="font-semibold text-sm mt-6 flex items-center gap-2" style={{ color: 'var(--muted)', fontFamily: "'Orbitron', sans-serif" }}>
-              Members' Shoutbox
+              <MessageCircle size={14} /> Members' Shoutbox
             </h3>
             <div className="rounded-xl p-4" style={{ background: 'var(--bg2)', border: '1px solid var(--border)' }}>
               <div className="flex gap-2 mb-3">
@@ -384,8 +384,8 @@ export default function DashboardPage() {
 
             {/* ── My Registrations ─────────────────────────────────── */}
             <div>
-              <h3 className="font-semibold text-sm mb-3" style={{ color: 'var(--muted)', fontFamily: "'Orbitron', sans-serif" }}>
-                My Registrations
+              <h3 className="font-semibold text-sm mb-3 flex items-center gap-2" style={{ color: 'var(--muted)', fontFamily: "'Orbitron', sans-serif" }}>
+                <Ticket size={14} /> My Registrations
               </h3>
               {regsLoading ? (
                 <p className="text-sm" style={{ color: 'var(--muted)' }}>Loading your registrations…</p>
@@ -406,21 +406,21 @@ export default function DashboardPage() {
                         </p>
                         <div className="flex gap-2 mt-1.5 flex-wrap">
                           {reg.category?.schedule_date && (
-                            <span className="text-xs" style={{ color: 'var(--cat-teal)' }}>
-                              {new Date(reg.category.schedule_date).toLocaleDateString('en-BD', { month: 'short', day: 'numeric' })}
+                            <span className="text-xs flex items-center gap-1" style={{ color: 'var(--cat-teal)' }}>
+                              <CalendarDays size={11} /> {new Date(reg.category.schedule_date).toLocaleDateString('en-BD', { month: 'short', day: 'numeric' })}
                             </span>
                           )}
                           {reg.payment_status && reg.payment_status !== 'not_required' && (
-                            <span className="text-xs px-1.5 py-0.5 rounded-full" style={{
+                            <span className="text-xs px-1.5 py-0.5 rounded-full flex items-center gap-1" style={{
                               background: reg.payment_status === 'paid' ? 'rgba(var(--success-rgb), 0.1)' : 'rgba(var(--warning-rgb), 0.1)',
                               color: reg.payment_status === 'paid' ? 'var(--success)' : 'var(--warning)',
                             }}>
-                              {reg.payment_status}
+                              <CreditCard size={10} /> {reg.payment_status}
                             </span>
                           )}
                           {reg.category?.is_online_submission && (
                             <span className="text-xs px-1.5 py-0.5 rounded-full" style={{ background: 'rgba(var(--blue-rgb), 0.1)', color: 'var(--blue)' }}>
-                              Online round
+                              <Link2 size={10} className="inline mr-1 -mt-0.5" /> Online round
                             </span>
                           )}
                         </div>
@@ -440,8 +440,8 @@ export default function DashboardPage() {
 
             {/* ── All Activities ────────────────────────────────────── */}
             <div>
-              <h3 className="font-semibold text-sm mb-3" style={{ color: 'var(--muted)', fontFamily: "'Orbitron', sans-serif" }}>
-                All Activities
+              <h3 className="font-semibold text-sm mb-3 flex items-center gap-2" style={{ color: 'var(--muted)', fontFamily: "'Orbitron', sans-serif" }}>
+                <CalendarDays size={14} /> All Activities
               </h3>
               {activities.length === 0
                 ? <p className="text-sm" style={{ color: 'var(--muted)' }}>No activities published yet.</p>
@@ -461,14 +461,14 @@ export default function DashboardPage() {
                         <h4 className="font-semibold mt-2 truncate" style={{ color: 'var(--white)' }}>{a.title}</h4>
                         {a.session_date && (
                           <p className="text-xs mt-1" style={{ color: 'var(--muted)' }}>
-                            {new Date(a.session_date).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })}
+                            <CalendarCheck size={11} className="inline mr-1 -mt-0.5" /> {new Date(a.session_date).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })}
                           </p>
                         )}
                       </div>
                       {/* If member already registered for this session, show dashboard link */}
                       {myRegistrations.find(r => r.session?.id === a.id) && (
-                        <span className="text-xs px-2 py-1 rounded-full flex-shrink-0" style={{ background: 'rgba(var(--cat-teal-rgb), 0.1)', color: 'var(--cat-teal)' }}>
-                          ✓ Registered
+                        <span className="text-xs px-2 py-1 rounded-full flex-shrink-0 inline-flex items-center gap-1" style={{ background: 'rgba(var(--cat-teal-rgb), 0.1)', color: 'var(--cat-teal)' }}>
+                          <CheckCircle size={11} /> Registered
                         </span>
                       )}
                     </div>
@@ -490,8 +490,8 @@ export default function DashboardPage() {
                   style={{ background: 'var(--bg2)', border: '1px solid var(--border)' }}>
                   {p.cover_image_url
                     ? <img src={p.cover_image_url} alt={p.title} className="w-16 h-20 object-cover rounded-lg flex-shrink-0" />
-                    : <div className="w-16 h-20 rounded-lg flex items-center justify-center flex-shrink-0 text-2xl"
-                        style={{ background: 'rgba(var(--blue-rgb), 0.08)', border: '1px solid var(--border)' }}></div>
+                    : <div className="w-16 h-20 rounded-lg flex items-center justify-center flex-shrink-0"
+                        style={{ background: 'rgba(var(--blue-rgb), 0.08)', border: '1px solid var(--border)', color: 'var(--muted)' }}><FileText size={20} /></div>
                   }
                   <div className="flex-1 min-w-0">
                     <span className="text-xs px-2 py-0.5 rounded-full"
@@ -527,16 +527,16 @@ export default function DashboardPage() {
                   <p className="text-sm mt-1" style={{ color: 'var(--muted)' }}>{o.description}</p>
                   <div className="mt-3 space-y-1.5 text-sm" style={{ color: 'var(--muted)' }}>
                     {o.registration_deadline && (
-                      <p>Deadline: <span style={{ color: 'var(--white)' }}>
+                      <p className="flex items-start gap-1.5"><FileText size={14} className="shrink-0 mt-0.5" /> Deadline: <span style={{ color: 'var(--white)' }}>
                         {new Date(o.registration_deadline).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
                       </span></p>
                     )}
                     {o.exam_date && (
-                      <p>Exam: <span style={{ color: 'var(--white)' }}>
+                      <p className="flex items-start gap-1.5"><CalendarCheck size={14} className="shrink-0 mt-0.5" /> Exam: <span style={{ color: 'var(--white)' }}>
                         {new Date(o.exam_date).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
                       </span></p>
                     )}
-                    {o.eligibility && <p>Eligibility: {o.eligibility}</p>}
+                    {o.eligibility && <p className="flex items-start gap-1.5"><CheckCircle size={14} className="shrink-0 mt-0.5" /> Eligibility: {o.eligibility}</p>}
                   </div>
                   {o.pdf_url && (
                     <a href={o.pdf_url} target="_blank"

@@ -1,6 +1,6 @@
 "use client";
 import { useState, useEffect, useMemo, useRef } from "react";
-import { UserRound, Users, Search } from "lucide-react";
+import { X, User, Search, Globe, Users } from "lucide-react";
 
 type Executive = {
   id: string; full_name: string; position: string; panel: string; dept: string;
@@ -102,7 +102,7 @@ function DetailPopup({ exec, onClose }: { exec: Executive; onClose: () => void }
         {/* Close button */}
         <button onClick={onClose} style={{ position:"absolute",top:14,right:14,zIndex:10,width:32,height:32,borderRadius:"50%",display:"flex",alignItems:"center",justifyContent:"center",background:"rgba(255,255,255,0.08)",border:"1px solid rgba(255,255,255,0.12)",color:"var(--white-soft)",fontSize:14,cursor:"pointer",transition:"transform 0.2s" }}
           onMouseEnter={e=>(e.currentTarget.style.transform="scale(1.12)")}
-          onMouseLeave={e=>(e.currentTarget.style.transform="scale(1)")}>✕</button>
+          onMouseLeave={e=>(e.currentTarget.style.transform="scale(1)")}><X size={15} /></button>
 
         {/* Session badge */}
         {exec.session_year && (
@@ -120,7 +120,7 @@ function DetailPopup({ exec, onClose }: { exec: Executive; onClose: () => void }
                 style={{ position:"absolute",inset:0,width:"100%",height:"100%",objectFit:"cover",objectPosition:pos }} />
             ) : (
               <div style={{ position:"absolute",inset:0,background:"linear-gradient(135deg,var(--surface),var(--border))",display:"flex",alignItems:"center",justifyContent:"center" }}>
-                <UserRound size={60} strokeWidth={1.25} style={{ color:"rgba(var(--blue-rgb), 0.12)" }} />
+                <User size={60} style={{ color:"rgba(var(--blue-rgb), 0.12)" }} />
               </div>
             )}
             <div style={{ position:"absolute",top:0,right:0,bottom:0,width:52,background:"linear-gradient(270deg,#060f1e,transparent)" }} />
@@ -198,7 +198,7 @@ function ECCard({ exec, onClick }: { exec: Executive; onClick: () => void }) {
             style={{ width:"100%",height:"100%",objectFit:"cover",objectPosition:pos,display:"block",
               transform:hov?"scale(1.05)":"scale(1)",transition:"transform 0.65s ease" }} />
         ) : (
-          <div style={{ width:"100%",height:"100%",background:"linear-gradient(160deg,#091828,#0e2540)",display:"flex",alignItems:"center",justifyContent:"center" }}><UserRound size={64} strokeWidth={1.25} style={{ color:"rgba(var(--blue-rgb), 0.15)" }} />
+          <div style={{ width:"100%",height:"100%",background:"linear-gradient(160deg,#091828,#0e2540)",display:"flex",alignItems:"center",justifyContent:"center" }}>
             <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="rgba(var(--blue-rgb), 0.15)" strokeWidth="1"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
           </div>
         )}
@@ -345,8 +345,8 @@ function CrossSessionFilter({ executives, allYears, onResults, onClose }:{ execu
   const sty={ background:"rgba(255,255,255,0.04)",border:"1px solid rgba(var(--blue-rgb), 0.2)",color:"var(--white-soft)",borderRadius:10,padding:"9px 14px",fontFamily:"'Poppins',sans-serif",fontSize:13,outline:"none",width:"100%" };
   return (
     <div style={{ background:"linear-gradient(135deg,#060f1e,#091828)",border:"1px solid rgba(var(--blue-rgb), 0.25)",borderRadius:16,padding:"1.5rem",marginBottom:"1.5rem",boxShadow:"0 8px 40px rgba(0,0,0,0.5)",position:"relative" }}>
-      <button onClick={onClose} style={{ position:"absolute",top:14,right:14,background:"none",border:"none",color:"rgba(var(--blue-rgb), 0.5)",fontSize:18,cursor:"pointer" }}>✕</button>
-      <p style={{ fontFamily:"'Poppins',sans-serif",fontWeight:700,fontSize:13,color:"var(--blue)",marginBottom:"1rem",letterSpacing:"0.05em",textTransform:"uppercase" }}>Search Across All Sessions</p>
+      <button onClick={onClose} style={{ position:"absolute",top:14,right:14,background:"none",border:"none",color:"rgba(var(--blue-rgb), 0.5)",cursor:"pointer",display:"flex",alignItems:"center" }}><X size={18} /></button>
+      <p style={{ fontFamily:"'Poppins',sans-serif",fontWeight:700,fontSize:13,color:"var(--blue)",marginBottom:"1rem",letterSpacing:"0.05em",textTransform:"uppercase" }} className="flex items-center gap-2"><Search size={14} /> Search Across All Sessions</p>
       <div style={{ display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(160px,1fr))",gap:12 }}>
         {([["position","Position",allPositions,"All Positions"],["dept","Department",allDepts,"All Depts"]] as const).map(([f,label,opts,ph])=>(
           <div key={f}><label style={{ fontFamily:"'Poppins',sans-serif",fontSize:11,color:"rgba(var(--blue-rgb), 0.6)",display:"block",marginBottom:5,textTransform:"uppercase",letterSpacing:"0.06em" }}>{label}</label>
@@ -381,7 +381,7 @@ function ModCard({ exec, onClick }:{ exec:Executive; onClick:()=>void }) {
         {exec.photo_url?(
           <img src={exec.photo_url} alt={exec.full_name} style={{ width:"100%",height:"100%",objectFit:"cover",objectPosition:pos,transform:hov?"scale(1.06)":"scale(1)",transition:"transform 0.5s ease" }} />
         ):(
-          <div style={{ width:"100%",height:"100%",background:"linear-gradient(135deg,var(--surface),var(--border))",display:"flex",alignItems:"center",justifyContent:"center" }}><UserRound size={sz*0.4} strokeWidth={1.25} style={{ color:"rgba(var(--blue-rgb), 0.18)" }} /></div>
+          <div style={{ width:"100%",height:"100%",background:"linear-gradient(135deg,var(--surface),var(--border))",display:"flex",alignItems:"center",justifyContent:"center" }}><User size={sz*0.38} style={{ color:"rgba(var(--blue-rgb), 0.18)" }} /></div>
         )}
       </div>
       <h3 style={{ fontFamily:"'Gilroy','Montserrat','Poppins',sans-serif",fontWeight:800,fontSize:"clamp(1.1rem,2.8vw,1.4rem)",color:hov?"#ffffff":"var(--white-soft)",textAlign:"center",lineHeight:1.15,letterSpacing:"0.02em",marginBottom:"0.35rem",transition:"color 0.25s",textShadow:hov?"0 0 24px rgba(var(--blue-rgb), 0.35)":"none" }}>{exec.full_name}</h3>
@@ -478,8 +478,8 @@ export default function ExecutivesPage() {
                 <div style={{ position:"relative",flex:"1 1 220px",maxWidth:360 }}>
                   <input type="text" value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search in this session..."
                     style={{ width:"100%",padding:"10px 16px 10px 38px",borderRadius:12,outline:"none",background:"rgba(255,255,255,0.04)",border:"1px solid rgba(255,255,255,0.09)",color:"var(--white-soft)",fontFamily:"'Poppins',sans-serif",fontSize:13 }} />
-                  <Search size={14} style={{ position:"absolute",left:14,top:"50%",transform:"translateY(-50%)",color:"rgba(var(--blue-rgb), 0.45)" }} />
-                  {search&&<button onClick={()=>setSearch("")} style={{ position:"absolute",right:10,top:"50%",transform:"translateY(-50%)",background:"none",border:"none",color:"rgba(200,220,235,0.35)",cursor:"pointer" }}>✕</button>}
+                  <Search size={13} style={{ position:"absolute",left:12,top:"50%",transform:"translateY(-50%)",color:"rgba(var(--blue-rgb), 0.45)" }} />
+                  {search&&<button onClick={()=>setSearch("")} style={{ position:"absolute",right:10,top:"50%",transform:"translateY(-50%)",background:"none",border:"none",color:"rgba(200,220,235,0.35)",cursor:"pointer",display:"flex",alignItems:"center" }}><X size={14} /></button>}
                 </div>
                 {deptList.length>2&&(
                   <select aria-label="Filter by department" value={filterDept} onChange={e=>setFilterDept(e.target.value)}
@@ -488,22 +488,22 @@ export default function ExecutivesPage() {
                   </select>
                 )}
                 <button onClick={()=>{setShowCrossFilter(true);setCrossResults(null);setSearch("");}}
-                  style={{ padding:"10px 18px",borderRadius:12,background:"linear-gradient(135deg,rgba(var(--blue-rgb), 0.12),rgba(0,100,180,0.1))",border:"1px solid rgba(var(--blue-rgb), 0.4)",color:"var(--blue)",fontFamily:"'Poppins',sans-serif",fontWeight:700,fontSize:13,cursor:"pointer",whiteSpace:"nowrap" }}>
-                  All Sessions
+                  style={{ padding:"10px 18px",borderRadius:12,background:"linear-gradient(135deg,rgba(var(--blue-rgb), 0.12),rgba(0,100,180,0.1))",border:"1px solid rgba(var(--blue-rgb), 0.4)",color:"var(--blue)",fontFamily:"'Poppins',sans-serif",fontWeight:700,fontSize:13,cursor:"pointer",whiteSpace:"nowrap",display:"inline-flex",alignItems:"center",gap:6 }}>
+                  <Globe size={14} /> All Sessions
                 </button>
               </div>
             )}
             {crossResults!==null&&(
               <div style={{ display:"flex",alignItems:"center",gap:12,marginBottom:20,padding:"10px 16px",borderRadius:12,background:"rgba(var(--blue-rgb), 0.08)",border:"1px solid rgba(var(--blue-rgb), 0.25)" }}>
-                <span style={{ fontFamily:"'Poppins',sans-serif",fontSize:13,color:"var(--blue)",fontWeight:700 }}>{crossResults.length} results across all sessions</span>
-                <button onClick={()=>{setCrossResults(null);setSearch("");}} style={{ marginLeft:"auto",background:"none",border:"none",color:"rgba(var(--blue-rgb), 0.6)",cursor:"pointer",fontSize:13 }}>Clear ✕</button>
+                <span style={{ fontFamily:"'Poppins',sans-serif",fontSize:13,color:"var(--blue)",fontWeight:700,display:"inline-flex",alignItems:"center",gap:6 }}><Globe size={14} /> {crossResults.length} results across all sessions</span>
+                <button onClick={()=>{setCrossResults(null);setSearch("");}} style={{ marginLeft:"auto",background:"none",border:"none",color:"rgba(var(--blue-rgb), 0.6)",cursor:"pointer",fontSize:13,display:"inline-flex",alignItems:"center",gap:4 }}>Clear <X size={13} /></button>
               </div>
             )}
             {loading?(
               <div style={{ textAlign:"center",padding:"6rem 0",color:"rgba(var(--blue-rgb), 0.4)",fontFamily:"'Poppins',sans-serif" }}>Loading...</div>
             ):displayList.length===0?(
               <div style={{ textAlign:"center",padding:"6rem 0",color:"rgba(150,190,215,0.3)",fontFamily:"'Poppins',sans-serif" }}>
-                <Users size={40} strokeWidth={1.5} style={{ marginBottom:12, marginInline:"auto", opacity:0.3 }} />
+                <div style={{ marginBottom:12, color:"rgba(150,190,215,0.3)", display:"flex", justifyContent:"center" }}><Users size={44} /></div>
                 {search.trim()?"No results found.":"No executives for this session yet."}
               </div>
             ):(
@@ -528,7 +528,7 @@ export default function ExecutivesPage() {
                     {currentMods.map(exec=><ModCard key={exec.id} exec={exec} onClick={()=>setPopup(exec)} />)}
                   </div>
                 ):(
-                  <div style={{ textAlign:"center",padding:"5rem 0",color:"rgba(150,190,215,0.3)",fontFamily:"'Poppins',sans-serif" }}><Users size={40} strokeWidth={1.5} style={{ marginBottom:12, marginInline:"auto", opacity:0.3 }} />No moderators added yet.</div>
+                  <div style={{ textAlign:"center",padding:"5rem 0",color:"rgba(150,190,215,0.3)",fontFamily:"'Poppins',sans-serif" }}><div style={{ marginBottom:12, display:"flex", justifyContent:"center" }}><Users size={44} /></div>No moderators added yet.</div>
                 )}
                 {formerMods.length>0&&(
                   <>

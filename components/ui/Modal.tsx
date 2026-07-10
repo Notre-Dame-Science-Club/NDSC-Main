@@ -2,6 +2,7 @@
 
 import { useEffect } from 'react'
 import type { ReactNode } from 'react'
+import { X } from 'lucide-react'
 
 export interface ModalProps {
   title: string
@@ -42,11 +43,11 @@ export default function Modal({ title, onClose, children, maxWidth = '32rem' }: 
           </h3>
           <button
             onClick={onClose}
-            style={{ color: 'var(--muted)', fontSize: 20 }}
+            style={{ color: 'var(--muted)' }}
             className="hover:text-white"
             aria-label="Close"
           >
-            ✕
+            <X size={20} />
           </button>
         </div>
         {children}

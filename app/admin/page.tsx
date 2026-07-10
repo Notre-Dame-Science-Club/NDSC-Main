@@ -1,13 +1,13 @@
 import { cookies } from 'next/headers'
 import { redirect } from 'next/navigation'
 import { authCookies } from '@/lib/config/site'
-import { Users, Calendar, BookOpen, Trophy, Megaphone, Wrench, Bot } from 'lucide-react'
+import { Users, CalendarDays, BookOpen, UserCog, Trophy, Megaphone, Wrench, Bot } from 'lucide-react'
 
 const DASHBOARD_CARDS = [
   { label: 'Members', icon: Users, href: '/admin/members', desc: 'Manage member registrations' },
-  { label: 'Activities', icon: Calendar, href: '/admin/activities', desc: 'Events, workshops, seminars' },
+  { label: 'Activities', icon: CalendarDays, href: '/admin/activities', desc: 'Events, workshops, seminars' },
   { label: 'Publications', icon: BookOpen, href: '/admin/publications', desc: 'Upload & manage PDFs' },
-  { label: 'Executives', icon: Users, href: '/admin/executives', desc: 'Manage full club' },
+  { label: 'Executives', icon: UserCog, href: '/admin/executives', desc: 'Manage full club' },
   { label: 'Olympiads', icon: Trophy, href: '/admin/olympiads', desc: 'Manage olympiad registrations' },
   { label: 'Announcements', icon: Megaphone, href: '/admin/announcements', desc: 'Send email & SMS blasts' },
   { label: 'Fix Upload URLs', icon: Wrench, href: '/admin/fix-urls', desc: 'Fix broken image/file URLs in database' },
@@ -41,7 +41,7 @@ export default async function AdminDashboard() {
             className="block rounded-xl p-5 border transition-all hover:border-[color:var(--blue)] hover:scale-[1.02]"
             style={{ background: 'var(--bg2)', borderColor: 'var(--border)' }}
           >
-            <card.icon className="w-7 h-7 mb-3" strokeWidth={1.75} style={{ color: 'var(--blue)' }} />
+            <div className="mb-3" style={{ color: 'var(--blue)' }}><card.icon size={28} /></div>
             <h3 className="font-bold text-sm mb-1" style={{ fontFamily: "'Orbitron', sans-serif", color: 'var(--white)' }}>
               {card.label}
             </h3>

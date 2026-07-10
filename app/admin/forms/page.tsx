@@ -1,7 +1,7 @@
 'use client'
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
-import { ArrowLeft, Plus, Trash2, Save, ChevronDown, ChevronRight } from 'lucide-react'
+import { ArrowLeft, Plus, Trash2, Save, ChevronDown, ChevronRight, Check } from 'lucide-react'
 
 const inputCls = 'w-full px-3 py-2 rounded-lg text-sm outline-none border'
 const inputStyle = { background: 'var(--surface)', borderColor: 'var(--border)', color: 'var(--white)' }
@@ -226,7 +226,7 @@ export default function AdminFormsPage() {
                           className="w-9 h-9 rounded-full border-2 flex items-center justify-center"
                           style={{ background: t.swatch, borderColor: editingConfig.bg_theme === t.value ? '#fff' : 'transparent' }}
                           title={t.label}>
-                          {editingConfig.bg_theme === t.value && <span style={{ color: '#000', fontSize: 11 }}>✓</span>}
+                          {editingConfig.bg_theme === t.value && <Check size={13} style={{ color: '#000' }} strokeWidth={3} />}
                         </button>
                       ))}
                       <input type="color"
@@ -410,8 +410,8 @@ export default function AdminFormsPage() {
                 <button onClick={saveConfig} disabled={saving}
                   className="w-full py-3 rounded-xl font-bold text-sm text-black disabled:opacity-60 flex items-center justify-center gap-2"
                   style={{ background: saved ? 'var(--cat-teal)' : 'var(--blue)' }}>
-                  <Save size={14} />
-                  {saving ? 'Saving...' : saved ? 'Saved ✓' : 'Save Form Config'}
+                  {saving ? <Save size={14} /> : saved ? <Check size={14} strokeWidth={3} /> : <Save size={14} />}
+                  {saving ? 'Saving...' : saved ? 'Saved' : 'Save Form Config'}
                 </button>
               </div>
             )}
