@@ -6,6 +6,7 @@ type Achievement = { id: string; title: string; description?: string; image_url?
 type Member = {
   id: string; full_name: string; email: string; phone?: string; batch?: string
   college_roll?: string; ndsc_id?: string; department?: string; is_verified: boolean
+  is_organizer?: boolean; is_executive?: boolean
   payment_slip_url?: string; achievements?: Achievement[]; created_at: string
 }
 
@@ -56,6 +57,23 @@ export default function AdminMembersPage() {
       const data = await res.json()
       if (!res.ok) { setError(data.error || 'Could not update member.'); return }
       load()
+    } catch { setError('Network error.') }
+  }
+
+  // Toggles members.is_organizer / members.is_executive — used to build the
+  // "Organizers" / "Executives" audience options in the Surveys admin page
+  // (see lib/survey.ts for why these are plain member flags rather than a
+  // separate login system).
+  const toggleRole = async (m: Member, field: 'is_organizer' | 'is_executive') => {
+    setError('')
+    const next = !m[field]
+    try {
+      const res = await fetch('/api/admin/members', {
+        method: 'PUT', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: m.id, [field]: next }),
+      })
+      if (!res.ok) { const d = await res.json(); setError(d.error || 'Could not update member.'); return }
+      setMembers(prev => prev.map(x => x.id === m.id ? { ...x, [field]: next } : x))
     } catch { setError('Network error.') }
   }
 
@@ -191,6 +209,7 @@ export default function AdminMembersPage() {
               <th className="text-left px-4 py-3 font-medium" style={{ color: 'var(--muted)' }}>Department</th>
               <th className="text-left px-4 py-3 font-medium" style={{ color: 'var(--muted)' }}>Slip</th>
               <th className="text-left px-4 py-3 font-medium" style={{ color: 'var(--muted)' }}>Status</th>
+              <th className="text-left px-4 py-3 font-medium" style={{ color: 'var(--muted)' }}>Roles</th>
               <th className="text-left px-4 py-3 font-medium" style={{ color: 'var(--muted)' }}>Action</th>
             </tr>
           </thead>
@@ -228,6 +247,30 @@ export default function AdminMembersPage() {
                 </td>
                 <td className="px-4 py-3">
                   <div className="flex flex-wrap gap-1.5">
+                    <button onClick={() => toggleRole(member, 'is_organizer')}
+                      title="Toggle Organizer — used for survey/notification audience targeting"
+                      className="px-2 py-1 rounded text-xs font-medium transition-all"
+                      style={{
+                        background: member.is_organizer ? 'rgba(var(--accent2-rgb), 0.15)' : 'transparent',
+                        color: member.is_organizer ? 'var(--accent2)' : 'var(--border-soft)',
+                        border: `1px solid ${member.is_organizer ? 'rgba(var(--accent2-rgb), 0.35)' : 'var(--border)'}`,
+                      }}>
+                      Organizer
+                    </button>
+                    <button onClick={() => toggleRole(member, 'is_executive')}
+                      title="Toggle Executive — used for survey/notification audience targeting"
+                      className="px-2 py-1 rounded text-xs font-medium transition-all"
+                      style={{
+                        background: member.is_executive ? 'rgba(var(--warning-rgb), 0.15)' : 'transparent',
+                        color: member.is_executive ? 'var(--warning)' : 'var(--border-soft)',
+                        border: `1px solid ${member.is_executive ? 'rgba(var(--warning-rgb), 0.35)' : 'var(--border)'}`,
+                      }}>
+                      Executive
+                    </button>
+                  </div>
+                </td>
+                <td className="px-4 py-3">
+                  <div className="flex flex-wrap gap-1.5">
                     <button onClick={() => toggleVerified(member)}
                       className="px-3 py-1 rounded text-xs font-medium transition-all"
                       style={{
@@ -254,7 +297,7 @@ export default function AdminMembersPage() {
               </tr>
             ))}
             {filtered.length === 0 && (
-              <tr><td colSpan={7} className="px-4 py-8 text-center" style={{ color: 'var(--muted)' }}>No members found.</td></tr>
+              <tr><td colSpan={8} className="px-4 py-8 text-center" style={{ color: 'var(--muted)' }}>No members found.</td></tr>
             )}
           </tbody>
         </table>
