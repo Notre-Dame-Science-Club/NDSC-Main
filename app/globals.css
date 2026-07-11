@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Plus+Jakarta+Sans:ital,wght@0,200..800;1,200..800&family=Poppins:wght@300;400;500;600;700;800;900&family=Montserrat:wght@700;800;900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Plus+Jakarta+Sans:ital,wght@0,200..800;1,200..800&family=Poppins:wght@300;400;500;600;700;800;900&family=Montserrat:wght@700;800;900&family=Inter:wght@300;400;500;600;700;800;900&display=swap');
 /* Gilroy via CDN-friendly self-host fallback — uses Montserrat as closest match */
 /* If you have Gilroy .woff2 files, add @font-face here */
 
@@ -70,6 +70,11 @@
   --font-mono: 'Share Tech Mono', monospace;
   --font-exec: 'Montserrat', 'Poppins', sans-serif;
   color-scheme: dark;
+
+  /* Header size — overridden at runtime by AppearanceProvider from the
+     Admin > Appearance setting. Defaults match the original fixed h-16 navbar. */
+  --navbar-height: 64px;
+  --navbar-logo: 38px;
 }
 
 /* ═══════════════════════════════════════════
@@ -144,7 +149,7 @@ body {
 }
 
 h1, h2, h3, h4 {
-  font-family: 'Poppins', 'Montserrat', sans-serif;
+  font-family: var(--font-heading);
   font-weight: 800;
 }
 

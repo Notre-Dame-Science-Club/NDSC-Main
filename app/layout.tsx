@@ -5,6 +5,7 @@ import "katex/dist/katex.min.css";
 import Navbar from "@/components/layout/Navbar";
 import Footer from "@/components/layout/Footer";
 import SurveyNotification from "@/components/SurveyNotification";
+import { supabaseAdmin } from "@/lib/supabase";
 
 export const metadata: Metadata = {
   title: "Notre Dame Science Club (NDSC) | ndscbd.net — Official Website",
@@ -81,13 +82,42 @@ export const metadata: Metadata = {
   verification: {},
 };
 
-export default function RootLayout({
+const HEADER_SIZES: Record<string, { height: string; logo: string }> = {
+  compact: { height: "56px", logo: "32px" },
+  default: { height: "64px", logo: "38px" },
+  large: { height: "76px", logo: "46px" },
+};
+
+export default async function RootLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  // Site-wide Appearance settings (Admin > Appearance) — fetched server-side
+  // so the default theme/font/header size are baked into the first response
+  // instead of flashing in after a client-side fetch.
+  let appearanceRows: { key: string; value: string }[] | null = null;
+  try {
+    const res = await supabaseAdmin.from("appearance_settings").select("*");
+    appearanceRows = res.data as any;
+  } catch {
+    // Table may not exist yet if the schema_update_04.sql migration hasn't
+    // been run — fall back to defaults rather than breaking every page.
+  }
+  const appearance: Record<string, string> = {};
+  for (const row of appearanceRows || []) appearance[row.key] = row.value;
+  const headerSize = HEADER_SIZES[appearance.header_size || "default"] || HEADER_SIZES.default;
+  const rootStyle: React.CSSProperties & Record<string, string> = {
+    "--navbar-height": headerSize.height,
+    "--navbar-logo": headerSize.logo,
+  };
+  if (appearance.font_family) {
+    rootStyle["--font-body"] = appearance.font_family;
+    rootStyle["--font-heading"] = appearance.font_family;
+  }
+
   return (
-    <html lang="en" suppressHydrationWarning>
+    <html lang="en" suppressHydrationWarning style={rootStyle}>
       <head>
         <link rel="icon" href="/favicon.png" type="image/png" sizes="any" />
         <link rel="icon" href="/images/cropped-logo.png" type="image/png" sizes="32x32" />
@@ -98,7 +128,7 @@ export default function RootLayout({
         <Script id="ndsc-theme-init" strategy="beforeInteractive">
           {`
             (function(){
-              var t = localStorage.getItem('ndsc-theme') || 'dark';
+              var t = localStorage.getItem('ndsc-theme') || ${JSON.stringify(appearance.default_theme === "light" ? "light" : "dark")};
               if(t === 'light') document.documentElement.setAttribute('data-theme','light');
             })();
           `}

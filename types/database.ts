@@ -128,6 +128,14 @@ export interface HomepageSettingRow {
   updated_at: ISODateString
 }
 
+// ── appearance_settings (key-value store) ───────────────────────────────
+// Keys: default_theme ('dark'|'light'), font_family, header_size ('compact'|'default'|'large')
+export interface AppearanceSettingRow {
+  key: string
+  value: string
+  updated_at: ISODateString
+}
+
 // ── activity_types → activity_versions → activity_sessions ─────────────
 export interface ActivityTypeRow {
   id: UUID

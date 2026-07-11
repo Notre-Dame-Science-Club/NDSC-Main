@@ -176,11 +176,11 @@ export default function Navbar() {
       `}</style>
 
       <header className="navbar-glass fixed top-0 left-0 w-full z-50 transition-all duration-300">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 flex items-center justify-between" style={{ height: "var(--navbar-height, 64px)" }}>
 
           {/* LOGO */}
           <Link href="/" className="ndsc-logo-glow flex items-center gap-3 shrink-0 z-10 group">
-            <div className="relative" style={{ width: 38, height: 38 }}>
+            <div className="relative" style={{ width: "var(--navbar-logo, 38px)", height: "var(--navbar-logo, 38px)" }}>
               <Image src="/images/cropped-logo.png" alt="NDSC" fill className="object-contain" />
             </div>
             <div className="hidden sm:flex flex-col leading-none">
