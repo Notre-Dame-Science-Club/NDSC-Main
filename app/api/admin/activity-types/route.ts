@@ -1,11 +1,7 @@
 import { supabaseAdmin } from '@/lib/supabase'
-import { NextRequest, NextResponse } from 'next/server'
-import { cookies } from 'next/headers'
-
-async function isAdmin() {
-  const cookieStore = await cookies()
-  return !!cookieStore.get('admin_session')
-}
+import { NextRequest } from 'next/server'
+import { requireAdmin } from '@/lib/api/admin-auth'
+import { apiError, apiOk } from '@/lib/api/response'
 
 // GET /api/admin/activity-types — public read, admin write
 export async function GET() {
@@ -13,24 +9,26 @@ export async function GET() {
     .from('activity_types')
     .select('*')
     .order('display_order', { ascending: true })
-  if (error) return NextResponse.json({ error: error.message }, { status: 400 })
-  return NextResponse.json(data ?? [])
+  if (error) return apiError(error, 400)
+  return apiOk(data ?? [])
 }
 
 export async function POST(req: NextRequest) {
-  if (!await isAdmin()) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const unauthorized = await requireAdmin()
+  if (unauthorized) return unauthorized
   const body = await req.json()
   const { data, error } = await supabaseAdmin
     .from('activity_types')
     .insert(body)
     .select()
     .single()
-  if (error) return NextResponse.json({ error: error.message }, { status: 400 })
-  return NextResponse.json(data)
+  if (error) return apiError(error, 400)
+  return apiOk(data)
 }
 
 export async function PUT(req: NextRequest) {
-  if (!await isAdmin()) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const unauthorized = await requireAdmin()
+  if (unauthorized) return unauthorized
   const body = await req.json()
   const { id, ...rest } = body
   const { data, error } = await supabaseAdmin
@@ -39,17 +37,18 @@ export async function PUT(req: NextRequest) {
     .eq('id', id)
     .select()
     .single()
-  if (error) return NextResponse.json({ error: error.message }, { status: 400 })
-  return NextResponse.json(data)
+  if (error) return apiError(error, 400)
+  return apiOk(data)
 }
 
 export async function DELETE(req: NextRequest) {
-  if (!await isAdmin()) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const unauthorized = await requireAdmin()
+  if (unauthorized) return unauthorized
   const { id } = await req.json()
   const { error } = await supabaseAdmin
     .from('activity_types')
     .delete()
     .eq('id', id)
-  if (error) return NextResponse.json({ error: error.message }, { status: 400 })
-  return NextResponse.json({ success: true })
+  if (error) return apiError(error, 400)
+  return apiOk({ success: true })
 }

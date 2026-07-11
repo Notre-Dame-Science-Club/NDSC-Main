@@ -1,5 +1,6 @@
 'use client'
 import { useEffect, useRef, useState, useCallback } from 'react'
+import { Pencil, Plus, Upload, Loader2, AlertTriangle, X, CheckCircle2, User } from 'lucide-react'
 
 /* ══════════════════════════════════
    TYPES
@@ -64,16 +65,16 @@ function ImagePositionPicker({
   const onTouchEnd = () => setDragging(false)
 
   const presets = [
-    { label: '👤 Face (Top)', val: '50% 10%' },
-    { label: '⊙ Center',     val: '50% 50%' },
-    { label: '⬇ Bottom',     val: '50% 80%' },
+    { label: 'Face (Top)', val: '50% 10%' },
+    { label: 'Center',     val: '50% 50%' },
+    { label: 'Bottom',     val: '50% 80%' },
   ]
 
   return (
     <div>
-      <p style={{ fontSize: 11, color: '#6a8faf', marginBottom: 6, fontFamily: 'monospace' }}>
+      <p style={{ fontSize: 11, color: 'var(--muted)', marginBottom: 6, fontFamily: 'monospace' }}>
         Drag the crosshair to set which part of the photo shows in the card &amp; circle.
-        Current: <strong style={{ color: '#00d4ff' }}>{position}</strong>
+        Current: <strong style={{ color: 'var(--blue)' }}>{position}</strong>
       </p>
 
       {/* Preset buttons */}
@@ -82,9 +83,9 @@ function ImagePositionPicker({
           <button key={p.val} type="button" onClick={() => onChange(p.val)}
             style={{
               padding: '4px 10px', borderRadius: 6, fontSize: 11, fontWeight: 700,
-              border: `1px solid ${position === p.val ? '#00d4ff' : '#0f2a4a'}`,
-              background: position === p.val ? 'rgba(0,212,255,0.15)' : 'transparent',
-              color: position === p.val ? '#00d4ff' : '#6a8faf', cursor: 'pointer',
+              border: `1px solid ${position === p.val ? 'var(--blue)' : 'var(--border)'}`,
+              background: position === p.val ? 'rgba(var(--blue-rgb), 0.15)' : 'transparent',
+              color: position === p.val ? 'var(--blue)' : 'var(--muted)', cursor: 'pointer',
             }}>
             {p.label}
           </button>
@@ -100,7 +101,7 @@ function ImagePositionPicker({
           position: 'relative', width: '100%', maxWidth: 340,
           aspectRatio: '1 / 1.3',
           borderRadius: 12, overflow: 'hidden',
-          border: '1px solid rgba(0,212,255,0.3)',
+          border: '1px solid rgba(var(--blue-rgb), 0.3)',
           cursor: dragging ? 'grabbing' : 'crosshair',
           userSelect: 'none', touchAction: 'none',
         }}
@@ -115,19 +116,19 @@ function ImagePositionPicker({
           pointerEvents: 'none',
           zIndex: 10,
         }}>
-          <div style={{ position: 'absolute', left: -40, right: -40, top: '50%', height: 1, background: '#00d4ff', opacity: 0.85 }} />
-          <div style={{ position: 'absolute', top: -40, bottom: -40, left: '50%', width: 1, background: '#00d4ff', opacity: 0.85 }} />
+          <div style={{ position: 'absolute', left: -40, right: -40, top: '50%', height: 1, background: 'var(--blue)', opacity: 0.85 }} />
+          <div style={{ position: 'absolute', top: -40, bottom: -40, left: '50%', width: 1, background: 'var(--blue)', opacity: 0.85 }} />
           <div style={{
             width: 14, height: 14, borderRadius: '50%',
-            background: '#00d4ff', border: '2px solid #fff',
-            boxShadow: '0 0 8px rgba(0,212,255,0.8)',
+            background: 'var(--blue)', border: '2px solid #fff',
+            boxShadow: '0 0 8px rgba(var(--blue-rgb), 0.8)',
             position: 'absolute', left: '50%', top: '50%',
             transform: 'translate(-50%,-50%)',
           }} />
         </div>
         <div style={{
           position: 'absolute', inset: 0,
-          border: '2px dashed rgba(0,212,255,0.4)',
+          border: '2px dashed rgba(var(--blue-rgb), 0.4)',
           borderRadius: 12, pointerEvents: 'none',
         }} />
       </div>
@@ -135,14 +136,14 @@ function ImagePositionPicker({
       {/* Previews */}
       <div style={{ marginTop: 10, display: 'flex', gap: 12, alignItems: 'flex-start' }}>
         <div>
-          <p style={{ fontSize: 10, color: '#6a8faf', marginBottom: 4 }}>Card preview</p>
-          <div style={{ width: 72, aspectRatio: '1/1.2', borderRadius: 8, overflow: 'hidden', border: '1px solid rgba(0,212,255,0.25)' }}>
+          <p style={{ fontSize: 10, color: 'var(--muted)', marginBottom: 4 }}>Card preview</p>
+          <div style={{ width: 72, aspectRatio: '1/1.2', borderRadius: 8, overflow: 'hidden', border: '1px solid rgba(var(--blue-rgb), 0.25)' }}>
             <img src={src} alt="Card preview" style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: position }} />
           </div>
         </div>
         <div>
-          <p style={{ fontSize: 10, color: '#6a8faf', marginBottom: 4 }}>Circle preview</p>
-          <div style={{ width: 72, height: 72, borderRadius: '50%', overflow: 'hidden', border: '1px solid rgba(0,212,255,0.25)' }}>
+          <p style={{ fontSize: 10, color: 'var(--muted)', marginBottom: 4 }}>Circle preview</p>
+          <div style={{ width: 72, height: 72, borderRadius: '50%', overflow: 'hidden', border: '1px solid rgba(var(--blue-rgb), 0.25)' }}>
             <img src={src} alt="Circle preview" style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: position }} />
           </div>
         </div>
@@ -217,7 +218,7 @@ export default function AdminExecutivesPage() {
     })
     setLoading(false)
     if (res.ok) {
-      setMsg('✅ Saved!'); setMsgOk(true); setEditing(null); setForm(empty); load()
+      setMsg('Saved successfully'); setMsgOk(true); setEditing(null); setForm(empty); load()
     } else {
       const d = await res.json(); setMsg(d.error || 'Save failed'); setMsgOk(false)
     }
@@ -255,67 +256,70 @@ export default function AdminExecutivesPage() {
   )
 
   /* ── Shared styles ── */
-  const s   = { background: '#050d1a', border: '1px solid #0f2a4a', color: '#c8e8f8', borderRadius: '8px' } as React.CSSProperties
+  const s   = { background: 'var(--bg2)', border: '1px solid var(--border)', color: 'var(--white-soft)', borderRadius: '8px' } as React.CSSProperties
   const lbl = 'block text-xs font-bold mb-1 uppercase tracking-wider'
   const inp = 'w-full px-3 py-2 text-sm outline-none'
 
   return (
     <div className="p-6" style={{ maxWidth: 1100, margin: '0 auto' }}>
-      <h1 className="text-2xl font-bold mb-6" style={{ fontFamily: "'Orbitron',sans-serif", color: '#00d4ff' }}>
+      <h1 className="text-2xl font-bold mb-6" style={{ fontFamily: "'Orbitron',sans-serif", color: 'var(--blue)' }}>
         Executives Manager
       </h1>
 
       {/* ── Form ── */}
-      <div className="rounded-xl p-6 mb-8" style={{ background: '#050d1a', border: '1px solid #0f2a4a' }}>
-        <h2 className="text-lg font-bold mb-4" style={{ color: '#00d4ff' }}>
-          {editing ? '✏️ Edit Executive' : '➕ Add Executive'}
+      <div className="rounded-xl p-6 mb-8" style={{ background: 'var(--bg2)', border: '1px solid var(--border)' }}>
+        <h2 className="text-lg font-bold mb-4" style={{ color: 'var(--blue)' }}>
+          <span className="inline-flex items-center gap-2">
+            {editing ? <Pencil size={14} /> : <Plus size={14} />}
+            {editing ? 'Edit Executive' : 'Add Executive'}
+          </span>
         </h2>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
-            <label className={lbl} style={{ color: '#6a8faf' }}>Full Name *</label>
+            <label className={lbl} style={{ color: 'var(--muted)' }}>Full Name *</label>
             <input className={inp} style={s} value={String(form.full_name ?? '')}
               onChange={e => setForm({ ...form, full_name: e.target.value })} placeholder="Full name" />
           </div>
 
           <div>
-            <label className={lbl} style={{ color: '#6a8faf' }}>Position *</label>
+            <label className={lbl} style={{ color: 'var(--muted)' }}>Position *</label>
             <input className={inp} style={s} value={String(form.position ?? '')}
               onChange={e => setForm({ ...form, position: e.target.value })} placeholder="e.g. President, General Secretary" />
           </div>
 
           <div>
-            <label className={lbl} style={{ color: '#6a8faf' }}>Panel *</label>
+            <label className={lbl} style={{ color: 'var(--muted)' }}>Panel *</label>
             <select aria-label="Panel" className={inp} style={s}
               value={String(form.panel ?? 'committee')}
               onChange={e => setForm({ ...form, panel: e.target.value })}>
               {PANELS.map(p => (
-                <option key={p.value} value={p.value} style={{ background: '#050d1a' }}>{p.label}</option>
+                <option key={p.value} value={p.value} style={{ background: 'var(--bg2)' }}>{p.label}</option>
               ))}
             </select>
           </div>
 
           <div>
-            <label className={lbl} style={{ color: '#6a8faf' }}>Department (optional)</label>
+            <label className={lbl} style={{ color: 'var(--muted)' }}>Department (optional)</label>
             <input className={inp} style={s} value={String(form.dept ?? '')}
               onChange={e => setForm({ ...form, dept: e.target.value })} placeholder="e.g. Publication, R&D" />
           </div>
 
           <div>
-            <label className={lbl} style={{ color: '#6a8faf' }}>Session Year</label>
+            <label className={lbl} style={{ color: 'var(--muted)' }}>Session Year</label>
             <input className={inp} style={s} value={String(form.session_year ?? '')}
               onChange={e => setForm({ ...form, session_year: e.target.value })} placeholder="e.g. 2025-26" />
           </div>
 
           <div>
-            <label className={lbl} style={{ color: '#6a8faf' }}>Display Order</label>
+            <label className={lbl} style={{ color: 'var(--muted)' }}>Display Order</label>
             <input type="number" className={inp} style={s} value={Number(form.display_order ?? 0)}
               onChange={e => setForm({ ...form, display_order: parseInt(e.target.value) || 0 })} placeholder="0 = first" />
           </div>
 
           {/* ── Photo Upload + Position Picker ── */}
           <div className="md:col-span-2">
-            <label className={lbl} style={{ color: '#6a8faf' }}>Photo &amp; Position</label>
+            <label className={lbl} style={{ color: 'var(--muted)' }}>Photo &amp; Position</label>
             <div style={{ display: 'flex', gap: '1.5rem', flexWrap: 'wrap', alignItems: 'flex-start' }}>
               {/* Upload button */}
               <div style={{ flex: '0 0 auto' }}>
@@ -324,19 +328,22 @@ export default function AdminExecutivesPage() {
                   disabled={uploading}
                   style={{
                     padding: '10px 20px', borderRadius: 10,
-                    border: '2px dashed #0f2a4a', background: 'transparent',
-                    color: uploading ? '#00d4ff' : '#6a8faf',
+                    border: '2px dashed var(--border)', background: 'transparent',
+                    color: uploading ? 'var(--blue)' : 'var(--muted)',
                     fontSize: 13, cursor: 'pointer', minWidth: 160,
                     display: 'block', marginBottom: 8,
                   }}>
-                  {uploading ? `⏳ ${uploadProgress}%` : '📷 Upload Photo'}
+                  <span className="inline-flex items-center gap-2 justify-center">
+                    {uploading ? <Loader2 size={14} className="animate-spin" /> : <Upload size={14} />}
+                    {uploading ? `${uploadProgress}%` : 'Upload Photo'}
+                  </span>
                 </button>
                 {uploading && (
                   <div style={{ width: 160, height: 4, background: 'rgba(255,255,255,0.06)', borderRadius: 4, marginBottom: 8, overflow: 'hidden' }}>
-                    <div style={{ width: `${uploadProgress}%`, height: '100%', background: 'linear-gradient(90deg,#00d4ff,#0099cc)', transition: 'width 0.2s' }} />
+                    <div style={{ width: `${uploadProgress}%`, height: '100%', background: 'linear-gradient(90deg,var(--blue),#0099cc)', transition: 'width 0.2s' }} />
                   </div>
                 )}
-                {uploadError && <p style={{ color: '#ff7070', fontSize: 11, marginBottom: 6 }}>⚠️ {uploadError}</p>}
+                {uploadError && <p style={{ color: 'var(--danger-soft)', fontSize: 11, marginBottom: 6 }} className="flex items-center gap-1"><AlertTriangle size={12} /> {uploadError}</p>}
                 <p style={{ fontSize: 10, color: '#3a5a7a' }}>Max 4.5 MB · JPG/PNG/WEBP</p>
                 <input ref={photoRef} type="file" accept="image/*" aria-label="Upload executive photo" style={{ display: 'none' }} onChange={uploadPhoto} />
               </div>
@@ -351,8 +358,9 @@ export default function AdminExecutivesPage() {
                   />
                   <button type="button"
                     onClick={() => setForm(f => ({ ...f, photo_url: '', photo_position: '50% 15%' }))}
-                    style={{ marginTop: 8, fontSize: 11, color: '#ff5050', background: 'none', border: 'none', cursor: 'pointer' }}>
-                    ✕ Remove photo
+                    className="inline-flex items-center gap-1"
+                    style={{ marginTop: 8, fontSize: 11, color: 'var(--danger)', background: 'none', border: 'none', cursor: 'pointer' }}>
+                    <X size={11} /> Remove photo
                   </button>
                 </div>
               )}
@@ -370,7 +378,7 @@ export default function AdminExecutivesPage() {
             ['X (Twitter) URL', 'x_url',         'https://x.com/...'],
           ] as [string, string, string][]).map(([label, field, ph]) => (
             <div key={field}>
-              <label className={lbl} style={{ color: '#6a8faf' }}>{label}</label>
+              <label className={lbl} style={{ color: 'var(--muted)' }}>{label}</label>
               <input className={inp} style={s} value={String(form[field] ?? '')}
                 onChange={e => setForm({ ...form, [field]: e.target.value })} placeholder={ph} />
             </div>
@@ -380,24 +388,27 @@ export default function AdminExecutivesPage() {
             <input type="checkbox" id="active" aria-label="Active status"
               checked={Boolean(form.is_active)}
               onChange={e => setForm({ ...form, is_active: e.target.checked })} />
-            <label htmlFor="active" className="text-sm" style={{ color: '#6a8faf' }}>
+            <label htmlFor="active" className="text-sm" style={{ color: 'var(--muted)' }}>
               Active (website এ দেখাবে)
             </label>
           </div>
         </div>
 
-        {msg && <p className="mt-4 text-sm font-medium" style={{ color: msgOk ? '#00ff80' : '#ff7070' }}>{msg}</p>}
+        {msg && <p className="mt-4 text-sm font-medium" style={{ color: msgOk ? 'var(--success)' : 'var(--danger-soft)' }}>{msg}</p>}
 
         <div className="flex gap-3 mt-5">
           <button onClick={save} disabled={loading}
             className="px-6 py-2.5 rounded-lg text-sm font-bold text-black"
-            style={{ background: '#00d4ff', opacity: loading ? 0.6 : 1 }}>
-            {loading ? 'Saving...' : editing ? '✅ Update' : '➕ Add Executive'}
+            style={{ background: 'var(--blue)', opacity: loading ? 0.6 : 1 }}>
+            <span className="inline-flex items-center gap-2">
+              {!loading && (editing ? <CheckCircle2 size={14} /> : <Plus size={14} />)}
+              {loading ? 'Saving...' : editing ? 'Update' : 'Add Executive'}
+            </span>
           </button>
           {editing && (
             <button onClick={() => { setEditing(null); setForm(empty) }}
               className="px-6 py-2.5 rounded-lg text-sm font-bold"
-              style={{ background: 'rgba(255,255,255,0.05)', color: '#6a8faf' }}>
+              style={{ background: 'rgba(255,255,255,0.05)', color: 'var(--muted)' }}>
               Cancel
             </button>
           )}
@@ -410,7 +421,7 @@ export default function AdminExecutivesPage() {
           value={filterPanel} onChange={e => setFilterPanel(e.target.value)}
           className={inp} style={{ ...s, maxWidth: 200 }}>
           {PANELS.map(p => (
-            <option key={p.value} value={p.value} style={{ background: '#050d1a' }}>{p.label}</option>
+            <option key={p.value} value={p.value} style={{ background: 'var(--bg2)' }}>{p.label}</option>
           ))}
         </select>
         {filterPanel === 'committee' && (
@@ -418,20 +429,20 @@ export default function AdminExecutivesPage() {
             value={filterYear} onChange={e => setFilterYear(e.target.value)}
             className={inp} style={{ ...s, maxWidth: 160 }}>
             {years.map(y => (
-              <option key={y} value={y} style={{ background: '#050d1a' }}>{y}</option>
+              <option key={y} value={y} style={{ background: 'var(--bg2)' }}>{y}</option>
             ))}
           </select>
         )}
       </div>
 
       {/* ── Table ── */}
-      <div className="rounded-xl overflow-hidden" style={{ border: '1px solid #0f2a4a' }}>
+      <div className="rounded-xl overflow-hidden" style={{ border: '1px solid var(--border)' }}>
         <table className="w-full text-sm">
-          <thead style={{ background: '#050d1a' }}>
+          <thead style={{ background: 'var(--bg2)' }}>
             <tr>
               {['Photo', 'Name', 'Position', 'Dept', 'Order', 'Active', ''].map(h => (
                 <th key={h} className="px-4 py-3 text-left text-xs font-bold uppercase tracking-wider"
-                  style={{ color: '#00d4ff' }}>{h}</th>
+                  style={{ color: 'var(--blue)' }}>{h}</th>
               ))}
             </tr>
           </thead>
@@ -445,26 +456,26 @@ export default function AdminExecutivesPage() {
             ) : filtered.map((item, i) => {
               const pos = item.photo_position || '50% 15%'
               return (
-                <tr key={item.id} style={{ background: i % 2 === 0 ? '#020810' : '#030c16', borderTop: '1px solid #0f2a4a' }}>
+                <tr key={item.id} style={{ background: i % 2 === 0 ? 'var(--bg)' : '#030c16', borderTop: '1px solid var(--border)' }}>
                   <td className="px-4 py-3">
                     {item.photo_url ? (
-                      <div style={{ width: 40, height: 48, borderRadius: 6, overflow: 'hidden', border: '1px solid #0f2a4a' }}>
+                      <div style={{ width: 40, height: 48, borderRadius: 6, overflow: 'hidden', border: '1px solid var(--border)' }}>
                         <img src={item.photo_url} alt={item.full_name}
                           style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: pos }} />
                       </div>
                     ) : (
-                      <div style={{ width: 40, height: 48, borderRadius: 6, background: '#0a1a30', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16 }}>👤</div>
+                      <div style={{ width: 40, height: 48, borderRadius: 6, background: 'var(--surface)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--muted)' }}><User size={18} /></div>
                     )}
                   </td>
-                  <td className="px-4 py-3 font-medium" style={{ color: '#c8e8f8' }}>{item.full_name}</td>
-                  <td className="px-4 py-3" style={{ color: '#00d4ff' }}>{item.position}</td>
-                  <td className="px-4 py-3" style={{ color: '#6a8faf' }}>{item.dept || '—'}</td>
-                  <td className="px-4 py-3" style={{ color: '#6a8faf' }}>{item.display_order}</td>
+                  <td className="px-4 py-3 font-medium" style={{ color: 'var(--white-soft)' }}>{item.full_name}</td>
+                  <td className="px-4 py-3" style={{ color: 'var(--blue)' }}>{item.position}</td>
+                  <td className="px-4 py-3" style={{ color: 'var(--muted)' }}>{item.dept || '—'}</td>
+                  <td className="px-4 py-3" style={{ color: 'var(--muted)' }}>{item.display_order}</td>
                   <td className="px-4 py-3">
                     <span style={{
                       padding: '2px 8px', borderRadius: 6, fontSize: 11, fontWeight: 700,
-                      background: item.is_active ? 'rgba(0,255,128,0.12)' : 'rgba(255,80,80,0.1)',
-                      color: item.is_active ? '#00ff80' : '#ff5050',
+                      background: item.is_active ? 'rgba(var(--success-rgb), 0.12)' : 'rgba(var(--danger-rgb), 0.1)',
+                      color: item.is_active ? 'var(--success)' : 'var(--danger)',
                     }}>
                       {item.is_active ? 'Active' : 'Hidden'}
                     </span>
@@ -473,12 +484,12 @@ export default function AdminExecutivesPage() {
                     <div className="flex gap-2">
                       <button onClick={() => edit(item)}
                         className="px-3 py-1 rounded text-xs font-bold"
-                        style={{ background: 'rgba(0,212,255,0.12)', color: '#00d4ff', border: '1px solid rgba(0,212,255,0.2)' }}>
+                        style={{ background: 'rgba(var(--blue-rgb), 0.12)', color: 'var(--blue)', border: '1px solid rgba(var(--blue-rgb), 0.2)' }}>
                         Edit
                       </button>
                       <button onClick={() => del(item.id)}
                         className="px-3 py-1 rounded text-xs font-bold"
-                        style={{ background: 'rgba(255,80,80,0.1)', color: '#ff5050', border: '1px solid rgba(255,80,80,0.2)' }}>
+                        style={{ background: 'rgba(var(--danger-rgb), 0.1)', color: 'var(--danger)', border: '1px solid rgba(var(--danger-rgb), 0.2)' }}>
                         Del
                       </button>
                     </div>

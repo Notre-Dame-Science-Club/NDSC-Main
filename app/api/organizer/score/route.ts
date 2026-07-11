@@ -1,20 +1,21 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase'
 import { getOrganizerSession } from '@/lib/organizerAuth'
+import { apiError, apiOk } from '@/lib/api/response'
 
 export const dynamic = 'force-dynamic'
 
 export async function POST(req: NextRequest) {
   const session = await getOrganizerSession()
-  if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  if (!session) return apiError('Unauthorized', 401)
 
   const { regId, score, annotations, organizer_note } = await req.json().catch(() => ({}))
 
   if (!regId || typeof regId !== 'string') {
-    return NextResponse.json({ error: 'regId is required.' }, { status: 400 })
+    return apiError('regId is required.', 400)
   }
   if (score === undefined || score === null || Number.isNaN(Number(score))) {
-    return NextResponse.json({ error: 'A valid numeric score is required.' }, { status: 400 })
+    return apiError('A valid numeric score is required.', 400)
   }
 
   // Confirm this registration belongs to an olympiad the organizer is authorized for
@@ -25,10 +26,10 @@ export async function POST(req: NextRequest) {
     .single()
 
   if (regError || !reg) {
-    return NextResponse.json({ error: 'Registration not found.' }, { status: 404 })
+    return apiError('Registration not found.', 404)
   }
   if (!session.olympiadIds.includes(reg.olympiad_id)) {
-    return NextResponse.json({ error: 'Forbidden.' }, { status: 403 })
+    return apiError('Forbidden.', 403)
   }
 
   const updatePayload: Record<string, any> = {
@@ -47,8 +48,8 @@ export async function POST(req: NextRequest) {
     .eq('id', regId)
 
   if (updateError) {
-    return NextResponse.json({ error: 'Could not save score.' }, { status: 500 })
+    return apiError('Could not save score.', 500)
   }
 
-  return NextResponse.json({ success: true })
+  return apiOk({ success: true })
 }

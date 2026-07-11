@@ -1,6 +1,7 @@
 import { supabaseAdmin } from '@/lib/supabase'
-import { NextResponse } from 'next/server'
+
 import { normalizeUploadUrl } from '@/lib/uploadUrl'
+import { apiOk } from '@/lib/api/response'
 
 export async function GET() {
   const { data, error } = await supabaseAdmin
@@ -14,7 +15,7 @@ export async function GET() {
     .order('session_date', { ascending: false })
     .limit(25)
 
-  if (error) return NextResponse.json([], { status: 200 })
+  if (error) return apiOk([], { status: 200 })
 
   // Normalize all cover URLs
   const normalized = (data || []).map((s: any) => ({
@@ -22,5 +23,5 @@ export async function GET() {
     cover_image_url: normalizeUploadUrl(s.cover_image_url),
   }))
 
-  return NextResponse.json(normalized)
+  return apiOk(normalized)
 }

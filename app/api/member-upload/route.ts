@@ -1,5 +1,6 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest } from 'next/server'
 import { normalizeUploadUrl } from '@/lib/uploadUrl'
+import { apiError, apiOk } from '@/lib/api/response'
 
 // Public route — used by the membership sign-up form (payment slip photo)
 // and by members adding an achievement/certificate image from their
@@ -19,7 +20,7 @@ export async function POST(req: NextRequest) {
   try {
     formData = await req.formData()
   } catch {
-    return NextResponse.json({ error: 'File too large or malformed request' }, { status: 413 })
+    return apiError('File too large or malformed request', 413)
   }
 
   const file = formData.get('file') as File | null
@@ -27,18 +28,18 @@ export async function POST(req: NextRequest) {
   const folder = ALLOWED_FOLDERS.includes(requestedFolder as any) ? requestedFolder! : 'membership-slips'
 
   if (!file) {
-    return NextResponse.json({ error: 'No file provided' }, { status: 400 })
+    return apiError('No file provided', 400)
   }
 
   if (file.size > MAX_SIZE) {
-    return NextResponse.json(
+    return apiOk(
       { error: `File too large. Maximum size is ${MAX_SIZE / (1024 * 1024)}MB.` },
       { status: 413 }
     )
   }
 
   if (file.type && !ALLOWED_TYPES.includes(file.type)) {
-    return NextResponse.json(
+    return apiOk(
       { error: 'Invalid file type. Please upload a JPG, PNG, WEBP, or HEIC image.' },
       { status: 400 }
     )
@@ -48,7 +49,7 @@ export async function POST(req: NextRequest) {
   const uploadSecret = process.env.UPLOAD_SECRET
 
   if (!hostingerUploadUrl || !uploadSecret) {
-    return NextResponse.json({ error: 'Upload configuration missing.' }, { status: 500 })
+    return apiError('Upload configuration missing.', 500)
   }
 
   const fd = new FormData()
@@ -63,7 +64,7 @@ export async function POST(req: NextRequest) {
       body: fd,
     })
   } catch {
-    return NextResponse.json({ error: 'Could not reach the upload server. Please try again.' }, { status: 502 })
+    return apiError('Could not reach the upload server. Please try again.', 502)
   }
 
   const text = await res.text()
@@ -71,13 +72,13 @@ export async function POST(req: NextRequest) {
   try {
     data = JSON.parse(text)
   } catch {
-    return NextResponse.json({ error: 'Invalid response from upload server.' }, { status: 502 })
+    return apiError('Invalid response from upload server.', 502)
   }
 
   if (!res.ok || !data.success) {
-    return NextResponse.json({ error: data.error || 'Upload failed. Please try again.' }, { status: 400 })
+    return apiError(data.error || 'Upload failed. Please try again.', 400)
   }
 
   const cleanUrl = normalizeUploadUrl(data.url)
-  return NextResponse.json({ url: cleanUrl })
+  return apiOk({ url: cleanUrl })
 }

@@ -1,11 +1,7 @@
 import { supabaseAdmin } from '@/lib/supabase'
-import { NextRequest, NextResponse } from 'next/server'
-import { cookies } from 'next/headers'
-
-async function isAdmin() {
-  const cookieStore = await cookies()
-  return !!cookieStore.get('admin_session')
-}
+import { NextRequest } from 'next/server'
+import { requireAdmin } from '@/lib/api/admin-auth'
+import { apiError, apiOk } from '@/lib/api/response'
 
 // GET ?sessionId=UUID — every registrant across the whole category tree for
 // this Activity session, with a breadcrumb showing exactly which category
@@ -14,17 +10,18 @@ async function isAdmin() {
 // page / organizer page for online leaves, this is just "who registered
 // for what" so nothing duplicates between the two admin surfaces.
 export async function GET(req: NextRequest) {
-  if (!(await isAdmin())) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const unauthorized = await requireAdmin()
+  if (unauthorized) return unauthorized
 
   const sessionId = req.nextUrl.searchParams.get('sessionId')
-  if (!sessionId) return NextResponse.json({ error: 'sessionId is required.' }, { status: 400 })
+  if (!sessionId) return apiError('sessionId is required.', 400)
 
   const { data: categories, error: catError } = await supabaseAdmin
     .from('activity_reg_categories')
     .select('id, name, parent_id, is_online_submission')
     .eq('activity_session_id', sessionId)
 
-  if (catError) return NextResponse.json({ error: catError.message }, { status: 400 })
+  if (catError) return apiError(catError, 400)
 
   const catById = new Map((categories || []).map(c => [c.id, c]))
   const breadcrumbFor = (categoryId: string) => {
@@ -40,7 +37,7 @@ export async function GET(req: NextRequest) {
     .eq('activity_session_id', sessionId)
     .order('created_at', { ascending: false })
 
-  if (regError) return NextResponse.json({ error: regError.message }, { status: 400 })
+  if (regError) return apiError(regError, 400)
 
   const result = (registrations || []).map(r => ({
     ...r,
@@ -49,5 +46,5 @@ export async function GET(req: NextRequest) {
     team_size: 1 + ((r.team_members as any[]) || []).length,
   }))
 
-  return NextResponse.json({ registrations: result })
+  return apiOk({ registrations: result })
 }

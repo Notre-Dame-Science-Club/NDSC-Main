@@ -1,5 +1,8 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase'
+import { apiError, apiOk } from '@/lib/api/response'
+import { setSessionCookie, HOURS } from '@/lib/api/session-cookie'
+import { authCookies } from '@/lib/config/site'
 
 // Organizer auth is fully server-side now.
 // Previously the client fetched ALL olympiads + their plaintext organizer_password
@@ -12,7 +15,7 @@ export async function POST(req: NextRequest) {
   const { password } = await req.json().catch(() => ({ password: '' }))
 
   if (!password || typeof password !== 'string') {
-    return NextResponse.json({ error: 'Password is required.' }, { status: 400 })
+    return apiError('Password is required.', 400)
   }
 
   const { data, error } = await supabaseAdmin
@@ -21,7 +24,7 @@ export async function POST(req: NextRequest) {
     .eq('is_active', true)
 
   if (error) {
-    return NextResponse.json({ error: 'Could not verify password.' }, { status: 500 })
+    return apiError('Could not verify password.', 500)
   }
 
   const matches = (data || []).filter(
@@ -29,23 +32,15 @@ export async function POST(req: NextRequest) {
   )
 
   if (matches.length === 0) {
-    return NextResponse.json({ error: 'Incorrect organizer password.' }, { status: 401 })
+    return apiError('Incorrect organizer password.', 401)
   }
 
   const olympiadIds = matches.map((o: any) => o.id)
 
-  const res = NextResponse.json({
+  const res = apiOk({
     success: true,
     olympiads: matches.map((o: any) => ({ id: o.id, name: o.name, mode: o.mode })),
   })
 
-  res.cookies.set('organizer_session', JSON.stringify({ olympiadIds }), {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: 'lax',
-    maxAge: 60 * 60 * 12, // 12 hours
-    path: '/',
-  })
-
-  return res
+  return setSessionCookie(res, authCookies.organizer, { olympiadIds }, 12 * HOURS)
 }

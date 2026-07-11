@@ -1,2 +1,4 @@
 node_modules
 .next
+*.zip
+*.7z

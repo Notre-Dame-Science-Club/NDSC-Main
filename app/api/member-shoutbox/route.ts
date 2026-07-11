@@ -1,5 +1,6 @@
 import { supabaseAdmin } from '@/lib/supabase'
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest } from 'next/server'
+import { apiError, apiOk } from '@/lib/api/response'
 
 // Members-only live feed shown on the dashboard Home tab. Distinct from:
 //   - NDSCBot (the public AI assistant widget)
@@ -25,7 +26,7 @@ async function getMemberFromRequest(req: NextRequest) {
 
 export async function GET(req: NextRequest) {
   const user = await getMemberFromRequest(req)
-  if (!user) return NextResponse.json({ error: 'Unauthorized. Please log in again.' }, { status: 401 })
+  if (!user) return apiError('Unauthorized. Please log in again.', 401)
 
   const { data, error } = await supabaseAdmin
     .from('member_shoutbox')
@@ -33,20 +34,20 @@ export async function GET(req: NextRequest) {
     .order('created_at', { ascending: false })
     .limit(FEED_LIMIT)
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 400 })
-  return NextResponse.json({ posts: data || [] })
+  if (error) return apiError(error, 400)
+  return apiOk({ posts: data || [] })
 }
 
 export async function POST(req: NextRequest) {
   const user = await getMemberFromRequest(req)
-  if (!user) return NextResponse.json({ error: 'Unauthorized. Please log in again.' }, { status: 401 })
+  if (!user) return apiError('Unauthorized. Please log in again.', 401)
 
   const body = await req.json().catch(() => null)
   const message = typeof body?.message === 'string' ? body.message.trim() : ''
 
-  if (!message) return NextResponse.json({ error: 'Message cannot be empty.' }, { status: 400 })
+  if (!message) return apiError('Message cannot be empty.', 400)
   if (message.length > MAX_MESSAGE_LENGTH) {
-    return NextResponse.json({ error: `Message must be under ${MAX_MESSAGE_LENGTH} characters.` }, { status: 400 })
+    return apiError(`Message must be under ${MAX_MESSAGE_LENGTH} characters.`, 400)
   }
 
   // Confirm this is a verified member (not just any authenticated auth.user)
@@ -58,7 +59,7 @@ export async function POST(req: NextRequest) {
     .single()
 
   if (memberError || !member || !member.is_verified) {
-    return NextResponse.json({ error: 'Only verified members can post.' }, { status: 403 })
+    return apiError('Only verified members can post.', 403)
   }
 
   const { data, error } = await supabaseAdmin
@@ -67,6 +68,6 @@ export async function POST(req: NextRequest) {
     .select()
     .single()
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 400 })
-  return NextResponse.json({ post: data })
+  if (error) return apiError(error, 400)
+  return apiOk({ post: data })
 }

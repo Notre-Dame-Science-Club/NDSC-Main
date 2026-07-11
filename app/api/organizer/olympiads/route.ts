@@ -1,13 +1,13 @@
-import { NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase'
 import { getOrganizerSession } from '@/lib/organizerAuth'
+import { apiError, apiOk } from '@/lib/api/response'
 
 export const dynamic = 'force-dynamic'
 
 export async function GET() {
   const session = await getOrganizerSession()
   if (!session || session.olympiadIds.length === 0) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    return apiError('Unauthorized', 401)
   }
 
   const { data, error } = await supabaseAdmin
@@ -16,8 +16,8 @@ export async function GET() {
     .in('id', session.olympiadIds)
 
   if (error) {
-    return NextResponse.json({ error: 'Could not load olympiads.' }, { status: 500 })
+    return apiError('Could not load olympiads.', 500)
   }
 
-  return NextResponse.json({ olympiads: data || [] })
+  return apiOk({ olympiads: data || [] })
 }

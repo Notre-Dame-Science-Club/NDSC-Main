@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useRef, useState, useCallback } from "react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faRobot, faTimes } from "@fortawesome/free-solid-svg-icons";
+import { faRobot, faTimes, faPaperPlane } from "@fortawesome/free-solid-svg-icons";
 
 const WORKER_URL =
   process.env.NEXT_PUBLIC_WORKER_URL ||
@@ -326,7 +326,7 @@ export default function NDSCBot() {
                 lineHeight: 1, flexShrink: 0,
               }}
               aria-label="Close"
-            >✕</button>
+            ><FontAwesomeIcon icon={faTimes} /></button>
           </div>
 
           {/* Messages */}
@@ -436,9 +436,9 @@ export default function NDSCBot() {
                   cursor: input.trim() && !loading && !streaming ? "pointer" : "default",
                   display: "flex", alignItems: "center", justifyContent: "center",
                   color: input.trim() && !loading && !streaming ? "#000" : "rgba(0,212,255,0.4)",
-                  fontSize: 16, transition: "all .25s", transform: "rotate(-45deg)",
+                  fontSize: 14, transition: "all .25s",
                 }}
-              >➤</button>
+              ><FontAwesomeIcon icon={faPaperPlane} /></button>
             </div>
             <p style={{
               margin: "6px 0 0", fontSize: 10,

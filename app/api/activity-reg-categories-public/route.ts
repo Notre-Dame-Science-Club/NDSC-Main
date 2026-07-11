@@ -1,5 +1,6 @@
 import { supabaseAdmin } from '@/lib/supabase'
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest } from 'next/server'
+import { apiError, apiOk } from '@/lib/api/response'
 
 // Public route — the multi-layer category picker on the registration page
 // fetches the tree through here. Safety check: only returns categories for
@@ -8,20 +9,20 @@ import { NextRequest, NextResponse } from 'next/server'
 // definitions) could be probed even after registration closed.
 export async function GET(req: NextRequest) {
   const slug = req.nextUrl.searchParams.get('slug')
-  if (!slug) return NextResponse.json({ error: 'slug is required.' }, { status: 400 })
+  if (!slug) return apiError('slug is required.', 400)
 
   const { data: session, error: sessionError } = await supabaseAdmin
     .from('activity_sessions')
-    .select('id, title, slug, description, cover_image_url, is_upcoming, registration_enabled, registration_note')
+    .select('id, title, slug, description, cover_image_url, is_upcoming, registration_enabled, registration_note, bg_color')
     .eq('slug', slug)
     .eq('is_published', true)
     .single()
 
   if (sessionError || !session) {
-    return NextResponse.json({ error: 'Activity not found.' }, { status: 404 })
+    return apiError('Activity not found.', 404)
   }
   if (!session.is_upcoming || !session.registration_enabled) {
-    return NextResponse.json({ error: 'Registration is not open for this activity.' }, { status: 403 })
+    return apiError('Registration is not open for this activity.', 403)
   }
 
   const { data: categories, error: catError } = await supabaseAdmin
@@ -30,7 +31,7 @@ export async function GET(req: NextRequest) {
     .eq('activity_session_id', session.id)
     .order('display_order', { ascending: true })
 
-  if (catError) return NextResponse.json({ error: catError.message }, { status: 400 })
+  if (catError) return apiError(catError, 400)
 
   // Drop any category whose registration is closed, AND every descendant
   // under it (closing a primary field closes everything nested inside it
@@ -46,5 +47,5 @@ export async function GET(req: NextRequest) {
   }
   const visible = all.filter((c: any) => !closedIds.has(c.id))
 
-  return NextResponse.json({ session, categories: visible })
+  return apiOk({ session, categories: visible })
 }

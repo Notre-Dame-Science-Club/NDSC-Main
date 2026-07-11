@@ -1,5 +1,6 @@
 import { supabaseAdmin } from '@/lib/supabase'
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest } from 'next/server'
+import { apiError, apiOk } from '@/lib/api/response'
 
 // Starts an SSLCommerz payment session for an activity registration that
 // requires payment. Returns the hosted GatewayPageURL for the client to
@@ -16,7 +17,7 @@ import { NextRequest, NextResponse } from 'next/server'
 export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => null)
   if (!body?.registration_id) {
-    return NextResponse.json({ error: 'registration_id is required.' }, { status: 400 })
+    return apiError('registration_id is required.', 400)
   }
 
   const { data: registration, error: regError } = await supabaseAdmin
@@ -26,13 +27,13 @@ export async function POST(req: NextRequest) {
     .single()
 
   if (regError || !registration) {
-    return NextResponse.json({ error: 'Registration not found.' }, { status: 404 })
+    return apiError('Registration not found.', 404)
   }
   if (registration.payment_status === 'paid') {
-    return NextResponse.json({ error: 'This registration has already been paid for.' }, { status: 400 })
+    return apiError('This registration has already been paid for.', 400)
   }
   if (!registration.payment_amount) {
-    return NextResponse.json({ error: 'No payment amount set for this registration.' }, { status: 400 })
+    return apiError('No payment amount set for this registration.', 400)
   }
 
   const storeId = process.env.SSLCOMMERZ_STORE_ID || 'testbox'
@@ -86,11 +87,11 @@ export async function POST(req: NextRequest) {
     const data = await res.json()
 
     if (data.status !== 'SUCCESS' || !data.GatewayPageURL) {
-      return NextResponse.json({ error: data.failedreason || 'Could not start payment session.' }, { status: 400 })
+      return apiError(data.failedreason || 'Could not start payment session.', 400)
     }
 
-    return NextResponse.json({ gatewayUrl: data.GatewayPageURL, tran_id: tranId })
+    return apiOk({ gatewayUrl: data.GatewayPageURL, tran_id: tranId })
   } catch (e: any) {
-    return NextResponse.json({ error: e?.message || 'Could not reach the payment gateway.' }, { status: 502 })
+    return apiError(e?.message || 'Could not reach the payment gateway.', 502)
   }
 }

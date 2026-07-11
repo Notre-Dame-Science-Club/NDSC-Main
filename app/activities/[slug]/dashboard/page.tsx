@@ -2,7 +2,7 @@
 import { useEffect, useState, useRef } from 'react'
 import { useParams, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
-import { ArrowLeft, Calendar, MapPin, Clock, Edit2, Save, Users, Upload, CheckCircle, FileText, ExternalLink, BookOpen, Play } from 'lucide-react'
+import { ArrowLeft, Calendar, MapPin, Clock, Edit2, Save, Users, Upload, CheckCircle, FileText, ExternalLink, BookOpen, Play, XCircle, AlertTriangle, CreditCard, Ban, Pause, X, Hourglass, Microscope } from 'lucide-react'
 
 const inputStyle = { background: 'rgba(255,255,255,0.04)', border: '1px solid var(--border)', color: 'var(--white)' }
 const inputCls = 'w-full px-3 py-2.5 rounded-lg text-sm outline-none'
@@ -65,6 +65,7 @@ export default function ActivityDashboardPage() {
   const [selectedSubject, setSelectedSubject] = useState<string>('')
   const [examScheduledStart, setExamScheduledStart] = useState<string | null>(null)
   const [examStarted, setExamStarted] = useState(false)
+  const [showFullDesc, setShowFullDesc] = useState(false)
 
   const loadRegistration = async (id: string) => {
     setLoading(true)
@@ -276,7 +277,7 @@ export default function ActivityDashboardPage() {
           <Link href={`/activities/${slug}`} className="inline-flex items-center gap-2 text-sm mb-6" style={{ color: 'var(--muted)' }}>
             <ArrowLeft size={14} /> Back to activity
           </Link>
-          {error && <p className="text-sm mb-4" style={{ color: '#ff7070' }}>{error}</p>}
+          {error && <p className="text-sm mb-4" style={{ color: 'var(--danger-soft)' }}>{error}</p>}
           {!showTeamLogin ? (
             <div className="rounded-2xl p-6 border text-center" style={{ background: 'var(--bg2)', borderColor: 'var(--border)' }}>
               <p className="text-sm mb-4" style={{ color: 'var(--white)' }}>We couldn't find your registration on this device.</p>
@@ -291,7 +292,7 @@ export default function ActivityDashboardPage() {
                 <input placeholder="Email" value={teamEmail} onChange={e => setTeamEmail(e.target.value)} className={inputCls} style={inputStyle} />
                 <input type="password" placeholder="Password" value={teamPassword} onChange={e => setTeamPassword(e.target.value)} className={inputCls} style={inputStyle} />
               </div>
-              {teamLoginError && <p className="text-xs mt-2" style={{ color: '#ff7070' }}>{teamLoginError}</p>}
+              {teamLoginError && <p className="text-xs mt-2" style={{ color: 'var(--danger-soft)' }}>{teamLoginError}</p>}
               <button onClick={teamLogin} disabled={teamLoginLoading}
                 className="w-full mt-3 py-2.5 rounded-lg text-sm font-bold text-black disabled:opacity-60" style={{ background: 'var(--blue)' }}>
                 {teamLoginLoading ? 'Logging in...' : 'Log In'}
@@ -327,46 +328,68 @@ export default function ActivityDashboardPage() {
   const examEnded = olympiad?.scheduled_end_at && new Date(olympiad.scheduled_end_at) < new Date()
 
   return (
-    <div className="min-h-screen py-12 px-4" style={{ background: 'var(--bg)', paddingTop: '88px' }}>
+    <div className="min-h-screen py-12 px-4" style={{ background: session?.bg_color || 'var(--bg)', paddingTop: '88px' }}>
       <div className="max-w-lg mx-auto space-y-5">
 
         <Link href={`/activities/${slug}`} className="inline-flex items-center gap-2 text-sm" style={{ color: 'var(--muted)' }}>
           <ArrowLeft size={14} /> Back to activity
         </Link>
 
+        {session?.cover_image_url && (
+          <div className="rounded-2xl overflow-hidden border" style={{ borderColor: 'var(--border)' }}>
+            <img src={session.cover_image_url} alt="" style={{ width: '100%', maxHeight: '200px', objectFit: 'cover' }} />
+          </div>
+        )}
+
         <div>
           <h1 className="text-2xl font-black mb-1" style={{ fontFamily: "'Orbitron', sans-serif", color: 'var(--white)' }}>
             {session?.title}
           </h1>
           <p className="text-sm" style={{ color: 'var(--muted)' }}>{category?.name}</p>
+          {session?.description && (
+            <div className="mt-2">
+              <p className="text-sm leading-relaxed" style={{ color: 'var(--muted)' }}>
+                {session.description.length > 220 && !showFullDesc
+                  ? `${session.description.slice(0, 220).trim()}…`
+                  : session.description}
+              </p>
+              {session.description.length > 220 && (
+                <button onClick={() => setShowFullDesc(s => !s)} className="text-xs font-semibold mt-1" style={{ color: 'var(--blue)' }}>
+                  {showFullDesc ? 'Show less' : 'Show more'}
+                </button>
+              )}
+            </div>
+          )}
           {registration.project_name && (
-            <p className="text-sm mt-1 font-semibold" style={{ color: 'var(--blue)' }}>🔬 {registration.project_name}</p>
+            <p className="text-sm mt-1 font-semibold flex items-center gap-1.5" style={{ color: 'var(--blue)' }}><Microscope size={14} /> {registration.project_name}</p>
           )}
           {viewingMember && (
-            <span className="text-xs mt-1 px-2.5 py-1 rounded-full inline-block" style={{ background: 'rgba(167,139,250,0.1)', color: '#a78bfa' }}>
+            <span className="text-xs mt-1 px-2.5 py-1 rounded-full inline-block" style={{ background: 'rgba(var(--accent2-rgb), 0.1)', color: 'var(--accent2)' }}>
               Viewing as: {viewingMember.full_name}
             </span>
           )}
         </div>
 
-        {error && <p className="text-sm" style={{ color: '#ff7070' }}>{error}</p>}
+        {error && <p className="text-sm" style={{ color: 'var(--danger-soft)' }}>{error}</p>}
 
         {paymentRedirectStatus && (
           <div className="rounded-xl p-4 text-sm" style={{
-            background: paymentRedirectStatus === 'success' ? 'rgba(0,255,128,0.08)' : 'rgba(255,80,80,0.08)',
-            color: paymentRedirectStatus === 'success' ? '#00ff80' : '#ff7070',
-            border: `1px solid ${paymentRedirectStatus === 'success' ? 'rgba(0,255,128,0.25)' : 'rgba(255,80,80,0.25)'}`,
-          }}>
-            {paymentRedirectStatus === 'success' && '✅ Payment received! It may take a moment to fully confirm below.'}
-            {paymentRedirectStatus === 'failed' && '❌ Payment failed. You can try again from your dashboard.'}
-            {paymentRedirectStatus === 'cancelled' && '⚠️ Payment was cancelled.'}
+            background: paymentRedirectStatus === 'success' ? 'rgba(var(--success-rgb), 0.08)' : 'rgba(var(--danger-rgb), 0.08)',
+            color: paymentRedirectStatus === 'success' ? 'var(--success)' : 'var(--danger-soft)',
+            border: `1px solid ${paymentRedirectStatus === 'success' ? 'rgba(var(--success-rgb), 0.25)' : 'rgba(var(--danger-rgb), 0.25)'}`,
+          }} >
+            <span className="inline-flex items-center gap-1.5">
+              {paymentRedirectStatus === 'success' && <><CheckCircle size={14} /> Payment received! It may take a moment to fully confirm below.</>}
+              {paymentRedirectStatus === 'failed' && <><XCircle size={14} /> Payment failed. You can try again from your dashboard.</>}
+              {paymentRedirectStatus === 'cancelled' && <><AlertTriangle size={14} /> Payment was cancelled.</>}
+            </span>
           </div>
         )}
 
         {/* ── Schedule ──────────────────────────────────────────────────── */}
         {category?.schedule_date && (
-          <div className="rounded-xl p-4 space-y-1.5" style={{ background: 'rgba(52,211,153,0.08)', border: '1px solid rgba(52,211,153,0.25)' }}>
-            <p className="text-sm font-bold flex items-center gap-2" style={{ color: '#34d399' }}>
+          <div className="rounded-xl p-4 space-y-1.5" style={{ background: 'rgba(var(--cat-teal-rgb), 0.08)', border: '1px solid rgba(var(--cat-teal-rgb), 0.25)' }}>
+            <p className="text-sm font-bold flex items-center gap-2" style={{ color: 'var(--cat-teal)' }}>
               <Calendar size={14} /> Your Schedule
             </p>
             <p className="text-sm" style={{ color: 'var(--white)' }}>
@@ -380,11 +403,11 @@ export default function ActivityDashboardPage() {
         {/* ── Payment ───────────────────────────────────────────────────── */}
         {registration.payment_status !== 'not_required' && (
           <div className="rounded-xl p-4" style={{
-            background: registration.payment_status === 'paid' ? 'rgba(0,255,128,0.08)' : 'rgba(255,179,71,0.08)',
-            border: `1px solid ${registration.payment_status === 'paid' ? 'rgba(0,255,128,0.25)' : 'rgba(255,179,71,0.25)'}`,
+            background: registration.payment_status === 'paid' ? 'rgba(var(--success-rgb), 0.08)' : 'rgba(var(--warning-rgb), 0.08)',
+            border: `1px solid ${registration.payment_status === 'paid' ? 'rgba(var(--success-rgb), 0.25)' : 'rgba(var(--warning-rgb), 0.25)'}`,
           }}>
-            <p className="text-sm font-bold" style={{ color: registration.payment_status === 'paid' ? '#00ff80' : '#ffb347' }}>
-              💳 Payment: {registration.payment_status === 'paid' ? 'Completed ✓' : registration.payment_status === 'pending' ? 'Pending verification' : 'Failed'}
+            <p className="text-sm font-bold flex items-center gap-1.5" style={{ color: registration.payment_status === 'paid' ? 'var(--success)' : 'var(--warning)' }}>
+              <CreditCard size={14} /> Payment: {registration.payment_status === 'paid' ? <>Completed <CheckCircle size={13} /></> : registration.payment_status === 'pending' ? 'Pending verification' : 'Failed'}
             </p>
             {registration.payment_amount && <p className="text-xs mt-1" style={{ color: 'var(--muted)' }}>৳{registration.payment_amount}</p>}
           </div>
@@ -392,14 +415,14 @@ export default function ActivityDashboardPage() {
 
         {/* ── Online Submission / Exam Section ─────────────────────────── */}
         {category?.is_online_submission && (
-          <div className="rounded-xl p-5 space-y-4" style={{ background: 'rgba(0,212,255,0.05)', border: '1px solid rgba(0,212,255,0.25)' }}>
+          <div className="rounded-xl p-5 space-y-4" style={{ background: 'rgba(var(--blue-rgb), 0.05)', border: '1px solid rgba(var(--blue-rgb), 0.25)' }}>
             <p className="text-sm font-bold flex items-center gap-2" style={{ color: 'var(--blue)', fontFamily: "'Orbitron', sans-serif" }}>
               <ExternalLink size={14} /> Online Round
             </p>
 
             {/* Exam scheduled but not started yet */}
             {examNotYetStarted && (
-              <div className="text-sm" style={{ color: '#ffb347' }}>
+              <div className="text-sm" style={{ color: 'var(--warning)' }}>
                 ⏳ Exam starts in: <strong><Countdown target={examScheduledStart!} /></strong>
                 <br /><span style={{ color: 'var(--muted)', fontSize: '0.75rem' }}>
                   {new Date(examScheduledStart!).toLocaleString('en-BD', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
@@ -409,7 +432,7 @@ export default function ActivityDashboardPage() {
 
             {/* Exam ended */}
             {examEnded && (
-              <p className="text-sm" style={{ color: '#ff7070' }}>⛔ Submission window has closed.</p>
+              <p className="text-sm flex items-center gap-1.5" style={{ color: 'var(--danger-soft)' }}><Ban size={14} /> Submission window has closed.</p>
             )}
 
             {/* Subject assignment */}
@@ -442,10 +465,10 @@ export default function ActivityDashboardPage() {
                   const isCurrent = i === relayCurrentIndex
                   return (
                     <div key={m.id} className="flex items-center gap-2">
-                      <span style={{ color: done ? '#34d399' : isCurrent ? 'var(--blue)' : 'var(--muted)' }}>
-                        {done ? '✅' : isCurrent ? '▶' : '⏸'}
+                      <span style={{ color: done ? 'var(--cat-teal)' : isCurrent ? 'var(--blue)' : 'var(--muted)' }} className="inline-flex items-center">
+                        {done ? <CheckCircle size={14} /> : isCurrent ? <Play size={13} fill="currentColor" /> : <Pause size={13} />}
                       </span>
-                      <span style={{ color: done ? '#34d399' : isCurrent ? 'var(--white)' : 'var(--muted)' }}>
+                      <span style={{ color: done ? 'var(--cat-teal)' : isCurrent ? 'var(--white)' : 'var(--muted)' }}>
                         {m.full_name} {i === 0 ? '(Leader)' : ''}
                       </span>
                     </div>
@@ -456,7 +479,7 @@ export default function ActivityDashboardPage() {
 
             {/* Relay: not my turn yet */}
             {olympiad?.relay_mode && !isMyRelayTurn && !relayState?.completed_at && (
-              <p className="text-sm" style={{ color: '#ffb347' }}>
+              <p className="text-sm" style={{ color: 'var(--warning)' }}>
                 ⏳ Waiting for the previous team member to complete their round…
               </p>
             )}
@@ -482,16 +505,16 @@ export default function ActivityDashboardPage() {
             {/* File/text submission form */}
             {hasSubmissionConfig && canSubmit && !examNotYetStarted && !examEnded && isMyRelayTurn && (
               <div className="space-y-4">
-                <p className="text-sm font-semibold" style={{ color: 'var(--white)' }}>
-                  {mySubmission?.is_final ? '✅ Submitted' : mySubmission ? 'Update Submission' : 'Submit Now'}
+                <p className="text-sm font-semibold flex items-center gap-1.5" style={{ color: 'var(--white)' }}>
+                  {mySubmission?.is_final ? <><CheckCircle size={14} /> Submitted</> : mySubmission ? 'Update Submission' : 'Submit Now'}
                 </p>
 
                 {mySubmission?.is_final ? (
-                  <p className="text-xs" style={{ color: '#34d399' }}>Your submission is finalised and can no longer be changed.</p>
+                  <p className="text-xs" style={{ color: 'var(--cat-teal)' }}>Your submission is finalised and can no longer be changed.</p>
                 ) : (
                   <>
-                    {submitError && <p className="text-xs" style={{ color: '#ff7070' }}>{submitError}</p>}
-                    {submitSuccess && <p className="text-xs" style={{ color: '#34d399' }}>Saved successfully!</p>}
+                    {submitError && <p className="text-xs" style={{ color: 'var(--danger-soft)' }}>{submitError}</p>}
+                    {submitSuccess && <p className="text-xs" style={{ color: 'var(--cat-teal)' }}>Saved successfully!</p>}
 
                     {submissionConfig.map((field: any) => (
                       <div key={field.id}>
@@ -504,19 +527,19 @@ export default function ActivityDashboardPage() {
                           <div className="space-y-2">
                             {/* Existing uploaded files */}
                             {(Array.isArray(submissionAnswers[field.id]) ? submissionAnswers[field.id] : submissionAnswers[field.id] ? [submissionAnswers[field.id]] : []).map((url: string, idx: number) => (
-                              <div key={idx} className="flex items-center gap-2 text-xs px-3 py-2 rounded-lg" style={{ background: 'rgba(0,212,255,0.06)', border: '1px solid rgba(0,212,255,0.2)' }}>
+                              <div key={idx} className="flex items-center gap-2 text-xs px-3 py-2 rounded-lg" style={{ background: 'rgba(var(--blue-rgb), 0.06)', border: '1px solid rgba(var(--blue-rgb), 0.2)' }}>
                                 <FileText size={12} style={{ color: 'var(--blue)' }} />
                                 <span style={{ color: 'var(--white)', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                                   {url.split('/').pop()}
                                 </span>
                                 <a href={url} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--blue)' }}><ExternalLink size={11} /></a>
-                                <button onClick={() => removeFileFromField(field.id, idx)} style={{ color: '#ff7070' }}>✕</button>
+                                <button onClick={() => removeFileFromField(field.id, idx)} style={{ color: 'var(--danger-soft)' }}><X size={11} /></button>
                               </div>
                             ))}
                             {/* Upload button */}
                             {(Array.isArray(submissionAnswers[field.id]) ? submissionAnswers[field.id] : [submissionAnswers[field.id]].filter(Boolean)).length < (field.max_files || 1) && (
                               <label className="flex items-center gap-2 px-3 py-2.5 rounded-lg border cursor-pointer text-sm"
-                                style={{ ...inputStyle, color: uploadingField === field.id ? '#ffb347' : 'var(--blue)' }}>
+                                style={{ ...inputStyle, color: uploadingField === field.id ? 'var(--warning)' : 'var(--blue)' }}>
                                 <Upload size={14} />
                                 {uploadingField === field.id ? 'Uploading…' : `Upload ${field.field_type === 'file' ? (field.file_types?.join(', ') || 'file') : 'file'} (max ${field.max_file_size_mb || 5}MB)`}
                                 <input type="file"
@@ -540,17 +563,17 @@ export default function ActivityDashboardPage() {
                     <div className="flex gap-2 pt-1">
                       <button onClick={() => submitAnswers(false)} disabled={submitting}
                         className="flex-1 py-2.5 rounded-xl text-sm font-bold disabled:opacity-60"
-                        style={{ background: 'rgba(0,212,255,0.1)', color: 'var(--blue)', border: '1px solid rgba(0,212,255,0.3)' }}>
+                        style={{ background: 'rgba(var(--blue-rgb), 0.1)', color: 'var(--blue)', border: '1px solid rgba(var(--blue-rgb), 0.3)' }}>
                         {submitting ? 'Saving…' : 'Save Draft'}
                       </button>
                       <button onClick={() => submitAnswers(true)} disabled={submitting}
                         className="flex-1 py-2.5 rounded-xl text-sm font-bold text-black disabled:opacity-60"
                         style={{ background: 'var(--blue)', fontFamily: "'Orbitron', sans-serif" }}>
-                        {submitting ? 'Submitting…' : 'Submit Final ✓'}
+                        {submitting ? 'Submitting…' : <>Submit Final <CheckCircle size={13} /></>}
                       </button>
                     </div>
-                    <p className="text-xs" style={{ color: 'var(--muted)' }}>
-                      ⚠️ Final submission cannot be changed. Save as draft to continue later.
+                    <p className="text-xs flex items-start gap-1" style={{ color: 'var(--muted)' }}>
+                      <AlertTriangle size={12} className="shrink-0 mt-0.5" /> Final submission cannot be changed. Save as draft to continue later.
                     </p>
                   </>
                 )}
@@ -577,7 +600,7 @@ export default function ActivityDashboardPage() {
                 </button>
               )}
             </div>
-            {!editWindowOpen && <p className="text-xs mb-3" style={{ color: '#ffb347' }}>The edit window for this registration has closed.</p>}
+            {!editWindowOpen && <p className="text-xs mb-3" style={{ color: 'var(--warning)' }}>The edit window for this registration has closed.</p>}
             {editing ? (
               <div className="space-y-2">
                 {(['full_name', 'phone', 'email', 'college', 'college_roll', 'hsc_session'] as const).map(key => (
@@ -606,18 +629,18 @@ export default function ActivityDashboardPage() {
         {/* ── Team Members ──────────────────────────────────────────────── */}
         {(registration.team_members || []).length > 0 && (
           <div className="rounded-xl p-5" style={{ background: 'var(--bg2)', border: '1px solid var(--border)' }}>
-            <p className="text-sm font-bold flex items-center gap-2 mb-3" style={{ color: '#a78bfa' }}>
+            <p className="text-sm font-bold flex items-center gap-2 mb-3" style={{ color: 'var(--accent2)' }}>
               <Users size={14} /> Team Members
             </p>
             <div className="space-y-2">
               {registration.team_members.map((m: any) => (
                 <div key={m.id} className="flex items-center justify-between text-sm">
-                  <span style={{ color: m.id === viewAsTeamMemberId ? '#a78bfa' : 'var(--white)' }}>
-                    {m.full_name} {m.id === viewAsTeamMemberId && <span style={{ color: '#a78bfa' }}>(you)</span>}
+                  <span style={{ color: m.id === viewAsTeamMemberId ? 'var(--accent2)' : 'var(--white)' }}>
+                    {m.full_name} {m.id === viewAsTeamMemberId && <span style={{ color: 'var(--accent2)' }}>(you)</span>}
                   </span>
                   {relayState && (
-                    <span className="text-xs" style={{ color: (relayState.member_submissions as any[]).find((s: any) => s.member_id === m.id) ? '#34d399' : 'var(--muted)' }}>
-                      {(relayState.member_submissions as any[]).find((s: any) => s.member_id === m.id) ? '✅ Done' : '⏳ Pending'}
+                    <span className="text-xs inline-flex items-center gap-1" style={{ color: (relayState.member_submissions as any[]).find((s: any) => s.member_id === m.id) ? 'var(--cat-teal)' : 'var(--muted)' }}>
+                      {(relayState.member_submissions as any[]).find((s: any) => s.member_id === m.id) ? <><CheckCircle size={12} /> Done</> : <><Hourglass size={12} /> Pending</>}
                     </span>
                   )}
                 </div>

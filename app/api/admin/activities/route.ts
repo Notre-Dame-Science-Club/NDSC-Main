@@ -1,19 +1,8 @@
 import { supabaseAdmin } from '@/lib/supabase'
-import { NextRequest, NextResponse } from 'next/server'
-import { cookies } from 'next/headers'
-
-async function isAdmin() {
-  const cookieStore = await cookies()
-  return !!cookieStore.get('admin_session')
-}
-
-function makeSlug(title: string) {
-  return title
-    .toLowerCase()
-    .replace(/[^a-z0-9\s-]/g, '')
-    .replace(/\s+/g, '-')
-    .slice(0, 60) + '-' + Date.now()
-}
+import { NextRequest } from 'next/server'
+import { requireAdmin } from '@/lib/api/admin-auth'
+import { apiError, apiOk } from '@/lib/api/response'
+import { makeSlug } from '@/lib/utils/slug'
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url)
@@ -29,12 +18,13 @@ export async function GET(req: NextRequest) {
   if (status) query = query.eq('status', status)
 
   const { data, error } = await query
-  if (error) return NextResponse.json({ error: error.message }, { status: 400 })
-  return NextResponse.json(data)
+  if (error) return apiError(error, 400)
+  return apiOk(data)
 }
 
 export async function POST(req: NextRequest) {
-  if (!await isAdmin()) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const unauthorized = await requireAdmin()
+  if (unauthorized) return unauthorized
   const body = await req.json()
   const slug = makeSlug(body.title)
   const { data, error } = await supabaseAdmin
@@ -42,12 +32,13 @@ export async function POST(req: NextRequest) {
     .insert({ ...body, slug })
     .select()
     .single()
-  if (error) return NextResponse.json({ error: error.message }, { status: 400 })
-  return NextResponse.json(data)
+  if (error) return apiError(error, 400)
+  return apiOk(data)
 }
 
 export async function PUT(req: NextRequest) {
-  if (!await isAdmin()) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const unauthorized = await requireAdmin()
+  if (unauthorized) return unauthorized
   const body = await req.json()
   const { id, ...rest } = body
   const { data, error } = await supabaseAdmin
@@ -56,17 +47,18 @@ export async function PUT(req: NextRequest) {
     .eq('id', id)
     .select()
     .single()
-  if (error) return NextResponse.json({ error: error.message }, { status: 400 })
-  return NextResponse.json(data)
+  if (error) return apiError(error, 400)
+  return apiOk(data)
 }
 
 export async function DELETE(req: NextRequest) {
-  if (!await isAdmin()) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const unauthorized = await requireAdmin()
+  if (unauthorized) return unauthorized
   const { id } = await req.json()
   const { error } = await supabaseAdmin
     .from('activities')
     .delete()
     .eq('id', id)
-  if (error) return NextResponse.json({ error: error.message }, { status: 400 })
-  return NextResponse.json({ success: true })
+  if (error) return apiError(error, 400)
+  return apiOk({ success: true })
 }

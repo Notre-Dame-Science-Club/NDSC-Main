@@ -1,6 +1,8 @@
 import { supabaseAdmin } from '@/lib/supabase'
-import { NextRequest, NextResponse } from 'next/server'
-import { cookies } from 'next/headers'
+import { NextRequest } from 'next/server'
+import { apiError, apiOk } from '@/lib/api/response'
+import { setSessionCookie, HOURS } from '@/lib/api/session-cookie'
+import { authCookies } from '@/lib/config/site'
 
 // Simple password — store this in .env as ADMIN_PASSWORD
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'changeme123'
@@ -9,10 +11,9 @@ export async function POST(req: NextRequest) {
   const { email, password } = await req.json()
 
   if (password !== ADMIN_PASSWORD) {
-    return NextResponse.json({ error: 'Invalid credentials' }, { status: 401 })
+    return apiError('Invalid credentials', 401)
   }
 
-  // Check if email exists in admins table
   const { data, error } = await supabaseAdmin
     .from('admins')
     .select('*')
@@ -20,16 +21,9 @@ export async function POST(req: NextRequest) {
     .single()
 
   if (error || !data) {
-    return NextResponse.json({ error: 'Access denied. Not an admin.' }, { status: 403 })
+    return apiError('Access denied. Not an admin.', 403)
   }
 
-  // Set a simple cookie to mark admin session
-  const res = NextResponse.json({ success: true })
-  res.cookies.set('admin_session', JSON.stringify({ email, role: data.role }), {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    maxAge: 60 * 60 * 8, // 8 hours
-    path: '/',
-  })
-  return res
+  const res = apiOk({ success: true })
+  return setSessionCookie(res, authCookies.admin, { email, role: data.role }, 8 * HOURS)
 }

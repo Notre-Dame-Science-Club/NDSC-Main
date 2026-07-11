@@ -1,5 +1,7 @@
 "use client";
 import { useState, useEffect, useCallback } from "react";
+import { X, Check, Pencil, Trash2, FileText, Images, CalendarClock, ClipboardCheck, Play } from "lucide-react";
+import { ActivityIcon, ACTIVITY_ICON_OPTIONS } from "@/lib/activityIcons";
 
 type ActivityType = {
   id: string; name: string; slug: string; icon: string;
@@ -16,13 +18,13 @@ type ActivitySession = {
   description: string; cover_image_url: string; youtube_url: string;
   pdf_url: string; gallery_urls: string[]; is_published: boolean;
   is_upcoming?: boolean; registration_enabled?: boolean; registration_note?: string;
-  event_dates?: string[];
+  event_dates?: string[]; bg_color?: string | null;
 };
 
-const S = { background: "#050d1a", border: "#0f2a4a", card: "#071220",
-  accent: "#00d4ff", text: "#e8f4ff", muted: "#6a8faf", danger: "#ff4757" };
+const S = { background: "var(--bg2)", border: "var(--border)", card: "var(--surface-deep)",
+  accent: "var(--blue)", text: "var(--white)", muted: "var(--muted)", danger: "var(--danger-soft)" };
 
-const ICON_OPTIONS = ["🔬","🎤","☀️","📚","🏆","📡","🧪","💡","🌍","🎯","🧬","⚗️","🔭","🎓"];
+const ICON_OPTIONS = ACTIVITY_ICON_OPTIONS;
 
 function Modal({ title, onClose, children }: { title: string; onClose: () => void; children: React.ReactNode }) {
   return (
@@ -33,7 +35,7 @@ function Modal({ title, onClose, children }: { title: string; onClose: () => voi
         onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-5">
           <h3 style={{ fontFamily: "'Orbitron',sans-serif", color: S.accent, fontSize: 16 }}>{title}</h3>
-          <button onClick={onClose} style={{ color: S.muted, fontSize: 20 }} className="hover:text-white">✕</button>
+          <button onClick={onClose} style={{ color: S.muted }} className="hover:text-white"><X size={20} /></button>
         </div>
         {children}
       </div>
@@ -51,7 +53,7 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
 }
 
 const inputCls = "w-full rounded-lg px-3 py-2 text-sm outline-none focus:ring-1";
-const inputStyle = { background: "#050d1a", border: `1px solid ${S.border}`, color: S.text } as React.CSSProperties;
+const inputStyle = { background: "var(--bg2)", border: `1px solid ${S.border}`, color: S.text } as React.CSSProperties;
 
 async function uploadFile(file: File, folder: string): Promise<string> {
   const fd = new FormData();
@@ -68,7 +70,7 @@ function TypeForm({ initial, onSave, onClose }: {
 }) {
   const [form, setForm] = useState({
     name: initial?.name || "", slug: initial?.slug || "",
-    icon: initial?.icon || "🔬", description: initial?.description || "",
+    icon: initial?.icon || "microscope", description: initial?.description || "",
     display_order: initial?.display_order ?? 0,
   });
   const [saving, setSaving] = useState(false);
@@ -103,10 +105,11 @@ function TypeForm({ initial, onSave, onClose }: {
         <div className="flex flex-wrap gap-2">
           {ICON_OPTIONS.map(ic => (
             <button key={ic} onClick={() => setForm(p => ({ ...p, icon: ic }))}
-              className="w-9 h-9 rounded-lg text-xl flex items-center justify-center"
+              className="w-9 h-9 rounded-lg flex items-center justify-center"
               style={{ background: form.icon === ic ? S.accent + "30" : S.background,
-                border: `1px solid ${form.icon === ic ? S.accent : S.border}` }}>
-              {ic}
+                border: `1px solid ${form.icon === ic ? S.accent : S.border}`,
+                color: form.icon === ic ? S.accent : S.muted }}>
+              <ActivityIcon icon={ic} size={17} />
             </button>
           ))}
         </div>
@@ -225,6 +228,7 @@ function SessionForm({ typeId, versionId, versions, initial, onSave, onClose }: 
     registration_enabled: initial?.registration_enabled ?? false,
     registration_note: initial?.registration_note || "",
     event_dates: initial?.event_dates || [] as string[],
+    bg_color: initial?.bg_color || "",
   });
   const [newEventDate, setNewEventDate] = useState("");
   const [uploading, setUploading] = useState("");
@@ -271,6 +275,7 @@ function SessionForm({ typeId, versionId, versions, initial, onSave, onClose }: 
         registration_enabled: form.is_upcoming ? form.registration_enabled : false,
         registration_note: form.registration_note,
         event_dates: form.event_dates,
+        bg_color: form.bg_color || null,
       };
       // only send version if selected
       if (form.activity_version_id) {
@@ -337,9 +342,9 @@ function SessionForm({ typeId, versionId, versions, initial, onSave, onClose }: 
           <div className="flex flex-wrap gap-2">
             {form.event_dates.map(d => (
               <span key={d} className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs"
-                style={{ background: "#00d4ff15", color: S.accent }}>
+                style={{ background: "rgba(var(--blue-rgb), 0.08)", color: S.accent }}>
                 {new Date(d).toLocaleDateString("en-BD", { month: "short", day: "numeric" })}
-                <button onClick={() => setForm(p => ({ ...p, event_dates: p.event_dates.filter(x => x !== d) }))}>✕</button>
+                <button onClick={() => setForm(p => ({ ...p, event_dates: p.event_dates.filter(x => x !== d) }))}><X size={12} /></button>
               </span>
             ))}
           </div>
@@ -363,6 +368,30 @@ function SessionForm({ typeId, versionId, versions, initial, onSave, onClose }: 
             className="text-xs" style={{ color: S.muted }} />
           {uploading === "cover_image_url" && <span className="text-xs" style={{ color: S.accent }}>Uploading…</span>}
         </div>
+      </Field>
+
+      <Field label="Registration Page Background">
+        <div className="flex items-center gap-2 flex-wrap">
+          {[
+            { value: "", label: "Default", swatch: "var(--bg)" },
+            { value: "#0f172a", label: "Midnight", swatch: "#0f172a" },
+            { value: "#1a1030", label: "Violet", swatch: "#1a1030" },
+            { value: "#0d211d", label: "Forest", swatch: "#0d211d" },
+            { value: "#2a1210", label: "Ember", swatch: "#2a1210" },
+          ].map(t => (
+            <button key={t.value} type="button" onClick={() => setForm(p => ({ ...p, bg_color: t.value }))}
+              className="w-7 h-7 rounded-full border-2 flex items-center justify-center"
+              style={{ background: t.swatch, borderColor: form.bg_color === t.value ? "#fff" : "transparent" }}
+              title={t.label}>
+              {form.bg_color === t.value && <Check size={12} style={{ color: "#fff" }} strokeWidth={3} />}
+            </button>
+          ))}
+          <input type="color" value={form.bg_color?.startsWith("#") ? form.bg_color : "#0f172a"}
+            onChange={e => setForm(p => ({ ...p, bg_color: e.target.value }))}
+            className="w-7 h-7 rounded-full border-2 cursor-pointer"
+            style={{ borderColor: form.bg_color && !["", "#0f172a", "#1a1030", "#0d211d", "#2a1210"].includes(form.bg_color) ? "#fff" : "transparent", padding: 0, background: "none" }} />
+        </div>
+        <p className="text-xs mt-1" style={{ color: S.muted }}>Sets the page background for this event's registration &amp; dashboard pages. Leave on Default for the standard site background.</p>
       </Field>
 
       <Field label="YouTube URL">
@@ -389,8 +418,8 @@ function SessionForm({ typeId, versionId, versions, initial, onSave, onClose }: 
               <div key={i} className="relative">
                 <img src={url} className="h-14 w-20 object-cover rounded" alt="" />
                 <button onClick={() => setForm(p => ({ ...p, gallery_urls: p.gallery_urls.filter((_, j) => j !== i) }))}
-                  className="absolute -top-1 -right-1 w-5 h-5 rounded-full flex items-center justify-center text-xs"
-                  style={{ background: S.danger, color: "#fff" }}>✕</button>
+                  className="absolute -top-1 -right-1 w-5 h-5 rounded-full flex items-center justify-center"
+                  style={{ background: S.danger, color: "#fff" }}><X size={10} /></button>
               </div>
             ))}
           </div>
@@ -414,7 +443,7 @@ function SessionForm({ typeId, versionId, versions, initial, onSave, onClose }: 
       </Field>
 
       {form.is_upcoming && (
-        <div className="rounded-lg p-3 mb-3" style={{ background: "#00d4ff0a", border: `1px solid ${S.border}` }}>
+        <div className="rounded-lg p-3 mb-3" style={{ background: "rgba(var(--blue-rgb), 0.04)", border: `1px solid ${S.border}` }}>
           <label className="flex items-center gap-2 cursor-pointer mb-2">
             <input type="checkbox" checked={form.registration_enabled}
               onChange={e => setForm(p => ({ ...p, registration_enabled: e.target.checked }))} />
@@ -529,15 +558,15 @@ export default function ActivitiesAdminPage() {
                 style={{ background: selType?.id === t.id ? S.accent + "18" : S.background,
                   border: `1px solid ${selType?.id === t.id ? S.accent : S.border}` }}
                 onClick={() => selectType(t)}>
-                <span className="text-xl">{t.icon}</span>
+                <ActivityIcon icon={t.icon} size={20} style={{ color: S.accent }} />
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium truncate">{t.name}</p>
                   <p className="text-xs truncate" style={{ color: S.muted }}>/{t.slug}</p>
                 </div>
                 <div className="flex gap-1">
-                  <button style={btnGhost} onClick={e => { e.stopPropagation(); setEditing(t); setModal("type"); }}>✏️</button>
+                  <button style={btnGhost} onClick={e => { e.stopPropagation(); setEditing(t); setModal("type"); }}><Pencil size={14} /></button>
                   <button style={{ ...btnGhost, color: S.danger }}
-                    onClick={e => { e.stopPropagation(); del("/api/admin/activity-types", t.id, loadTypes); }}>🗑</button>
+                    onClick={e => { e.stopPropagation(); del("/api/admin/activity-types", t.id, loadTypes); }}><Trash2 size={14} /></button>
                 </div>
               </div>
             ))}
@@ -574,9 +603,9 @@ export default function ActivitiesAdminPage() {
                   </p>
                 </div>
                 <div className="flex gap-1">
-                  <button style={btnGhost} onClick={e => { e.stopPropagation(); setEditing(v); setModal("version"); }}>✏️</button>
+                  <button style={btnGhost} onClick={e => { e.stopPropagation(); setEditing(v); setModal("version"); }}><Pencil size={14} /></button>
                   <button style={{ ...btnGhost, color: S.danger }}
-                    onClick={e => { e.stopPropagation(); del("/api/admin/activity-versions", v.id, () => selType && loadVersions(selType.id)); }}>🗑</button>
+                    onClick={e => { e.stopPropagation(); del("/api/admin/activity-versions", v.id, () => selType && loadVersions(selType.id)); }}><Trash2 size={14} /></button>
                 </div>
               </div>
             ))}
@@ -614,19 +643,19 @@ export default function ActivitiesAdminPage() {
                           v{versions.find(v => v.id === s.activity_version_id)?.version_number || "?"}
                         </span>
                       )}
-                      {s.youtube_url && <span className="text-xs px-1.5 py-0.5 rounded" style={{ background: "#ff000022", color: "#ff6b6b" }}>▶ YT</span>}
-                      {s.pdf_url && <span className="text-xs px-1.5 py-0.5 rounded" style={{ background: "#e67e2222", color: "#e67e22" }}>📄 PDF</span>}
-                      {s.gallery_urls?.length > 0 && <span className="text-xs px-1.5 py-0.5 rounded" style={{ background: "#2ecc7122", color: "#2ecc71" }}>🖼 {s.gallery_urls.length}</span>}
+                      {s.youtube_url && <span className="text-xs px-1.5 py-0.5 rounded inline-flex items-center gap-1" style={{ background: "rgba(var(--danger-rgb), 0.13)", color: "var(--danger)" }}><Play size={10} fill="currentColor" /> YT</span>}
+                      {s.pdf_url && <span className="text-xs px-1.5 py-0.5 rounded inline-flex items-center gap-1" style={{ background: "rgba(var(--warning-rgb), 0.13)", color: "var(--warning)" }}><FileText size={10} /> PDF</span>}
+                      {s.gallery_urls?.length > 0 && <span className="text-xs px-1.5 py-0.5 rounded inline-flex items-center gap-1" style={{ background: "rgba(var(--success-rgb), 0.13)", color: "var(--success)" }}><Images size={10} /> {s.gallery_urls.length}</span>}
                       <span className="text-xs px-1.5 py-0.5 rounded"
-                        style={{ background: s.is_published ? "#00d4ff22" : "#6a8faf22",
+                        style={{ background: s.is_published ? "rgba(var(--blue-rgb), 0.13)" : "rgba(var(--muted-rgb), 0.13)",
                           color: s.is_published ? S.accent : S.muted }}>
                         {s.is_published ? "Live" : "Draft"}
                       </span>
                       {s.is_upcoming && (
-                        <span className="text-xs px-1.5 py-0.5 rounded" style={{ background: "#ffb34722", color: "#ffb347" }}>📅 Upcoming</span>
+                        <span className="text-xs px-1.5 py-0.5 rounded inline-flex items-center gap-1" style={{ background: "rgba(var(--warning-rgb), 0.13)", color: "var(--warning)" }}><CalendarClock size={10} /> Upcoming</span>
                       )}
                       {s.registration_enabled && (
-                        <span className="text-xs px-1.5 py-0.5 rounded" style={{ background: "#2ecc7122", color: "#2ecc71" }}>📝 Registration ON</span>
+                        <span className="text-xs px-1.5 py-0.5 rounded inline-flex items-center gap-1" style={{ background: "rgba(var(--success-rgb), 0.13)", color: "var(--success)" }}><ClipboardCheck size={10} /> Registration ON</span>
                       )}
                     </div>
                     {s.registration_enabled && (
@@ -637,9 +666,9 @@ export default function ActivitiesAdminPage() {
                     )}
                   </div>
                   <div className="flex gap-1">
-                    <button style={btnGhost} onClick={() => { setEditing(s); setModal("session"); }}>✏️</button>
+                    <button style={btnGhost} onClick={() => { setEditing(s); setModal("session"); }}><Pencil size={14} /></button>
                     <button style={{ ...btnGhost, color: S.danger }}
-                      onClick={() => del("/api/admin/activity-sessions", s.id, () => selType && loadSessions(selType.id))}>🗑</button>
+                      onClick={() => del("/api/admin/activity-sessions", s.id, () => selType && loadSessions(selType.id))}><Trash2 size={14} /></button>
                   </div>
                 </div>
               </div>

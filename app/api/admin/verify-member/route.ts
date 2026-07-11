@@ -1,11 +1,11 @@
 import { supabaseAdmin } from '@/lib/supabase'
 import { NextRequest, NextResponse } from 'next/server'
-import { cookies } from 'next/headers'
+import { apiError } from '@/lib/api/response'
+import { requireAdmin } from '@/lib/api/admin-auth'
 
 export async function POST(req: NextRequest) {
-  const cookieStore = await cookies()
-  const session = cookieStore.get('admin_session')
-  if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const unauthorized = await requireAdmin()
+  if (unauthorized) return unauthorized
 
   const formData = await req.formData()
   const id = formData.get('id') as string
@@ -16,7 +16,7 @@ export async function POST(req: NextRequest) {
     .update({ is_verified: verified })
     .eq('id', id)
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 400 })
+  if (error) return apiError(error, 400)
 
   return NextResponse.redirect(new URL('/admin/members', req.url))
 }

@@ -1,5 +1,6 @@
 import { supabaseAdmin } from '@/lib/supabase'
-import { NextResponse } from 'next/server'
+
+import { apiOk } from '@/lib/api/response'
 
 export async function GET() {
   const { data, error } = await supabaseAdmin
@@ -7,6 +8,6 @@ export async function GET() {
     .select('*')
     .eq('is_active', true)
     .order('display_order', { ascending: true })
-  if (error) return NextResponse.json([], { status: 200 })
-  return NextResponse.json(data || [])
+  if (error) return apiOk([], { status: 200 })
+  return apiOk(data || [])
 }

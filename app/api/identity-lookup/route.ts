@@ -1,5 +1,6 @@
 import { supabaseAdmin } from '@/lib/supabase'
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest } from 'next/server'
+import { apiOk } from '@/lib/api/response'
 
 // Shared "have we seen this person before" lookup — searches members,
 // olympiad_registrations, and activity_registrations by email OR college
@@ -18,7 +19,7 @@ export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => null)
   const query = (body?.query || '').trim()
   if (!query || query.length < 3) {
-    return NextResponse.json({ found: false })
+    return apiOk({ found: false })
   }
 
   const isEmail = query.includes('@')
@@ -53,7 +54,7 @@ export async function POST(req: NextRequest) {
     if (actRegs?.[0]) candidates.push({ source: 'activity', data: actRegs[0], created_at: actRegs[0].created_at })
   }
 
-  if (candidates.length === 0) return NextResponse.json({ found: false })
+  if (candidates.length === 0) return apiOk({ found: false })
 
   // Prefer the most recently created record across all three sources, so
   // the freshest info wins if someone's phone/college changed since an
@@ -61,7 +62,7 @@ export async function POST(req: NextRequest) {
   candidates.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
   const best = candidates[0].data
 
-  return NextResponse.json({
+  return apiOk({
     found: true,
     info: {
       full_name: best.full_name,

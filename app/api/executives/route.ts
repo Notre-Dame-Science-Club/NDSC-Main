@@ -1,6 +1,7 @@
 import { supabaseAdmin } from '@/lib/supabase'
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest } from 'next/server'
 import { normalizeUploadUrl } from '@/lib/uploadUrl'
+import { apiError, apiOk } from '@/lib/api/response'
 
 // GET /api/executives?panel=committee|moderators|founder
 export async function GET(req: NextRequest) {
@@ -16,12 +17,12 @@ export async function GET(req: NextRequest) {
   if (panel) query = query.eq('panel', panel)
 
   const { data, error } = await query
-  if (error) return NextResponse.json({ error: error.message }, { status: 400 })
+  if (error) return apiError(error, 400)
 
   const normalized = (data ?? []).map((e: any) => ({
     ...e,
     photo_url: normalizeUploadUrl(e.photo_url),
   }))
 
-  return NextResponse.json(normalized)
+  return apiOk(normalized)
 }

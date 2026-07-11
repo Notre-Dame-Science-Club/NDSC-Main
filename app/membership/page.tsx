@@ -4,13 +4,13 @@ import Image from "next/image";
 import { Sparkles, FileCheck, Wallet, IdCard, Clock, MessageCircle, Trophy, Bell, Users } from "lucide-react";
 
 const DEPTS = [
-  { name: "Administration", icon: "/images/admininstration-icon.svg", color: "#00d4ff" },
-  { name: "Project", icon: "/images/project-icon.svg", color: "#34d399" },
-  { name: "Publication", icon: "/images/publication-icon.svg", color: "#a78bfa" },
-  { name: "ICT", icon: "/images/ict-icon.svg", color: "#f87171" },
-  { name: "LWS", icon: "/images/lws-icon.svg", color: "#f59e0b" },
-  { name: "Quiz", icon: "/images/quiz-icon.svg", color: "#60a5fa" },
-  { name: "R&D", icon: "/images/r&d-icon.svg", color: "#fb923c" },
+  { name: "Administration", icon: "/images/admininstration-icon.svg", color: "var(--blue)" },
+  { name: "Project", icon: "/images/project-icon.svg", color: "var(--cat-teal)" },
+  { name: "Publication", icon: "/images/publication-icon.svg", color: "var(--accent2)" },
+  { name: "ICT", icon: "/images/ict-icon.svg", color: "var(--cat-red)" },
+  { name: "LWS", icon: "/images/lws-icon.svg", color: "var(--cat-amber)" },
+  { name: "Quiz", icon: "/images/quiz-icon.svg", color: "var(--info)" },
+  { name: "R&D", icon: "/images/r&d-icon.svg", color: "var(--cat-orange)" },
 ];
 
 const BENEFITS = [
@@ -75,7 +75,7 @@ export default function MembershipPage() {
                 className="rounded-2xl p-6 border transition-all duration-300 hover:-translate-y-1"
                 style={{ background: "var(--bg2)", borderColor: "var(--border)" }}>
                 <div className="inline-flex items-center justify-center w-11 h-11 rounded-xl mb-4"
-                  style={{ background: "rgba(0,212,255,0.1)", border: "1px solid rgba(0,212,255,0.25)" }}>
+                  style={{ background: "rgba(var(--blue-rgb), 0.1)", border: "1px solid rgba(var(--blue-rgb), 0.25)" }}>
                   <b.icon size={20} style={{ color: "var(--blue)" }} />
                 </div>
                 <h3 className="text-sm font-bold mb-1.5" style={{ color: "var(--white)" }}>{b.title}</h3>
@@ -112,8 +112,8 @@ export default function MembershipPage() {
           </div>
 
           <div className="mt-8 p-4 rounded-xl border text-sm flex items-start gap-3"
-            style={{ background: "rgba(255,179,71,0.06)", borderColor: "rgba(255,179,71,0.25)" }}>
-            <Clock size={16} style={{ color: "#ffb347", flexShrink: 0, marginTop: 2 }} />
+            style={{ background: "rgba(var(--warning-rgb), 0.06)", borderColor: "rgba(var(--warning-rgb), 0.25)" }}>
+            <Clock size={16} style={{ color: "var(--warning)", flexShrink: 0, marginTop: 2 }} />
             <p style={{ color: "var(--muted)" }}>
               There's a first deadline for membership intake. After it closes, joining is still
               possible by speaking directly with the Executive Committee. Verification for
@@ -159,7 +159,7 @@ export default function MembershipPage() {
       {/* FINAL CTA */}
       <section className="relative py-16 px-4 sm:px-6">
         <div className="max-w-3xl mx-auto text-center rounded-3xl p-10 border"
-          style={{ background: "linear-gradient(135deg, rgba(0,212,255,0.06), rgba(0,212,255,0.01))", borderColor: "rgba(0,212,255,0.25)" }}>
+          style={{ background: "linear-gradient(135deg, rgba(var(--blue-rgb), 0.06), rgba(var(--blue-rgb), 0.01))", borderColor: "rgba(var(--blue-rgb), 0.25)" }}>
           <h2 className="text-xl sm:text-2xl font-black mb-3" style={{ fontFamily: "'Orbitron', sans-serif" }}>
             Already got your slip? <span style={{ color: "var(--blue)" }}>Sign up now.</span>
           </h2>

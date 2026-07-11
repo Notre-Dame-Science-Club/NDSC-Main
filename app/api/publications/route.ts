@@ -1,5 +1,6 @@
 import { supabaseAdmin } from '@/lib/supabase'
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest } from 'next/server'
+import { apiError, apiOk } from '@/lib/api/response'
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url)
@@ -18,7 +19,7 @@ export async function GET(req: NextRequest) {
   }
 
   const { data, error } = await query
-  if (error) return NextResponse.json({ error: error.message }, { status: 400 })
+  if (error) return apiError(error, 400)
 
   if (latest && !category) {
     // প্রতিটি category থেকে সর্বশেষ একটি করে return করো
@@ -28,8 +29,8 @@ export async function GET(req: NextRequest) {
       seen.add(pub.category)
       return true
     })
-    return NextResponse.json(result)
+    return apiOk(result)
   }
 
-  return NextResponse.json(data || [])
+  return apiOk(data || [])
 }

@@ -8,7 +8,7 @@ export default function PdfViewer({ url }: { url: string }) {
   if (mode === 'failed') {
     return (
       <div className="flex flex-col items-center justify-center gap-4 py-16"
-        style={{ background: '#0a1628' }}>
+        style={{ background: 'var(--surface)' }}>
         <p className="text-sm" style={{ color: 'var(--muted)' }}>
           Inline viewer কাজ করছে না।
         </p>
@@ -27,7 +27,7 @@ export default function PdfViewer({ url }: { url: string }) {
   }
 
   return (
-    <div style={{ height: '80vh', position: 'relative', background: '#0a1628' }}>
+    <div style={{ height: '80vh', position: 'relative', background: 'var(--surface)' }}>
       <iframe
         key={mode}
         src={mode === 'gdocs' ? gdocsUrl : url}
@@ -44,8 +44,8 @@ export default function PdfViewer({ url }: { url: string }) {
         <a href={url} target="_blank" rel="noopener noreferrer"
           className="px-3 py-1.5 rounded text-xs font-bold"
           style={{
-            background: 'rgba(0,212,255,0.15)', color: 'var(--blue)',
-            border: '1px solid rgba(0,212,255,0.3)', backdropFilter: 'blur(4px)'
+            background: 'rgba(var(--blue-rgb), 0.15)', color: 'var(--blue)',
+            border: '1px solid rgba(var(--blue-rgb), 0.3)', backdropFilter: 'blur(4px)'
           }}>
           ↗ নতুন Tab এ খুলুন
         </a>

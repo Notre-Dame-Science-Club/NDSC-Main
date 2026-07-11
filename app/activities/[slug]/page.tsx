@@ -4,6 +4,8 @@ import Link from 'next/link'
 import PdfViewer from './PdfViewer'
 import { normalizeUploadUrl, normalizeUploadUrls } from '@/lib/uploadUrl'
 import ActivityRegisterButton from './ActivityRegisterButton'
+import { ActivityIcon } from '@/lib/activityIcons'
+import { CalendarDays, MapPin, FileText, Download, Images } from 'lucide-react'
 
 export const dynamic = 'force-dynamic'
 
@@ -16,9 +18,9 @@ function getYoutubeId(url: string) {
 function renderMarkdown(text: string) {
   if (!text) return ''
   return text
-    .replace(/^## (.+)$/gm, '<h2 style="font-size:1.25rem;font-weight:700;margin:1.5rem 0 0.5rem;color:#e8f4ff">$1</h2>')
-    .replace(/^### (.+)$/gm, '<h3 style="font-size:1rem;font-weight:700;margin:1.25rem 0 0.5rem;color:#e8f4ff">$1</h3>')
-    .replace(/\*\*(.+?)\*\*/g, '<strong style="color:#e8f4ff">$1</strong>')
+    .replace(/^## (.+)$/gm, '<h2 style="font-size:1.25rem;font-weight:700;margin:1.5rem 0 0.5rem;color:var(--white)">$1</h2>')
+    .replace(/^### (.+)$/gm, '<h3 style="font-size:1rem;font-weight:700;margin:1.25rem 0 0.5rem;color:var(--white)">$1</h3>')
+    .replace(/\*\*(.+?)\*\*/g, '<strong style="color:var(--white)">$1</strong>')
     .replace(/^- (.+)$/gm, '<li style="margin-left:1.5rem;list-style:disc;color:#a0b4c8">$1</li>')
     .replace(/\n\n/g, '</p><p style="margin:0.75rem 0;color:#a0b4c8;line-height:1.7">')
 }
@@ -45,7 +47,7 @@ export default async function SessionDetailPage({
 
   let typeName = 'Activities'
   let typeSlug = ''
-  let typeIcon = '🔬'
+  let typeIcon = 'microscope'
 
   if (session.activity_type_id) {
     const { data: typeData } = await supabaseAdmin
@@ -53,7 +55,7 @@ export default async function SessionDetailPage({
       .select('name, slug, icon')
       .eq('id', session.activity_type_id)
       .single()
-    if (typeData) { typeName = typeData.name; typeSlug = typeData.slug; typeIcon = typeData.icon || '🔬' }
+    if (typeData) { typeName = typeData.name; typeSlug = typeData.slug; typeIcon = typeData.icon || 'microscope' }
   }
 
   let versionLabel = ''
@@ -100,13 +102,13 @@ export default async function SessionDetailPage({
         )}
 
         <div className="flex items-center gap-2 mb-4 flex-wrap">
-          <span className="px-3 py-1 rounded-full text-xs font-bold"
-            style={{ background: 'rgba(0,212,255,0.1)', color: 'var(--blue)', border: '1px solid rgba(0,212,255,0.3)' }}>
-            {typeIcon} {typeName}
+          <span className="px-3 py-1 rounded-full text-xs font-bold inline-flex items-center gap-1.5"
+            style={{ background: 'rgba(var(--blue-rgb), 0.1)', color: 'var(--blue)', border: '1px solid rgba(var(--blue-rgb), 0.3)' }}>
+            <ActivityIcon icon={typeIcon} size={12} /> {typeName}
           </span>
           {versionLabel && (
             <span className="px-3 py-1 rounded-full text-xs font-bold"
-              style={{ background: 'rgba(0,212,255,0.06)', color: '#6a9fbf', border: '1px solid rgba(0,212,255,0.15)' }}>
+              style={{ background: 'rgba(var(--blue-rgb), 0.06)', color: '#6a9fbf', border: '1px solid rgba(var(--blue-rgb), 0.15)' }}>
               {versionLabel}
             </span>
           )}
@@ -119,24 +121,24 @@ export default async function SessionDetailPage({
 
         <div className="flex flex-wrap gap-4 text-sm mb-6" style={{ color: 'var(--muted)' }}>
           {session.event_dates && session.event_dates.length > 0 ? (
-            <span>
-              📅 {session.event_dates.map((d: string) =>
+            <span className="inline-flex items-center gap-1.5">
+              <CalendarDays size={14} /> {session.event_dates.map((d: string) =>
                 new Date(d).toLocaleDateString('en-BD', { month: 'short', day: 'numeric' })
               ).join(' · ')}
               {session.event_dates.length > 1 && ` (${session.event_dates.length}-day event)`}
             </span>
           ) : session.session_date && (
-            <span>📅 {new Date(session.session_date).toLocaleDateString('en-BD', {
+            <span className="inline-flex items-center gap-1.5"><CalendarDays size={14} /> {new Date(session.session_date).toLocaleDateString('en-BD', {
               weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
             })}</span>
           )}
-          {session.location && <span>📍 {session.location}</span>}
+          {session.location && <span className="inline-flex items-center gap-1.5"><MapPin size={14} /> {session.location}</span>}
         </div>
 
         {/* ── Registration CTA — smart Register / Dashboard toggle ── */}
         {session.is_upcoming && session.registration_enabled && (
           <div className="rounded-2xl border p-6 mb-8 flex items-center justify-between gap-4 flex-wrap"
-            style={{ background: 'rgba(0,212,255,0.06)', borderColor: 'rgba(0,212,255,0.3)' }}>
+            style={{ background: 'rgba(var(--blue-rgb), 0.06)', borderColor: 'rgba(var(--blue-rgb), 0.3)' }}>
             <div>
               <p className="font-bold text-base mb-1" style={{ color: 'var(--white)' }}>Registration is open</p>
               {session.registration_note && (
@@ -172,12 +174,12 @@ export default async function SessionDetailPage({
             <div className="flex items-center justify-between px-6 py-4 border-b" style={{ borderColor: 'var(--border)' }}>
               <span className="font-bold text-sm flex items-center gap-2"
                 style={{ fontFamily: "'Orbitron',sans-serif", color: 'var(--blue)' }}>
-                📄 Session Notes / PDF
+                <FileText size={15} /> Session Notes / PDF
               </span>
               <a href={session.pdf_url} target="_blank" rel="noopener noreferrer"
-                className="text-xs px-3 py-1 rounded font-bold"
-                style={{ background: 'rgba(0,212,255,0.1)', color: 'var(--blue)' }}>
-                ↓ Download
+                className="text-xs px-3 py-1 rounded font-bold inline-flex items-center gap-1.5"
+                style={{ background: 'rgba(var(--blue-rgb), 0.1)', color: 'var(--blue)' }}>
+                <Download size={12} /> Download
               </a>
             </div>
             <PdfViewer url={session.pdf_url} />
@@ -186,9 +188,9 @@ export default async function SessionDetailPage({
 
         {session.gallery_urls && session.gallery_urls.length > 0 && (
           <div className="mb-8">
-            <h2 className="text-xl font-bold mb-5"
+            <h2 className="text-xl font-bold mb-5 flex items-center gap-2"
               style={{ fontFamily: "'Orbitron',sans-serif", color: 'var(--white)' }}>
-              📸 Gallery
+              <Images size={18} /> Gallery
             </h2>
             <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
               {session.gallery_urls.map((url: string, i: number) => (

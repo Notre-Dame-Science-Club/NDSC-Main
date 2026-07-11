@@ -1,5 +1,6 @@
 import { supabaseAdmin } from '@/lib/supabase'
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest } from 'next/server'
+import { apiError, apiOk } from '@/lib/api/response'
 
 // Public route — searches across every published activity session by title
 // and description, regardless of which type/tab it belongs to. Returns
@@ -7,7 +8,7 @@ import { NextRequest, NextResponse } from 'next/server'
 // session and, if useful, jump to the right tab.
 export async function GET(req: NextRequest) {
   const q = req.nextUrl.searchParams.get('q')?.trim()
-  if (!q || q.length < 2) return NextResponse.json([])
+  if (!q || q.length < 2) return apiOk([])
 
   const { data, error } = await supabaseAdmin
     .from('activity_sessions')
@@ -17,7 +18,7 @@ export async function GET(req: NextRequest) {
     .order('session_date', { ascending: false })
     .limit(20)
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 400 })
+  if (error) return apiError(error, 400)
 
   // Attach the parent type's slug/name so the UI can show "in Workshops" etc.
   const typeIds = Array.from(new Set((data || []).map(s => s.activity_type_id).filter(Boolean)))
@@ -36,5 +37,5 @@ export async function GET(req: NextRequest) {
     type_slug: typesById[s.activity_type_id]?.slug || null,
   }))
 
-  return NextResponse.json(results)
+  return apiOk(results)
 }

@@ -1,19 +1,16 @@
 import { supabaseAdmin } from '@/lib/supabase'
-import { NextRequest, NextResponse } from 'next/server'
-import { cookies } from 'next/headers'
+import { NextRequest } from 'next/server'
 import { sendEmail } from '@/lib/email'
+import { requireAdmin } from '@/lib/api/admin-auth'
+import { apiError, apiOk } from '@/lib/api/response'
 
 // Distinct from /api/admin/send-announcement (one-to-many, BCC). This is
 // admin sending a direct, individual email to one specific member from
 // their row in the Members admin page.
 
-async function isAdmin() {
-  const cookieStore = await cookies()
-  return !!cookieStore.get('admin_session')
-}
-
 export async function POST(req: NextRequest) {
-  if (!(await isAdmin())) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const unauthorized = await requireAdmin()
+  if (unauthorized) return unauthorized
 
   const body = await req.json().catch(() => null)
   const memberId = body?.member_id
@@ -21,7 +18,7 @@ export async function POST(req: NextRequest) {
   const message = body?.message?.trim()
 
   if (!memberId || !subject || !message) {
-    return NextResponse.json({ error: 'member_id, subject, and message are all required.' }, { status: 400 })
+    return apiError('member_id, subject, and message are all required.', 400)
   }
 
   const { data: member, error: memberError } = await supabaseAdmin
@@ -31,7 +28,7 @@ export async function POST(req: NextRequest) {
     .single()
 
   if (memberError || !member) {
-    return NextResponse.json({ error: 'Member not found.' }, { status: 404 })
+    return apiError('Member not found.', 404)
   }
 
   const html = `
@@ -44,8 +41,8 @@ export async function POST(req: NextRequest) {
 
   const result = await sendEmail(member.email, subject, html)
   if (!result.ok) {
-    return NextResponse.json({ error: result.error || 'Could not send the email.' }, { status: 502 })
+    return apiError(result.error || 'Could not send the email.', 502)
   }
 
-  return NextResponse.json({ success: true })
+  return apiOk({ success: true })
 }

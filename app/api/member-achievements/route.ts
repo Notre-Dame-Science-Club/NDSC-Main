@@ -1,5 +1,6 @@
 import { supabaseAdmin } from '@/lib/supabase'
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest } from 'next/server'
+import { apiError, apiOk } from '@/lib/api/response'
 
 // Member-facing route — a logged-in member adds their own achievement entry
 // from the dashboard. This is intentionally separate from /api/admin/members
@@ -24,11 +25,11 @@ async function getMemberFromRequest(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   const user = await getMemberFromRequest(req)
-  if (!user) return NextResponse.json({ error: 'Unauthorized. Please log in again.' }, { status: 401 })
+  if (!user) return apiError('Unauthorized. Please log in again.', 401)
 
   const body = await req.json().catch(() => null)
   if (!body || !body.title || !String(body.title).trim()) {
-    return NextResponse.json({ error: 'Title is required.' }, { status: 400 })
+    return apiError('Title is required.', 400)
   }
 
   const { data: member, error: memberError } = await supabaseAdmin
@@ -38,7 +39,7 @@ export async function POST(req: NextRequest) {
     .single()
 
   if (memberError || !member) {
-    return NextResponse.json({ error: 'Member record not found.' }, { status: 404 })
+    return apiError('Member record not found.', 404)
   }
 
   const newAchievement = {
@@ -58,8 +59,8 @@ export async function POST(req: NextRequest) {
     .eq('id', user.id)
 
   if (updateError) {
-    return NextResponse.json({ error: updateError.message }, { status: 400 })
+    return apiError(updateError, 400)
   }
 
-  return NextResponse.json({ achievements })
+  return apiOk({ achievements })
 }

@@ -1,6 +1,7 @@
 import { supabaseAdmin } from '@/lib/supabase'
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest } from 'next/server'
 import { verifyPassword } from '@/lib/password'
+import { apiError, apiOk } from '@/lib/api/response'
 
 // Team members aren't real Supabase Auth users — their credentials live
 // inside their leader's registration row (team_members jsonb array), set by
@@ -14,7 +15,7 @@ export async function POST(req: NextRequest) {
   const password = body?.password
 
   if (!email || !password) {
-    return NextResponse.json({ error: 'Email and password are required.' }, { status: 400 })
+    return apiError('Email and password are required.', 400)
   }
 
   // Filtering "team_members is not an empty array" reliably via PostgREST's
@@ -30,14 +31,14 @@ export async function POST(req: NextRequest) {
     .select('id, category_id, activity_session_id, team_members')
     .not('team_members', 'is', null)
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 400 })
+  if (error) return apiError(error, 400)
 
   for (const reg of registrations || []) {
     const members = (reg.team_members || []) as any[]
     if (members.length === 0) continue
     const match = members.find(m => m.email?.toLowerCase() === email.toLowerCase())
     if (match && verifyPassword(password, match.password_hash)) {
-      return NextResponse.json({
+      return apiOk({
         registration_id: reg.id,
         category_id: reg.category_id,
         activity_session_id: reg.activity_session_id,
@@ -46,5 +47,5 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  return NextResponse.json({ error: 'Incorrect email or password.' }, { status: 401 })
+  return apiError('Incorrect email or password.', 401)
 }

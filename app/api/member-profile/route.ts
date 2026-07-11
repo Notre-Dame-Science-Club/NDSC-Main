@@ -1,6 +1,7 @@
 import { supabaseAdmin } from '@/lib/supabase'
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest } from 'next/server'
 import { validateCollegeRoll } from '@/lib/validation'
+import { apiError, apiOk } from '@/lib/api/response'
 
 // Lets a logged-in member edit their own basic info from the dashboard.
 // Same Bearer-token auth pattern as /api/member-achievements and
@@ -23,10 +24,10 @@ const EDITABLE_FIELDS = ['full_name', 'phone', 'college_roll', 'batch']
 
 export async function PUT(req: NextRequest) {
   const user = await getMemberFromRequest(req)
-  if (!user) return NextResponse.json({ error: 'Unauthorized. Please log in again.' }, { status: 401 })
+  if (!user) return apiError('Unauthorized. Please log in again.', 401)
 
   const body = await req.json().catch(() => null)
-  if (!body) return NextResponse.json({ error: 'Invalid request.' }, { status: 400 })
+  if (!body) return apiError('Invalid request.', 400)
 
   const patch: Record<string, any> = {}
   for (const key of EDITABLE_FIELDS) {
@@ -35,10 +36,10 @@ export async function PUT(req: NextRequest) {
 
   if (patch.college_roll !== undefined) {
     const rollError = validateCollegeRoll('Notre Dame College', patch.college_roll)
-    if (rollError) return NextResponse.json({ error: rollError }, { status: 400 })
+    if (rollError) return apiError(rollError, 400)
   }
   if (patch.full_name !== undefined && !String(patch.full_name).trim()) {
-    return NextResponse.json({ error: 'Name cannot be empty.' }, { status: 400 })
+    return apiError('Name cannot be empty.', 400)
   }
 
   const { data, error } = await supabaseAdmin
@@ -48,6 +49,6 @@ export async function PUT(req: NextRequest) {
     .select()
     .single()
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 400 })
-  return NextResponse.json({ member: data })
+  if (error) return apiError(error, 400)
+  return apiOk({ member: data })
 }

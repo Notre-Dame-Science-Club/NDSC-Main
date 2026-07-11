@@ -1,6 +1,7 @@
 import { supabaseAdmin } from '@/lib/supabase'
-import { NextRequest, NextResponse } from 'next/server'
-import { cookies } from 'next/headers'
+import { NextRequest } from 'next/server'
+import { requireAdmin } from '@/lib/api/admin-auth'
+import { apiError, apiOk } from '@/lib/api/response'
 
 // Full CRUD for the recursive activity_reg_categories tree. A category with
 // no children is a "leaf" — that's the node registration actually happens
@@ -17,16 +18,12 @@ import { cookies } from 'next/headers'
 // redirects into the existing Olympiad registration flow instead of using
 // its own form — Activity and Olympiad are two faces of the same thing.
 
-async function isAdmin() {
-  const cookieStore = await cookies()
-  return !!cookieStore.get('admin_session')
-}
-
 export async function GET(req: NextRequest) {
-  if (!(await isAdmin())) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const unauthorized = await requireAdmin()
+  if (unauthorized) return unauthorized
 
   const sessionId = req.nextUrl.searchParams.get('sessionId')
-  if (!sessionId) return NextResponse.json({ error: 'sessionId is required.' }, { status: 400 })
+  if (!sessionId) return apiError('sessionId is required.', 400)
 
   const { data, error } = await supabaseAdmin
     .from('activity_reg_categories')
@@ -34,8 +31,22 @@ export async function GET(req: NextRequest) {
     .eq('activity_session_id', sessionId)
     .order('display_order', { ascending: true })
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 400 })
-  return NextResponse.json({ categories: data || [] })
+  if (error) return apiError(error, 400)
+
+  const categories = data || []
+  const olympiadIds = [...new Set(categories.map(c => c.linked_olympiad_id).filter(Boolean))]
+  if (olympiadIds.length > 0) {
+    const { data: olympiads } = await supabaseAdmin
+      .from('olympiads')
+      .select('id, exam_type, relay_mode, relay_type')
+      .in('id', olympiadIds)
+    const byId = new Map((olympiads || []).map(o => [o.id, o]))
+    for (const c of categories) {
+      if (c.linked_olympiad_id) (c as any).linked_olympiad = byId.get(c.linked_olympiad_id) || null
+    }
+  }
+
+  return apiOk({ categories })
 }
 
 async function createLinkedOlympiad(categoryName: string, sessionTitle: string) {
@@ -59,12 +70,34 @@ async function createLinkedOlympiad(categoryName: string, sessionTitle: string) 
   return data.id as string
 }
 
+// Activity Admin exposes a single "Online Type" selector (Pure Submission /
+// Full Quiz System / Mixed / Science Relay) that is really shorthand for the
+// linked Olympiad's exam_type + relay_mode/relay_type columns — those stay
+// the source of truth, but Activity Admin is now the place that sets them
+// (Olympiad Admin shows them read-only for linked olympiads).
+function onlineTypeToOlympiadPatch(onlineType: string): Record<string, any> | null {
+  switch (onlineType) {
+    case 'pure_submission': return { exam_type: 'photo_only', relay_mode: false }
+    case 'full_quiz': return { exam_type: 'live_only', relay_mode: false }
+    case 'mixed': return { exam_type: 'mixed', relay_mode: false }
+    case 'science_relay': return { exam_type: 'live_only', relay_mode: true }
+    default: return null
+  }
+}
+
+async function applyOnlineType(linkedOlympiadId: string, onlineType: string) {
+  const patch = onlineTypeToOlympiadPatch(onlineType)
+  if (!patch) return
+  await supabaseAdmin.from('olympiads').update(patch).eq('id', linkedOlympiadId)
+}
+
 export async function POST(req: NextRequest) {
-  if (!(await isAdmin())) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const unauthorized = await requireAdmin()
+  if (unauthorized) return unauthorized
 
   const body = await req.json().catch(() => null)
   if (!body || !body.activity_session_id || !body.name?.trim()) {
-    return NextResponse.json({ error: 'activity_session_id and name are required.' }, { status: 400 })
+    return apiError('activity_session_id and name are required.', 400)
   }
 
   const insertData: Record<string, any> = {
@@ -98,8 +131,9 @@ export async function POST(req: NextRequest) {
       .single()
     try {
       insertData.linked_olympiad_id = await createLinkedOlympiad(insertData.name, session?.title || 'Activity')
+      if (body.online_type) await applyOnlineType(insertData.linked_olympiad_id, body.online_type)
     } catch (e: any) {
-      return NextResponse.json({ error: `Could not create the linked olympiad: ${e.message}` }, { status: 400 })
+      return apiError(`Could not create the linked olympiad: ${e.message}`, 400)
     }
   }
 
@@ -109,18 +143,19 @@ export async function POST(req: NextRequest) {
     .select()
     .single()
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 400 })
-  return NextResponse.json({ category: data })
+  if (error) return apiError(error, 400)
+  return apiOk({ category: data })
 }
 
 export async function PUT(req: NextRequest) {
-  if (!(await isAdmin())) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const unauthorized = await requireAdmin()
+  if (unauthorized) return unauthorized
 
   const body = await req.json().catch(() => null)
   if (!body || !body.id) {
-    return NextResponse.json({ error: 'A category id is required.' }, { status: 400 })
+    return apiError('A category id is required.', 400)
   }
-  const { id, ...rest } = body
+  const { id, online_type, ...rest } = body
 
   // If is_online_submission is being turned on and there's no link yet, create one now.
   if (rest.is_online_submission) {
@@ -139,7 +174,7 @@ export async function PUT(req: NextRequest) {
       try {
         rest.linked_olympiad_id = await createLinkedOlympiad(rest.name || existing.name, session?.title || 'Activity')
       } catch (e: any) {
-        return NextResponse.json({ error: `Could not create the linked olympiad: ${e.message}` }, { status: 400 })
+        return apiError(`Could not create the linked olympiad: ${e.message}`, 400)
       }
     }
   }
@@ -151,16 +186,30 @@ export async function PUT(req: NextRequest) {
     .select()
     .single()
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 400 })
-  return NextResponse.json({ category: data })
+  if (error) return apiError(error, 400)
+
+  // online_type is Activity Admin's shorthand for the linked olympiad's
+  // exam_type/relay_mode/relay_type — apply it there, not on this table.
+  if (online_type && data?.linked_olympiad_id) {
+    await applyOnlineType(data.linked_olympiad_id, online_type)
+    const { data: olympiad } = await supabaseAdmin
+      .from('olympiads')
+      .select('id, exam_type, relay_mode, relay_type')
+      .eq('id', data.linked_olympiad_id)
+      .single()
+    if (olympiad) (data as any).linked_olympiad = olympiad
+  }
+
+  return apiOk({ category: data })
 }
 
 export async function DELETE(req: NextRequest) {
-  if (!(await isAdmin())) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const unauthorized = await requireAdmin()
+  if (unauthorized) return unauthorized
 
   const body = await req.json().catch(() => null)
   if (!body || !body.id) {
-    return NextResponse.json({ error: 'A category id is required.' }, { status: 400 })
+    return apiError('A category id is required.', 400)
   }
 
   // ON DELETE CASCADE on parent_id handles deleting all descendants; the
@@ -172,6 +221,6 @@ export async function DELETE(req: NextRequest) {
     .delete()
     .eq('id', body.id)
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 400 })
-  return NextResponse.json({ success: true })
+  if (error) return apiError(error, 400)
+  return apiOk({ success: true })
 }

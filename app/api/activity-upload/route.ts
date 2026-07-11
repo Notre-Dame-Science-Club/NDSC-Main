@@ -1,5 +1,6 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest } from 'next/server'
 import { normalizeUploadUrl } from '@/lib/uploadUrl'
+import { apiError, apiOk } from '@/lib/api/response'
 
 // Public route — used for:
 //  1. Photo/file-type custom fields on activity registration forms
@@ -42,11 +43,11 @@ export async function POST(req: NextRequest) {
   try {
     formData = await req.formData()
   } catch {
-    return NextResponse.json({ error: 'File too large or malformed request' }, { status: 413 })
+    return apiError('File too large or malformed request', 413)
   }
 
   const file = formData.get('file') as File | null
-  if (!file) return NextResponse.json({ error: 'No file provided' }, { status: 400 })
+  if (!file) return apiError('No file provided', 400)
 
   // Optional: client tells us what's allowed for this specific submission
   // field (comma-separated extensions) and the max size in MB, mirroring
@@ -56,7 +57,7 @@ export async function POST(req: NextRequest) {
 
   const maxSize = maxSizeMbRaw ? Number(maxSizeMbRaw) * 1024 * 1024 : DEFAULT_MAX_SIZE
   if (file.size > maxSize) {
-    return NextResponse.json({ error: `File too large. Maximum size is ${Math.round(maxSize / (1024 * 1024))}MB.` }, { status: 413 })
+    return apiError(`File too large. Maximum size is ${Math.round(maxSize / (1024 * 1024))}MB.`, 413)
   }
 
   if (allowedExtsRaw) {
@@ -66,19 +67,19 @@ export async function POST(req: NextRequest) {
     const extOk = exts.includes(fileExt)
     const mimeOk = !file.type || allowedMimes.length === 0 || allowedMimes.includes(file.type)
     if (!extOk && !mimeOk) {
-      return NextResponse.json({ error: `Invalid file type. Allowed: ${exts.join(', ')}` }, { status: 400 })
+      return apiError(`Invalid file type. Allowed: ${exts.join(', ')}`, 400)
     }
   } else {
     // Default behaviour (no explicit allowlist given) — treat as a photo field
     if (file.type && !IMAGE_TYPES.includes(file.type)) {
-      return NextResponse.json({ error: 'Invalid file type. Please upload a JPG, PNG, WEBP, or HEIC image.' }, { status: 400 })
+      return apiError('Invalid file type. Please upload a JPG, PNG, WEBP, or HEIC image.', 400)
     }
   }
 
   const hostingerUploadUrl = process.env.HOSTINGER_UPLOAD_URL
   const uploadSecret = process.env.UPLOAD_SECRET
   if (!hostingerUploadUrl || !uploadSecret) {
-    return NextResponse.json({ error: 'Upload configuration missing.' }, { status: 500 })
+    return apiError('Upload configuration missing.', 500)
   }
 
   const fd = new FormData()
@@ -89,17 +90,17 @@ export async function POST(req: NextRequest) {
   try {
     res = await fetch(hostingerUploadUrl, { method: 'POST', headers: { 'X-Upload-Secret': uploadSecret }, body: fd })
   } catch {
-    return NextResponse.json({ error: 'Could not reach the upload server. Please try again.' }, { status: 502 })
+    return apiError('Could not reach the upload server. Please try again.', 502)
   }
 
   const text = await res.text()
   let data: any
   try { data = JSON.parse(text) } catch {
-    return NextResponse.json({ error: 'Invalid response from upload server.' }, { status: 502 })
+    return apiError('Invalid response from upload server.', 502)
   }
   if (!res.ok || !data.success) {
-    return NextResponse.json({ error: data.error || 'Upload failed. Please try again.' }, { status: 400 })
+    return apiError(data.error || 'Upload failed. Please try again.', 400)
   }
 
-  return NextResponse.json({ url: normalizeUploadUrl(data.url) })
+  return apiOk({ url: normalizeUploadUrl(data.url) })
 }

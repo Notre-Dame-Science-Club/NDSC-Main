@@ -1,5 +1,6 @@
 "use client";
 import { useState, useEffect, useMemo, useRef } from "react";
+import { X, User, Search, Globe, Users } from "lucide-react";
 
 type Executive = {
   id: string; full_name: string; position: string; panel: string; dept: string;
@@ -23,10 +24,10 @@ function getSocials(exec: Executive) {
     exec.facebook_url  && { href: exec.facebook_url,  icon: <FbIcon />,   color: "#1877f2", label: "Facebook"  },
     exec.instagram_url && { href: exec.instagram_url, icon: <IgIcon />,   color: "#e1306c", label: "Instagram" },
     exec.linkedin_url  && { href: exec.linkedin_url,  icon: <LiIcon />,   color: "#0a66c2", label: "LinkedIn"  },
-    exec.github_url    && { href: exec.github_url,    icon: <GhIcon />,   color: "#c8e8ff", label: "GitHub"    },
-    exec.x_url         && { href: exec.x_url,         icon: <XIcon />,    color: "#c8e8ff", label: "X"         },
+    exec.github_url    && { href: exec.github_url,    icon: <GhIcon />,   color: "var(--white-soft)", label: "GitHub"    },
+    exec.x_url         && { href: exec.x_url,         icon: <XIcon />,    color: "var(--white-soft)", label: "X"         },
     exec.whatsapp && { href: exec.whatsapp.startsWith("http") ? exec.whatsapp : `https://wa.me/${exec.whatsapp.replace(/\D/g,"")}`, icon: <WaIcon />, color: "#25d366", label: "WhatsApp" },
-    exec.email && { href: `mailto:${exec.email}`, icon: <MailIcon />, color: "#00d4ff", label: "Email" },
+    exec.email && { href: `mailto:${exec.email}`, icon: <MailIcon />, color: "var(--blue)", label: "Email" },
   ].filter(Boolean) as { href: string; icon: React.ReactNode; color: string; label: string }[];
 }
 
@@ -85,11 +86,11 @@ function DetailPopup({ exec, onClose }: { exec: Executive; onClose: () => void }
   return (
     <div style={{ position:"fixed",inset:0,display:"flex",alignItems:"center",justifyContent:"center",zIndex:9999,padding:"1rem",background:"rgba(0,4,12,0.9)",backdropFilter:"blur(12px)" }}
       onClick={onClose}>
-      <div style={{ position:"relative",width:"100%",maxWidth:760,borderRadius:20,overflow:"hidden",background:"linear-gradient(140deg,#060f1e 0%,#0b1c33 60%,#081525 100%)",border:"1px solid rgba(0,212,255,0.32)",boxShadow:"0 32px 100px rgba(0,0,0,0.9),0 0 0 1px rgba(0,212,255,0.08),0 0 80px rgba(0,212,255,0.07)",animation:"popupIn 0.3s cubic-bezier(.4,0,.2,1)" }}
+      <div style={{ position:"relative",width:"100%",maxWidth:760,borderRadius:20,overflow:"hidden",background:"linear-gradient(140deg,#060f1e 0%,#0b1c33 60%,#081525 100%)",border:"1px solid rgba(var(--blue-rgb), 0.32)",boxShadow:"0 32px 100px rgba(0,0,0,0.9),0 0 0 1px rgba(var(--blue-rgb), 0.08),0 0 80px rgba(var(--blue-rgb), 0.07)",animation:"popupIn 0.3s cubic-bezier(.4,0,.2,1)" }}
         onClick={e => e.stopPropagation()}>
 
         {/* Top glow line */}
-        <div style={{ position:"absolute",top:0,left:0,right:0,height:1,background:"linear-gradient(90deg,transparent,#00d4ff,transparent)",opacity:0.7,zIndex:5 }} />
+        <div style={{ position:"absolute",top:0,left:0,right:0,height:1,background:"linear-gradient(90deg,transparent,var(--blue),transparent)",opacity:0.7,zIndex:5 }} />
 
         {/* NDSC logo watermark — properly positioned */}
         <div style={{ position:"absolute",inset:0,zIndex:1,overflow:"hidden",pointerEvents:"none" }}>
@@ -99,13 +100,13 @@ function DetailPopup({ exec, onClose }: { exec: Executive; onClose: () => void }
         </div>
 
         {/* Close button */}
-        <button onClick={onClose} style={{ position:"absolute",top:14,right:14,zIndex:10,width:32,height:32,borderRadius:"50%",display:"flex",alignItems:"center",justifyContent:"center",background:"rgba(255,255,255,0.08)",border:"1px solid rgba(255,255,255,0.12)",color:"#cce8f4",fontSize:14,cursor:"pointer",transition:"transform 0.2s" }}
+        <button onClick={onClose} style={{ position:"absolute",top:14,right:14,zIndex:10,width:32,height:32,borderRadius:"50%",display:"flex",alignItems:"center",justifyContent:"center",background:"rgba(255,255,255,0.08)",border:"1px solid rgba(255,255,255,0.12)",color:"var(--white-soft)",fontSize:14,cursor:"pointer",transition:"transform 0.2s" }}
           onMouseEnter={e=>(e.currentTarget.style.transform="scale(1.12)")}
-          onMouseLeave={e=>(e.currentTarget.style.transform="scale(1)")}>✕</button>
+          onMouseLeave={e=>(e.currentTarget.style.transform="scale(1)")}><X size={15} /></button>
 
         {/* Session badge */}
         {exec.session_year && (
-          <div style={{ position:"absolute",top:14,left:14,zIndex:10,padding:"3px 12px",borderRadius:20,background:"rgba(0,212,255,0.12)",color:"#00d4ff",border:"1px solid rgba(0,212,255,0.3)",fontFamily:"'Orbitron',sans-serif",fontSize:10,letterSpacing:"0.07em",fontWeight:700 }}>
+          <div style={{ position:"absolute",top:14,left:14,zIndex:10,padding:"3px 12px",borderRadius:20,background:"rgba(var(--blue-rgb), 0.12)",color:"var(--blue)",border:"1px solid rgba(var(--blue-rgb), 0.3)",fontFamily:"'Orbitron',sans-serif",fontSize:10,letterSpacing:"0.07em",fontWeight:700 }}>
             {exec.session_year}
           </div>
         )}
@@ -118,8 +119,8 @@ function DetailPopup({ exec, onClose }: { exec: Executive; onClose: () => void }
               <img src={exec.photo_url} alt={exec.full_name}
                 style={{ position:"absolute",inset:0,width:"100%",height:"100%",objectFit:"cover",objectPosition:pos }} />
             ) : (
-              <div style={{ position:"absolute",inset:0,background:"linear-gradient(135deg,#0a1a30,#0f2a4a)",display:"flex",alignItems:"center",justifyContent:"center" }}>
-                <span style={{ fontSize:60,color:"rgba(0,212,255,0.12)" }}>👤</span>
+              <div style={{ position:"absolute",inset:0,background:"linear-gradient(135deg,var(--surface),var(--border))",display:"flex",alignItems:"center",justifyContent:"center" }}>
+                <User size={60} style={{ color:"rgba(var(--blue-rgb), 0.12)" }} />
               </div>
             )}
             <div style={{ position:"absolute",top:0,right:0,bottom:0,width:52,background:"linear-gradient(270deg,#060f1e,transparent)" }} />
@@ -130,7 +131,7 @@ function DetailPopup({ exec, onClose }: { exec: Executive; onClose: () => void }
             <h2 style={{ fontFamily:"'Gilroy','Montserrat','Poppins',sans-serif",fontWeight:800,fontSize:"clamp(1.5rem,3.5vw,2.1rem)",color:"#ffffff",lineHeight:1.1,letterSpacing:"0.01em",marginBottom:2 }}>
               {exec.full_name}
             </h2>
-            <p style={{ fontFamily:"'Poppins',sans-serif",fontWeight:700,fontSize:"clamp(1rem,2.5vw,1.18rem)",color:"#00d4ff",letterSpacing:"0.01em" }}>
+            <p style={{ fontFamily:"'Poppins',sans-serif",fontWeight:700,fontSize:"clamp(1rem,2.5vw,1.18rem)",color:"var(--blue)",letterSpacing:"0.01em" }}>
               {exec.position}
             </p>
             {exec.dept && (
@@ -139,7 +140,7 @@ function DetailPopup({ exec, onClose }: { exec: Executive; onClose: () => void }
               </p>
             )}
             {(exec as any).description && (
-              <p style={{ fontFamily:"'Poppins',sans-serif",fontSize:"0.82rem",color:"rgba(140,180,210,0.5)",lineHeight:1.6,borderTop:"1px solid rgba(0,212,255,0.1)",paddingTop:10,marginTop:4 }}>
+              <p style={{ fontFamily:"'Poppins',sans-serif",fontSize:"0.82rem",color:"rgba(140,180,210,0.5)",lineHeight:1.6,borderTop:"1px solid rgba(var(--blue-rgb), 0.1)",paddingTop:10,marginTop:4 }}>
                 {(exec as any).description}
               </p>
             )}
@@ -182,9 +183,9 @@ function ECCard({ exec, onClick }: { exec: Executive; onClick: () => void }) {
         aspectRatio:"1 / 1.2",
         borderRadius:18, overflow:"hidden", cursor:"pointer",
         background:"#060f1e",
-        border:`1px solid ${hov?"rgba(0,212,255,0.6)":"rgba(0,212,255,0.13)"}`,
+        border:`1px solid ${hov?"rgba(var(--blue-rgb), 0.6)":"rgba(var(--blue-rgb), 0.13)"}`,
         boxShadow: hov
-          ? "0 24px 65px rgba(0,0,0,0.7),0 0 0 2px rgba(0,212,255,0.45),0 0 55px rgba(0,212,255,0.22)"
+          ? "0 24px 65px rgba(0,0,0,0.7),0 0 0 2px rgba(var(--blue-rgb), 0.45),0 0 55px rgba(var(--blue-rgb), 0.22)"
           : "0 8px 28px rgba(0,0,0,0.55)",
         transform: hov ? "translateY(-6px) scale(1.032)" : "none",
         transition:"all 0.32s cubic-bezier(.4,0,.2,1)",
@@ -198,18 +199,18 @@ function ECCard({ exec, onClick }: { exec: Executive; onClick: () => void }) {
               transform:hov?"scale(1.05)":"scale(1)",transition:"transform 0.65s ease" }} />
         ) : (
           <div style={{ width:"100%",height:"100%",background:"linear-gradient(160deg,#091828,#0e2540)",display:"flex",alignItems:"center",justifyContent:"center" }}>
-            <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="rgba(0,212,255,0.15)" strokeWidth="1"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+            <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="rgba(var(--blue-rgb), 0.15)" strokeWidth="1"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
           </div>
         )}
         {/* Top hover glow */}
-        <div style={{ position:"absolute",top:0,left:0,right:0,height:2,background:"linear-gradient(90deg,transparent,#00d4ff,transparent)",opacity:hov?1:0,transition:"opacity 0.4s" }} />
+        <div style={{ position:"absolute",top:0,left:0,right:0,height:2,background:"linear-gradient(90deg,transparent,var(--blue),transparent)",opacity:hov?1:0,transition:"opacity 0.4s" }} />
       </div>
 
       {/* Info — bottom 28% — solid dark, padded */}
       <div style={{
         position:"absolute", bottom:0, left:0, right:0, height:"28%",
         background:"linear-gradient(180deg,#060f1e 0%,#040c18 100%)",
-        borderTop:`1px solid ${hov?"rgba(0,212,255,0.22)":"rgba(0,212,255,0.07)"}`,
+        borderTop:`1px solid ${hov?"rgba(var(--blue-rgb), 0.22)":"rgba(var(--blue-rgb), 0.07)"}`,
         display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center",
         /* Padding keeps text away from left/right/top/bottom borders */
         padding:"0.4rem 0.65rem",
@@ -262,8 +263,8 @@ function ECCard({ exec, onClick }: { exec: Executive; onClick: () => void }) {
             width:"90%", textAlign:"center",
             fontFamily:"'Poppins',sans-serif", fontWeight:700,
             fontSize:"clamp(0.98rem,2.5vw,1.49rem)",
-            color:"#00d4ff", lineHeight:1.2,
-            textShadow:"0 0 10px rgba(0,212,255,0.35)",
+            color:"var(--blue)", lineHeight:1.2,
+            textShadow:"0 0 10px rgba(var(--blue-rgb), 0.35)",
             wordBreak:"break-word", overflowWrap:"break-word",
           }}>
             {exec.position}
@@ -310,9 +311,9 @@ function SessionSelector({ years, selected, onSelect }:{ years:string[]; selecte
   const onWheel=(e:React.WheelEvent)=>{ const h=Math.abs(e.deltaX)>Math.abs(e.deltaY); if(!h&&!e.ctrlKey)return; e.preventDefault(); const d=e.ctrlKey?e.deltaY:e.deltaX; wheelAcc.current+=d; if(wheelTimer.current)clearTimeout(wheelTimer.current); wheelTimer.current=setTimeout(()=>{wheelAcc.current=0;},300); if(Math.abs(wheelAcc.current)>60){wheelAcc.current>0?shift("older"):shift("newer"); wheelAcc.current=0;} };
   const Arr=({dir}:{dir:"newer"|"older"})=>{ const dis=dir==="newer"?!canNewer:!canOlder; return (
     <button onClick={()=>shift(dir)} disabled={dis}
-      style={{ width:40,height:40,borderRadius:"50%",border:`1px solid ${dis?"rgba(255,255,255,0.07)":"rgba(0,212,255,0.4)"}`,background:dis?"rgba(255,255,255,0.02)":"rgba(0,212,255,0.08)",color:dis?"rgba(255,255,255,0.18)":"#00d4ff",cursor:dis?"not-allowed":"pointer",display:"flex",alignItems:"center",justifyContent:"center",fontSize:18,flexShrink:0,transition:"all 0.2s" }}
-      onMouseEnter={e=>{if(!dis)(e.currentTarget as HTMLButtonElement).style.background="rgba(0,212,255,0.2)";}}
-      onMouseLeave={e=>{if(!dis)(e.currentTarget as HTMLButtonElement).style.background="rgba(0,212,255,0.08)";}}>
+      style={{ width:40,height:40,borderRadius:"50%",border:`1px solid ${dis?"rgba(255,255,255,0.07)":"rgba(var(--blue-rgb), 0.4)"}`,background:dis?"rgba(255,255,255,0.02)":"rgba(var(--blue-rgb), 0.08)",color:dis?"rgba(255,255,255,0.18)":"var(--blue)",cursor:dis?"not-allowed":"pointer",display:"flex",alignItems:"center",justifyContent:"center",fontSize:18,flexShrink:0,transition:"all 0.2s" }}
+      onMouseEnter={e=>{if(!dis)(e.currentTarget as HTMLButtonElement).style.background="rgba(var(--blue-rgb), 0.2)";}}
+      onMouseLeave={e=>{if(!dis)(e.currentTarget as HTMLButtonElement).style.background="rgba(var(--blue-rgb), 0.08)";}}>
       {dir==="newer"?"←":"→"}
     </button>
   );};
@@ -323,7 +324,7 @@ function SessionSelector({ years, selected, onSelect }:{ years:string[]; selecte
       <div style={{ display:"flex",gap:8 }}>
         {years.slice(windowStart,windowStart+WINDOW).map(y=>(
           <button key={y} onClick={()=>onSelect(y)}
-            style={{ padding:"8px 16px",borderRadius:12,border:`1px solid ${selected===y?"rgba(0,212,255,0.65)":"rgba(255,255,255,0.08)"}`,background:selected===y?"linear-gradient(135deg,rgba(0,212,255,0.22),rgba(0,100,190,0.18))":"rgba(255,255,255,0.03)",color:selected===y?"#00d4ff":"rgba(160,195,215,0.5)",fontFamily:"'Poppins',sans-serif",fontWeight:700,fontSize:13,cursor:"pointer",boxShadow:selected===y?"0 0 18px rgba(0,212,255,0.18)":"none",transform:selected===y?"scale(1.06)":"scale(1)",transition:"all 0.22s ease",whiteSpace:"nowrap" }}>
+            style={{ padding:"8px 16px",borderRadius:12,border:`1px solid ${selected===y?"rgba(var(--blue-rgb), 0.65)":"rgba(255,255,255,0.08)"}`,background:selected===y?"linear-gradient(135deg,rgba(var(--blue-rgb), 0.22),rgba(0,100,190,0.18))":"rgba(255,255,255,0.03)",color:selected===y?"var(--blue)":"rgba(160,195,215,0.5)",fontFamily:"'Poppins',sans-serif",fontWeight:700,fontSize:13,cursor:"pointer",boxShadow:selected===y?"0 0 18px rgba(var(--blue-rgb), 0.18)":"none",transform:selected===y?"scale(1.06)":"scale(1)",transition:"all 0.22s ease",whiteSpace:"nowrap" }}>
             {y}
           </button>
         ))}
@@ -341,30 +342,30 @@ function CrossSessionFilter({ executives, allYears, onResults, onClose }:{ execu
   const allDepts     = useMemo(()=>{ const s=new Set(executives.filter(e=>e.panel==="committee"&&e.dept).map(e=>e.dept)); return ["all",...Array.from(s).sort()]; },[executives]);
   const apply=()=>{ let l=executives.filter(e=>e.panel==="committee"); if(cf.position!=="all")l=l.filter(e=>e.position===cf.position); if(cf.dept!=="all")l=l.filter(e=>e.dept===cf.dept); if(cf.yearFrom!=="all")l=l.filter(e=>e.session_year>=cf.yearFrom); if(cf.yearTo!=="all")l=l.filter(e=>e.session_year<=cf.yearTo); l.sort((a,b)=>b.session_year.localeCompare(a.session_year)||a.display_order-b.display_order); onResults(l); };
   const sel=(f:keyof CF,v:string)=>setCf(p=>({...p,[f]:v}));
-  const sty={ background:"rgba(255,255,255,0.04)",border:"1px solid rgba(0,212,255,0.2)",color:"#c8e8f8",borderRadius:10,padding:"9px 14px",fontFamily:"'Poppins',sans-serif",fontSize:13,outline:"none",width:"100%" };
+  const sty={ background:"rgba(255,255,255,0.04)",border:"1px solid rgba(var(--blue-rgb), 0.2)",color:"var(--white-soft)",borderRadius:10,padding:"9px 14px",fontFamily:"'Poppins',sans-serif",fontSize:13,outline:"none",width:"100%" };
   return (
-    <div style={{ background:"linear-gradient(135deg,#060f1e,#091828)",border:"1px solid rgba(0,212,255,0.25)",borderRadius:16,padding:"1.5rem",marginBottom:"1.5rem",boxShadow:"0 8px 40px rgba(0,0,0,0.5)",position:"relative" }}>
-      <button onClick={onClose} style={{ position:"absolute",top:14,right:14,background:"none",border:"none",color:"rgba(0,212,255,0.5)",fontSize:18,cursor:"pointer" }}>✕</button>
-      <p style={{ fontFamily:"'Poppins',sans-serif",fontWeight:700,fontSize:13,color:"#00d4ff",marginBottom:"1rem",letterSpacing:"0.05em",textTransform:"uppercase" }}>🔍 Search Across All Sessions</p>
+    <div style={{ background:"linear-gradient(135deg,#060f1e,#091828)",border:"1px solid rgba(var(--blue-rgb), 0.25)",borderRadius:16,padding:"1.5rem",marginBottom:"1.5rem",boxShadow:"0 8px 40px rgba(0,0,0,0.5)",position:"relative" }}>
+      <button onClick={onClose} style={{ position:"absolute",top:14,right:14,background:"none",border:"none",color:"rgba(var(--blue-rgb), 0.5)",cursor:"pointer",display:"flex",alignItems:"center" }}><X size={18} /></button>
+      <p style={{ fontFamily:"'Poppins',sans-serif",fontWeight:700,fontSize:13,color:"var(--blue)",marginBottom:"1rem",letterSpacing:"0.05em",textTransform:"uppercase" }} className="flex items-center gap-2"><Search size={14} /> Search Across All Sessions</p>
       <div style={{ display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(160px,1fr))",gap:12 }}>
         {([["position","Position",allPositions,"All Positions"],["dept","Department",allDepts,"All Depts"]] as const).map(([f,label,opts,ph])=>(
-          <div key={f}><label style={{ fontFamily:"'Poppins',sans-serif",fontSize:11,color:"rgba(0,212,255,0.6)",display:"block",marginBottom:5,textTransform:"uppercase",letterSpacing:"0.06em" }}>{label}</label>
+          <div key={f}><label style={{ fontFamily:"'Poppins',sans-serif",fontSize:11,color:"rgba(var(--blue-rgb), 0.6)",display:"block",marginBottom:5,textTransform:"uppercase",letterSpacing:"0.06em" }}>{label}</label>
             <select aria-label={label} value={cf[f as keyof CF]} onChange={e=>sel(f as keyof CF,e.target.value)} style={sty}>
               {opts.map(o=><option key={o} value={o} style={{ background:"#060f1e" }}>{o==="all"?ph:o}</option>)}
             </select></div>
         ))}
-        <div><label style={{ fontFamily:"'Poppins',sans-serif",fontSize:11,color:"rgba(0,212,255,0.6)",display:"block",marginBottom:5,textTransform:"uppercase",letterSpacing:"0.06em" }}>From Session</label>
+        <div><label style={{ fontFamily:"'Poppins',sans-serif",fontSize:11,color:"rgba(var(--blue-rgb), 0.6)",display:"block",marginBottom:5,textTransform:"uppercase",letterSpacing:"0.06em" }}>From Session</label>
           <select aria-label="From session year" value={cf.yearFrom} onChange={e=>sel("yearFrom",e.target.value)} style={sty}>
             <option value="all" style={{ background:"#060f1e" }}>All Time</option>
             {[...allYears].reverse().map(y=><option key={y} value={y} style={{ background:"#060f1e" }}>{y}</option>)}
           </select></div>
-        <div><label style={{ fontFamily:"'Poppins',sans-serif",fontSize:11,color:"rgba(0,212,255,0.6)",display:"block",marginBottom:5,textTransform:"uppercase",letterSpacing:"0.06em" }}>To Session</label>
+        <div><label style={{ fontFamily:"'Poppins',sans-serif",fontSize:11,color:"rgba(var(--blue-rgb), 0.6)",display:"block",marginBottom:5,textTransform:"uppercase",letterSpacing:"0.06em" }}>To Session</label>
           <select aria-label="To session year" value={cf.yearTo} onChange={e=>sel("yearTo",e.target.value)} style={sty}>
             <option value="all" style={{ background:"#060f1e" }}>Present</option>
             {allYears.map(y=><option key={y} value={y} style={{ background:"#060f1e" }}>{y}</option>)}
           </select></div>
       </div>
-      <button onClick={apply} style={{ marginTop:"1rem",padding:"10px 28px",borderRadius:10,background:"linear-gradient(135deg,#00b8e0,#0077aa)",color:"#fff",fontFamily:"'Poppins',sans-serif",fontWeight:700,fontSize:13,border:"none",cursor:"pointer",letterSpacing:"0.04em",boxShadow:"0 4px 20px rgba(0,212,255,0.25)" }}>Apply Filter</button>
+      <button onClick={apply} style={{ marginTop:"1rem",padding:"10px 28px",borderRadius:10,background:"linear-gradient(135deg,#00b8e0,#0077aa)",color:"#fff",fontFamily:"'Poppins',sans-serif",fontWeight:700,fontSize:13,border:"none",cursor:"pointer",letterSpacing:"0.04em",boxShadow:"0 4px 20px rgba(var(--blue-rgb), 0.25)" }}>Apply Filter</button>
     </div>
   );
 }
@@ -376,15 +377,15 @@ function ModCard({ exec, onClick }:{ exec:Executive; onClick:()=>void }) {
   return (
     <div onClick={onClick} onMouseEnter={()=>setHov(true)} onMouseLeave={()=>setHov(false)}
       style={{ display:"flex",flexDirection:"column",alignItems:"center",cursor:"pointer",width:240,transition:"transform 0.3s ease",transform:hov?"translateY(-6px)":"none" }}>
-      <div style={{ width:sz,height:sz,borderRadius:"50%",overflow:"hidden",border:`3px solid ${hov?"#00d4ff":"rgba(0,212,255,0.28)"}`,boxShadow:hov?"0 0 36px rgba(0,212,255,0.5),0 0 72px rgba(0,212,255,0.18),0 8px 30px rgba(0,0,0,0.5)":"0 4px 24px rgba(0,0,0,0.45)",transition:"all 0.32s ease",flexShrink:0,marginBottom:"1.1rem" }}>
+      <div style={{ width:sz,height:sz,borderRadius:"50%",overflow:"hidden",border:`3px solid ${hov?"var(--blue)":"rgba(var(--blue-rgb), 0.28)"}`,boxShadow:hov?"0 0 36px rgba(var(--blue-rgb), 0.5),0 0 72px rgba(var(--blue-rgb), 0.18),0 8px 30px rgba(0,0,0,0.5)":"0 4px 24px rgba(0,0,0,0.45)",transition:"all 0.32s ease",flexShrink:0,marginBottom:"1.1rem" }}>
         {exec.photo_url?(
           <img src={exec.photo_url} alt={exec.full_name} style={{ width:"100%",height:"100%",objectFit:"cover",objectPosition:pos,transform:hov?"scale(1.06)":"scale(1)",transition:"transform 0.5s ease" }} />
         ):(
-          <div style={{ width:"100%",height:"100%",background:"linear-gradient(135deg,#0a1a30,#0f2a4a)",display:"flex",alignItems:"center",justifyContent:"center" }}><span style={{ fontSize:sz*0.38,color:"rgba(0,212,255,0.18)" }}>👤</span></div>
+          <div style={{ width:"100%",height:"100%",background:"linear-gradient(135deg,var(--surface),var(--border))",display:"flex",alignItems:"center",justifyContent:"center" }}><User size={sz*0.38} style={{ color:"rgba(var(--blue-rgb), 0.18)" }} /></div>
         )}
       </div>
-      <h3 style={{ fontFamily:"'Gilroy','Montserrat','Poppins',sans-serif",fontWeight:800,fontSize:"clamp(1.1rem,2.8vw,1.4rem)",color:hov?"#ffffff":"#e4f2ff",textAlign:"center",lineHeight:1.15,letterSpacing:"0.02em",marginBottom:"0.35rem",transition:"color 0.25s",textShadow:hov?"0 0 24px rgba(0,212,255,0.35)":"none" }}>{exec.full_name}</h3>
-      <p style={{ fontFamily:"'Poppins',sans-serif",fontWeight:700,fontSize:"clamp(0.82rem,2vw,1rem)",color:"#00d4ff",textAlign:"center",marginBottom:exec.dept?"0.18rem":0 }}>{exec.position}</p>
+      <h3 style={{ fontFamily:"'Gilroy','Montserrat','Poppins',sans-serif",fontWeight:800,fontSize:"clamp(1.1rem,2.8vw,1.4rem)",color:hov?"#ffffff":"var(--white-soft)",textAlign:"center",lineHeight:1.15,letterSpacing:"0.02em",marginBottom:"0.35rem",transition:"color 0.25s",textShadow:hov?"0 0 24px rgba(var(--blue-rgb), 0.35)":"none" }}>{exec.full_name}</h3>
+      <p style={{ fontFamily:"'Poppins',sans-serif",fontWeight:700,fontSize:"clamp(0.82rem,2vw,1rem)",color:"var(--blue)",textAlign:"center",marginBottom:exec.dept?"0.18rem":0 }}>{exec.position}</p>
       {exec.dept&&<p style={{ fontFamily:"'Poppins',sans-serif",fontSize:"clamp(0.7rem,1.6vw,0.82rem)",color:"rgba(140,185,215,0.55)",textAlign:"center" }}>{exec.dept}</p>}
     </div>
   );
@@ -447,7 +448,7 @@ export default function ExecutivesPage() {
         <div style={{ display:"flex",justifyContent:"center",gap:12,paddingTop:40,paddingBottom:4,paddingLeft:16,paddingRight:16 }}>
           {([{id:"committee",label:"Executive Committee"},{id:"moderators",label:"Chief Patron & Moderators"}] as const).map(t=>(
             <button key={t.id} onClick={()=>setActiveView(t.id)}
-              style={{ padding:"10px 22px",borderRadius:14,border:`1px solid ${activeView===t.id?"rgba(0,212,255,0.55)":"rgba(255,255,255,0.08)"}`,background:activeView===t.id?"rgba(0,212,255,0.14)":"rgba(255,255,255,0.03)",color:activeView===t.id?"#00d4ff":"rgba(150,190,215,0.45)",fontFamily:"'Poppins',sans-serif",fontWeight:700,fontSize:13,cursor:"pointer",letterSpacing:"0.03em",boxShadow:activeView===t.id?"0 0 22px rgba(0,212,255,0.14)":"none",transition:"all 0.22s" }}>
+              style={{ padding:"10px 22px",borderRadius:14,border:`1px solid ${activeView===t.id?"rgba(var(--blue-rgb), 0.55)":"rgba(255,255,255,0.08)"}`,background:activeView===t.id?"rgba(var(--blue-rgb), 0.14)":"rgba(255,255,255,0.03)",color:activeView===t.id?"var(--blue)":"rgba(150,190,215,0.45)",fontFamily:"'Poppins',sans-serif",fontWeight:700,fontSize:13,cursor:"pointer",letterSpacing:"0.03em",boxShadow:activeView===t.id?"0 0 22px rgba(var(--blue-rgb), 0.14)":"none",transition:"all 0.22s" }}>
               {t.label}
             </button>
           ))}
@@ -455,8 +456,8 @@ export default function ExecutivesPage() {
 
         {/* Title */}
         <div style={{ textAlign:"center",padding:"1.5rem 1rem 0.5rem" }}>
-          <h1 style={{ fontFamily:"'Gilroy','Montserrat','Poppins',sans-serif",fontWeight:800,fontSize:"clamp(1.9rem,5.5vw,3.4rem)",letterSpacing:"0.04em",lineHeight:1.1,color:"#ffffff",textShadow:"0 0 50px rgba(0,212,255,0.18)" }}>
-            {activeView==="committee"?<>Meet the Executive <span style={{ color:"#00d4ff" }}>Committee</span></>:<>Meet the Chief Patron, Founder <span style={{ color:"#00d4ff" }}>&amp; Moderators</span></>}
+          <h1 style={{ fontFamily:"'Gilroy','Montserrat','Poppins',sans-serif",fontWeight:800,fontSize:"clamp(1.9rem,5.5vw,3.4rem)",letterSpacing:"0.04em",lineHeight:1.1,color:"#ffffff",textShadow:"0 0 50px rgba(var(--blue-rgb), 0.18)" }}>
+            {activeView==="committee"?<>Meet the Executive <span style={{ color:"var(--blue)" }}>Committee</span></>:<>Meet the Chief Patron, Founder <span style={{ color:"var(--blue)" }}>&amp; Moderators</span></>}
           </h1>
           <p style={{ marginTop:8,fontFamily:"'Poppins',sans-serif",fontSize:13,color:"rgba(130,175,205,0.5)" }}>
             {activeView==="committee"?"The dedicated team steering Notre Dame Science Club forward.":"The visionaries and guardians who have shaped the legacy of NDSC."}
@@ -476,33 +477,33 @@ export default function ExecutivesPage() {
               <div style={{ display:"flex",flexWrap:"wrap",gap:10,marginBottom:20,alignItems:"center" }}>
                 <div style={{ position:"relative",flex:"1 1 220px",maxWidth:360 }}>
                   <input type="text" value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search in this session..."
-                    style={{ width:"100%",padding:"10px 16px 10px 38px",borderRadius:12,outline:"none",background:"rgba(255,255,255,0.04)",border:"1px solid rgba(255,255,255,0.09)",color:"#cce8f8",fontFamily:"'Poppins',sans-serif",fontSize:13 }} />
-                  <span style={{ position:"absolute",left:12,top:"50%",transform:"translateY(-50%)",fontSize:13,color:"rgba(0,212,255,0.45)" }}>🔍</span>
-                  {search&&<button onClick={()=>setSearch("")} style={{ position:"absolute",right:10,top:"50%",transform:"translateY(-50%)",background:"none",border:"none",color:"rgba(200,220,235,0.35)",cursor:"pointer" }}>✕</button>}
+                    style={{ width:"100%",padding:"10px 16px 10px 38px",borderRadius:12,outline:"none",background:"rgba(255,255,255,0.04)",border:"1px solid rgba(255,255,255,0.09)",color:"var(--white-soft)",fontFamily:"'Poppins',sans-serif",fontSize:13 }} />
+                  <Search size={13} style={{ position:"absolute",left:12,top:"50%",transform:"translateY(-50%)",color:"rgba(var(--blue-rgb), 0.45)" }} />
+                  {search&&<button onClick={()=>setSearch("")} style={{ position:"absolute",right:10,top:"50%",transform:"translateY(-50%)",background:"none",border:"none",color:"rgba(200,220,235,0.35)",cursor:"pointer",display:"flex",alignItems:"center" }}><X size={14} /></button>}
                 </div>
                 {deptList.length>2&&(
                   <select aria-label="Filter by department" value={filterDept} onChange={e=>setFilterDept(e.target.value)}
-                    style={{ padding:"10px 14px",borderRadius:12,background:"rgba(255,255,255,0.04)",border:`1px solid ${filterDept!=="all"?"rgba(0,212,255,0.45)":"rgba(255,255,255,0.09)"}`,color:filterDept!=="all"?"#00d4ff":"rgba(150,190,215,0.5)",fontFamily:"'Poppins',sans-serif",fontSize:13,outline:"none" }}>
+                    style={{ padding:"10px 14px",borderRadius:12,background:"rgba(255,255,255,0.04)",border:`1px solid ${filterDept!=="all"?"rgba(var(--blue-rgb), 0.45)":"rgba(255,255,255,0.09)"}`,color:filterDept!=="all"?"var(--blue)":"rgba(150,190,215,0.5)",fontFamily:"'Poppins',sans-serif",fontSize:13,outline:"none" }}>
                     {deptList.map(d=><option key={d} value={d} style={{ background:"#060f1e" }}>{d==="all"?"All Departments":d}</option>)}
                   </select>
                 )}
                 <button onClick={()=>{setShowCrossFilter(true);setCrossResults(null);setSearch("");}}
-                  style={{ padding:"10px 18px",borderRadius:12,background:"linear-gradient(135deg,rgba(0,212,255,0.12),rgba(0,100,180,0.1))",border:"1px solid rgba(0,212,255,0.4)",color:"#00d4ff",fontFamily:"'Poppins',sans-serif",fontWeight:700,fontSize:13,cursor:"pointer",whiteSpace:"nowrap" }}>
-                  🌐 All Sessions
+                  style={{ padding:"10px 18px",borderRadius:12,background:"linear-gradient(135deg,rgba(var(--blue-rgb), 0.12),rgba(0,100,180,0.1))",border:"1px solid rgba(var(--blue-rgb), 0.4)",color:"var(--blue)",fontFamily:"'Poppins',sans-serif",fontWeight:700,fontSize:13,cursor:"pointer",whiteSpace:"nowrap",display:"inline-flex",alignItems:"center",gap:6 }}>
+                  <Globe size={14} /> All Sessions
                 </button>
               </div>
             )}
             {crossResults!==null&&(
-              <div style={{ display:"flex",alignItems:"center",gap:12,marginBottom:20,padding:"10px 16px",borderRadius:12,background:"rgba(0,212,255,0.08)",border:"1px solid rgba(0,212,255,0.25)" }}>
-                <span style={{ fontFamily:"'Poppins',sans-serif",fontSize:13,color:"#00d4ff",fontWeight:700 }}>🌐 {crossResults.length} results across all sessions</span>
-                <button onClick={()=>{setCrossResults(null);setSearch("");}} style={{ marginLeft:"auto",background:"none",border:"none",color:"rgba(0,212,255,0.6)",cursor:"pointer",fontSize:13 }}>Clear ✕</button>
+              <div style={{ display:"flex",alignItems:"center",gap:12,marginBottom:20,padding:"10px 16px",borderRadius:12,background:"rgba(var(--blue-rgb), 0.08)",border:"1px solid rgba(var(--blue-rgb), 0.25)" }}>
+                <span style={{ fontFamily:"'Poppins',sans-serif",fontSize:13,color:"var(--blue)",fontWeight:700,display:"inline-flex",alignItems:"center",gap:6 }}><Globe size={14} /> {crossResults.length} results across all sessions</span>
+                <button onClick={()=>{setCrossResults(null);setSearch("");}} style={{ marginLeft:"auto",background:"none",border:"none",color:"rgba(var(--blue-rgb), 0.6)",cursor:"pointer",fontSize:13,display:"inline-flex",alignItems:"center",gap:4 }}>Clear <X size={13} /></button>
               </div>
             )}
             {loading?(
-              <div style={{ textAlign:"center",padding:"6rem 0",color:"rgba(0,212,255,0.4)",fontFamily:"'Poppins',sans-serif" }}>Loading...</div>
+              <div style={{ textAlign:"center",padding:"6rem 0",color:"rgba(var(--blue-rgb), 0.4)",fontFamily:"'Poppins',sans-serif" }}>Loading...</div>
             ):displayList.length===0?(
               <div style={{ textAlign:"center",padding:"6rem 0",color:"rgba(150,190,215,0.3)",fontFamily:"'Poppins',sans-serif" }}>
-                <div style={{ fontSize:44,marginBottom:12 }}>👥</div>
+                <div style={{ marginBottom:12, color:"rgba(150,190,215,0.3)", display:"flex", justifyContent:"center" }}><Users size={44} /></div>
                 {search.trim()?"No results found.":"No executives for this session yet."}
               </div>
             ):(
@@ -520,18 +521,18 @@ export default function ExecutivesPage() {
         {/* ══ MODERATORS ══ */}
         {activeView==="moderators"&&(
           <div style={{ maxWidth:900,margin:"0 auto",padding:"2rem 1.25rem 5rem" }}>
-            {loading?<div style={{ textAlign:"center",padding:"6rem 0",color:"rgba(0,212,255,0.4)",fontFamily:"'Poppins',sans-serif" }}>Loading...</div>:(
+            {loading?<div style={{ textAlign:"center",padding:"6rem 0",color:"rgba(var(--blue-rgb), 0.4)",fontFamily:"'Poppins',sans-serif" }}>Loading...</div>:(
               <>
                 {currentMods.length>0?(
                   <div style={{ display:"flex",flexWrap:"wrap",justifyContent:"center",gap:"3rem 4rem",marginBottom:"3rem" }}>
                     {currentMods.map(exec=><ModCard key={exec.id} exec={exec} onClick={()=>setPopup(exec)} />)}
                   </div>
                 ):(
-                  <div style={{ textAlign:"center",padding:"5rem 0",color:"rgba(150,190,215,0.3)",fontFamily:"'Poppins',sans-serif" }}><div style={{ fontSize:44,marginBottom:12 }}>👥</div>No moderators added yet.</div>
+                  <div style={{ textAlign:"center",padding:"5rem 0",color:"rgba(150,190,215,0.3)",fontFamily:"'Poppins',sans-serif" }}><div style={{ marginBottom:12, display:"flex", justifyContent:"center" }}><Users size={44} /></div>No moderators added yet.</div>
                 )}
                 {formerMods.length>0&&(
                   <>
-                    <div style={{ textAlign:"center",borderTop:"1px solid rgba(0,212,255,0.1)",paddingTop:"3rem",marginBottom:"2.5rem" }}>
+                    <div style={{ textAlign:"center",borderTop:"1px solid rgba(var(--blue-rgb), 0.1)",paddingTop:"3rem",marginBottom:"2.5rem" }}>
                       <h2 style={{ fontFamily:"'Gilroy','Montserrat','Poppins',sans-serif",fontWeight:800,fontSize:"clamp(1.4rem,4vw,2.2rem)",color:"rgba(160,200,225,0.75)",letterSpacing:"0.05em" }}>Former Moderators</h2>
                       <p style={{ marginTop:6,fontFamily:"'Poppins',sans-serif",fontSize:13,color:"rgba(120,160,190,0.4)" }}>Those who have guided us through the years</p>
                     </div>

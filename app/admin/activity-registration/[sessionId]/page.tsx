@@ -2,12 +2,12 @@
 import { useEffect, useState } from 'react'
 import { useParams } from 'next/navigation'
 import Link from 'next/link'
-import { Plus, Trash2, ChevronRight, ChevronDown, ArrowLeft, Users, CreditCard, Link2, Calendar, X } from 'lucide-react'
+import { Plus, Trash2, ChevronRight, ChevronDown, ArrowLeft, Users, CreditCard, Link2, Calendar, X, Zap, Upload, Microscope } from 'lucide-react'
 
 const uid = () => Math.random().toString(36).slice(2, 9)
 
 type FieldType = 'text' | 'textarea' | 'number' | 'photo' | 'file' | 'dropdown' | 'date' | 'time'
-type CustomField = { key: string; label: string; description?: string; type: FieldType; required: boolean; options?: string[]; max_file_size_mb?: number }
+type CustomField = { key: string; label: string; description?: string; type: FieldType; required: boolean; options?: string[]; allow_other?: boolean; max_file_size_mb?: number; max_files?: number }
 type SubmissionField = {
   id: string; title: string; description?: string
   field_type: 'text' | 'textarea' | 'file'; required: boolean
@@ -31,6 +31,7 @@ type Category = {
   payment_label: string | null
   is_online_submission: boolean
   linked_olympiad_id: string | null
+  linked_olympiad?: { id: string; exam_type: 'photo_only' | 'live_only' | 'mixed'; relay_mode: boolean; relay_type: string | null } | null
   schedule_date: string | null
   schedule_time: string | null
   schedule_room: string | null
@@ -42,10 +43,18 @@ type Category = {
   project_name_label: string | null
 }
 
-const s = { background: '#050d1a', borderColor: '#0f2a4a' }
-const h = { fontFamily: "'Orbitron', sans-serif", color: '#00d4ff' }
+const deriveOnlineType = (o?: Category['linked_olympiad']): string => {
+  if (!o) return 'full_quiz'
+  if (o.relay_mode) return 'science_relay'
+  if (o.exam_type === 'photo_only') return 'pure_submission'
+  if (o.exam_type === 'live_only') return 'full_quiz'
+  return 'mixed'
+}
+
+const s = { background: 'var(--bg2)', borderColor: 'var(--border)' }
+const h = { fontFamily: "'Orbitron', sans-serif", color: 'var(--blue)' }
 const inputCls = 'w-full px-3 py-2 rounded-lg text-sm outline-none border'
-const inputStyle = { background: '#0a1628', borderColor: '#0f2a4a', color: '#e8f4ff' }
+const inputStyle = { background: 'var(--surface)', borderColor: 'var(--border)', color: 'var(--white)' }
 
 const BLANK_FIELD = (): CustomField => ({ key: uid(), label: '', description: '', type: 'text', required: false })
 const BLANK_SUBMISSION_FIELD = (): SubmissionField => ({ id: uid(), title: '', description: '', field_type: 'text', required: true })
@@ -112,7 +121,7 @@ export default function ActivityRegistrationBuilder() {
     }
   }
 
-  const updateCategory = async (id: string, patch: Partial<Category>) => {
+  const updateCategory = async (id: string, patch: Partial<Category> & { online_type?: string }) => {
     setError('')
     try {
       const res = await fetch('/api/admin/activity-reg-categories', {
@@ -160,28 +169,28 @@ export default function ActivityRegistrationBuilder() {
           return (
             <div key={cat.id} className="rounded-xl border" style={s}>
               <div className="flex items-center gap-2 p-3">
-                <button onClick={() => toggleExpand(cat.id)} style={{ color: '#6a8faf' }}>
+                <button onClick={() => toggleExpand(cat.id)} style={{ color: 'var(--muted)' }}>
                   {expanded ? <ChevronDown size={15} /> : <ChevronRight size={15} />}
                 </button>
-                <span className="text-sm font-semibold flex-1" style={{ color: '#e8f4ff' }}>{cat.name}</span>
+                <span className="text-sm font-semibold flex-1" style={{ color: 'var(--white)' }}>{cat.name}</span>
                 {leaf && (
                   <div className="flex items-center gap-1.5">
-                    {cat.requires_team && <span title="Team registration"><Users size={13} style={{ color: '#a78bfa' }} /></span>}
-                    {cat.requires_payment && <span title="Requires payment"><CreditCard size={13} style={{ color: '#ffb347' }} /></span>}
-                    {cat.is_online_submission && <span title="Linked to Olympiad"><Link2 size={13} style={{ color: '#00d4ff' }} /></span>}
-                    {cat.schedule_date && <span title="Has schedule"><Calendar size={13} style={{ color: '#34d399' }} /></span>}
-                    <span className="text-xs px-2 py-0.5 rounded-full" style={{ background: 'rgba(0,212,255,0.1)', color: '#00d4ff' }}>Leaf — registration form</span>
+                    {cat.requires_team && <span title="Team registration"><Users size={13} style={{ color: 'var(--accent2)' }} /></span>}
+                    {cat.requires_payment && <span title="Requires payment"><CreditCard size={13} style={{ color: 'var(--warning)' }} /></span>}
+                    {cat.is_online_submission && <span title="Linked to Olympiad"><Link2 size={13} style={{ color: 'var(--blue)' }} /></span>}
+                    {cat.schedule_date && <span title="Has schedule"><Calendar size={13} style={{ color: 'var(--cat-teal)' }} /></span>}
+                    <span className="text-xs px-2 py-0.5 rounded-full" style={{ background: 'rgba(var(--blue-rgb), 0.1)', color: 'var(--blue)' }}>Leaf — registration form</span>
                   </div>
                 )}
                 <button onClick={() => setEditingId(editingId === cat.id ? null : cat.id)}
-                  className="text-xs px-2 py-1 rounded" style={{ background: 'rgba(0,212,255,0.1)', color: '#00d4ff' }}>
+                  className="text-xs px-2 py-1 rounded" style={{ background: 'rgba(var(--blue-rgb), 0.1)', color: 'var(--blue)' }}>
                   {editingId === cat.id ? 'Close' : 'Edit'}
                 </button>
                 <button onClick={() => addCategory(cat.id)}
-                  className="text-xs px-2 py-1 rounded flex items-center gap-1" style={{ background: 'rgba(52,211,153,0.1)', color: '#34d399' }}>
+                  className="text-xs px-2 py-1 rounded flex items-center gap-1" style={{ background: 'rgba(var(--cat-teal-rgb), 0.1)', color: 'var(--cat-teal)' }}>
                   <Plus size={11} /> Sub
                 </button>
-                <button onClick={() => deleteCategory(cat.id)} style={{ color: '#ff7070' }}>
+                <button onClick={() => deleteCategory(cat.id)} style={{ color: 'var(--danger-soft)' }}>
                   <Trash2 size={14} />
                 </button>
               </div>
@@ -198,33 +207,33 @@ export default function ActivityRegistrationBuilder() {
     )
   }
 
-  if (loading) return <p style={{ color: '#6a8faf' }}>Loading...</p>
+  if (loading) return <p style={{ color: 'var(--muted)' }}>Loading...</p>
 
   return (
     <div>
       <div className="flex items-center gap-3 mb-6">
-        <Link href="/admin/activities" className="p-2 rounded-lg" style={{ background: '#050d1a', color: '#6a8faf' }}>
+        <Link href="/admin/activities" className="p-2 rounded-lg" style={{ background: 'var(--bg2)', color: 'var(--muted)' }}>
           <ArrowLeft size={16} />
         </Link>
         <div>
           <h1 className="text-2xl font-bold" style={h}>Registration Builder</h1>
-          <p className="text-sm" style={{ color: '#6a8faf' }}>{session?.title || 'Activity Session'}</p>
+          <p className="text-sm" style={{ color: 'var(--muted)' }}>{session?.title || 'Activity Session'}</p>
         </div>
       </div>
 
       {error && (
-        <div className="mb-4 p-3 rounded-lg text-sm" style={{ background: 'rgba(255,80,80,0.1)', color: '#ff7070', border: '1px solid rgba(255,80,80,0.3)' }}>
+        <div className="mb-4 p-3 rounded-lg text-sm" style={{ background: 'rgba(var(--danger-rgb), 0.1)', color: 'var(--danger-soft)', border: '1px solid rgba(var(--danger-rgb), 0.3)' }}>
           {error}
         </div>
       )}
 
       <div className="flex gap-2 mb-4">
         <button onClick={() => setTab('builder')} className="px-4 py-2 rounded-lg text-sm font-semibold"
-          style={tab === 'builder' ? { background: 'rgba(0,212,255,0.15)', color: '#00d4ff', border: '1px solid rgba(0,212,255,0.4)' } : { background: '#061420', color: '#6a8faf', border: '1px solid #0f2a4a' }}>
+          style={tab === 'builder' ? { background: 'rgba(var(--blue-rgb), 0.15)', color: 'var(--blue)', border: '1px solid rgba(var(--blue-rgb), 0.4)' } : { background: 'var(--surface-deep)', color: 'var(--muted)', border: '1px solid var(--border)' }}>
           Builder
         </button>
         <button onClick={() => setTab('registrants')} className="px-4 py-2 rounded-lg text-sm font-semibold"
-          style={tab === 'registrants' ? { background: 'rgba(0,212,255,0.15)', color: '#00d4ff', border: '1px solid rgba(0,212,255,0.4)' } : { background: '#061420', color: '#6a8faf', border: '1px solid #0f2a4a' }}>
+          style={tab === 'registrants' ? { background: 'rgba(var(--blue-rgb), 0.15)', color: 'var(--blue)', border: '1px solid rgba(var(--blue-rgb), 0.4)' } : { background: 'var(--surface-deep)', color: 'var(--muted)', border: '1px solid var(--border)' }}>
           Registrants
         </button>
       </div>
@@ -233,7 +242,7 @@ export default function ActivityRegistrationBuilder() {
         <RegistrantsPanel sessionId={sessionId} />
       ) : (
       <>
-      <div className="mb-4 p-4 rounded-xl text-sm" style={{ background: 'rgba(0,212,255,0.05)', border: '1px solid rgba(0,212,255,0.2)', color: '#6a8faf' }}>
+      <div className="mb-4 p-4 rounded-xl text-sm" style={{ background: 'rgba(var(--blue-rgb), 0.05)', border: '1px solid rgba(var(--blue-rgb), 0.2)', color: 'var(--muted)' }}>
         Build as many layers as this event needs (e.g. Offline/Online → Class → Subject).
         Registration only happens at the bottom-most category in each branch — that's where you
         configure fields, team settings, payment, and online-submission linking.
@@ -243,12 +252,12 @@ export default function ActivityRegistrationBuilder() {
 
       <button onClick={() => addCategory(null)}
         className="mt-3 flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold"
-        style={{ background: 'rgba(0,212,255,0.1)', color: '#00d4ff', border: '1px solid rgba(0,212,255,0.3)' }}>
+        style={{ background: 'rgba(var(--blue-rgb), 0.1)', color: 'var(--blue)', border: '1px solid rgba(var(--blue-rgb), 0.3)' }}>
         <Plus size={15} /> Add Top-Level Category
       </button>
 
       {categories.length === 0 && (
-        <p className="mt-4 text-sm" style={{ color: '#3d5a78' }}>
+        <p className="mt-4 text-sm" style={{ color: 'var(--border-soft)' }}>
           No categories yet. Start with something like "Offline" / "Online", or just one category
           if this event doesn't need sub-segments — registration works even with a single
           top-level leaf category.
@@ -281,44 +290,44 @@ function RegistrantsPanel({ sessionId }: { sessionId: string }) {
     return r.full_name?.toLowerCase().includes(q) || r.phone?.includes(q) || r.email?.toLowerCase().includes(q) || r.breadcrumb.join(' ').toLowerCase().includes(q)
   })
 
-  if (loading) return <p className="text-sm" style={{ color: '#3d5a78' }}>Loading registrants…</p>
-  if (error) return <p className="text-sm" style={{ color: '#ff7070' }}>{error}</p>
+  if (loading) return <p className="text-sm" style={{ color: 'var(--border-soft)' }}>Loading registrants…</p>
+  if (error) return <p className="text-sm" style={{ color: 'var(--danger-soft)' }}>{error}</p>
 
   return (
     <div>
       <div className="flex items-center justify-between mb-3">
         <input placeholder="Search by name, phone, email, or category…" value={search} onChange={e => setSearch(e.target.value)}
           className="px-3 py-2 rounded-lg text-sm outline-none border w-full max-w-sm"
-          style={{ background: '#0a1f35', borderColor: '#0f2a4a', color: '#e0f0ff' }} />
-        <span className="text-xs ml-3 whitespace-nowrap" style={{ color: '#3d5a78' }}>{filtered.length} of {registrations.length} registrant(s)</span>
+          style={{ background: 'var(--surface-alt)', borderColor: 'var(--border)', color: 'var(--white-soft)' }} />
+        <span className="text-xs ml-3 whitespace-nowrap" style={{ color: 'var(--border-soft)' }}>{filtered.length} of {registrations.length} registrant(s)</span>
       </div>
 
       {filtered.length === 0 && (
-        <p className="text-sm py-8 text-center" style={{ color: '#3d5a78' }}>
+        <p className="text-sm py-8 text-center" style={{ color: 'var(--border-soft)' }}>
           {registrations.length === 0 ? 'No one has registered for this event yet.' : 'No registrants match your search.'}
         </p>
       )}
 
       <div className="space-y-2">
         {filtered.map(r => (
-          <div key={r.id} className="rounded-xl border p-3 flex items-center gap-3" style={{ background: '#061420', borderColor: '#0f2a4a' }}>
+          <div key={r.id} className="rounded-xl border p-3 flex items-center gap-3" style={{ background: 'var(--surface-deep)', borderColor: 'var(--border)' }}>
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2 flex-wrap">
-                <span className="text-sm font-semibold" style={{ color: '#e8f4ff' }}>{r.full_name}</span>
-                {r.team_size > 1 && <span className="text-xs px-1.5 py-0.5 rounded" style={{ background: '#a78bfa22', color: '#a78bfa' }}>Team of {r.team_size}</span>}
-                {r.is_online_category && <span className="text-xs px-1.5 py-0.5 rounded" style={{ background: '#00d4ff22', color: '#00d4ff' }}>Online</span>}
+                <span className="text-sm font-semibold" style={{ color: 'var(--white)' }}>{r.full_name}</span>
+                {r.team_size > 1 && <span className="text-xs px-1.5 py-0.5 rounded" style={{ background: 'rgba(var(--accent2-rgb), 0.13)', color: 'var(--accent2)' }}>Team of {r.team_size}</span>}
+                {r.is_online_category && <span className="text-xs px-1.5 py-0.5 rounded" style={{ background: 'rgba(var(--blue-rgb), 0.13)', color: 'var(--blue)' }}>Online</span>}
                 {r.payment_status && r.payment_status !== 'not_required' && (
                   <span className="text-xs px-1.5 py-0.5 rounded" style={{
-                    background: r.payment_status === 'paid' ? '#34d39922' : r.payment_status === 'failed' ? '#ff707022' : '#ffb34722',
-                    color: r.payment_status === 'paid' ? '#34d399' : r.payment_status === 'failed' ? '#ff7070' : '#ffb347',
+                    background: r.payment_status === 'paid' ? '#34d39922' : r.payment_status === 'failed' ? 'rgba(var(--danger-soft-rgb), 0.13)' : 'rgba(var(--warning-rgb), 0.13)',
+                    color: r.payment_status === 'paid' ? 'var(--cat-teal)' : r.payment_status === 'failed' ? 'var(--danger-soft)' : 'var(--warning)',
                   }}>{r.payment_status}</span>
                 )}
               </div>
-              <p className="text-xs mt-0.5 truncate" style={{ color: '#6a8faf' }}>{r.breadcrumb.join(' → ')}</p>
-              <p className="text-xs mt-0.5" style={{ color: '#3d5a78' }}>{r.phone} · {r.email} · {r.college}{r.college_roll ? ` · Roll ${r.college_roll}` : ''}</p>
+              <p className="text-xs mt-0.5 truncate" style={{ color: 'var(--muted)' }}>{r.breadcrumb.join(' → ')}</p>
+              <p className="text-xs mt-0.5" style={{ color: 'var(--border-soft)' }}>{r.phone} · {r.email} · {r.college}{r.college_roll ? ` · Roll ${r.college_roll}` : ''}</p>
             </div>
             <button onClick={() => setViewing(r)} className="text-xs px-3 py-1.5 rounded-lg flex-shrink-0"
-              style={{ background: 'rgba(0,212,255,0.1)', color: '#00d4ff', border: '1px solid rgba(0,212,255,0.2)' }}>
+              style={{ background: 'rgba(var(--blue-rgb), 0.1)', color: 'var(--blue)', border: '1px solid rgba(var(--blue-rgb), 0.2)' }}>
               View
             </button>
           </div>
@@ -327,13 +336,13 @@ function RegistrantsPanel({ sessionId }: { sessionId: string }) {
 
       {viewing && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.6)' }} onClick={() => setViewing(null)}>
-          <div className="max-w-md w-full rounded-2xl p-5 space-y-2 max-h-[80vh] overflow-y-auto" style={{ background: '#061420', border: '1px solid #0f2a4a' }} onClick={e => e.stopPropagation()}>
+          <div className="max-w-md w-full rounded-2xl p-5 space-y-2 max-h-[80vh] overflow-y-auto" style={{ background: 'var(--surface-deep)', border: '1px solid var(--border)' }} onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-1">
-              <h3 className="font-bold" style={{ color: '#e8f4ff' }}>{viewing.full_name}</h3>
-              <button onClick={() => setViewing(null)} style={{ color: '#6a8faf' }}><X size={16} /></button>
+              <h3 className="font-bold" style={{ color: 'var(--white)' }}>{viewing.full_name}</h3>
+              <button onClick={() => setViewing(null)} style={{ color: 'var(--muted)' }}><X size={16} /></button>
             </div>
-            <p className="text-xs" style={{ color: '#6a8faf' }}>{viewing.breadcrumb.join(' → ')}</p>
-            <div className="text-sm pt-2 space-y-1" style={{ color: '#cfe8ff' }}>
+            <p className="text-xs" style={{ color: 'var(--muted)' }}>{viewing.breadcrumb.join(' → ')}</p>
+            <div className="text-sm pt-2 space-y-1" style={{ color: 'var(--white-soft)' }}>
               <p>Phone: {viewing.phone}</p>
               <p>Email: {viewing.email}</p>
               <p>College: {viewing.college} {viewing.college_roll && `(Roll ${viewing.college_roll})`}</p>
@@ -342,15 +351,15 @@ function RegistrantsPanel({ sessionId }: { sessionId: string }) {
               {viewing.payment_status && <p>Payment: {viewing.payment_status}</p>}
             </div>
             {(viewing.team_members || []).length > 0 && (
-              <div className="pt-2 border-t" style={{ borderColor: '#0f2a4a' }}>
-                <p className="text-xs font-bold mb-1" style={{ color: '#a78bfa' }}>TEAM MEMBERS</p>
+              <div className="pt-2 border-t" style={{ borderColor: 'var(--border)' }}>
+                <p className="text-xs font-bold mb-1" style={{ color: 'var(--accent2)' }}>TEAM MEMBERS</p>
                 {viewing.team_members.map((m: any, i: number) => (
-                  <p key={i} className="text-xs" style={{ color: '#6a8faf' }}>{m.full_name} — {m.email || m.college_roll}</p>
+                  <p key={i} className="text-xs" style={{ color: 'var(--muted)' }}>{m.full_name} — {m.email || m.college_roll}</p>
                 ))}
               </div>
             )}
             {viewing.is_online_category && (
-              <p className="text-xs pt-2" style={{ color: '#3d5a78' }}>
+              <p className="text-xs pt-2" style={{ color: 'var(--border-soft)' }}>
                 Submission/exam content for this registrant is on the Olympiad admin page, not here.
               </p>
             )}
@@ -361,7 +370,7 @@ function RegistrantsPanel({ sessionId }: { sessionId: string }) {
   )
 }
 
-function CategoryEditor({ category, isLeaf, onSave }: { category: Category; isLeaf: boolean; onSave: (patch: Partial<Category>) => void }) {
+function CategoryEditor({ category, isLeaf, onSave }: { category: Category; isLeaf: boolean; onSave: (patch: Partial<Category> & { online_type?: string }) => void }) {
   const [name, setName] = useState(category.name)
   const [description, setDescription] = useState(category.description || '')
   const [registrationOpen, setRegistrationOpen] = useState(category.registration_open !== false)
@@ -374,6 +383,7 @@ function CategoryEditor({ category, isLeaf, onSave }: { category: Category; isLe
   const [paymentAmount, setPaymentAmount] = useState(category.payment_amount?.toString() || '')
   const [paymentLabel, setPaymentLabel] = useState(category.payment_label || '')
   const [isOnlineSubmission, setIsOnlineSubmission] = useState(category.is_online_submission)
+  const [onlineType, setOnlineType] = useState(deriveOnlineType(category.linked_olympiad))
   const [scheduleDate, setScheduleDate] = useState(category.schedule_date || '')
   const [scheduleTime, setScheduleTime] = useState(category.schedule_time || '')
   const [scheduleRoom, setScheduleRoom] = useState(category.schedule_room || '')
@@ -414,6 +424,7 @@ function CategoryEditor({ category, isLeaf, onSave }: { category: Category; isLe
       payment_amount: paymentAmount ? Number(paymentAmount) : null,
       payment_label: paymentLabel || null,
       is_online_submission: isOnlineSubmission,
+      online_type: isOnlineSubmission ? onlineType : undefined,
       schedule_date: scheduleDate || null,
       schedule_time: scheduleTime || null,
       schedule_room: scheduleRoom || null,
@@ -428,9 +439,9 @@ function CategoryEditor({ category, isLeaf, onSave }: { category: Category; isLe
 
   const FieldListEditor = ({ fields, setter, title }: { fields: CustomField[]; setter: typeof setCustomFields; title: string }) => (
     <div className="space-y-2">
-      <p className="text-xs font-bold" style={{ color: '#6a8faf' }}>{title}</p>
+      <p className="text-xs font-bold" style={{ color: 'var(--muted)' }}>{title}</p>
       {fields.map(f => (
-        <div key={f.key} className="p-3 rounded-lg space-y-2" style={{ background: '#0a1628' }}>
+        <div key={f.key} className="p-3 rounded-lg space-y-2" style={{ background: 'var(--surface)' }}>
           <div className="flex gap-2">
             <input placeholder="Field title (e.g. Submit your NDC ID card photo)" value={f.label}
               onChange={e => patchField(setter, f.key, { label: e.target.value })}
@@ -439,7 +450,7 @@ function CategoryEditor({ category, isLeaf, onSave }: { category: Category; isLe
               className="px-2 py-2 rounded-lg text-sm border outline-none" style={inputStyle}>
               {fieldTypeOptions.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
             </select>
-            <button onClick={() => removeField(setter, f.key)} style={{ color: '#ff7070' }}><Trash2 size={14} /></button>
+            <button onClick={() => removeField(setter, f.key)} style={{ color: 'var(--danger-soft)' }}><Trash2 size={14} /></button>
           </div>
           <input placeholder="Description shown under the field title (optional)" value={f.description || ''}
             onChange={e => patchField(setter, f.key, { description: e.target.value })}
@@ -450,45 +461,57 @@ function CategoryEditor({ category, isLeaf, onSave }: { category: Category; isLe
                 value={(f.options || []).join(', ')}
                 onChange={e => patchField(setter, f.key, { options: e.target.value.split(',').map(o => o.trim()).filter(Boolean) })}
                 className={inputCls} style={inputStyle} />
-              <p className="text-xs mt-1" style={{ color: '#3d5a78' }}>This is what shows up in the dropdown on the registration form.</p>
+              <p className="text-xs mt-1" style={{ color: 'var(--border-soft)' }}>This is what shows up in the dropdown on the registration form.</p>
+              <label className="flex items-center gap-2 text-xs mt-1.5" style={{ color: 'var(--muted)' }}>
+                <input type="checkbox" checked={!!f.allow_other} onChange={e => patchField(setter, f.key, { allow_other: e.target.checked })} />
+                Let registrants type their own option (adds an &quot;Other&quot; choice)
+              </label>
             </div>
           )}
           {(f.type === 'photo' || f.type === 'file') && (
-            <div className="flex items-center gap-2">
-              <label className="text-xs whitespace-nowrap" style={{ color: '#6a8faf' }}>Max file size (MB)</label>
-              <input type="number" min={1} placeholder="5" value={f.max_file_size_mb ?? ''}
-                onChange={e => patchField(setter, f.key, { max_file_size_mb: e.target.value ? Number(e.target.value) : undefined })}
-                className={inputCls} style={{ ...inputStyle, maxWidth: 100 }} />
+            <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2">
+                <label className="text-xs whitespace-nowrap" style={{ color: 'var(--muted)' }}>Max file size (MB)</label>
+                <input type="number" min={1} placeholder="5" value={f.max_file_size_mb ?? ''}
+                  onChange={e => patchField(setter, f.key, { max_file_size_mb: e.target.value ? Number(e.target.value) : undefined })}
+                  className={inputCls} style={{ ...inputStyle, maxWidth: 100 }} />
+              </div>
+              <div className="flex items-center gap-2">
+                <label className="text-xs whitespace-nowrap" style={{ color: 'var(--muted)' }}>Max files</label>
+                <input type="number" min={1} placeholder="1" value={f.max_files ?? ''}
+                  onChange={e => patchField(setter, f.key, { max_files: e.target.value ? Number(e.target.value) : undefined })}
+                  className={inputCls} style={{ ...inputStyle, maxWidth: 100 }} />
+              </div>
             </div>
           )}
-          <label className="flex items-center gap-2 text-xs" style={{ color: '#6a8faf' }}>
+          <label className="flex items-center gap-2 text-xs" style={{ color: 'var(--muted)' }}>
             <input type="checkbox" checked={f.required} onChange={e => patchField(setter, f.key, { required: e.target.checked })} />
             Required
           </label>
         </div>
       ))}
       <button onClick={() => addField(setter)} className="text-xs px-3 py-1.5 rounded flex items-center gap-1"
-        style={{ background: 'rgba(0,212,255,0.1)', color: '#00d4ff' }}>
+        style={{ background: 'rgba(var(--blue-rgb), 0.1)', color: 'var(--blue)' }}>
         <Plus size={11} /> Add field
       </button>
     </div>
   )
 
   return (
-    <div className="p-4 border-t space-y-4" style={{ borderColor: '#0f2a4a' }}>
+    <div className="p-4 border-t space-y-4" style={{ borderColor: 'var(--border)' }}>
       <div>
-        <label className="block text-xs mb-1" style={{ color: '#6a8faf' }}>Name</label>
+        <label className="block text-xs mb-1" style={{ color: 'var(--muted)' }}>Name</label>
         <input value={name} onChange={e => setName(e.target.value)} className={inputCls} style={inputStyle} />
       </div>
       <div>
-        <label className="block text-xs mb-1" style={{ color: '#6a8faf' }}>Description (optional, shown to students)</label>
+        <label className="block text-xs mb-1" style={{ color: 'var(--muted)' }}>Description (optional, shown to students)</label>
         <textarea rows={2} value={description} onChange={e => setDescription(e.target.value)} className={inputCls + ' resize-none'} style={inputStyle} />
       </div>
-      <label className="flex items-center gap-2 text-sm cursor-pointer" style={{ color: registrationOpen ? '#34d399' : '#ff7070' }}>
+      <label className="flex items-center gap-2 text-sm cursor-pointer" style={{ color: registrationOpen ? 'var(--cat-teal)' : 'var(--danger-soft)' }}>
         <input type="checkbox" checked={registrationOpen} onChange={e => setRegistrationOpen(e.target.checked)} />
         {registrationOpen ? 'Accepting new registrants' : 'Closed to new registrants'}
       </label>
-      <p className="text-xs" style={{ color: '#3d5a78' }}>
+      <p className="text-xs" style={{ color: 'var(--border-soft)' }}>
         {isLeaf
           ? 'Turn off to stop new people from registering here, without hiding it or deleting anything (existing registrants are unaffected).'
           : 'Closing this also closes every category nested under it, even if they\'re individually marked as open.'}
@@ -496,12 +519,12 @@ function CategoryEditor({ category, isLeaf, onSave }: { category: Category; isLe
 
       {isLeaf && (
         <>
-          <hr style={{ borderColor: '#0f2a4a' }} />
+          <hr style={{ borderColor: 'var(--border)' }} />
           <FieldListEditor fields={customFields} setter={setCustomFields} title="EXTRA REGISTRATION FIELDS (besides name, phone, email, college, roll, HSC session)" />
 
-          <hr style={{ borderColor: '#0f2a4a' }} />
+          <hr style={{ borderColor: 'var(--border)' }} />
           <div>
-            <label className="flex items-center gap-2 text-sm font-semibold mb-2" style={{ color: '#a78bfa' }}>
+            <label className="flex items-center gap-2 text-sm font-semibold mb-2" style={{ color: 'var(--accent2)' }}>
               <input type="checkbox" checked={requiresTeam} onChange={e => setRequiresTeam(e.target.checked)} />
               <Users size={14} /> This is a team registration
             </label>
@@ -509,16 +532,16 @@ function CategoryEditor({ category, isLeaf, onSave }: { category: Category; isLe
               <div className="space-y-3 pl-6">
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-xs mb-1" style={{ color: '#6a8faf' }}>Min team size</label>
+                    <label className="block text-xs mb-1" style={{ color: 'var(--muted)' }}>Min team size</label>
                     <input type="number" value={teamMin} onChange={e => setTeamMin(e.target.value)} className={inputCls} style={inputStyle} />
                   </div>
                   <div>
-                    <label className="block text-xs mb-1" style={{ color: '#6a8faf' }}>Max team size</label>
+                    <label className="block text-xs mb-1" style={{ color: 'var(--muted)' }}>Max team size</label>
                     <input type="number" value={teamMax} onChange={e => setTeamMax(e.target.value)} className={inputCls} style={inputStyle} />
                   </div>
                 </div>
                 <FieldListEditor fields={teamFields} setter={setTeamFields} title="INFO COLLECTED PER TEAM MEMBER" />
-                <p className="text-xs" style={{ color: '#3d5a78' }}>
+                <p className="text-xs" style={{ color: 'var(--border-soft)' }}>
                   The team leader sets a password for each member during registration — every
                   member gets an email with their info and password so they can log in to their own dashboard.
                 </p>
@@ -526,61 +549,71 @@ function CategoryEditor({ category, isLeaf, onSave }: { category: Category; isLe
             )}
           </div>
 
-          <hr style={{ borderColor: '#0f2a4a' }} />
+          <hr style={{ borderColor: 'var(--border)' }} />
           <div>
-            <label className="flex items-center gap-2 text-sm font-semibold mb-2" style={{ color: '#ffb347' }}>
+            <label className="flex items-center gap-2 text-sm font-semibold mb-2" style={{ color: 'var(--warning)' }}>
               <input type="checkbox" checked={requiresPayment} onChange={e => setRequiresPayment(e.target.checked)} />
               <CreditCard size={14} /> Requires payment
             </label>
             {requiresPayment && (
               <div className="grid grid-cols-2 gap-3 pl-6">
                 <div>
-                  <label className="block text-xs mb-1" style={{ color: '#6a8faf' }}>Amount (BDT)</label>
+                  <label className="block text-xs mb-1" style={{ color: 'var(--muted)' }}>Amount (BDT)</label>
                   <input type="number" value={paymentAmount} onChange={e => setPaymentAmount(e.target.value)} className={inputCls} style={inputStyle} />
                 </div>
                 <div>
-                  <label className="block text-xs mb-1" style={{ color: '#6a8faf' }}>Payment label</label>
+                  <label className="block text-xs mb-1" style={{ color: 'var(--muted)' }}>Payment label</label>
                   <input placeholder="e.g. Registration fee" value={paymentLabel} onChange={e => setPaymentLabel(e.target.value)} className={inputCls} style={inputStyle} />
                 </div>
               </div>
             )}
           </div>
 
-          <hr style={{ borderColor: '#0f2a4a' }} />
+          <hr style={{ borderColor: 'var(--border)' }} />
           <div>
-            <label className="flex items-center gap-2 text-sm font-semibold mb-1" style={{ color: '#00d4ff' }}>
+            <label className="flex items-center gap-2 text-sm font-semibold mb-1" style={{ color: 'var(--blue)' }}>
               <input type="checkbox" checked={isOnlineSubmission} onChange={e => setIsOnlineSubmission(e.target.checked)} />
               <Link2 size={14} /> This is an online-submission / exam round
             </label>
-            <p className="text-xs pl-6 mb-2" style={{ color: '#3d5a78' }}>
+            <p className="text-xs pl-6 mb-2" style={{ color: 'var(--border-soft)' }}>
               {category.linked_olympiad_id
                 ? 'Already linked to an Olympiad — registrants access exam/submission from their dashboard.'
                 : 'Saving with this on will automatically create a linked Olympiad behind the scenes.'}
             </p>
             {category.linked_olympiad_id && (
-              <div className="pl-6">
+              <div className="pl-6 space-y-2">
+                <div>
+                  <label className="block text-xs mb-1" style={{ color: 'var(--muted)' }}>Online Type</label>
+                  <select value={onlineType} onChange={e => setOnlineType(e.target.value)}
+                    className="px-2 py-2 rounded-lg text-sm border outline-none w-full max-w-xs" style={inputStyle}>
+                    <option value="pure_submission">Pure Submission — students just upload their work</option>
+                    <option value="full_quiz">Full Quiz System — fully online, timed exam</option>
+                    <option value="mixed">Mixed — students can do both</option>
+                    <option value="science_relay">Science Relay — team members take turns</option>
+                  </select>
+                </div>
                 <Link href={`/admin/olympiads?edit=${category.linked_olympiad_id}&back_session=${category.activity_session_id}`}
                   className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-bold"
-                  style={{ background: 'rgba(0,212,255,0.12)', color: '#00d4ff', border: '1px solid rgba(0,212,255,0.3)' }}>
-                  ⚡ Configure Olympiad (exam type, questions, scheduling, relay) →
+                  style={{ background: 'rgba(var(--blue-rgb), 0.12)', color: 'var(--blue)', border: '1px solid rgba(var(--blue-rgb), 0.3)' }}>
+                  <Zap size={13} /> Configure questions, scheduling & relay details →
                 </Link>
-                <p className="text-xs mt-1" style={{ color: '#3d5a78' }}>Set up exam type, questions, relay mode, subject assignment, and scheduling there.</p>
+                <p className="text-xs mt-1" style={{ color: 'var(--border-soft)' }}>Add questions, subject assignment, relay sequencing, and scheduling there.</p>
               </div>
             )}
           </div>
 
           {isOnlineSubmission && (
             <>
-              <hr style={{ borderColor: '#0f2a4a' }} />
+              <hr style={{ borderColor: 'var(--border)' }} />
               <div>
-                <p className="text-xs font-bold mb-2" style={{ color: '#00d4ff' }}>
-                  📤 SUBMISSION FIELDS (what the student uploads / fills when they hit &quot;Submit Now&quot;)
+                <p className="text-xs font-bold mb-2" style={{ color: 'var(--blue)' }}>
+                  <Upload size={13} className="inline mr-1.5 -mt-0.5" /> SUBMISSION FIELDS (what the student uploads / fills when they hit &quot;Submit Now&quot;)
                 </p>
-                <p className="text-xs mb-3" style={{ color: '#3d5a78' }}>
+                <p className="text-xs mb-3" style={{ color: 'var(--border-soft)' }}>
                   Leave empty if this is a live MCQ exam (no file submission). Add fields for project uploads, answer sheets, videos, etc.
                 </p>
                 {submissionConfig.map((field, idx) => (
-                  <div key={field.id} className="p-3 rounded-lg mb-2 space-y-2" style={{ background: '#0a1628', border: '1px solid #0f2a4a' }}>
+                  <div key={field.id} className="p-3 rounded-lg mb-2 space-y-2" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
                     <div className="flex gap-2 items-start">
                       <div className="flex-1 space-y-2">
                         <input placeholder="Field title (e.g. Answer Sheet, Project Video)" value={field.title}
@@ -590,13 +623,13 @@ function CategoryEditor({ category, isLeaf, onSave }: { category: Category; isLe
                           onChange={e => setSubmissionConfig(prev => prev.map((f, i) => i === idx ? { ...f, description: e.target.value } : f))}
                           className={inputCls} style={inputStyle} />
                       </div>
-                      <button onClick={() => setSubmissionConfig(prev => prev.filter((_, i) => i !== idx))} style={{ color: '#ff7070', marginTop: '4px' }}>
+                      <button onClick={() => setSubmissionConfig(prev => prev.filter((_, i) => i !== idx))} style={{ color: 'var(--danger-soft)', marginTop: '4px' }}>
                         <Trash2 size={14} />
                       </button>
                     </div>
                     <div className="grid grid-cols-2 gap-2">
                       <div>
-                        <label className="block text-xs mb-1" style={{ color: '#6a8faf' }}>Field type</label>
+                        <label className="block text-xs mb-1" style={{ color: 'var(--muted)' }}>Field type</label>
                         <select value={field.field_type}
                           onChange={e => setSubmissionConfig(prev => prev.map((f, i) => i === idx ? { ...f, field_type: e.target.value as any } : f))}
                           className={inputCls} style={inputStyle}>
@@ -608,19 +641,19 @@ function CategoryEditor({ category, isLeaf, onSave }: { category: Category; isLe
                       {field.field_type === 'file' && (
                         <>
                           <div>
-                            <label className="block text-xs mb-1" style={{ color: '#6a8faf' }}>Allowed file types (comma-separated)</label>
+                            <label className="block text-xs mb-1" style={{ color: 'var(--muted)' }}>Allowed file types (comma-separated)</label>
                             <input placeholder="pdf,jpg,png,mp4" value={(field.file_types || []).join(',')}
                               onChange={e => setSubmissionConfig(prev => prev.map((f, i) => i === idx ? { ...f, file_types: e.target.value.split(',').map(s => s.trim()).filter(Boolean) } : f))}
                               className={inputCls} style={inputStyle} />
                           </div>
                           <div>
-                            <label className="block text-xs mb-1" style={{ color: '#6a8faf' }}>Max file size (MB)</label>
+                            <label className="block text-xs mb-1" style={{ color: 'var(--muted)' }}>Max file size (MB)</label>
                             <input type="number" placeholder="5" value={field.max_file_size_mb || ''}
                               onChange={e => setSubmissionConfig(prev => prev.map((f, i) => i === idx ? { ...f, max_file_size_mb: Number(e.target.value) } : f))}
                               className={inputCls} style={inputStyle} />
                           </div>
                           <div>
-                            <label className="block text-xs mb-1" style={{ color: '#6a8faf' }}>Max number of files</label>
+                            <label className="block text-xs mb-1" style={{ color: 'var(--muted)' }}>Max number of files</label>
                             <input type="number" placeholder="1" value={field.max_files || ''}
                               onChange={e => setSubmissionConfig(prev => prev.map((f, i) => i === idx ? { ...f, max_files: Number(e.target.value) } : f))}
                               className={inputCls} style={inputStyle} />
@@ -628,7 +661,7 @@ function CategoryEditor({ category, isLeaf, onSave }: { category: Category; isLe
                         </>
                       )}
                     </div>
-                    <label className="flex items-center gap-2 text-xs" style={{ color: '#6a8faf' }}>
+                    <label className="flex items-center gap-2 text-xs" style={{ color: 'var(--muted)' }}>
                       <input type="checkbox" checked={field.required}
                         onChange={e => setSubmissionConfig(prev => prev.map((f, i) => i === idx ? { ...f, required: e.target.checked } : f))} />
                       Required field
@@ -637,13 +670,13 @@ function CategoryEditor({ category, isLeaf, onSave }: { category: Category; isLe
                 ))}
                 <button onClick={() => setSubmissionConfig(prev => [...prev, BLANK_SUBMISSION_FIELD()])}
                   className="text-xs px-3 py-1.5 rounded flex items-center gap-1 mt-1"
-                  style={{ background: 'rgba(0,212,255,0.1)', color: '#00d4ff' }}>
+                  style={{ background: 'rgba(var(--blue-rgb), 0.1)', color: 'var(--blue)' }}>
                   <Plus size={11} /> Add submission field
                 </button>
 
                 {submissionConfig.length > 0 && (
                   <div className="mt-3">
-                    <label className="block text-xs mb-1" style={{ color: '#6a8faf' }}>Who can submit?</label>
+                    <label className="block text-xs mb-1" style={{ color: 'var(--muted)' }}>Who can submit?</label>
                     <select value={submissionWho} onChange={e => setSubmissionWho(e.target.value as any)}
                       className={inputCls} style={inputStyle}>
                       <option value="leader">Team leader only</option>
@@ -655,45 +688,45 @@ function CategoryEditor({ category, isLeaf, onSave }: { category: Category; isLe
             </>
           )}
 
-          <hr style={{ borderColor: '#0f2a4a' }} />
+          <hr style={{ borderColor: 'var(--border)' }} />
           <div>
-            <label className="flex items-center gap-2 text-sm font-semibold mb-2" style={{ color: '#a78bfa' }}>
+            <label className="flex items-center gap-2 text-sm font-semibold mb-2" style={{ color: 'var(--accent2)' }}>
               <input type="checkbox" checked={projectNameEnabled} onChange={e => setProjectNameEnabled(e.target.checked)} />
-              🔬 Collect a project name during registration
+              <Microscope size={14} /> Collect a project name during registration
             </label>
             {projectNameEnabled && (
               <div className="pl-6">
-                <label className="block text-xs mb-1" style={{ color: '#6a8faf' }}>Field label shown to student</label>
+                <label className="block text-xs mb-1" style={{ color: 'var(--muted)' }}>Field label shown to student</label>
                 <input value={projectNameLabel} onChange={e => setProjectNameLabel(e.target.value)}
                   placeholder="Project Name" className={inputCls} style={inputStyle} />
               </div>
             )}
           </div>
 
-          <hr style={{ borderColor: '#0f2a4a' }} />
+          <hr style={{ borderColor: 'var(--border)' }} />
           <div>
-            <p className="text-xs font-bold mb-2 flex items-center gap-1.5" style={{ color: '#34d399' }}>
+            <p className="text-xs font-bold mb-2 flex items-center gap-1.5" style={{ color: 'var(--cat-teal)' }}>
               <Calendar size={13} /> SCHEDULE (shown as a reminder on the registrant's dashboard)
             </p>
             <div className="grid grid-cols-3 gap-3">
               <div>
-                <label className="block text-xs mb-1" style={{ color: '#6a8faf' }}>Date</label>
+                <label className="block text-xs mb-1" style={{ color: 'var(--muted)' }}>Date</label>
                 <input type="date" value={scheduleDate} onChange={e => setScheduleDate(e.target.value)} className={inputCls} style={inputStyle} />
               </div>
               <div>
-                <label className="block text-xs mb-1" style={{ color: '#6a8faf' }}>Time</label>
+                <label className="block text-xs mb-1" style={{ color: 'var(--muted)' }}>Time</label>
                 <input placeholder="10:00 AM - 12:00 PM" value={scheduleTime} onChange={e => setScheduleTime(e.target.value)} className={inputCls} style={inputStyle} />
               </div>
               <div>
-                <label className="block text-xs mb-1" style={{ color: '#6a8faf' }}>Room / Venue</label>
+                <label className="block text-xs mb-1" style={{ color: 'var(--muted)' }}>Room / Venue</label>
                 <input value={scheduleRoom} onChange={e => setScheduleRoom(e.target.value)} className={inputCls} style={inputStyle} />
               </div>
             </div>
           </div>
 
-          <hr style={{ borderColor: '#0f2a4a' }} />
+          <hr style={{ borderColor: 'var(--border)' }} />
           <div>
-            <label className="block text-xs mb-1" style={{ color: '#6a8faf' }}>
+            <label className="block text-xs mb-1" style={{ color: 'var(--muted)' }}>
               Self-edit window (hours after registering — leave blank for no time limit)
             </label>
             <input type="number" placeholder="e.g. 48" value={editWindowHours} onChange={e => setEditWindowHours(e.target.value)} className={inputCls} style={inputStyle} />
@@ -703,7 +736,7 @@ function CategoryEditor({ category, isLeaf, onSave }: { category: Category; isLe
 
       <button onClick={save} disabled={saving}
         className="px-5 py-2 rounded-lg text-sm font-bold disabled:opacity-50"
-        style={{ background: '#00d4ff', color: '#000' }}>
+        style={{ background: 'var(--blue)', color: '#000' }}>
         {saving ? 'Saving...' : 'Save Changes'}
       </button>
     </div>

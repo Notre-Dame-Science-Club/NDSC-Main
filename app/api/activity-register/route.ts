@@ -1,8 +1,9 @@
 import { supabaseAdmin } from '@/lib/supabase'
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest } from 'next/server'
 import { validateCollegeRoll } from '@/lib/validation'
 import { hashPassword } from '@/lib/password'
 import { sendEmail } from '@/lib/email'
+import { apiError, apiOk } from '@/lib/api/response'
 
 type TeamMemberInput = {
   full_name: string
@@ -18,7 +19,7 @@ type TeamMemberInput = {
 // for resuming a session / viewing a dashboard.
 export async function GET(req: NextRequest) {
   const id = req.nextUrl.searchParams.get('id')
-  if (!id) return NextResponse.json({ error: 'Missing id' }, { status: 400 })
+  if (!id) return apiError('Missing id', 400)
 
   const { data: registration, error } = await supabaseAdmin
     .from('activity_registrations')
@@ -27,7 +28,7 @@ export async function GET(req: NextRequest) {
     .single()
 
   if (error || !registration) {
-    return NextResponse.json({ error: 'Registration not found.' }, { status: 404 })
+    return apiError('Registration not found.', 404)
   }
 
   const { data: category } = await supabaseAdmin
@@ -42,7 +43,7 @@ export async function GET(req: NextRequest) {
     .eq('id', registration.activity_session_id)
     .single()
 
-  return NextResponse.json({ registration, category, session })
+  return apiOk({ registration, category, session })
 }
 
 // Lets a registrant edit their own basic info, but only while their edit
@@ -51,7 +52,7 @@ export async function GET(req: NextRequest) {
 // button once closed, but that alone wouldn't stop a direct API call.
 export async function PUT(req: NextRequest) {
   const body = await req.json().catch(() => null)
-  if (!body || !body.id) return NextResponse.json({ error: 'A registration id is required.' }, { status: 400 })
+  if (!body || !body.id) return apiError('A registration id is required.', 400)
 
   const { data: existing, error: fetchError } = await supabaseAdmin
     .from('activity_registrations')
@@ -60,10 +61,10 @@ export async function PUT(req: NextRequest) {
     .single()
 
   if (fetchError || !existing) {
-    return NextResponse.json({ error: 'Registration not found.' }, { status: 404 })
+    return apiError('Registration not found.', 404)
   }
   if (existing.edit_locked_at && new Date(existing.edit_locked_at).getTime() <= Date.now()) {
-    return NextResponse.json({ error: 'The edit window for this registration has closed.' }, { status: 403 })
+    return apiError('The edit window for this registration has closed.', 403)
   }
 
   const allowedFields = ['full_name', 'phone', 'email', 'college', 'college_roll', 'hsc_session', 'project_name']
@@ -74,7 +75,7 @@ export async function PUT(req: NextRequest) {
 
   if (patch.college_roll !== undefined) {
     const rollError = validateCollegeRoll(patch.college ?? existing.college, patch.college_roll)
-    if (rollError) return NextResponse.json({ error: rollError }, { status: 400 })
+    if (rollError) return apiError(rollError, 400)
   }
 
   const { error: updateError } = await supabaseAdmin
@@ -82,13 +83,13 @@ export async function PUT(req: NextRequest) {
     .update(patch)
     .eq('id', body.id)
 
-  if (updateError) return NextResponse.json({ error: updateError.message }, { status: 400 })
-  return NextResponse.json({ success: true })
+  if (updateError) return apiError(updateError, 400)
+  return apiOk({ success: true })
 }
 
 export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => null)
-  if (!body) return NextResponse.json({ error: 'Invalid request.' }, { status: 400 })
+  if (!body) return apiError('Invalid request.', 400)
 
   const {
     category_id,
@@ -99,14 +100,14 @@ export async function POST(req: NextRequest) {
     member_id, // optional — set if the registrant was a logged-in member
   } = body
 
-  if (!category_id) return NextResponse.json({ error: 'category_id is required.' }, { status: 400 })
-  if (!full_name?.trim()) return NextResponse.json({ error: 'Name is required.' }, { status: 400 })
-  if (!phone?.trim()) return NextResponse.json({ error: 'Phone number is required.' }, { status: 400 })
-  if (!email?.trim()) return NextResponse.json({ error: 'Email is required.' }, { status: 400 })
-  if (!college?.trim()) return NextResponse.json({ error: 'College is required.' }, { status: 400 })
+  if (!category_id) return apiError('category_id is required.', 400)
+  if (!full_name?.trim()) return apiError('Name is required.', 400)
+  if (!phone?.trim()) return apiError('Phone number is required.', 400)
+  if (!email?.trim()) return apiError('Email is required.', 400)
+  if (!college?.trim()) return apiError('College is required.', 400)
 
   const rollError = validateCollegeRoll(college, college_roll)
-  if (rollError) return NextResponse.json({ error: rollError }, { status: 400 })
+  if (rollError) return apiError(rollError, 400)
 
   // Load category first (needed below) before validating project_name,
   // since project_name_enabled lives on the category.
@@ -120,7 +121,7 @@ export async function POST(req: NextRequest) {
     .single()
 
   if (catError || !category) {
-    return NextResponse.json({ error: 'Registration category not found.' }, { status: 404 })
+    return apiError('Registration category not found.', 404)
   }
 
   // Registration must be open on this leaf AND on every ancestor above it
@@ -129,7 +130,7 @@ export async function POST(req: NextRequest) {
     let node: any = category
     while (node) {
       if (node.registration_open === false) {
-        return NextResponse.json({ error: 'Registration is closed for this category.' }, { status: 403 })
+        return apiError('Registration is closed for this category.', 403)
       }
       if (!node.parent_id) break
       const { data: parent } = await supabaseAdmin
@@ -143,13 +144,21 @@ export async function POST(req: NextRequest) {
 
   // Validate required custom fields
   for (const field of category.custom_fields || []) {
-    if (field.required && !custom_answers?.[field.key]) {
-      return NextResponse.json({ error: `"${field.label}" is required.` }, { status: 400 })
+    const val = custom_answers?.[field.key]
+    const isEmpty = val === undefined || val === null || val === '' || (Array.isArray(val) && val.length === 0)
+    if (field.required && isEmpty) {
+      return apiError(`"${field.label}" is required.`, 400)
+    }
+    if ((field.type === 'photo' || field.type === 'file') && Array.isArray(val)) {
+      const maxFiles = field.max_files && field.max_files > 1 ? field.max_files : 1
+      if (val.length > maxFiles) {
+        return apiError(`"${field.label}" allows at most ${maxFiles} file${maxFiles > 1 ? 's' : ''}.`, 400)
+      }
     }
   }
 
   if (category.project_name_enabled && !project_name?.trim()) {
-    return NextResponse.json({ error: `"${category.project_name_label || 'Project Name'}" is required.` }, { status: 400 })
+    return apiError(`"${category.project_name_label || 'Project Name'}" is required.`, 400)
   }
 
   // Validate + prepare team members
@@ -159,24 +168,24 @@ export async function POST(req: NextRequest) {
     const min = category.team_size_min || 1
     const max = category.team_size_max || 99
     if (members.length < min || members.length > max) {
-      return NextResponse.json(
+      return apiOk(
         { error: `This category requires between ${min} and ${max} team members (not counting yourself as leader).` },
         { status: 400 }
       )
     }
     for (const m of members) {
       if (!m.full_name?.trim() || !m.email?.trim() || !m.college_roll?.trim() || !m.password) {
-        return NextResponse.json({ error: 'Every team member needs a name, email, college roll, and password.' }, { status: 400 })
+        return apiError('Every team member needs a name, email, college roll, and password.', 400)
       }
       if (m.password.length < 6) {
-        return NextResponse.json({ error: 'Team member passwords must be at least 6 characters.' }, { status: 400 })
+        return apiError('Team member passwords must be at least 6 characters.', 400)
       }
       const memberRollError = validateCollegeRoll(college, m.college_roll)
-      if (memberRollError) return NextResponse.json({ error: `Team member "${m.full_name}": ${memberRollError}` }, { status: 400 })
+      if (memberRollError) return apiError(`Team member "${m.full_name}": ${memberRollError}`, 400)
 
       for (const field of category.team_member_fields || []) {
         if (field.required && !m.custom_answers?.[field.key]) {
-          return NextResponse.json({ error: `Team member "${m.full_name}" is missing required field "${field.label}".` }, { status: 400 })
+          return apiError(`Team member "${m.full_name}" is missing required field "${field.label}".`, 400)
         }
       }
     }
@@ -223,7 +232,7 @@ export async function POST(req: NextRequest) {
     .single()
 
   if (insertError) {
-    return NextResponse.json({ error: insertError.message }, { status: 400 })
+    return apiError(insertError, 400)
   }
 
   // Email every team member their info + password, best-effort (a failed
@@ -251,5 +260,5 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  return NextResponse.json({ registration })
+  return apiOk({ registration })
 }

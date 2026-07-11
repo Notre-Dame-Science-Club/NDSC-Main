@@ -4,8 +4,9 @@ import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { Menu, X, ChevronDown } from "lucide-react";
+import { ActivityIcon } from "@/lib/activityIcons";
 
-type NavChild = { href: string; label: string };
+type NavChild = { href: string; label: string; icon?: string };
 type NavItem = { href?: string; label: string; children?: NavChild[] };
 
 const STATIC_NAV: NavItem[] = [
@@ -90,7 +91,7 @@ export default function Navbar() {
         setNav((prev) =>
           prev.map((item) =>
             item.label === "Activities"
-              ? { ...item, children: types.map((t) => ({ href: `/activities?tab=${t.slug}`, label: `${t.icon || ""} ${t.name}`.trim() })) }
+              ? { ...item, children: types.map((t) => ({ href: `/activities?tab=${t.slug}`, label: t.name, icon: t.icon })) }
               : item
           )
         );
@@ -175,11 +176,11 @@ export default function Navbar() {
       `}</style>
 
       <header className="navbar-glass fixed top-0 left-0 w-full z-50 transition-all duration-300">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 flex items-center justify-between" style={{ height: "var(--navbar-height, 64px)" }}>
 
           {/* LOGO */}
           <Link href="/" className="ndsc-logo-glow flex items-center gap-3 shrink-0 z-10 group">
-            <div className="relative" style={{ width: 38, height: 38 }}>
+            <div className="relative" style={{ width: "var(--navbar-logo, 38px)", height: "var(--navbar-logo, 38px)" }}>
               <Image src="/images/cropped-logo.png" alt="NDSC" fill className="object-contain" />
             </div>
             <div className="hidden sm:flex flex-col leading-none">
@@ -217,9 +218,13 @@ export default function Navbar() {
                     }}>
                       {item.children.map((c) => (
                         <Link key={c.href} href={c.href}
-                          className="flex items-center gap-2 px-4 py-2.5 text-xs font-medium transition-all hover:text-[var(--blue)] hover:pl-5 hover:bg-[rgba(0,212,255,0.04)]"
+                          className="flex items-center gap-2.5 px-4 py-2.5 text-xs font-medium transition-all hover:text-[var(--blue)] hover:pl-5 hover:bg-[rgba(0,212,255,0.04)]"
                           style={{ color: "var(--muted)" }}>
-                          <span className="w-1 h-1 rounded-full shrink-0" style={{ background: "var(--blue)" }} />
+                          {c.icon ? (
+                            <ActivityIcon icon={c.icon} size={14} className="shrink-0" style={{ color: "var(--blue)" }} />
+                          ) : (
+                            <span className="w-1 h-1 rounded-full shrink-0" style={{ background: "var(--blue)" }} />
+                          )}
                           {c.label}
                         </Link>
                       ))}
@@ -289,8 +294,13 @@ export default function Navbar() {
                 {((item.label === "Activities" && actOpen) || (item.label === "Executives" && execOpen)) && (
                   <div className="pl-4 mt-1 mb-2 flex flex-col gap-1">
                     {item.children.map((c) => (
-                      <Link key={c.href} href={c.href} className="py-2 text-sm transition-colors hover:text-[var(--blue)]" style={{ color: "var(--muted)" }}>
-                        → {c.label}
+                      <Link key={c.href} href={c.href} className="flex items-center gap-2 py-2 text-sm transition-colors hover:text-[var(--blue)]" style={{ color: "var(--muted)" }}>
+                        {c.icon ? (
+                          <ActivityIcon icon={c.icon} size={14} className="shrink-0" style={{ color: "var(--blue)" }} />
+                        ) : (
+                          <span className="text-xs" style={{ color: "var(--blue)" }}>→</span>
+                        )}
+                        {c.label}
                       </Link>
                     ))}
                   </div>

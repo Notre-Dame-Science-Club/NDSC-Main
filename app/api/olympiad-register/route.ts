@@ -1,6 +1,7 @@
 import { supabaseAdmin } from '@/lib/supabase'
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest } from 'next/server'
 import { validateCollegeRoll } from '@/lib/validation'
+import { apiError, apiOk } from '@/lib/api/response'
 
 // GET is used to resume a student's session after a page refresh or closed
 // tab — the public olympiad page stores the registration id in the URL and
@@ -14,7 +15,7 @@ import { validateCollegeRoll } from '@/lib/validation'
 // model the PUT handler already uses for submitting answers.
 export async function GET(req: NextRequest) {
   const id = req.nextUrl.searchParams.get('id')
-  if (!id) return NextResponse.json({ error: 'Missing id' }, { status: 400 })
+  if (!id) return apiError('Missing id', 400)
 
   const { data: registration, error: regError } = await supabaseAdmin
     .from('olympiad_registrations')
@@ -23,7 +24,7 @@ export async function GET(req: NextRequest) {
     .single()
 
   if (regError || !registration) {
-    return NextResponse.json({ error: 'Registration not found.' }, { status: 404 })
+    return apiError('Registration not found.', 404)
   }
 
   const { data: olympiad, error: olyError } = await supabaseAdmin
@@ -33,36 +34,36 @@ export async function GET(req: NextRequest) {
     .single()
 
   if (olyError || !olympiad) {
-    return NextResponse.json({ error: 'Olympiad not found.' }, { status: 404 })
+    return apiError('Olympiad not found.', 404)
   }
 
-  return NextResponse.json({ registration, olympiad })
+  return apiOk({ registration, olympiad })
 }
 
 export async function POST(req: NextRequest) {
   const body = await req.json()
 
   const rollError = validateCollegeRoll(body.college, body.college_roll)
-  if (rollError) return NextResponse.json({ error: rollError }, { status: 400 })
+  if (rollError) return apiError(rollError, 400)
 
   const { data, error } = await supabaseAdmin
     .from('olympiad_registrations')
     .insert(body)
     .select('id')
     .single()
-  if (error) return NextResponse.json({ error: error.message }, { status: 400 })
-  return NextResponse.json(data)
+  if (error) return apiError(error, 400)
+  return apiOk(data)
 }
 
 export async function PUT(req: NextRequest) {
   const body = await req.json()
   const { id, ...rest } = body
-  if (!id) return NextResponse.json({ error: 'Missing id' }, { status: 400 })
+  if (!id) return apiError('Missing id', 400)
   const { error } = await supabaseAdmin
     .from('olympiad_registrations')
     .update(rest)
     .eq('id', id)
-  if (error) return NextResponse.json({ error: error.message }, { status: 400 })
-  return NextResponse.json({ success: true })
+  if (error) return apiError(error, 400)
+  return apiOk({ success: true })
 }
 

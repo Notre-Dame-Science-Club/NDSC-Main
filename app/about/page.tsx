@@ -2,6 +2,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
+import { Landmark, Microscope, Globe2, Trophy, Newspaper, Globe, Sparkles } from "lucide-react";
 
 /* ═══════════════════════════════════════════
    DATA
@@ -10,57 +11,57 @@ const DEPTS = [
   {
     name: "Administration",
     icon: "/images/admininstration-icon.svg",
-    color: "#00d4ff",
-    bg: "rgba(0,212,255,0.08)",
-    border: "rgba(0,212,255,0.3)",
+    color: "var(--blue)",
+    bg: "rgba(var(--blue-rgb), 0.08)",
+    border: "rgba(var(--blue-rgb), 0.3)",
     desc: "Ensures smooth operation and management of club activities. Coordinates planning, logistics and execution of all events and programs. Maintains the official records, communication, and institutional memory of NDSC.",
   },
   {
     name: "Project",
     icon: "/images/project-icon.svg",
-    color: "#34d399",
-    bg: "rgba(52,211,153,0.08)",
-    border: "rgba(52,211,153,0.3)",
+    color: "var(--cat-teal)",
+    bg: "rgba(var(--cat-teal-rgb), 0.08)",
+    border: "rgba(var(--cat-teal-rgb), 0.3)",
     desc: "Conducts scientific research and innovation-based projects. Encourages experimentation, analytical development, and student-led innovation. Organizes the Annual Science Festival — the biggest science fair platform in Bangladesh.",
   },
   {
     name: "Publication",
     icon: "/images/publication-icon.svg",
-    color: "#a78bfa",
-    bg: "rgba(167,139,250,0.08)",
-    border: "rgba(167,139,250,0.3)",
+    color: "var(--accent2)",
+    bg: "rgba(var(--accent2-rgb), 0.08)",
+    border: "rgba(var(--accent2-rgb), 0.3)",
     desc: "Handles graphics, publishes wall magazines, journals and the annual AUDRI publication. Promotes scientific writing, knowledge sharing, and creative expression. Manages STEM Insights — the monthly digital science magazine.",
   },
   {
     name: "ICT",
     icon: "/images/ict-icon.svg",
-    color: "#f87171",
-    bg: "rgba(248,113,113,0.08)",
-    border: "rgba(248,113,113,0.3)",
+    color: "var(--cat-red)",
+    bg: "rgba(var(--cat-red-rgb), 0.08)",
+    border: "rgba(var(--cat-red-rgb), 0.3)",
     desc: "Handles digital media, website management, and tech support. Maintains digital infrastructure and online presence of the club. Organizes national ICT fairs and workshops on programming, AI, robotics, and emerging technology.",
   },
   {
     name: "LWS",
     icon: "/images/lws-icon.svg",
-    color: "#f59e0b",
-    bg: "rgba(245,158,11,0.08)",
-    border: "rgba(245,158,11,0.3)",
+    color: "var(--cat-amber)",
+    bg: "rgba(var(--cat-amber-rgb), 0.08)",
+    border: "rgba(var(--cat-amber-rgb), 0.3)",
     desc: "Library, Workshop & Seminar — the club's academics department. Manages the club library, organizes academic workshops, and hosts seminars bridging theoretical knowledge with practical learning.",
   },
   {
     name: "Quiz",
     icon: "/images/quiz-icon.svg",
-    color: "#60a5fa",
-    bg: "rgba(96,165,250,0.08)",
-    border: "rgba(96,165,250,0.3)",
+    color: "var(--info)",
+    bg: "rgba(var(--info-rgb), 0.08)",
+    border: "rgba(var(--info-rgb), 0.3)",
     desc: "Hosts Q-League, BrainRain, and Scienceophile — premier national quiz competitions. NDC Blue, NDC Green & NDC Gold are NDSC's prestigious national quiz teams. Prepares members for national and international science olympiads.",
   },
   {
     name: "R&D",
     icon: "/images/r&d-icon.svg",
-    color: "#fb923c",
-    bg: "rgba(251,146,60,0.08)",
-    border: "rgba(251,146,60,0.3)",
+    color: "var(--cat-orange)",
+    bg: "rgba(var(--cat-orange-rgb), 0.08)",
+    border: "rgba(var(--cat-orange-rgb), 0.3)",
     desc: "Research & Development — drives olympiad preparation, academic seminars, and student-led scientific innovation programs. Coordinates with national and international academic bodies for research collaboration and student recognition.",
   },
 ];
@@ -76,7 +77,7 @@ const GOALS = [
 /* All 40+ milestones from PDF */
 const ERAS = [
   {
-    year: "1953–1955", label: "Foundation", color: "#00d4ff", icon: "🏛️",
+    year: "1953–1955", label: "Foundation", color: "var(--blue)", icon: Landmark,
     summary: "Fr. Richard William Timm, C.S.C. begins lab sessions in 1953. The Science Club is officially inaugurated on September 18, 1955, with 19 founding student members.",
     milestones: [
       { y: "1953", text: "Fr. Timm starts laying the groundwork by hosting advanced laboratory experimentation sessions for interested students at the Motijheel campus." },
@@ -84,7 +85,7 @@ const ERAS = [
     ],
   },
   {
-    year: "1960s", label: "Science Fairs", color: "#34d399", icon: "🔬",
+    year: "1960s", label: "Science Fairs", color: "var(--cat-teal)", icon: Microscope,
     summary: "NDSC pioneers the first-ever college-level Annual Science Fairs in East Pakistan, expanding to multi-institutional festivals impacting youth across Dhaka.",
     milestones: [
       { y: "1960s", text: "First college-level Annual Science Fairs introduced in East Pakistan — the first of their kind in the entire region." },
@@ -93,7 +94,7 @@ const ERAS = [
     ],
   },
   {
-    year: "1970s", label: "War & Reform", color: "#a78bfa", icon: "🌏",
+    year: "1970s", label: "War & Reform", color: "var(--accent2)", icon: Globe2,
     summary: "Relief work during the 1970 cyclone & 1971 Liberation War. Constitution amended for inclusivity in 1972. Topped the 1st National Science Fair of independent Bangladesh in 1973. Presidential visit in 1977. BTV broadcast in 1978.",
     milestones: [
       { y: "1970 (Nov)", text: "Bhola Cyclone — club suspends academic displays to lead field relief teams across affected communities." },
@@ -107,7 +108,7 @@ const ERAS = [
     ],
   },
   {
-    year: "1980s", label: "Championships", color: "#f59e0b", icon: "🏆",
+    year: "1980s", label: "Championships", color: "var(--cat-amber)", icon: Trophy,
     summary: "Electronic scoreboard invention (1984), low-cost offset printing (1987). 9/10 national awards at Mahakhali Fair (1982). National debate champion (1983). 5th place globally for steam-pump design (1988). Geiger-Müller counter earns Japanese government recognition (1989).",
     milestones: [
       { y: "1982 (Feb)", text: "NDSC wins 9 distinct national awards out of 10 submitted project categories at the Mahakhali National Fair." },
@@ -120,7 +121,7 @@ const ERAS = [
     ],
   },
   {
-    year: "1990s", label: "Publications", color: "#f87171", icon: "📰",
+    year: "1990s", label: "Publications", color: "var(--cat-red)", icon: Newspaper,
     summary: "First Inter-College GK & Science Competition (1990). 36th Anniversary Grand Reunion (1992). Library inaugurated (1992). Wall magazine 'Mohona' launched (1993). UNESCO Week representation (1994). 40th Anniversary souvenir 'Arghya' (1995). National Science Week champion 4 consecutive times (1997). Permanent office suite inaugurated (1998).",
     milestones: [
       { y: "1990 (Dec 20)", text: "Club organizes the historic first-ever Inter-College General Knowledge and Science Competition in Dhaka." },
@@ -135,7 +136,7 @@ const ERAS = [
     ],
   },
   {
-    year: "2000s", label: "Global Reach", color: "#60a5fa", icon: "🌐",
+    year: "2000s", label: "Global Reach", color: "var(--info)", icon: Globe,
     summary: "1st National Science Festival (2001). Website & 'Ablaze' digital magazine launched (2003). 3rd National ICT Fair (2005). Golden Jubilee 2005. 2nd place at International Science Festival, Lucknow India (2006). 8th globally out of 128 teams at ISSF 2007. Cultural Fusion Fair (2008). 19th GK Festival (2009).",
     milestones: [
       { y: "2001", text: "Annual Science Fair upgraded to the 'First National Science Festival', welcoming schools from all over Bangladesh." },
@@ -152,7 +153,7 @@ const ERAS = [
     ],
   },
   {
-    year: "2010s–2026", label: "Platinum Era", color: "#fb923c", icon: "✨",
+    year: "2010s–2026", label: "Platinum Era", color: "var(--cat-orange)", icon: Sparkles,
     summary: "Sweeps 20th National GK Festival — 1st in Astronomy, Biology & Math (2010). Education Secretary as Chief Guest at 21st Festival (2011). BCSIR dominance (2012). Diamond Jubilee 60th Anniversary (2015). Platinum Jubilee 70th Anniversary (2025–2026).",
     milestones: [
       { y: "2010 (Sept)", text: "Sweeping National Olympiads — NDSC wins absolute 1st place in Astronomy, 1st in Biology, and 1st in the Math Olympiad at the 20th National GK Festival, inaugurated by Industries Minister Mr. Dilip Barua." },
@@ -258,7 +259,7 @@ export default function AboutPage() {
         />
         <div
           className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] rounded-full pointer-events-none"
-          style={{ background: "radial-gradient(circle, rgba(0,212,255,0.06) 0%, transparent 70%)" }}
+          style={{ background: "radial-gradient(circle, rgba(var(--blue-rgb), 0.06) 0%, transparent 70%)" }}
         />
 
         {/* Hero heading — centered */}
@@ -273,7 +274,7 @@ export default function AboutPage() {
         <div className="relative max-w-3xl mx-auto px-4 sm:px-6">
           <div
             className="p-6 sm:p-8 rounded-2xl border"
-            style={{ borderColor: "rgba(0,212,255,0.2)", background: "rgba(0,212,255,0.03)" }}
+            style={{ borderColor: "rgba(var(--blue-rgb), 0.2)", background: "rgba(var(--blue-rgb), 0.03)" }}
           >
             <div className="section-label mb-3">[ Who We Are ]</div>
             <CollapsibleText previewLines={5}>
@@ -425,23 +426,23 @@ export default function AboutPage() {
         <div className="max-w-4xl mx-auto px-4 sm:px-6">
           <div className="section-label mb-2">Message</div>
           <h2 className="text-2xl sm:text-3xl font-black mb-8" style={{ fontFamily: "'Orbitron',sans-serif" }}>
-            FROM THE <span style={{ color: "#a78bfa" }}>MODERATOR</span>
+            FROM THE <span style={{ color: "var(--accent2)" }}>MODERATOR</span>
           </h2>
           <div
             className="p-6 sm:p-10 rounded-2xl border relative overflow-hidden"
-            style={{ borderColor: "rgba(167,139,250,0.35)", background: "rgba(167,139,250,0.04)" }}
+            style={{ borderColor: "rgba(var(--accent2-rgb), 0.35)", background: "rgba(var(--accent2-rgb), 0.04)" }}
           >
             <div
               className="absolute top-4 right-6 text-9xl font-black leading-none select-none pointer-events-none"
-              style={{ color: "rgba(167,139,250,0.06)", fontFamily: "'Orbitron',sans-serif" }}
+              style={{ color: "rgba(var(--accent2-rgb), 0.06)", fontFamily: "'Orbitron',sans-serif" }}
             >"</div>
             <div className="flex flex-col sm:flex-row gap-5 sm:gap-8 items-start mb-6">
-              <div className="relative w-20 h-20 rounded-full overflow-hidden border-2 shrink-0" style={{ borderColor: "#a78bfa" }}>
+              <div className="relative w-20 h-20 rounded-full overflow-hidden border-2 shrink-0" style={{ borderColor: "var(--accent2)" }}>
                 <Image src="https://uploads.ndscbd.net/executives/1780621402_fdc8d88bf714.jpg" alt="Moderator" fill className="object-cover" />
               </div>
               <div>
                 <h3 className="font-black text-base" style={{ fontFamily: "'Orbitron',sans-serif" }}>Dr. Vincent Titas Rozario</h3>
-                <p className="text-sm font-bold" style={{ color: "#a78bfa" }}>Moderator</p>
+                <p className="text-sm font-bold" style={{ color: "var(--accent2)" }}>Moderator</p>
                 <p className="text-xs" style={{ color: "var(--muted)" }}>Notre Dame Science Club</p>
               </div>
             </div>
@@ -449,7 +450,7 @@ export default function AboutPage() {
               <div className="space-y-4 text-sm leading-relaxed" style={{ color: "var(--muted)" }}>
                 <p>&ldquo;For nearly seven decades, Notre Dame Science Club has stood as a beacon of intellectual curiosity, disciplined inquiry, and service to humanity. I have witnessed how this club transforms young minds — nurturing not just scientific knowledge, but the values of integrity, perseverance, and compassion.</p>
                 <p>Science, when practised with a humane heart, becomes a force for good in our world. The legacy of our founder, Fr. Richard William Timm, C.S.C., continues to inspire every student who walks through the doors of this institution. Notre Dame Science Club has always been a place where curiosity is celebrated, questions are welcomed, and excellence is expected.</p>
-                <p>I urge every member to carry forward the spirit of our founding motto: <em style={{ color: "#a78bfa" }}>Science in Human Welfare</em>. This is not merely a slogan — it is a responsibility. A responsibility to use your knowledge, your talents, and your passion to serve the community, the nation, and humanity at large.</p>
+                <p>I urge every member to carry forward the spirit of our founding motto: <em style={{ color: "var(--accent2)" }}>Science in Human Welfare</em>. This is not merely a slogan — it is a responsibility. A responsibility to use your knowledge, your talents, and your passion to serve the community, the nation, and humanity at large.</p>
                 <p>The future of Bangladesh rests in the hands of young scientists like you. Let your curiosity be the compass, your dedication the fuel, and your compassion the guiding light. NDSC will always be your launchpad — your family — as you take flight toward a future of scientific greatness.&rdquo;</p>
               </div>
             </CollapsibleText2>
@@ -466,11 +467,11 @@ export default function AboutPage() {
           </h2>
           <div
             className="p-6 sm:p-10 rounded-2xl border relative overflow-hidden"
-            style={{ borderColor: "rgba(0,212,255,.3)", background: "rgba(0,212,255,.03)" }}
+            style={{ borderColor: "rgba(var(--blue-rgb), .3)", background: "rgba(var(--blue-rgb), .03)" }}
           >
             <div
               className="absolute top-4 right-6 text-9xl font-black leading-none select-none pointer-events-none"
-              style={{ color: "rgba(0,212,255,0.05)", fontFamily: "'Orbitron',sans-serif" }}
+              style={{ color: "rgba(var(--blue-rgb), 0.05)", fontFamily: "'Orbitron',sans-serif" }}
             >"</div>
             <div className="flex flex-col sm:flex-row gap-5 sm:gap-8 items-start mb-6">
               <div className="relative w-20 h-20 rounded-full overflow-hidden border-2 shrink-0" style={{ borderColor: "var(--blue)" }}>
@@ -553,18 +554,19 @@ export default function AboutPage() {
                       boxShadow: activeEra === i ? `0 0 14px ${e.color}55` : "none",
                     }}
                   >
-                    {e.icon} {e.year}
+                    <e.icon size={13} className="inline mr-1 -mt-0.5" /> {e.year}
                   </button>
                 ))}
               </div>
 
               {/* Active era detail card */}
+              {(() => { const EraIcon = ERAS[activeEra].icon; return (
               <div
                 className="p-6 sm:p-8 rounded-2xl border mb-6 transition-all duration-300"
                 style={{ borderColor: ERAS[activeEra].color + "55", background: ERAS[activeEra].color + "0a" }}
               >
                 <div className="flex items-center gap-3 mb-4">
-                  <span className="text-3xl">{ERAS[activeEra].icon}</span>
+                  <EraIcon size={30} style={{ color: ERAS[activeEra].color }} />
                   <div>
                     <p
                       className="text-xs font-bold tracking-widest"
@@ -600,6 +602,7 @@ export default function AboutPage() {
                   ))}
                 </div>
               </div>
+              ); })()}
             </div>
 
             {/* Right: compact all-era vertical timeline */}
@@ -636,7 +639,7 @@ export default function AboutPage() {
                       }}
                     >
                       <div className="flex items-center gap-2 mb-2">
-                        <span>{e.icon}</span>
+                        <e.icon size={13} style={{ color: activeEra === i ? e.color : "var(--muted)" }} />
                         <span
                           className="text-xs font-black tracking-wider"
                           style={{ fontFamily: "'Orbitron',sans-serif", color: activeEra === i ? e.color : "var(--muted)", fontSize: "0.65rem" }}

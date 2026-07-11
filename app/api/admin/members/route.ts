@@ -1,6 +1,7 @@
 import { supabaseAdmin } from '@/lib/supabase'
-import { NextRequest, NextResponse } from 'next/server'
-import { cookies } from 'next/headers'
+import { NextRequest } from 'next/server'
+import { requireAdmin } from '@/lib/api/admin-auth'
+import { apiError, apiOk } from '@/lib/api/response'
 
 // Replaces the old server-component-with-form-POST pattern in
 // app/admin/members/page.tsx with a proper client-side fetch flow, consistent
@@ -10,29 +11,26 @@ import { cookies } from 'next/headers'
 // earlier for the same root-cause reason (the anon client silently failing
 // writes when no RLS policy permits them).
 
-async function isAdmin() {
-  const cookieStore = await cookies()
-  return !!cookieStore.get('admin_session')
-}
-
 export async function GET() {
-  if (!(await isAdmin())) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const unauthorized = await requireAdmin()
+  if (unauthorized) return unauthorized
 
   const { data, error } = await supabaseAdmin
     .from('members')
     .select('*')
     .order('created_at', { ascending: false })
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 400 })
-  return NextResponse.json({ members: data || [] })
+  if (error) return apiError(error, 400)
+  return apiOk({ members: data || [] })
 }
 
 export async function PUT(req: NextRequest) {
-  if (!(await isAdmin())) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const unauthorized = await requireAdmin()
+  if (unauthorized) return unauthorized
 
   const body = await req.json().catch(() => null)
   if (!body || !body.id) {
-    return NextResponse.json({ error: 'A member id is required.' }, { status: 400 })
+    return apiError('A member id is required.', 400)
   }
   const { id, ...rest } = body
 
@@ -43,19 +41,20 @@ export async function PUT(req: NextRequest) {
     .select()
     .single()
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 400 })
-  return NextResponse.json({ member: data })
+  if (error) return apiError(error, 400)
+  return apiOk({ member: data })
 }
 
 // Lets an admin add a new achievement directly to a member's profile,
 // pre-approved (skipping the pending-review step a member's own
 // self-submitted achievement goes through via /api/member-achievements).
 export async function POST(req: NextRequest) {
-  if (!(await isAdmin())) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const unauthorized = await requireAdmin()
+  if (unauthorized) return unauthorized
 
   const body = await req.json().catch(() => null)
   if (!body || !body.member_id || !body.title?.trim()) {
-    return NextResponse.json({ error: 'member_id and title are required.' }, { status: 400 })
+    return apiError('member_id and title are required.', 400)
   }
 
   const { data: member, error: memberError } = await supabaseAdmin
@@ -65,7 +64,7 @@ export async function POST(req: NextRequest) {
     .single()
 
   if (memberError || !member) {
-    return NextResponse.json({ error: 'Member not found.' }, { status: 404 })
+    return apiError('Member not found.', 404)
   }
 
   const newAchievement = {
@@ -84,8 +83,8 @@ export async function POST(req: NextRequest) {
     .update({ achievements })
     .eq('id', body.member_id)
 
-  if (updateError) return NextResponse.json({ error: updateError.message }, { status: 400 })
-  return NextResponse.json({ achievements })
+  if (updateError) return apiError(updateError, 400)
+  return apiOk({ achievements })
 }
 
 // "Cancel membership" — distinct from the existing Revoke (is_verified =
@@ -95,11 +94,12 @@ export async function POST(req: NextRequest) {
 // they wanted to. Confirmed with the user this is meant to be a full,
 // permanent delete, not a soft toggle.
 export async function DELETE(req: NextRequest) {
-  if (!(await isAdmin())) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const unauthorized = await requireAdmin()
+  if (unauthorized) return unauthorized
 
   const body = await req.json().catch(() => null)
   if (!body || !body.id) {
-    return NextResponse.json({ error: 'A member id is required.' }, { status: 400 })
+    return apiError('A member id is required.', 400)
   }
 
   const { error: dbError } = await supabaseAdmin
@@ -107,17 +107,17 @@ export async function DELETE(req: NextRequest) {
     .delete()
     .eq('id', body.id)
 
-  if (dbError) return NextResponse.json({ error: dbError.message }, { status: 400 })
+  if (dbError) return apiError(dbError, 400)
 
   // Best-effort — if the auth user is already gone for some reason, don't
   // fail the whole cancellation just because of that.
   const { error: authError } = await supabaseAdmin.auth.admin.deleteUser(body.id)
   if (authError) {
-    return NextResponse.json({
+    return apiOk({
       success: true,
       warning: `Member record deleted, but the login account could not be removed: ${authError.message}`,
     })
   }
 
-  return NextResponse.json({ success: true })
+  return apiOk({ success: true })
 }

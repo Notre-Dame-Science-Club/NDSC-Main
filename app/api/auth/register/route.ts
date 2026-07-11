@@ -1,6 +1,7 @@
 import { supabaseAdmin } from '@/lib/supabase'
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest } from 'next/server'
 import { validateCollegeRoll } from '@/lib/validation'
+import { apiError, apiOk } from '@/lib/api/response'
 
 export async function POST(req: NextRequest) {
   try {
@@ -17,7 +18,7 @@ export async function POST(req: NextRequest) {
 
     // Basic validation
     if (!email || !password || !full_name) {
-      return NextResponse.json(
+      return apiOk(
         { error: 'Name, email, and password are required.' },
         { status: 400 }
       )
@@ -28,11 +29,11 @@ export async function POST(req: NextRequest) {
     // membership is specifically for Notre Dame College students.
     const rollError = validateCollegeRoll('Notre Dame College', college_roll)
     if (rollError) {
-      return NextResponse.json({ error: rollError }, { status: 400 })
+      return apiError(rollError, 400)
     }
 
     if (!payment_slip_url) {
-      return NextResponse.json(
+      return apiOk(
         { error: 'Please upload a photo of your membership slip.' },
         { status: 400 }
       )
@@ -47,7 +48,7 @@ export async function POST(req: NextRequest) {
       })
 
     if (authError) {
-      return NextResponse.json(
+      return apiOk(
         { error: authError.message },
         { status: 400 }
       )
@@ -71,19 +72,19 @@ export async function POST(req: NextRequest) {
     if (dbError) {
       // DB insert fail হলে auth user delete করে দাও যাতে orphan account না থাকে
       await supabaseAdmin.auth.admin.deleteUser(authData.user.id)
-      return NextResponse.json(
+      return apiOk(
         { error: dbError.message },
         { status: 400 }
       )
     }
 
-    return NextResponse.json({
+    return apiOk({
       success: true,
       message: 'Registration successful! Your membership will be reviewed by an admin shortly.',
     })
 
   } catch (err) {
-    return NextResponse.json(
+    return apiOk(
       { error: 'Server error. Please try again.' },
       { status: 500 }
     )

@@ -1,12 +1,13 @@
 import { supabaseAdmin } from '@/lib/supabase'
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest } from 'next/server'
+import { apiError, apiOk } from '@/lib/api/response'
 
 // GET /api/member-activity-registrations?member_id=UUID
 // Returns all activity registrations for a member, with session + category info.
 // Used by the member dashboard to show enrolled events list.
 export async function GET(req: NextRequest) {
   const memberId = req.nextUrl.searchParams.get('member_id')
-  if (!memberId) return NextResponse.json({ error: 'member_id is required' }, { status: 400 })
+  if (!memberId) return apiError('member_id is required', 400)
 
   const { data: regs, error } = await supabaseAdmin
     .from('activity_registrations')
@@ -14,8 +15,8 @@ export async function GET(req: NextRequest) {
     .eq('member_id', memberId)
     .order('created_at', { ascending: false })
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 400 })
-  if (!regs || regs.length === 0) return NextResponse.json({ registrations: [] })
+  if (error) return apiError(error, 400)
+  if (!regs || regs.length === 0) return apiOk({ registrations: [] })
 
   // Batch-fetch sessions and categories
   const sessionIds = [...new Set(regs.map(r => r.activity_session_id))]
@@ -41,5 +42,5 @@ export async function GET(req: NextRequest) {
     category: categoryMap[r.category_id] || null,
   }))
 
-  return NextResponse.json({ registrations: enriched })
+  return apiOk({ registrations: enriched })
 }

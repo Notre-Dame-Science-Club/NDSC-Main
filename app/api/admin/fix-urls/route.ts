@@ -5,14 +5,10 @@
  * POST করলে dry-run=false দিয়ে actually fix হবে, নাহলে শুধু report করবে।
  */
 import { supabaseAdmin } from '@/lib/supabase'
-import { NextRequest, NextResponse } from 'next/server'
-import { cookies } from 'next/headers'
+import { NextRequest } from 'next/server'
 import { normalizeUploadUrl, normalizeUploadUrls } from '@/lib/uploadUrl'
-
-async function isAdmin() {
-  const cookieStore = await cookies()
-  return !!cookieStore.get('admin_session')
-}
+import { requireAdmin } from '@/lib/api/admin-auth'
+import { apiOk } from '@/lib/api/response'
 
 function needsFix(url: string | null | undefined): boolean {
   if (!url) return false
@@ -29,7 +25,8 @@ function needsFixArray(urls: string[] | null | undefined): boolean {
 }
 
 export async function POST(req: NextRequest) {
-  if (!await isAdmin()) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const unauthorized = await requireAdmin()
+  if (unauthorized) return unauthorized
 
   const body = await req.json().catch(() => ({}))
   const dryRun = body.dry_run !== false  // default: dry run
@@ -157,7 +154,7 @@ export async function POST(req: NextRequest) {
 
   const totalFixed = Object.values(report).reduce((s, r) => s + r.fixed, 0)
 
-  return NextResponse.json({
+  return apiOk({
     dry_run: dryRun,
     message: dryRun
       ? `DRY RUN: Would fix ${totalFixed} records. Send { dry_run: false } to actually apply.`
@@ -168,7 +165,8 @@ export async function POST(req: NextRequest) {
 
 // GET — just show current status (dry run)
 export async function GET(req: NextRequest) {
-  if (!await isAdmin()) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const unauthorized = await requireAdmin()
+  if (unauthorized) return unauthorized
   // Reuse POST logic as dry run
   const fakeReq = new NextRequest(req.url, {
     method: 'POST',

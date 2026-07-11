@@ -1,11 +1,7 @@
 import { supabaseAdmin } from '@/lib/supabase'
-import { NextResponse } from 'next/server'
-import { cookies } from 'next/headers'
 
-async function isAdmin() {
-  const cookieStore = await cookies()
-  return !!cookieStore.get('admin_session')
-}
+import { requireAdmin } from '@/lib/api/admin-auth'
+import { apiError, apiOk } from '@/lib/api/response'
 
 // GET — every activity_reg_categories leaf with a linked_olympiad_id, across
 // ALL activity sessions, with enough breadcrumb info (session + ancestor
@@ -15,15 +11,16 @@ async function isAdmin() {
 // freestanding olympiad manager and instead just be the "online content"
 // editor for whatever Activity has marked as an online leaf.
 export async function GET() {
-  if (!(await isAdmin())) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const unauthorized = await requireAdmin()
+  if (unauthorized) return unauthorized
 
   const { data: linkedLeaves, error } = await supabaseAdmin
     .from('activity_reg_categories')
     .select('id, name, parent_id, activity_session_id, linked_olympiad_id, custom_fields, requires_team, requires_payment, registration_open')
     .not('linked_olympiad_id', 'is', null)
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 400 })
-  if (!linkedLeaves || linkedLeaves.length === 0) return NextResponse.json([])
+  if (error) return apiError(error, 400)
+  if (!linkedLeaves || linkedLeaves.length === 0) return apiOk([])
 
   const sessionIds = [...new Set(linkedLeaves.map(c => c.activity_session_id))]
   const { data: sessions } = await supabaseAdmin
@@ -58,5 +55,5 @@ export async function GET() {
     }
   })
 
-  return NextResponse.json(result)
+  return apiOk(result)
 }

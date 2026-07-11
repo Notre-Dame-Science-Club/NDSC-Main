@@ -1,7 +1,7 @@
 'use client'
 export default function PdfViewer({ url }: { url: string }) {
   return (
-    <div style={{ height: '85vh', position: 'relative', background: '#0a1628' }}>
+    <div style={{ height: '85vh', position: 'relative', background: 'var(--surface)' }}>
       <iframe
         allowFullScreen={true}
         allow="clipboard-write"

@@ -1,11 +1,12 @@
 import { supabaseAdmin } from '@/lib/supabase'
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest } from 'next/server'
+import { apiError, apiOk } from '@/lib/api/response'
 
 // GET /api/activity-submission?registration_id=UUID
 // Returns existing submission(s) for a registration.
 export async function GET(req: NextRequest) {
   const regId = req.nextUrl.searchParams.get('registration_id')
-  if (!regId) return NextResponse.json({ error: 'registration_id required' }, { status: 400 })
+  if (!regId) return apiError('registration_id required', 400)
 
   const { data, error } = await supabaseAdmin
     .from('activity_submissions')
@@ -13,8 +14,8 @@ export async function GET(req: NextRequest) {
     .eq('registration_id', regId)
     .order('created_at', { ascending: false })
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 400 })
-  return NextResponse.json({ submissions: data || [] })
+  if (error) return apiError(error, 400)
+  return apiOk({ submissions: data || [] })
 }
 
 // POST /api/activity-submission
@@ -23,7 +24,7 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => null)
   if (!body?.registration_id) {
-    return NextResponse.json({ error: 'registration_id is required.' }, { status: 400 })
+    return apiError('registration_id is required.', 400)
   }
 
   // Load registration + category to verify permission
@@ -33,14 +34,14 @@ export async function POST(req: NextRequest) {
     .eq('id', body.registration_id)
     .single()
 
-  if (regErr || !reg) return NextResponse.json({ error: 'Registration not found.' }, { status: 404 })
+  if (regErr || !reg) return apiError('Registration not found.', 404)
 
   const category = reg.activity_reg_categories as any
   const submittedBy = body.submitted_by || 'leader'
 
   // Permission check: submission_who
   if (category?.submission_who === 'leader' && submittedBy !== 'leader') {
-    return NextResponse.json({ error: 'Only the team leader can submit for this category.' }, { status: 403 })
+    return apiError('Only the team leader can submit for this category.', 403)
   }
 
   // Validate required submission fields
@@ -49,7 +50,7 @@ export async function POST(req: NextRequest) {
     if (field.required) {
       const val = body.answers?.[field.id]
       if (!val || (Array.isArray(val) && val.length === 0)) {
-        return NextResponse.json({ error: `"${field.title}" is required.` }, { status: 400 })
+        return apiError(`"${field.title}" is required.`, 400)
       }
     }
   }
@@ -63,7 +64,7 @@ export async function POST(req: NextRequest) {
     .maybeSingle()
 
   if (existing?.is_final) {
-    return NextResponse.json({ error: 'This submission has already been finalised and cannot be changed.' }, { status: 403 })
+    return apiError('This submission has already been finalised and cannot be changed.', 403)
   }
 
   let result
@@ -74,7 +75,7 @@ export async function POST(req: NextRequest) {
       .eq('id', existing.id)
       .select()
       .single()
-    if (error) return NextResponse.json({ error: error.message }, { status: 400 })
+    if (error) return apiError(error, 400)
     result = data
   } else {
     const { data, error } = await supabaseAdmin
@@ -89,9 +90,9 @@ export async function POST(req: NextRequest) {
       })
       .select()
       .single()
-    if (error) return NextResponse.json({ error: error.message }, { status: 400 })
+    if (error) return apiError(error, 400)
     result = data
   }
 
-  return NextResponse.json({ submission: result })
+  return apiOk({ submission: result })
 }

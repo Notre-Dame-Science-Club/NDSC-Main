@@ -1,37 +1,35 @@
 import { supabaseAdmin } from '@/lib/supabase'
-import { NextRequest, NextResponse } from 'next/server'
-import { cookies } from 'next/headers'
-
-async function isAdmin() {
-  const cookieStore = await cookies()
-  return !!cookieStore.get('admin_session')
-}
+import { NextRequest } from 'next/server'
+import { requireAdmin } from '@/lib/api/admin-auth'
+import { apiError, apiOk } from '@/lib/api/response'
 
 export async function GET(req: NextRequest) {
-  if (!await isAdmin()) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const unauthorized = await requireAdmin()
+  if (unauthorized) return unauthorized
   const { searchParams } = new URL(req.url)
   const olympiadId = searchParams.get('olympiad_id')
-  if (!olympiadId) return NextResponse.json({ error: 'Missing olympiad_id' }, { status: 400 })
+  if (!olympiadId) return apiError('Missing olympiad_id', 400)
   const { data, error } = await supabaseAdmin
     .from('olympiad_registrations')
     .select('*')
     .eq('olympiad_id', olympiadId)
     .order('created_at', { ascending: false })
-  if (error) return NextResponse.json({ error: error.message }, { status: 400 })
-  return NextResponse.json(data)
+  if (error) return apiError(error, 400)
+  return apiOk(data)
 }
 
 export async function PUT(req: NextRequest) {
-  if (!await isAdmin()) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const unauthorized = await requireAdmin()
+  if (unauthorized) return unauthorized
   const body = await req.json()
   const { id, ...rest } = body
-  if (!id) return NextResponse.json({ error: 'Missing id' }, { status: 400 })
+  if (!id) return apiError('Missing id', 400)
   const { data, error } = await supabaseAdmin
     .from('olympiad_registrations')
     .update(rest)
     .eq('id', id)
     .select()
     .single()
-  if (error) return NextResponse.json({ error: error.message }, { status: 400 })
-  return NextResponse.json(data)
+  if (error) return apiError(error, 400)
+  return apiOk(data)
 }

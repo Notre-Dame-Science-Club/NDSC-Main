@@ -1,13 +1,12 @@
-import { NextResponse } from 'next/server'
-import { cookies } from 'next/headers'
+import { apiOk } from '@/lib/api/response'
+import { requireAdmin } from '@/lib/api/admin-auth'
 
 export async function GET() {
-  const cookieStore = await cookies()
-  const session = cookieStore.get('admin_session')
-  if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const unauthorized = await requireAdmin()
+  if (unauthorized) return unauthorized
 
-  // Secret টা browser এ পাঠাই — admin already authenticated
-  return NextResponse.json({
+  // Only handed out once the admin session above is confirmed.
+  return apiOk({
     uploadUrl: process.env.HOSTINGER_UPLOAD_URL,
     secret: process.env.UPLOAD_SECRET,
   })

@@ -2,9 +2,9 @@
  * uploadUrl.ts — Hostinger URL normalizer
  *
  * সমস্যা: upload.php বিভিন্ন সময় বিভিন্ন format এ URL return করে:
- *   ❌  https://uploads.ndscbd.net/uploads/covers/file.jpg  (extra /uploads/)
- *   ❌  https://ndscbd.net/uploads/covers/file.jpg          (old domain)
- *   ✅  https://uploads.ndscbd.net/covers/file.jpg          (correct)
+ *   Wrong:   https://uploads.ndscbd.net/uploads/covers/file.jpg  (extra /uploads/)
+ *   Wrong:   https://ndscbd.net/uploads/covers/file.jpg          (old domain)
+ *   Correct: https://uploads.ndscbd.net/covers/file.jpg          (correct)
  *
  * এই function সব format কে correct format এ convert করে।
  */

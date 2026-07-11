@@ -1,12 +1,13 @@
 import { supabase, supabaseAdmin } from '@/lib/supabase'
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest } from 'next/server'
+import { apiOk } from '@/lib/api/response'
 
 export async function POST(req: NextRequest) {
   try {
     const { email, password } = await req.json()
 
     if (!email || !password) {
-      return NextResponse.json(
+      return apiOk(
         { error: 'Email and password are required.' },
         { status: 400 }
       )
@@ -19,7 +20,7 @@ export async function POST(req: NextRequest) {
     })
 
     if (error) {
-      return NextResponse.json(
+      return apiOk(
         { error: 'Incorrect email or password.' },
         { status: 401 }
       )
@@ -33,7 +34,7 @@ export async function POST(req: NextRequest) {
       .single()
 
     if (memberError || !member) {
-      return NextResponse.json(
+      return apiOk(
         { error: 'Member record not found.' },
         { status: 404 }
       )
@@ -41,13 +42,13 @@ export async function POST(req: NextRequest) {
 
     // Verified কিনা check
     if (!member.is_verified) {
-      return NextResponse.json(
+      return apiOk(
         { error: 'Your account has not been approved yet. Please wait for admin approval.' },
         { status: 403 }
       )
     }
 
-    return NextResponse.json({
+    return apiOk({
       success: true,
       session: data.session,
       member: {
@@ -64,7 +65,7 @@ export async function POST(req: NextRequest) {
     })
 
   } catch (err) {
-    return NextResponse.json(
+    return apiOk(
       { error: 'Server error. Please try again.' },
       { status: 500 }
     )

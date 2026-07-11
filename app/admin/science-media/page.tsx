@@ -30,48 +30,48 @@ export default function ScienceMediaAdmin() {
   }
 
   const inp = 'w-full rounded-lg px-3 py-2.5 text-sm outline-none'
-  const s = { background: 'rgba(255,255,255,0.04)', border: '1px solid #0f2a4a', color: '#e8f4ff' }
+  const s = { background: 'rgba(255,255,255,0.04)', border: '1px solid var(--border)', color: 'var(--white)' }
 
   return (
     <div>
-      <h1 className="text-2xl font-bold mb-6" style={{ fontFamily: "'Orbitron',sans-serif", color: '#00d4ff' }}>
+      <h1 className="text-2xl font-bold mb-6" style={{ fontFamily: "'Orbitron',sans-serif", color: 'var(--blue)' }}>
         Science Media
       </h1>
 
-      <div className="rounded-xl border p-6 mb-8" style={{ background: '#050d1a', borderColor: '#0f2a4a' }}>
-        <h2 className="font-bold mb-4 text-sm uppercase tracking-wider" style={{ color: '#00d4ff' }}>
+      <div className="rounded-xl border p-6 mb-8" style={{ background: 'var(--bg2)', borderColor: 'var(--border)' }}>
+        <h2 className="font-bold mb-4 text-sm uppercase tracking-wider" style={{ color: 'var(--blue)' }}>
           {editing ? 'Edit Video' : 'Add Video'}
         </h2>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="md:col-span-2">
-            <label className="block text-xs mb-1.5 uppercase tracking-wider" style={{ color: '#6a8faf' }}>Title</label>
+            <label className="block text-xs mb-1.5 uppercase tracking-wider" style={{ color: 'var(--muted)' }}>Title</label>
             <input className={inp} style={s} value={form.title}
               onChange={e => setForm({ ...form, title: e.target.value })} placeholder="Video title" />
           </div>
           <div className="md:col-span-2">
-            <label className="block text-xs mb-1.5 uppercase tracking-wider" style={{ color: '#6a8faf' }}>YouTube URL</label>
+            <label className="block text-xs mb-1.5 uppercase tracking-wider" style={{ color: 'var(--muted)' }}>YouTube URL</label>
             <input className={inp} style={s} value={form.youtube_url}
               onChange={e => setForm({ ...form, youtube_url: e.target.value })} placeholder="https://youtube.com/watch?v=..." />
           </div>
           <div>
-            <label className="block text-xs mb-1.5 uppercase tracking-wider" style={{ color: '#6a8faf' }}>Display Order</label>
+            <label className="block text-xs mb-1.5 uppercase tracking-wider" style={{ color: 'var(--muted)' }}>Display Order</label>
             <input type="number" className={inp} style={s} value={form.display_order}
               onChange={e => setForm({ ...form, display_order: parseInt(e.target.value) })} />
           </div>
           <div className="flex items-center gap-2 mt-5">
             <input type="checkbox" checked={form.is_active}
               onChange={e => setForm({ ...form, is_active: e.target.checked })} />
-            <label className="text-sm" style={{ color: '#6a8faf' }}>Active (homepage এ দেখাবে)</label>
+            <label className="text-sm" style={{ color: 'var(--muted)' }}>Active (homepage এ দেখাবে)</label>
           </div>
         </div>
-        {msg && <p className="mt-3 text-sm" style={{ color: '#00ff80' }}>{msg}</p>}
+        {msg && <p className="mt-3 text-sm" style={{ color: 'var(--success)' }}>{msg}</p>}
         <div className="flex gap-3 mt-4">
-          <button onClick={save} className="px-6 py-2.5 rounded-lg text-sm font-bold text-black" style={{ background: '#00d4ff' }}>
+          <button onClick={save} className="px-6 py-2.5 rounded-lg text-sm font-bold text-black" style={{ background: 'var(--blue)' }}>
             {editing ? 'Update' : 'Add Video'}
           </button>
           {editing && (
             <button onClick={() => { setEditing(null); setForm(empty) }}
-              className="px-6 py-2.5 rounded-lg text-sm font-bold" style={{ background: 'rgba(255,255,255,0.05)', color: '#6a8faf' }}>
+              className="px-6 py-2.5 rounded-lg text-sm font-bold" style={{ background: 'rgba(255,255,255,0.05)', color: 'var(--muted)' }}>
               Cancel
             </button>
           )}
@@ -81,20 +81,20 @@ export default function ScienceMediaAdmin() {
       <div className="space-y-3">
         {items.map(item => (
           <div key={item.id} className="flex items-center justify-between p-4 rounded-xl border"
-            style={{ background: '#050d1a', borderColor: '#0f2a4a' }}>
+            style={{ background: 'var(--bg2)', borderColor: 'var(--border)' }}>
             <div>
-              <p className="font-bold text-sm" style={{ color: '#e8f4ff' }}>{item.title}</p>
-              <p className="text-xs mt-1 truncate max-w-xs" style={{ color: '#6a8faf' }}>{item.youtube_url}</p>
+              <p className="font-bold text-sm" style={{ color: 'var(--white)' }}>{item.title}</p>
+              <p className="text-xs mt-1 truncate max-w-xs" style={{ color: 'var(--muted)' }}>{item.youtube_url}</p>
             </div>
             <div className="flex gap-2 shrink-0">
               <button onClick={() => { setEditing(item.id); setForm({ title: item.title, youtube_url: item.youtube_url, display_order: item.display_order, is_active: item.is_active }) }}
-                className="px-3 py-1.5 rounded text-xs font-bold" style={{ background: 'rgba(0,212,255,0.1)', color: '#00d4ff' }}>Edit</button>
+                className="px-3 py-1.5 rounded text-xs font-bold" style={{ background: 'rgba(var(--blue-rgb), 0.1)', color: 'var(--blue)' }}>Edit</button>
               <button onClick={() => del(item.id)}
-                className="px-3 py-1.5 rounded text-xs font-bold" style={{ background: 'rgba(255,80,80,0.1)', color: '#ff5050' }}>Delete</button>
+                className="px-3 py-1.5 rounded text-xs font-bold" style={{ background: 'rgba(var(--danger-rgb), 0.1)', color: 'var(--danger)' }}>Delete</button>
             </div>
           </div>
         ))}
-        {items.length === 0 && <p className="text-center py-8 text-sm" style={{ color: '#6a8faf' }}>No videos yet.</p>}
+        {items.length === 0 && <p className="text-center py-8 text-sm" style={{ color: 'var(--muted)' }}>No videos yet.</p>}
       </div>
     </div>
   )

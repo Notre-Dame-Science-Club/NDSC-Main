@@ -1,5 +1,6 @@
 import { supabaseAdmin } from '@/lib/supabase'
-import { NextResponse } from 'next/server'
+
+import { apiError, apiOk } from '@/lib/api/response'
 
 // Public route — powers the homepage leaderboard widget. Deliberately
 // restrictive about what it exposes:
@@ -17,8 +18,8 @@ export async function GET() {
     .order('created_at', { ascending: false })
     .limit(3)
 
-  if (olyError) return NextResponse.json({ error: olyError.message }, { status: 400 })
-  if (!olympiads || olympiads.length === 0) return NextResponse.json({ leaderboards: [] })
+  if (olyError) return apiError(olyError, 400)
+  if (!olympiads || olympiads.length === 0) return apiOk({ leaderboards: [] })
 
   const leaderboards = await Promise.all(
     olympiads.map(async (oly) => {
@@ -38,5 +39,5 @@ export async function GET() {
     })
   )
 
-  return NextResponse.json({ leaderboards: leaderboards.filter(l => l.entries.length > 0) })
+  return apiOk({ leaderboards: leaderboards.filter(l => l.entries.length > 0) })
 }

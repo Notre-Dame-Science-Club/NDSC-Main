@@ -1,6 +1,7 @@
-import { NextRequest, NextResponse } from 'next/server'
-import { cookies } from 'next/headers'
+import { NextRequest } from 'next/server'
 import { normalizeUploadUrl } from '@/lib/uploadUrl'
+import { apiError, apiOk } from '@/lib/api/response'
+import { requireAdmin } from '@/lib/api/admin-auth'
 
 export const maxDuration = 60
 export const dynamic = 'force-dynamic'
@@ -19,24 +20,23 @@ const BUCKET_TO_FOLDER: Record<string, string> = {
 }
 
 export async function POST(req: NextRequest) {
-  const cookieStore = await cookies()
-  const session = cookieStore.get('admin_session')
-  if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const unauthorized = await requireAdmin()
+  if (unauthorized) return unauthorized
 
   let formData: FormData
   try {
     formData = await req.formData()
   } catch {
-    return NextResponse.json({ error: 'File too large or malformed request' }, { status: 413 })
+    return apiError('File too large or malformed request', 413)
   }
 
   const file = formData.get('file') as File
   const bucketOrFolder = (formData.get('folder') || formData.get('bucket') || 'misc') as string
 
-  if (!file) return NextResponse.json({ error: 'No file provided' }, { status: 400 })
+  if (!file) return apiError('No file provided', 400)
 
   if (file.size > 200 * 1024 * 1024) {
-    return NextResponse.json({ error: 'File too large. Maximum size is 200MB.' }, { status: 413 })
+    return apiError('File too large. Maximum size is 200MB.', 413)
   }
 
   const folder = BUCKET_TO_FOLDER[bucketOrFolder] ?? bucketOrFolder
@@ -45,7 +45,7 @@ export async function POST(req: NextRequest) {
   const uploadSecret = process.env.UPLOAD_SECRET
 
   if (!hostingerUploadUrl || !uploadSecret) {
-    return NextResponse.json({ error: 'Upload configuration missing.' }, { status: 500 })
+    return apiError('Upload configuration missing.', 500)
   }
 
   const fd = new FormData()
@@ -60,20 +60,20 @@ export async function POST(req: NextRequest) {
       body: fd,
     })
   } catch {
-    return NextResponse.json({ error: 'Could not reach Hostinger upload server' }, { status: 502 })
+    return apiError('Could not reach Hostinger upload server', 502)
   }
 
   const text = await res.text()
   let data: any
   try { data = JSON.parse(text) }
-  catch { return NextResponse.json({ error: 'Invalid response from upload server: ' + text }, { status: 502 }) }
+  catch { return apiError('Invalid response from upload server: ' + text, 502) }
 
   if (!res.ok || !data.success) {
-    return NextResponse.json({ error: data.error || 'Upload failed' }, { status: 400 })
+    return apiError(data.error || 'Upload failed', 400)
   }
 
-  // ✅ Normalize the URL before returning — fixes /uploads/ prefix issue
+  // Normalize the URL before returning — fixes /uploads/ prefix issue
   const cleanUrl = normalizeUploadUrl(data.url)
 
-  return NextResponse.json({ url: cleanUrl })
+  return apiOk({ url: cleanUrl })
 }

@@ -1,5 +1,6 @@
 import { supabaseAdmin } from '@/lib/supabase'
-import { NextResponse } from 'next/server'
+
+import { apiError, apiOk } from '@/lib/api/response'
 
 // Public, no params — used by the /olympiad page to show one card per
 // "primary field" (a top-level activity_reg_categories row, parent_id =
@@ -20,8 +21,8 @@ export async function GET() {
     .eq('is_upcoming', true)
     .eq('registration_enabled', true)
 
-  if (sessionError) return NextResponse.json({ error: sessionError.message }, { status: 400 })
-  if (!sessions || sessions.length === 0) return NextResponse.json([])
+  if (sessionError) return apiError(sessionError, 400)
+  if (!sessions || sessions.length === 0) return apiOk([])
 
   const sessionIds = sessions.map(s => s.id)
   const { data: categories, error: catError } = await supabaseAdmin
@@ -30,7 +31,7 @@ export async function GET() {
     .in('activity_session_id', sessionIds)
     .order('display_order', { ascending: true })
 
-  if (catError) return NextResponse.json({ error: catError.message }, { status: 400 })
+  if (catError) return apiError(catError, 400)
 
   const all = categories || []
   const byId = new Map(all.map(c => [c.id, c]))
@@ -72,5 +73,5 @@ export async function GET() {
     })
     .filter(c => c.session_slug)
 
-  return NextResponse.json(cards)
+  return apiOk(cards)
 }

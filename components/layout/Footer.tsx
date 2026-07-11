@@ -1,6 +1,6 @@
 import Link from "next/link";
 import Image from "next/image";
-import { Mail, Phone, MapPin, ExternalLink } from "lucide-react";
+import { Mail, Phone, MapPin, ExternalLink, Code2 } from "lucide-react";
 
 export default function Footer() {
   return (
@@ -181,7 +181,7 @@ export default function Footer() {
             <Link href="/developers"
               className="text-xs font-bold tracking-widest hover:text-[var(--blue)] transition-colors flex items-center gap-1"
               style={{ color: "rgba(0,212,255,0.45)", fontFamily: "'Share Tech Mono',monospace" }}>
-              🚀 Developers
+              <Code2 size={12} /> Developers
             </Link>
           </div>
         </div>

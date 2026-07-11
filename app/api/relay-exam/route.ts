@@ -1,12 +1,13 @@
 import { supabaseAdmin } from '@/lib/supabase'
 import { NextRequest, NextResponse } from 'next/server'
+import { apiError, apiOk } from '@/lib/api/response'
 
 // GET /api/relay-exam?registration_id=UUID&olympiad_id=UUID
 // Returns current relay state for a team registration
 export async function GET(req: NextRequest) {
   const registrationId = req.nextUrl.searchParams.get('registration_id')
   const olympiadId = req.nextUrl.searchParams.get('olympiad_id')
-  if (!registrationId || !olympiadId) return NextResponse.json({ error: 'registration_id and olympiad_id required' }, { status: 400 })
+  if (!registrationId || !olympiadId) return apiError('registration_id and olympiad_id required', 400)
 
   const { data, error } = await supabaseAdmin
     .from('relay_exam_state')
@@ -15,7 +16,7 @@ export async function GET(req: NextRequest) {
     .eq('olympiad_id', olympiadId)
     .maybeSingle()
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 400 })
+  if (error) return apiError(error, 400)
 
   // Also fetch olympiad subjects + registration team info
   const { data: olympiad } = await supabaseAdmin
@@ -30,7 +31,7 @@ export async function GET(req: NextRequest) {
     .eq('id', registrationId)
     .single()
 
-  return NextResponse.json({ state: data || null, olympiad, registration: reg })
+  return apiOk({ state: data || null, olympiad, registration: reg })
 }
 
 // POST /api/relay-exam
@@ -38,7 +39,7 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => null)
   if (!body?.action || !body?.registration_id || !body?.olympiad_id) {
-    return NextResponse.json({ error: 'action, registration_id, olympiad_id required' }, { status: 400 })
+    return apiError('action, registration_id, olympiad_id required', 400)
   }
 
   const { action, registration_id, olympiad_id } = body
@@ -49,14 +50,17 @@ export async function POST(req: NextRequest) {
     .eq('id', olympiad_id)
     .single()
 
-  if (!olympiad) return NextResponse.json({ error: 'Olympiad not found.' }, { status: 404 })
+  if (!olympiad) return apiError('Olympiad not found.', 404)
 
   // Check scheduled start
   if (olympiad.scheduled_start_at && new Date() < new Date(olympiad.scheduled_start_at)) {
-    return NextResponse.json({ error: 'Exam has not started yet.', scheduled_start_at: olympiad.scheduled_start_at }, { status: 403 })
+    return NextResponse.json(
+      { error: 'Exam has not started yet.', scheduled_start_at: olympiad.scheduled_start_at },
+      { status: 403 }
+    )
   }
   if (olympiad.scheduled_end_at && new Date() > new Date(olympiad.scheduled_end_at)) {
-    return NextResponse.json({ error: 'Exam time is over.' }, { status: 403 })
+    return apiError('Exam time is over.', 403)
   }
 
   // ── START ──────────────────────────────────────────────────────
@@ -68,7 +72,7 @@ export async function POST(req: NextRequest) {
       .eq('olympiad_id', olympiad_id)
       .maybeSingle()
 
-    if (existing) return NextResponse.json({ error: 'Relay already started.' }, { status: 409 })
+    if (existing) return apiError('Relay already started.', 409)
 
     const { data, error } = await supabaseAdmin
       .from('relay_exam_state')
@@ -83,14 +87,14 @@ export async function POST(req: NextRequest) {
       .select()
       .single()
 
-    if (error) return NextResponse.json({ error: error.message }, { status: 400 })
-    return NextResponse.json({ state: data })
+    if (error) return apiError(error, 400)
+    return apiOk({ state: data })
   }
 
   // ── SUBMIT MEMBER ─────────────────────────────────────────────
   if (action === 'submit_member') {
     const { member_id, answers } = body
-    if (!answers) return NextResponse.json({ error: 'answers required' }, { status: 400 })
+    if (!answers) return apiError('answers required', 400)
 
     const { data: state } = await supabaseAdmin
       .from('relay_exam_state')
@@ -99,12 +103,12 @@ export async function POST(req: NextRequest) {
       .eq('olympiad_id', olympiad_id)
       .single()
 
-    if (!state) return NextResponse.json({ error: 'Relay not started yet.' }, { status: 404 })
-    if (state.completed_at) return NextResponse.json({ error: 'Relay already completed.' }, { status: 409 })
+    if (!state) return apiError('Relay not started yet.', 404)
+    if (state.completed_at) return apiError('Relay already completed.', 409)
 
     const submissions: any[] = state.member_submissions || []
     const alreadySubmitted = submissions.find((s: any) => s.member_id === member_id)
-    if (alreadySubmitted) return NextResponse.json({ error: 'This member has already submitted.' }, { status: 409 })
+    if (alreadySubmitted) return apiError('This member has already submitted.', 409)
 
     // For chain mode: extract chain_values from this submission
     let newChainValues = { ...state.chain_values }
@@ -176,14 +180,14 @@ export async function POST(req: NextRequest) {
       .select()
       .single()
 
-    if (error) return NextResponse.json({ error: error.message }, { status: 400 })
-    return NextResponse.json({ state: updated, is_complete: isComplete })
+    if (error) return apiError(error, 400)
+    return apiOk({ state: updated, is_complete: isComplete })
   }
 
   // ── ASSIGN SUBJECT ────────────────────────────────────────────
   if (action === 'assign_subject') {
     const { member_id, subject_id } = body
-    if (!member_id || !subject_id) return NextResponse.json({ error: 'member_id and subject_id required' }, { status: 400 })
+    if (!member_id || !subject_id) return apiError('member_id and subject_id required', 400)
 
     // Check subject not already taken by another member in same registration
     const { data: existing } = await supabaseAdmin
@@ -195,7 +199,7 @@ export async function POST(req: NextRequest) {
       .maybeSingle()
 
     if (existing && existing.member_id !== member_id) {
-      return NextResponse.json({ error: 'This subject has already been taken by another team member.' }, { status: 409 })
+      return apiError('This subject has already been taken by another team member.', 409)
     }
 
     // Upsert
@@ -205,9 +209,9 @@ export async function POST(req: NextRequest) {
       .select()
       .single()
 
-    if (error) return NextResponse.json({ error: error.message }, { status: 400 })
-    return NextResponse.json({ assignment: data })
+    if (error) return apiError(error, 400)
+    return apiOk({ assignment: data })
   }
 
-  return NextResponse.json({ error: 'Unknown action.' }, { status: 400 })
+  return apiError('Unknown action.', 400)
 }

@@ -1,7 +1,12 @@
 import type { Metadata } from "next";
+import Script from "next/script";
 import "./globals.css";
+import "katex/dist/katex.min.css";
 import Navbar from "@/components/layout/Navbar";
 import Footer from "@/components/layout/Footer";
+import SurveyNotification from "@/components/SurveyNotification";
+import { supabaseAdmin } from "@/lib/supabase";
+import { darkenHex, hexToRgbString, isValidHex } from "@/lib/color";
 
 export const metadata: Metadata = {
   title: "Notre Dame Science Club (NDSC) | ndscbd.net — Official Website",
@@ -78,29 +83,74 @@ export const metadata: Metadata = {
   verification: {},
 };
 
-export default function RootLayout({
+const HEADER_SIZES: Record<string, { height: string; logo: string }> = {
+  compact: { height: "56px", logo: "32px" },
+  default: { height: "64px", logo: "38px" },
+  large: { height: "76px", logo: "46px" },
+};
+
+export default async function RootLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  // Site-wide Appearance settings (Admin > Appearance) — stored as extra rows
+  // in homepage_settings (keys: default_theme, font_family, font_google_url,
+  // header_size, accent_color). Fetched server-side so they're baked into the
+  // first response instead of flashing in after a client-side fetch.
+  let appearanceRows: { key: string; value: string }[] | null = null;
+  try {
+    const res = await supabaseAdmin
+      .from("homepage_settings")
+      .select("key, value")
+      .in("key", ["default_theme", "font_family", "font_google_url", "header_size", "accent_color"]);
+    appearanceRows = res.data as any;
+  } catch {
+    // Falls back to defaults rather than breaking every page.
+  }
+  const appearance: Record<string, string> = {};
+  for (const row of appearanceRows || []) appearance[row.key] = row.value;
+  const headerSize = HEADER_SIZES[appearance.header_size || "default"] || HEADER_SIZES.default;
+  const rootStyle: React.CSSProperties & Record<string, string> = {
+    "--navbar-height": headerSize.height,
+    "--navbar-logo": headerSize.logo,
+  };
+  if (appearance.font_family) {
+    rootStyle["--font-body"] = appearance.font_family;
+    rootStyle["--font-heading"] = appearance.font_family;
+  }
+  if (appearance.accent_color && isValidHex(appearance.accent_color)) {
+    const accent = appearance.accent_color.startsWith("#") ? appearance.accent_color : `#${appearance.accent_color}`;
+    rootStyle["--blue"] = accent;
+    rootStyle["--blue2"] = darkenHex(accent, 0.3);
+    rootStyle["--glow"] = `${accent}55`;
+    rootStyle["--blue-rgb"] = hexToRgbString(accent);
+  }
+
   return (
-    <html lang="en" suppressHydrationWarning>
+    <html lang="en" suppressHydrationWarning style={rootStyle}>
       <head>
         <link rel="icon" href="/favicon.png" type="image/png" sizes="any" />
         <link rel="icon" href="/images/cropped-logo.png" type="image/png" sizes="32x32" />
         <link rel="shortcut icon" href="/favicon.png" />
         <link rel="apple-touch-icon" href="/favicon.png" sizes="180x180" />
+        {appearance.font_google_url && (
+          <link rel="stylesheet" href={appearance.font_google_url} />
+        )}
       </head>
       <body suppressHydrationWarning>
-        <script dangerouslySetInnerHTML={{__html: `
-          (function(){
-            var t = localStorage.getItem('ndsc-theme') || 'dark';
-            if(t === 'light') document.documentElement.setAttribute('data-theme','light');
-          })();
-        `}} />
+        <Script id="ndsc-theme-init" strategy="beforeInteractive">
+          {`
+            (function(){
+              var t = localStorage.getItem('ndsc-theme') || ${JSON.stringify(appearance.default_theme === "light" ? "light" : "dark")};
+              if(t === 'light') document.documentElement.setAttribute('data-theme','light');
+            })();
+          `}
+        </Script>
         <Navbar />
         <main>{children}</main>
         <Footer />
+        <SurveyNotification />
       </body>
     </html>
   );

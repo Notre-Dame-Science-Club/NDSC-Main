@@ -1,5 +1,6 @@
 import { supabaseAdmin } from '@/lib/supabase'
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest } from 'next/server'
+import { apiError, apiOk } from '@/lib/api/response'
 
 // SSLCommerz calls this URL server-to-server once a payment completes,
 // regardless of whether the customer's browser ever makes it back to our
@@ -15,13 +16,13 @@ export const dynamic = 'force-dynamic'
 
 export async function POST(req: NextRequest) {
   const formData = await req.formData().catch(() => null)
-  if (!formData) return NextResponse.json({ error: 'Invalid IPN payload.' }, { status: 400 })
+  if (!formData) return apiError('Invalid IPN payload.', 400)
 
   const valId = formData.get('val_id')?.toString()
   const tranId = formData.get('tran_id')?.toString()
 
   if (!valId || !tranId) {
-    return NextResponse.json({ error: 'Missing val_id or tran_id.' }, { status: 400 })
+    return apiError('Missing val_id or tran_id.', 400)
   }
 
   const storeId = process.env.SSLCOMMERZ_STORE_ID || 'testbox'
@@ -36,7 +37,7 @@ export async function POST(req: NextRequest) {
     )
     validation = await valRes.json()
   } catch (e: any) {
-    return NextResponse.json({ error: 'Could not reach validation API.' }, { status: 502 })
+    return apiError('Could not reach validation API.', 502)
   }
 
   const rawIpn = Object.fromEntries(formData.entries())
@@ -49,7 +50,7 @@ export async function POST(req: NextRequest) {
     .single()
 
   if (!tx) {
-    return NextResponse.json({ error: 'Unknown transaction.' }, { status: 404 })
+    return apiError('Unknown transaction.', 404)
   }
 
   // Defense in depth: confirm the validated amount actually matches what we
@@ -78,5 +79,5 @@ export async function POST(req: NextRequest) {
       .eq('id', tx.activity_registration_id)
   }
 
-  return NextResponse.json({ received: true, valid: isValid && amountMatches })
+  return apiOk({ received: true, valid: isValid && amountMatches })
 }

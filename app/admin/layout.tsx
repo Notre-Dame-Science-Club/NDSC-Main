@@ -1,77 +1,73 @@
 import { cookies } from 'next/headers'
-import { redirect } from 'next/navigation'
 import Link from 'next/link'
+import { authCookies } from '@/lib/config/site'
+import {
+  LayoutDashboard, Users, CalendarDays, BookOpen, UserCog,
+  Megaphone, Trophy, Film, Settings, Power, ClipboardList, Palette,
+} from 'lucide-react'
 
-export default async function AdminLayout({
-  children,
-}: {
-  children: React.ReactNode
-}) {
+const NAV_LINKS = [
+  { href: '/admin', label: 'Dashboard', icon: LayoutDashboard },
+  { href: '/admin/members', label: 'Members', icon: Users },
+  { href: '/admin/activities', label: 'Activities', icon: CalendarDays },
+  { href: '/admin/publications', label: 'Publications', icon: BookOpen },
+  { href: '/admin/executives', label: 'Executives', icon: UserCog },
+  { href: '/admin/announcements', label: 'Announcements', icon: Megaphone },
+  { href: '/admin/olympiads', label: 'Olympiads', icon: Trophy },
+  { href: '/admin/surveys', label: 'Surveys', icon: ClipboardList },
+  { href: '/admin/science-media', label: 'Science Media', icon: Film },
+  { href: '/admin/homepage-settings', label: 'Homepage Settings', icon: Settings },
+  { href: '/admin/appearance', label: 'Appearance', icon: Palette },
+]
+
+export default async function AdminLayout({ children }: { children: React.ReactNode }) {
   const cookieStore = await cookies()
-  const session = cookieStore.get('admin_session')
+  const session = cookieStore.get(authCookies.admin)
 
-  // Get current path - login page should not be protected
-  // We check by seeing if session exists, login page handles itself
-  // Layout applies to all /admin/* EXCEPT /admin/login which has its own handling
-
-  const navLinks = [
-    { href: '/admin', label: 'Dashboard', icon: '🏠' },
-    { href: '/admin/members', label: 'Members', icon: '👥' },
-    { href: '/admin/activities', label: 'Activities', icon: '📅' },
-    { href: '/admin/publications', label: 'Publications', icon: '📚' },
-    { href: '/admin/executives', label: 'Executives', icon: '👥' },
-    { href: '/admin/announcements', label: 'Announcements', icon: '📢' },
-    { href: '/admin/olympiads', label: 'Olympiads', icon: '🏆' },
-    { href: '/admin/science-media', label: 'Science Media', icon: '🎬' },
-    { href: '/admin/homepage-settings', label: 'Homepage Settings', icon: '⚙️' },
-  ]
-
-  // If no session, just render children (login page will show)
-  if (!session) {
-    return <>{children}</>
-  }
+  // This layout wraps every /admin/* route, including /admin/login. Without
+  // a session we skip the sidebar chrome entirely and just render the page
+  // (the login page handles its own layout).
+  if (!session) return <>{children}</>
 
   return (
-    <div className="min-h-screen flex" style={{ background: '#030a12' }}>
-      {/* Sidebar */}
-      <aside className="w-60 min-h-screen fixed top-0 left-0 flex flex-col"
-        style={{ background: '#050d1a', borderRight: '1px solid #0f2a4a' }}>
-
-        {/* Brand */}
-        <div className="p-5 pb-4" style={{ borderBottom: '1px solid #0f2a4a' }}>
-          <h2 className="font-bold text-base" style={{ fontFamily: "'Orbitron', sans-serif", color: '#00d4ff' }}>
+    <div className="min-h-screen flex" style={{ background: 'var(--bg3)' }}>
+      <aside
+        className="w-60 min-h-screen fixed top-0 left-0 flex flex-col"
+        style={{ background: 'var(--bg2)', borderRight: '1px solid var(--border)' }}
+      >
+        <div className="p-5 pb-4" style={{ borderBottom: '1px solid var(--border)' }}>
+          <h2 className="font-bold text-base" style={{ fontFamily: "'Orbitron', sans-serif", color: 'var(--blue)' }}>
             NDSC Admin
           </h2>
-          <p className="text-xs mt-0.5" style={{ color: '#6a8faf' }}>Management Panel</p>
+          <p className="text-xs mt-0.5" style={{ color: 'var(--muted)' }}>Management Panel</p>
         </div>
 
-        {/* Nav */}
         <nav className="flex-1 p-3 space-y-1">
-          {navLinks.map(link => (
+          {NAV_LINKS.map(link => (
             <Link
               key={link.href}
               href={link.href}
               className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-colors hover:text-white"
-              style={{ color: '#6a8faf' }}
+              style={{ color: 'var(--muted)' }}
             >
-              <span>{link.icon}</span>
+              <link.icon size={17} />
               <span>{link.label}</span>
             </Link>
           ))}
         </nav>
 
-        {/* Bottom */}
-        <div className="p-4" style={{ borderTop: '1px solid #0f2a4a' }}>
-          <a href="/api/admin/logout"
+        <div className="p-4" style={{ borderTop: '1px solid var(--border)' }}>
+          <a
+            href="/api/admin/logout"
             className="flex items-center gap-2 text-xs transition-colors hover:text-red-400"
-            style={{ color: '#6a8faf' }}>
-            <span>⏻</span> Logout
+            style={{ color: 'var(--muted)' }}
+          >
+            <Power size={15} /> Logout
           </a>
         </div>
       </aside>
 
-      {/* Main content */}
-      <main className="ml-60 flex-1 p-8 min-h-screen" style={{ color: '#e8f4ff' }}>
+      <main className="ml-60 flex-1 p-8 min-h-screen" style={{ color: 'var(--white)' }}>
         {children}
       </main>
     </div>

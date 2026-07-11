@@ -1,11 +1,7 @@
 import { supabaseAdmin } from '@/lib/supabase'
-import { NextRequest, NextResponse } from 'next/server'
-import { cookies } from 'next/headers'
-
-async function isAdmin() {
-  const cookieStore = await cookies()
-  return !!cookieStore.get('admin_session')
-}
+import { NextRequest } from 'next/server'
+import { requireAdmin } from '@/lib/api/admin-auth'
+import { apiError, apiOk } from '@/lib/api/response'
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url)
@@ -19,8 +15,8 @@ export async function GET(req: NextRequest) {
       .select('*')
       .eq('slug', slug)
       .single()
-    if (error) return NextResponse.json({ error: error.message }, { status: 400 })
-    return NextResponse.json(data)
+    if (error) return apiError(error, 400)
+    return apiOk(data)
   }
 
   if (version_id) {
@@ -29,8 +25,8 @@ export async function GET(req: NextRequest) {
       .select('*')
       .eq('activity_version_id', version_id)
       .order('session_date', { ascending: false })
-    if (error) return NextResponse.json({ error: error.message }, { status: 400 })
-    return NextResponse.json(data ?? [])
+    if (error) return apiError(error, 400)
+    return apiOk(data ?? [])
   }
 
   if (type_id) {
@@ -39,8 +35,8 @@ export async function GET(req: NextRequest) {
       .select('*')
       .eq('activity_type_id', type_id)
       .order('session_date', { ascending: false })
-    if (error) return NextResponse.json({ error: error.message }, { status: 400 })
-    return NextResponse.json(data ?? [])
+    if (error) return apiError(error, 400)
+    return apiOk(data ?? [])
   }
 
   // No filter — return all
@@ -48,12 +44,13 @@ export async function GET(req: NextRequest) {
     .from('activity_sessions')
     .select('*')
     .order('session_date', { ascending: false })
-  if (error) return NextResponse.json({ error: error.message }, { status: 400 })
-  return NextResponse.json(data ?? [])
+  if (error) return apiError(error, 400)
+  return apiOk(data ?? [])
 }
 
 export async function POST(req: NextRequest) {
-  if (!await isAdmin()) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const unauthorized = await requireAdmin()
+  if (unauthorized) return unauthorized
   const body = await req.json()
 
   // auto slug
@@ -81,6 +78,7 @@ export async function POST(req: NextRequest) {
     registration_enabled: body.is_upcoming ? (body.registration_enabled ?? false) : false,
     registration_note: body.registration_note || '',
     event_dates: body.event_dates || [],
+    bg_color: body.bg_color || null,
   }
 
   // activity_type_id — সবসময় required
@@ -112,12 +110,13 @@ export async function POST(req: NextRequest) {
     .insert(insertData)
     .select()
     .single()
-  if (error) return NextResponse.json({ error: error.message }, { status: 400 })
-  return NextResponse.json(data)
+  if (error) return apiError(error, 400)
+  return apiOk(data)
 }
 
 export async function PUT(req: NextRequest) {
-  if (!await isAdmin()) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const unauthorized = await requireAdmin()
+  if (unauthorized) return unauthorized
   const body = await req.json()
   const { id, ...rest } = body
 
@@ -137,17 +136,18 @@ export async function PUT(req: NextRequest) {
     .eq('id', id)
     .select()
     .single()
-  if (error) return NextResponse.json({ error: error.message }, { status: 400 })
-  return NextResponse.json(data)
+  if (error) return apiError(error, 400)
+  return apiOk(data)
 }
 
 export async function DELETE(req: NextRequest) {
-  if (!await isAdmin()) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const unauthorized = await requireAdmin()
+  if (unauthorized) return unauthorized
   const { id } = await req.json()
   const { error } = await supabaseAdmin
     .from('activity_sessions')
     .delete()
     .eq('id', id)
-  if (error) return NextResponse.json({ error: error.message }, { status: 400 })
-  return NextResponse.json({ success: true })
+  if (error) return apiError(error, 400)
+  return apiOk({ success: true })
 }

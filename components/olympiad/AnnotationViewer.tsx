@@ -140,7 +140,9 @@ export default function AnnotationViewer({
           {readOnly ? 'Answer Sheet' : 'Mark Answer Sheet'}
         </h2>
         <button onClick={onClose} className="px-3 py-1.5 rounded-lg text-xs border"
-          style={{ borderColor: '#0f2a4a', color: '#6a8faf' }}>Close ✕</button>
+          style={{ borderColor: '#0f2a4a', color: '#6a8faf' }}>
+          <span className="inline-flex items-center gap-1.5">Close <XIcon size={14} /></span>
+        </button>
       </div>
 
       <div className="flex-1 flex flex-col lg:flex-row overflow-hidden">
@@ -176,13 +178,13 @@ export default function AnnotationViewer({
                 }}
                 title={a.text || ''}
               >
-                {a.type === 'tick' ? '✓' : a.type === 'cross' ? '✗' : '📝'}
+                {a.type === 'tick' ? <Check size={16} strokeWidth={3} /> : a.type === 'cross' ? <XIcon size={16} strokeWidth={3} /> : <StickyNote size={14} />}
                 {!readOnly && (
                   <button
                     onClick={e => { e.stopPropagation(); removeMark(a.id) }}
-                    className="absolute -top-2 -right-2 w-4 h-4 rounded-full flex items-center justify-center text-[9px]"
+                    className="absolute -top-2 -right-2 w-4 h-4 rounded-full flex items-center justify-center"
                     style={{ background: '#ff4d4d', color: '#fff' }}
-                  >✕</button>
+                  ><XIcon size={9} strokeWidth={3} /></button>
                 )}
               </div>
             ))}

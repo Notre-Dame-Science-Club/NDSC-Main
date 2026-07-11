@@ -117,9 +117,9 @@ export default function PublicationPage() {
                   {audri.cover_image_url ? (
                     <img src={audri.cover_image_url} alt={audri.title} className="w-full h-auto object-contain" />
                   ) : (
-                    <div className="w-full flex items-center justify-center text-6xl"
-                      style={{ height: 320, background: 'var(--bg2)' }}>
-                      📘
+                    <div className="w-full flex items-center justify-center"
+                      style={{ height: 320, background: 'var(--bg2)', color: 'var(--muted)' }}>
+                      <BookOpen size={56} />
                     </div>
                   )}
                   {audri.pdf_url && (
@@ -134,9 +134,9 @@ export default function PublicationPage() {
                 </div>
               </div>
             ) : (
-              <div className="shrink-0 w-60 rounded-xl flex items-center justify-center text-6xl opacity-20"
+              <div className="shrink-0 w-60 rounded-xl flex items-center justify-center opacity-20"
                 style={{ height: 320, border: '2px dashed var(--border)', background: 'var(--bg2)' }}>
-                📘
+                <BookOpen size={56} />
               </div>
             )}
 
@@ -351,9 +351,9 @@ function PrevCover({ pub, accentColor }: { pub: Publication; accentColor: string
           {pub.cover_image_url ? (
             <img src={pub.cover_image_url} alt={pub.title} className="w-full h-auto object-contain" />
           ) : (
-            <div className="w-full flex items-center justify-center text-3xl opacity-30"
+            <div className="w-full flex items-center justify-center opacity-30"
               style={{ height: 160, background: 'var(--bg2)' }}>
-              📘
+              <BookOpen size={28} />
             </div>
           )}
           {pub.pdf_url && (
@@ -381,9 +381,9 @@ function FeatureCard({
       {pub.cover_image_url ? (
         <img src={pub.cover_image_url} alt={pub.title} className="w-full h-auto object-contain" />
       ) : (
-        <div className="w-full flex items-center justify-center text-6xl opacity-20"
+        <div className="w-full flex items-center justify-center opacity-20"
           style={{ height: 340, border: '2px dashed var(--border)', background: 'var(--bg2)', borderRadius: 16 }}>
-          🔷
+          <BookOpen size={56} />
         </div>
       )}
     </div>
@@ -425,7 +425,7 @@ function EmptyState({ label }: { label: string }) {
   return (
     <div className="rounded-2xl border p-12 text-center"
       style={{ borderColor: 'var(--border)', background: 'var(--card)' }}>
-      <p className="text-4xl mb-3">📭</p>
+      <div className="mb-3 flex justify-center" style={{ color: 'var(--muted)' }}><BookOpen size={40} /></div>
       <p className="text-sm" style={{ color: 'var(--muted)' }}>No {label} published yet.</p>
     </div>
   )

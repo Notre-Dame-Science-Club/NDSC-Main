@@ -3,10 +3,15 @@ import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { MessageCircle, Award, Plus, Upload, X } from 'lucide-react'
+import { MessageCircle, Award, Plus, Upload, X, Home, CalendarDays, BookOpen, Trophy, User, Megaphone, Ticket, Link2, CheckCircle, FileText, CalendarCheck, CreditCard, ClipboardList, ArrowRight } from 'lucide-react'
+import SurveyForm from '@/components/SurveyForm'
 
-type Tab = 'home' | 'activities' | 'publications' | 'olympiads' | 'profile'
+type Tab = 'home' | 'activities' | 'publications' | 'olympiads' | 'surveys' | 'profile'
 type Achievement = { id: string; title: string; description?: string; image_url?: string; status: 'pending' | 'approved'; created_at: string }
+type ActiveSurvey = {
+  id: string; title: string; description?: string; cover_image_url?: string
+  show_notification: boolean; notification_title?: string; notification_message?: string; question_count: number
+}
 
 export default function DashboardPage() {
   const router = useRouter()
@@ -23,6 +28,9 @@ export default function DashboardPage() {
   const [shoutPosting, setShoutPosting] = useState(false)
   const [shoutError, setShoutError] = useState('')
   const [tab, setTab] = useState<Tab>('home')
+  const [surveys, setSurveys] = useState<ActiveSurvey[]>([])
+  const [surveysLoading, setSurveysLoading] = useState(false)
+  const [openSurveyId, setOpenSurveyId] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [authChecked, setAuthChecked] = useState(false)
 
@@ -81,9 +89,22 @@ export default function DashboardPage() {
       }
       setLoading(false)
       loadShoutbox()
+      loadSurveys()
     }
     load()
   }, [])
+
+  const loadSurveys = async () => {
+    setSurveysLoading(true)
+    try {
+      const { data: { session } } = await supabase.auth.getSession()
+      const res = await fetch('/api/survey-active', {
+        headers: session ? { Authorization: `Bearer ${session.access_token}` } : {},
+      })
+      if (res.ok) setSurveys(await res.json() || [])
+    } catch { /* non-critical */ }
+    setSurveysLoading(false)
+  }
 
   const loadShoutbox = async () => {
     const { data: { session } } = await supabase.auth.getSession()
@@ -205,12 +226,13 @@ export default function DashboardPage() {
     }
   }
 
-  const tabs: { key: Tab; label: string; icon: string }[] = [
-    { key: 'home', label: 'Home', icon: '🏠' },
-    { key: 'activities', label: 'Activities', icon: '📅' },
-    { key: 'publications', label: 'Publications', icon: '📚' },
-    { key: 'olympiads', label: 'Olympiads', icon: '🏆' },
-    { key: 'profile', label: 'Profile', icon: '👤' },
+  const tabs: { key: Tab; label: string; icon: typeof Home }[] = [
+    { key: 'home', label: 'Home', icon: Home },
+    { key: 'activities', label: 'Activities', icon: CalendarDays },
+    { key: 'publications', label: 'Publications', icon: BookOpen },
+    { key: 'olympiads', label: 'Olympiads', icon: Trophy },
+    { key: 'surveys', label: 'Surveys', icon: ClipboardList },
+    { key: 'profile', label: 'Profile', icon: User },
   ]
 
   if (!authChecked || loading) return (
@@ -227,7 +249,7 @@ export default function DashboardPage() {
     <div className="min-h-screen" style={{ background: 'var(--bg)' }}>
       {/* Header */}
       <div className="text-white px-6 py-4 flex justify-between items-center sticky top-0 z-10"
-        style={{ background: '#0a1628', borderBottom: '1px solid var(--border)' }}>
+        style={{ background: 'var(--surface)', borderBottom: '1px solid var(--border)' }}>
         <div>
           <h1 className="text-base font-bold" style={{ fontFamily: "'Orbitron', sans-serif", color: 'var(--blue)' }}>
             NDSC Member Portal
@@ -237,7 +259,7 @@ export default function DashboardPage() {
         <button onClick={logout}
           className="text-sm px-4 py-1.5 rounded-lg transition-colors border"
           style={{ borderColor: 'var(--border)', color: 'var(--muted)' }}
-          onMouseEnter={e => { (e.target as HTMLElement).style.color = '#ff7070'; (e.target as HTMLElement).style.borderColor = '#ff7070' }}
+          onMouseEnter={e => { (e.target as HTMLElement).style.color = 'var(--danger-soft)'; (e.target as HTMLElement).style.borderColor = 'var(--danger-soft)' }}
           onMouseLeave={e => { (e.target as HTMLElement).style.color = 'var(--muted)'; (e.target as HTMLElement).style.borderColor = 'var(--border)' }}>
           Logout
         </button>
@@ -253,7 +275,7 @@ export default function DashboardPage() {
               borderColor: tab === t.key ? 'var(--blue)' : 'transparent',
               color: tab === t.key ? 'var(--blue)' : 'var(--muted)',
             }}>
-            <span>{t.icon}</span> {t.label}
+            <t.icon size={15} /> {t.label}
           </button>
         ))}
       </div>
@@ -270,19 +292,19 @@ export default function DashboardPage() {
               <div className="flex gap-3 mt-4 flex-wrap">
                 {member?.ndsc_id && (
                   <span className="text-xs px-3 py-1 rounded-full"
-                    style={{ background: 'rgba(0,212,255,0.1)', border: '1px solid rgba(0,212,255,0.3)', color: 'var(--blue)' }}>
+                    style={{ background: 'rgba(var(--blue-rgb), 0.1)', border: '1px solid rgba(var(--blue-rgb), 0.3)', color: 'var(--blue)' }}>
                     ID: {member.ndsc_id}
                   </span>
                 )}
                 {member?.department && (
                   <span className="text-xs px-3 py-1 rounded-full"
-                    style={{ background: 'rgba(0,212,255,0.1)', border: '1px solid rgba(0,212,255,0.3)', color: 'var(--blue)' }}>
+                    style={{ background: 'rgba(var(--blue-rgb), 0.1)', border: '1px solid rgba(var(--blue-rgb), 0.3)', color: 'var(--blue)' }}>
                     {member.department}
                   </span>
                 )}
                 {member?.batch && (
                   <span className="text-xs px-3 py-1 rounded-full"
-                    style={{ background: 'rgba(0,212,255,0.1)', border: '1px solid rgba(0,212,255,0.3)', color: 'var(--blue)' }}>
+                    style={{ background: 'rgba(var(--blue-rgb), 0.1)', border: '1px solid rgba(var(--blue-rgb), 0.3)', color: 'var(--blue)' }}>
                     Batch: {member.batch}
                   </span>
                 )}
@@ -304,8 +326,8 @@ export default function DashboardPage() {
               </a>
             )}
 
-            <h3 className="font-semibold text-sm mt-2" style={{ color: 'var(--muted)', fontFamily: "'Orbitron', sans-serif" }}>
-              📢 Updates
+            <h3 className="font-semibold text-sm mt-2 flex items-center gap-2" style={{ color: 'var(--muted)', fontFamily: "'Orbitron', sans-serif" }}>
+              <Megaphone size={14} /> Updates
             </h3>
             {announcements.length === 0 && olympiads.length === 0 && activities.filter(a => a.registration_enabled).length === 0
               ? <p className="text-sm" style={{ color: 'var(--muted)' }}>No updates yet — check back soon.</p>
@@ -323,8 +345,8 @@ export default function DashboardPage() {
                   ))}
                   {olympiads.slice(0, 3).map(o => (
                     <Link key={`oly-${o.id}`} href={`/olympiad?id=${o.id}`} className="block rounded-xl p-4 transition-transform hover:-translate-y-0.5"
-                      style={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderLeftWidth: '3px', borderLeftColor: '#ffb347' }}>
-                      <p className="font-semibold text-sm" style={{ color: 'var(--white)' }}>🏆 {o.name} is open</p>
+                      style={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderLeftWidth: '3px', borderLeftColor: 'var(--warning)' }}>
+                      <p className="font-semibold text-sm flex items-center gap-1.5" style={{ color: 'var(--white)' }}><Trophy size={14} /> {o.name} is open</p>
                       <p className="text-sm mt-1" style={{ color: 'var(--muted)' }}>
                         {o.registration_deadline
                           ? `Register before ${new Date(o.registration_deadline).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`
@@ -334,8 +356,8 @@ export default function DashboardPage() {
                   ))}
                   {activities.filter(a => a.registration_enabled).slice(0, 3).map(a => (
                     <Link key={`act-${a.id}`} href={`/activities/${a.slug}`} className="block rounded-xl p-4 transition-transform hover:-translate-y-0.5"
-                      style={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderLeftWidth: '3px', borderLeftColor: '#34d399' }}>
-                      <p className="font-semibold text-sm" style={{ color: 'var(--white)' }}>📅 {a.title} — registration open</p>
+                      style={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderLeftWidth: '3px', borderLeftColor: 'var(--cat-teal)' }}>
+                      <p className="font-semibold text-sm flex items-center gap-1.5" style={{ color: 'var(--white)' }}><CalendarDays size={14} /> {a.title} — registration open</p>
                       {a.registration_note && <p className="text-sm mt-1" style={{ color: 'var(--muted)' }}>{a.registration_note}</p>}
                     </Link>
                   ))}
@@ -345,7 +367,7 @@ export default function DashboardPage() {
 
             {/* SHOUTBOX */}
             <h3 className="font-semibold text-sm mt-6 flex items-center gap-2" style={{ color: 'var(--muted)', fontFamily: "'Orbitron', sans-serif" }}>
-              💬 Members' Shoutbox
+              <MessageCircle size={14} /> Members' Shoutbox
             </h3>
             <div className="rounded-xl p-4" style={{ background: 'var(--bg2)', border: '1px solid var(--border)' }}>
               <div className="flex gap-2 mb-3">
@@ -360,7 +382,7 @@ export default function DashboardPage() {
                   {shoutPosting ? '...' : 'Post'}
                 </button>
               </div>
-              {shoutError && <p className="text-xs mb-2" style={{ color: '#ff7070' }}>{shoutError}</p>}
+              {shoutError && <p className="text-xs mb-2" style={{ color: 'var(--danger-soft)' }}>{shoutError}</p>}
               <div className="space-y-2 max-h-80 overflow-y-auto">
                 {shoutPosts.length === 0 ? (
                   <p className="text-sm" style={{ color: 'var(--muted)' }}>No posts yet — be the first to say something!</p>
@@ -384,8 +406,8 @@ export default function DashboardPage() {
 
             {/* ── My Registrations ─────────────────────────────────── */}
             <div>
-              <h3 className="font-semibold text-sm mb-3" style={{ color: 'var(--muted)', fontFamily: "'Orbitron', sans-serif" }}>
-                🎫 My Registrations
+              <h3 className="font-semibold text-sm mb-3 flex items-center gap-2" style={{ color: 'var(--muted)', fontFamily: "'Orbitron', sans-serif" }}>
+                <Ticket size={14} /> My Registrations
               </h3>
               {regsLoading ? (
                 <p className="text-sm" style={{ color: 'var(--muted)' }}>Loading your registrations…</p>
@@ -406,21 +428,21 @@ export default function DashboardPage() {
                         </p>
                         <div className="flex gap-2 mt-1.5 flex-wrap">
                           {reg.category?.schedule_date && (
-                            <span className="text-xs" style={{ color: '#34d399' }}>
-                              📅 {new Date(reg.category.schedule_date).toLocaleDateString('en-BD', { month: 'short', day: 'numeric' })}
+                            <span className="text-xs flex items-center gap-1" style={{ color: 'var(--cat-teal)' }}>
+                              <CalendarDays size={11} /> {new Date(reg.category.schedule_date).toLocaleDateString('en-BD', { month: 'short', day: 'numeric' })}
                             </span>
                           )}
                           {reg.payment_status && reg.payment_status !== 'not_required' && (
-                            <span className="text-xs px-1.5 py-0.5 rounded-full" style={{
-                              background: reg.payment_status === 'paid' ? 'rgba(0,255,128,0.1)' : 'rgba(255,179,71,0.1)',
-                              color: reg.payment_status === 'paid' ? '#00ff80' : '#ffb347',
+                            <span className="text-xs px-1.5 py-0.5 rounded-full flex items-center gap-1" style={{
+                              background: reg.payment_status === 'paid' ? 'rgba(var(--success-rgb), 0.1)' : 'rgba(var(--warning-rgb), 0.1)',
+                              color: reg.payment_status === 'paid' ? 'var(--success)' : 'var(--warning)',
                             }}>
-                              💳 {reg.payment_status}
+                              <CreditCard size={10} /> {reg.payment_status}
                             </span>
                           )}
                           {reg.category?.is_online_submission && (
-                            <span className="text-xs px-1.5 py-0.5 rounded-full" style={{ background: 'rgba(0,212,255,0.1)', color: 'var(--blue)' }}>
-                              🔗 Online round
+                            <span className="text-xs px-1.5 py-0.5 rounded-full" style={{ background: 'rgba(var(--blue-rgb), 0.1)', color: 'var(--blue)' }}>
+                              <Link2 size={10} className="inline mr-1 -mt-0.5" /> Online round
                             </span>
                           )}
                         </div>
@@ -428,7 +450,7 @@ export default function DashboardPage() {
                       {reg.session?.slug && (
                         <Link href={`/activities/${reg.session.slug}/dashboard?reg=${reg.id}`}
                           className="flex-shrink-0 px-3 py-1.5 rounded-lg text-xs font-bold"
-                          style={{ background: 'rgba(0,212,255,0.1)', color: 'var(--blue)', border: '1px solid rgba(0,212,255,0.3)', whiteSpace: 'nowrap' }}>
+                          style={{ background: 'rgba(var(--blue-rgb), 0.1)', color: 'var(--blue)', border: '1px solid rgba(var(--blue-rgb), 0.3)', whiteSpace: 'nowrap' }}>
                           Dashboard →
                         </Link>
                       )}
@@ -440,8 +462,8 @@ export default function DashboardPage() {
 
             {/* ── All Activities ────────────────────────────────────── */}
             <div>
-              <h3 className="font-semibold text-sm mb-3" style={{ color: 'var(--muted)', fontFamily: "'Orbitron', sans-serif" }}>
-                📅 All Activities
+              <h3 className="font-semibold text-sm mb-3 flex items-center gap-2" style={{ color: 'var(--muted)', fontFamily: "'Orbitron', sans-serif" }}>
+                <CalendarDays size={14} /> All Activities
               </h3>
               {activities.length === 0
                 ? <p className="text-sm" style={{ color: 'var(--muted)' }}>No activities published yet.</p>
@@ -454,21 +476,21 @@ export default function DashboardPage() {
                     <div className="p-4 flex items-start justify-between gap-3">
                       <div className="flex-1 min-w-0">
                         {a.activity_types?.name && (
-                          <span className="text-xs px-2 py-0.5 rounded-full font-medium" style={{ background: 'rgba(0,212,255,0.1)', color: 'var(--blue)' }}>
+                          <span className="text-xs px-2 py-0.5 rounded-full font-medium" style={{ background: 'rgba(var(--blue-rgb), 0.1)', color: 'var(--blue)' }}>
                             {a.activity_types.name}
                           </span>
                         )}
                         <h4 className="font-semibold mt-2 truncate" style={{ color: 'var(--white)' }}>{a.title}</h4>
                         {a.session_date && (
                           <p className="text-xs mt-1" style={{ color: 'var(--muted)' }}>
-                            📆 {new Date(a.session_date).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })}
+                            <CalendarCheck size={11} className="inline mr-1 -mt-0.5" /> {new Date(a.session_date).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })}
                           </p>
                         )}
                       </div>
                       {/* If member already registered for this session, show dashboard link */}
                       {myRegistrations.find(r => r.session?.id === a.id) && (
-                        <span className="text-xs px-2 py-1 rounded-full flex-shrink-0" style={{ background: 'rgba(52,211,153,0.1)', color: '#34d399' }}>
-                          ✓ Registered
+                        <span className="text-xs px-2 py-1 rounded-full flex-shrink-0 inline-flex items-center gap-1" style={{ background: 'rgba(var(--cat-teal-rgb), 0.1)', color: 'var(--cat-teal)' }}>
+                          <CheckCircle size={11} /> Registered
                         </span>
                       )}
                     </div>
@@ -490,12 +512,12 @@ export default function DashboardPage() {
                   style={{ background: 'var(--bg2)', border: '1px solid var(--border)' }}>
                   {p.cover_image_url
                     ? <img src={p.cover_image_url} alt={p.title} className="w-16 h-20 object-cover rounded-lg flex-shrink-0" />
-                    : <div className="w-16 h-20 rounded-lg flex items-center justify-center flex-shrink-0 text-2xl"
-                        style={{ background: 'rgba(0,212,255,0.08)', border: '1px solid var(--border)' }}>📄</div>
+                    : <div className="w-16 h-20 rounded-lg flex items-center justify-center flex-shrink-0"
+                        style={{ background: 'rgba(var(--blue-rgb), 0.08)', border: '1px solid var(--border)', color: 'var(--muted)' }}><FileText size={20} /></div>
                   }
                   <div className="flex-1 min-w-0">
                     <span className="text-xs px-2 py-0.5 rounded-full"
-                      style={{ background: 'rgba(0,212,255,0.1)', color: 'var(--blue)' }}>
+                      style={{ background: 'rgba(var(--blue-rgb), 0.1)', color: 'var(--blue)' }}>
                       {p.category} {p.published_year && `· ${p.published_year}`}
                     </span>
                     <h4 className="font-semibold mt-1 truncate" style={{ color: 'var(--white)' }}>{p.title}</h4>
@@ -527,16 +549,16 @@ export default function DashboardPage() {
                   <p className="text-sm mt-1" style={{ color: 'var(--muted)' }}>{o.description}</p>
                   <div className="mt-3 space-y-1.5 text-sm" style={{ color: 'var(--muted)' }}>
                     {o.registration_deadline && (
-                      <p>📝 Deadline: <span style={{ color: 'var(--white)' }}>
+                      <p className="flex items-start gap-1.5"><FileText size={14} className="shrink-0 mt-0.5" /> Deadline: <span style={{ color: 'var(--white)' }}>
                         {new Date(o.registration_deadline).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
                       </span></p>
                     )}
                     {o.exam_date && (
-                      <p>📆 Exam: <span style={{ color: 'var(--white)' }}>
+                      <p className="flex items-start gap-1.5"><CalendarCheck size={14} className="shrink-0 mt-0.5" /> Exam: <span style={{ color: 'var(--white)' }}>
                         {new Date(o.exam_date).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
                       </span></p>
                     )}
-                    {o.eligibility && <p>✅ Eligibility: {o.eligibility}</p>}
+                    {o.eligibility && <p className="flex items-start gap-1.5"><CheckCircle size={14} className="shrink-0 mt-0.5" /> Eligibility: {o.eligibility}</p>}
                   </div>
                   {o.pdf_url && (
                     <a href={o.pdf_url} target="_blank"
@@ -551,13 +573,36 @@ export default function DashboardPage() {
           </div>
         )}
 
+        {/* SURVEYS */}
+        {tab === 'surveys' && (
+          <div className="space-y-4">
+            <h3 className="font-semibold text-sm" style={{ color: 'var(--muted)', fontFamily: "'Orbitron', sans-serif" }}>Open Surveys</h3>
+            {surveysLoading ? (
+              <p className="text-sm" style={{ color: 'var(--muted)' }}>Loading...</p>
+            ) : surveys.length === 0 ? (
+              <p className="text-sm" style={{ color: 'var(--muted)' }}>No surveys open for you right now.</p>
+            ) : surveys.map(sv => (
+              <div key={sv.id} className="rounded-xl p-5" style={{ background: 'var(--bg2)', border: '1px solid var(--border)' }}>
+                <h4 className="font-bold text-lg" style={{ color: 'var(--white)' }}>{sv.title}</h4>
+                {sv.description && <p className="text-sm mt-1" style={{ color: 'var(--muted)' }}>{sv.description}</p>}
+                <p className="text-xs mt-2" style={{ color: 'var(--border-soft)' }}>{sv.question_count} question{sv.question_count === 1 ? '' : 's'}</p>
+                <button onClick={() => setOpenSurveyId(sv.id)}
+                  className="inline-flex items-center gap-1.5 mt-3 text-sm px-4 py-2 rounded-lg text-black font-semibold"
+                  style={{ background: 'var(--blue)' }}>
+                  Answer Now <ArrowRight size={14} />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+
         {/* PROFILE */}
         {tab === 'profile' && (
           <div className="space-y-4">
             <div className="rounded-xl p-6" style={{ background: 'var(--bg2)', border: '1px solid var(--border)' }}>
               <div className="flex items-center gap-4 mb-6">
                 <div className="w-16 h-16 rounded-full flex items-center justify-center text-2xl font-bold"
-                  style={{ background: 'rgba(0,212,255,0.1)', border: '2px solid rgba(0,212,255,0.3)', color: 'var(--blue)' }}>
+                  style={{ background: 'rgba(var(--blue-rgb), 0.1)', border: '2px solid rgba(var(--blue-rgb), 0.3)', color: 'var(--blue)' }}>
                   {member?.full_name?.[0] || '?'}
                 </div>
                 <div className="flex-1">
@@ -565,14 +610,14 @@ export default function DashboardPage() {
                   <p className="text-sm" style={{ color: 'var(--muted)' }}>{member?.email}</p>
                   {member?.department && (
                     <span className="inline-block mt-1.5 text-xs px-2.5 py-0.5 rounded-full"
-                      style={{ background: 'rgba(0,212,255,0.1)', border: '1px solid rgba(0,212,255,0.3)', color: 'var(--blue)' }}>
+                      style={{ background: 'rgba(var(--blue-rgb), 0.1)', border: '1px solid rgba(var(--blue-rgb), 0.3)', color: 'var(--blue)' }}>
                       {member.department} Department
                     </span>
                   )}
                 </div>
                 {!editingProfile && (
                   <button onClick={() => { setEditingProfile(true); setProfileForm({ full_name: member?.full_name || '', phone: member?.phone || '', college_roll: member?.college_roll || '', batch: member?.batch || '' }) }}
-                    className="text-xs px-3 py-1.5 rounded-lg flex-shrink-0" style={{ background: 'rgba(0,212,255,0.1)', color: 'var(--blue)' }}>
+                    className="text-xs px-3 py-1.5 rounded-lg flex-shrink-0" style={{ background: 'rgba(var(--blue-rgb), 0.1)', color: 'var(--blue)' }}>
                     Edit
                   </button>
                 )}
@@ -592,7 +637,7 @@ export default function DashboardPage() {
                   <input value={profileForm.batch} onChange={e => setProfileForm((p: any) => ({ ...p, batch: e.target.value }))}
                     placeholder="Batch" className="w-full px-3 py-2 rounded-lg text-sm outline-none border"
                     style={{ background: 'rgba(255,255,255,0.04)', borderColor: 'var(--border)', color: 'var(--white)' }} />
-                  {profileError && <p className="text-xs" style={{ color: '#ff7070' }}>{profileError}</p>}
+                  {profileError && <p className="text-xs" style={{ color: 'var(--danger-soft)' }}>{profileError}</p>}
                   <div className="flex gap-2 pt-1">
                     <button onClick={saveProfile} disabled={profileSaving}
                       className="flex-1 py-2 rounded-lg text-sm font-bold text-black disabled:opacity-50" style={{ background: 'var(--blue)' }}>
@@ -619,7 +664,7 @@ export default function DashboardPage() {
               )}
               <button onClick={logout}
                 className="mt-6 w-full py-2.5 rounded-lg text-sm border transition-colors"
-                style={{ borderColor: 'rgba(255,80,80,0.4)', color: '#ff7070' }}>
+                style={{ borderColor: 'rgba(var(--danger-rgb), 0.4)', color: 'var(--danger-soft)' }}>
                 Sign Out
               </button>
             </div>
@@ -632,7 +677,7 @@ export default function DashboardPage() {
                 </h3>
                 <button onClick={() => setShowAchievementForm(v => !v)}
                   className="flex items-center gap-1 text-xs px-3 py-1.5 rounded-lg font-semibold"
-                  style={{ background: 'rgba(0,212,255,0.1)', color: 'var(--blue)', border: '1px solid rgba(0,212,255,0.3)' }}>
+                  style={{ background: 'rgba(var(--blue-rgb), 0.1)', color: 'var(--blue)', border: '1px solid rgba(var(--blue-rgb), 0.3)' }}>
                   <Plus size={13} /> Add
                 </button>
               </div>
@@ -651,7 +696,7 @@ export default function DashboardPage() {
                     {achImage ? achImage.name : 'Attach a photo (optional)'}
                     <input type="file" accept="image/*" className="hidden" onChange={e => setAchImage(e.target.files?.[0] || null)} />
                   </label>
-                  {achError && <p className="text-xs" style={{ color: '#ff7070' }}>{achError}</p>}
+                  {achError && <p className="text-xs" style={{ color: 'var(--danger-soft)' }}>{achError}</p>}
                   <div className="flex gap-2">
                     <button onClick={submitAchievement} disabled={achSubmitting}
                       className="flex-1 py-2 rounded-lg text-sm font-semibold text-black disabled:opacity-50"
@@ -680,8 +725,8 @@ export default function DashboardPage() {
                       </div>
                       <span className="text-xs px-2 py-0.5 rounded-full flex-shrink-0"
                         style={{
-                          background: a.status === 'approved' ? 'rgba(0,255,128,0.1)' : 'rgba(255,165,0,0.1)',
-                          color: a.status === 'approved' ? '#00ff80' : '#ffa500',
+                          background: a.status === 'approved' ? 'rgba(var(--success-rgb), 0.1)' : 'rgba(255,165,0,0.1)',
+                          color: a.status === 'approved' ? 'var(--success)' : 'var(--warning)',
                         }}>
                         {a.status === 'approved' ? 'Approved' : 'Pending'}
                       </span>
@@ -694,6 +739,22 @@ export default function DashboardPage() {
         )}
 
       </div>
+
+      {openSurveyId && (
+        <div className="fixed inset-0 z-[80] flex items-end sm:items-center justify-center p-0 sm:p-4"
+          style={{ background: 'rgba(2,8,16,0.85)' }} onClick={() => setOpenSurveyId(null)}>
+          <div className="w-full sm:max-w-lg max-h-[90vh] overflow-y-auto rounded-t-2xl sm:rounded-2xl border p-6"
+            style={{ background: 'var(--bg2)', borderColor: 'var(--border)' }} onClick={e => e.stopPropagation()}>
+            <div className="flex justify-end mb-1">
+              <button onClick={() => setOpenSurveyId(null)} style={{ color: 'var(--muted)' }} aria-label="Close"><X size={18} /></button>
+            </div>
+            <SurveyForm surveyId={openSurveyId} compact onSubmitted={() => {
+              setSurveys(prev => prev.filter(s => s.id !== openSurveyId))
+              setTimeout(() => setOpenSurveyId(null), 1400)
+            }} />
+          </div>
+        </div>
+      )}
     </div>
   )
 }

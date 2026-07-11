@@ -1,7 +1,8 @@
 "use client";
 import { useState, useEffect, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
-import { Play, FileText, Mic, ChevronDown, ChevronUp, Search, X, UserPlus } from "lucide-react";
+import { Play, FileText, Mic, ChevronDown, ChevronUp, Search, X, UserPlus, Image as ImageIcon, Images, CalendarDays, MapPin, Clock, Microscope } from "lucide-react";
+import { ActivityIcon } from "@/lib/activityIcons";
 import Link from "next/link";
 
 type ActivityType = {
@@ -45,8 +46,8 @@ function SessionCard({ s }: { s: ActivitySession }) {
           <img src={thumb} alt={s.title}
             className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" />
         ) : (
-          <div className="w-full h-full flex items-center justify-center text-5xl opacity-20"
-            style={{ background: "var(--bg2)" }}>📷</div>
+          <div className="w-full h-full flex items-center justify-center opacity-20"
+            style={{ background: "var(--bg2)" }}><ImageIcon size={48} /></div>
         )}
         <div className="absolute inset-0"
           style={{ background: "linear-gradient(0deg,rgba(2,8,16,.75) 0%,transparent 60%)" }} />
@@ -58,14 +59,14 @@ function SessionCard({ s }: { s: ActivitySession }) {
         )}
         {s.pdf_url && (
           <div className="absolute bottom-3 right-3 px-2 py-1 rounded text-xs font-bold flex items-center gap-1"
-            style={{ background: "rgba(0,212,255,.85)", color: "#000" }}>
+            style={{ background: "rgba(var(--blue-rgb), .85)", color: "#000" }}>
             <FileText size={10} /> PDF
           </div>
         )}
         {s.gallery_urls?.length > 0 && (
-          <div className="absolute bottom-3 left-3 px-2 py-1 rounded text-xs font-bold"
+          <div className="absolute bottom-3 left-3 px-2 py-1 rounded text-xs font-bold flex items-center gap-1"
             style={{ background: "rgba(46,204,113,.85)", color: "#000" }}>
-            🖼 {s.gallery_urls.length}
+            <Images size={11} /> {s.gallery_urls.length}
           </div>
         )}
         {canRegister && (
@@ -88,14 +89,14 @@ function SessionCard({ s }: { s: ActivitySession }) {
         )}
         <div className="mt-auto flex flex-wrap gap-2 text-xs" style={{ color: "var(--muted)" }}>
           {s.session_date && (
-            <span>📅 {new Date(s.session_date).toLocaleDateString("en-BD", {
+            <span className="inline-flex items-center gap-1"><CalendarDays size={12} /> {new Date(s.session_date).toLocaleDateString("en-BD", {
               day: "numeric", month: "short", year: "numeric"
             })}</span>
           )}
-          {s.location && <span>📍 {s.location}</span>}
+          {s.location && <span className="inline-flex items-center gap-1"><MapPin size={12} /> {s.location}</span>}
         </div>
         {canRegister && s.registration_note && (
-          <p className="text-[11px] mt-2" style={{ color: "var(--blue)" }}>⏰ {s.registration_note}</p>
+          <p className="text-[11px] mt-2 inline-flex items-center gap-1" style={{ color: "var(--blue)" }}><Clock size={11} /> {s.registration_note}</p>
         )}
       </div>
     </div>
@@ -115,7 +116,7 @@ function VersionSection({ version, sessions }: { version: ActivityVersion; sessi
         className="w-full flex items-center gap-4 mb-6 group">
         <div className="flex items-center gap-3 flex-1">
           <div className="px-3 py-1 rounded-lg text-sm font-black"
-            style={{ background: "rgba(0,212,255,.15)", color: "var(--blue)", border: "1px solid rgba(0,212,255,.3)", fontFamily: "'Orbitron',sans-serif" }}>
+            style={{ background: "rgba(var(--blue-rgb), .15)", color: "var(--blue)", border: "1px solid rgba(var(--blue-rgb), .3)", fontFamily: "'Orbitron',sans-serif" }}>
             {version.version_label || `v${version.version_number}`}
           </div>
           <div className="text-left">
@@ -200,7 +201,7 @@ function DynamicActivityTab({ type }: { type: ActivityType }) {
     <div>
       {/* Header */}
       <div className="mb-12">
-        <div className="section-label mb-2">{type.icon} Activity</div>
+        <div className="section-label mb-2 inline-flex items-center gap-1.5"><ActivityIcon icon={type.icon} size={13} /> Activity</div>
         <h2 className="text-3xl font-black mb-2" style={{ fontFamily: "'Orbitron',sans-serif" }}>
           <span style={{ color: "var(--blue)" }}>{type.name.toUpperCase()}</span>
         </h2>
@@ -213,7 +214,7 @@ function DynamicActivityTab({ type }: { type: ActivityType }) {
 
       {!hasContent ? (
         <div className="text-center py-24">
-          <p className="text-5xl mb-4">{type.icon}</p>
+          <div className="mb-4 flex justify-center" style={{ color: 'var(--muted)' }}><ActivityIcon icon={type.icon} size={44} /></div>
           <p className="text-sm" style={{ color: "var(--muted)" }}>No sessions yet. Check back soon!</p>
         </div>
       ) : (
@@ -301,7 +302,7 @@ function ActivitiesContent() {
                   color: activeTab === t.slug ? "#000" : "var(--muted)",
                   borderColor: activeTab === t.slug ? "var(--blue)" : "var(--border)",
                 }}>
-                <span>{t.icon}</span> {t.name}
+                <ActivityIcon icon={t.icon} size={13} /> {t.name}
               </button>
             ))
           )}
@@ -313,7 +314,7 @@ function ActivitiesContent() {
           <DynamicActivityTab key={activeType.id} type={activeType} />
         ) : !loadingTypes ? (
           <div className="text-center py-24" style={{ color: "var(--muted)" }}>
-            <p className="text-5xl mb-4">🔬</p>
+            <div className="mb-4 flex justify-center"><Microscope size={44} /></div>
             <p>Select an activity tab above.</p>
           </div>
         ) : null}
@@ -383,7 +384,7 @@ function ActivitySearchBar() {
                 {r.cover_image_url ? (
                   <img src={r.cover_image_url} alt="" className="w-10 h-10 rounded-lg object-cover flex-shrink-0" />
                 ) : (
-                  <div className="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 text-lg" style={{ background: "var(--bg)" }}>🔬</div>
+                  <div className="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: "var(--bg)" }}><Microscope size={17} /></div>
                 )}
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium truncate" style={{ color: "var(--white)" }}>{r.title}</p>

@@ -28,7 +28,7 @@ export default function ActivityRegisterButton({ slug, sessionId }: Props) {
     return (
       <Link href={`/activities/${slug}/dashboard`}
         className="px-6 py-3 rounded-xl font-bold text-sm flex-shrink-0 transition-all hover:-translate-y-0.5"
-        style={{ background: 'rgba(0,212,255,0.15)', color: 'var(--blue)', border: '1px solid rgba(0,212,255,0.4)', fontFamily: "'Orbitron', sans-serif" }}>
+        style={{ background: 'rgba(var(--blue-rgb), 0.15)', color: 'var(--blue)', border: '1px solid rgba(var(--blue-rgb), 0.4)', fontFamily: "'Orbitron', sans-serif" }}>
         My Dashboard →
       </Link>
     )

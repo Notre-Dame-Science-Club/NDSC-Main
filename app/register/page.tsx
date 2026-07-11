@@ -2,7 +2,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { Upload, CheckCircle } from 'lucide-react'
+import { Upload, CheckCircle, UserPlus } from 'lucide-react'
 
 export default function RegisterPage() {
   const router = useRouter()
@@ -109,11 +109,11 @@ export default function RegisterPage() {
       <div className="fixed inset-0 grid-bg opacity-30 pointer-events-none" />
       <div className="relative text-center max-w-md w-full mx-4">
         <div className="absolute -inset-1 rounded-2xl opacity-20 blur-xl"
-          style={{ background: 'radial-gradient(circle, #00ff88 0%, transparent 70%)' }} />
+          style={{ background: 'radial-gradient(circle, var(--success) 0%, transparent 70%)' }} />
         <div className="relative rounded-2xl p-10 border"
           style={{ background: 'var(--bg2)', borderColor: 'var(--border)' }}>
-          <div className="text-6xl mb-4">✅</div>
-          <h2 className="text-xl font-bold mb-2" style={{ fontFamily: "'Orbitron', sans-serif", color: '#00ff88' }}>
+          <div className="mb-4 flex justify-center" style={{ color: 'var(--success)' }}><CheckCircle size={56} /></div>
+          <h2 className="text-xl font-bold mb-2" style={{ fontFamily: "'Orbitron', sans-serif", color: 'var(--success)' }}>
             Registration Successful!
           </h2>
           <p className="text-sm mb-6" style={{ color: 'var(--muted)' }}>
@@ -153,8 +153,8 @@ export default function RegisterPage() {
 
           <div className="text-center mb-8">
             <div className="inline-flex items-center justify-center w-14 h-14 rounded-full mb-4"
-              style={{ background: 'rgba(0,212,255,0.1)', border: '1px solid rgba(0,212,255,0.3)' }}>
-              <span className="text-2xl">🚀</span>
+              style={{ background: 'rgba(var(--blue-rgb), 0.1)', border: '1px solid rgba(var(--blue-rgb), 0.3)' }}>
+              <UserPlus size={22} style={{ color: 'var(--blue)' }} />
             </div>
             <h1 className="text-xl font-bold mb-1" style={{ fontFamily: "'Orbitron', sans-serif", color: 'var(--blue)' }}>
               Create Account
@@ -164,7 +164,7 @@ export default function RegisterPage() {
 
           {error && (
             <div className="px-4 py-3 rounded-lg mb-5 text-sm border"
-              style={{ background: 'rgba(255,50,50,0.08)', borderColor: 'rgba(255,80,80,0.3)', color: '#ff7070' }}>
+              style={{ background: 'rgba(255,50,50,0.08)', borderColor: 'rgba(var(--danger-rgb), 0.3)', color: 'var(--danger-soft)' }}>
               {error}
             </div>
           )}
@@ -213,7 +213,7 @@ export default function RegisterPage() {
                   </div>
                 )}
               </label>
-              {slipError && <p className="text-xs mt-1.5" style={{ color: '#ff7070' }}>{slipError}</p>}
+              {slipError && <p className="text-xs mt-1.5" style={{ color: 'var(--danger-soft)' }}>{slipError}</p>}
               {loading && slipFile && (
                 <div className="mt-2">
                   <div className="w-full rounded-full overflow-hidden" style={{ height: 4, background: 'var(--border)' }}>
@@ -227,7 +227,7 @@ export default function RegisterPage() {
               onClick={submit} disabled={loading}
               className="w-full py-2.5 rounded-lg font-semibold text-sm transition-all mt-2 text-black"
               style={{
-                background: loading ? 'rgba(0,212,255,0.4)' : 'var(--blue)',
+                background: loading ? 'rgba(var(--blue-rgb), 0.4)' : 'var(--blue)',
                 fontFamily: "'Orbitron', sans-serif",
                 letterSpacing: '0.05em',
                 opacity: loading ? 0.7 : 1,

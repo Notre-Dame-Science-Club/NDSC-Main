@@ -6,13 +6,14 @@ type Achievement = { id: string; title: string; description?: string; image_url?
 type Member = {
   id: string; full_name: string; email: string; phone?: string; batch?: string
   college_roll?: string; ndsc_id?: string; department?: string; is_verified: boolean
+  is_organizer?: boolean; is_executive?: boolean
   payment_slip_url?: string; achievements?: Achievement[]; created_at: string
 }
 
 const DEPARTMENTS = ['Administration', 'Project', 'Publication', 'ICT', 'LWS', 'Quiz', 'R&D']
 
-const s = { background: '#050d1a', borderColor: '#0f2a4a' }
-const h = { fontFamily: "'Orbitron', sans-serif", color: '#00d4ff' }
+const s = { background: 'var(--bg2)', borderColor: 'var(--border)' }
+const h = { fontFamily: "'Orbitron', sans-serif", color: 'var(--blue)' }
 
 export default function AdminMembersPage() {
   const [members, setMembers] = useState<Member[]>([])
@@ -56,6 +57,23 @@ export default function AdminMembersPage() {
       const data = await res.json()
       if (!res.ok) { setError(data.error || 'Could not update member.'); return }
       load()
+    } catch { setError('Network error.') }
+  }
+
+  // Toggles members.is_organizer / members.is_executive — used to build the
+  // "Organizers" / "Executives" audience options in the Surveys admin page
+  // (see lib/survey.ts for why these are plain member flags rather than a
+  // separate login system).
+  const toggleRole = async (m: Member, field: 'is_organizer' | 'is_executive') => {
+    setError('')
+    const next = !m[field]
+    try {
+      const res = await fetch('/api/admin/members', {
+        method: 'PUT', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: m.id, [field]: next }),
+      })
+      if (!res.ok) { const d = await res.json(); setError(d.error || 'Could not update member.'); return }
+      setMembers(prev => prev.map(x => x.id === m.id ? { ...x, [field]: next } : x))
     } catch { setError('Network error.') }
   }
 
@@ -150,7 +168,7 @@ export default function AdminMembersPage() {
     (sum, m) => sum + (m.achievements || []).filter(a => a.status === 'pending').length, 0
   )
 
-  if (loading) return <p style={{ color: '#6a8faf' }}>Loading...</p>
+  if (loading) return <p style={{ color: 'var(--muted)' }}>Loading...</p>
 
   return (
     <div>
@@ -161,22 +179,22 @@ export default function AdminMembersPage() {
             <button key={f} onClick={() => setFilter(f)}
               className="px-3 py-1.5 rounded-lg text-xs font-semibold border capitalize"
               style={{
-                borderColor: filter === f ? '#00d4ff' : '#0f2a4a',
-                color: filter === f ? '#00d4ff' : '#6a8faf',
-                background: filter === f ? 'rgba(0,212,255,0.1)' : 'transparent',
+                borderColor: filter === f ? 'var(--blue)' : 'var(--border)',
+                color: filter === f ? 'var(--blue)' : 'var(--muted)',
+                background: filter === f ? 'rgba(var(--blue-rgb), 0.1)' : 'transparent',
               }}>{f}</button>
           ))}
         </div>
       </div>
 
       {error && (
-        <div className="mb-4 p-3 rounded-lg text-sm" style={{ background: 'rgba(255,80,80,0.1)', color: '#ff7070', border: '1px solid rgba(255,80,80,0.3)' }}>
+        <div className="mb-4 p-3 rounded-lg text-sm" style={{ background: 'rgba(var(--danger-rgb), 0.1)', color: 'var(--danger-soft)', border: '1px solid rgba(var(--danger-rgb), 0.3)' }}>
           {error}
         </div>
       )}
 
       {pendingAchievementsCount > 0 && (
-        <div className="mb-4 p-3 rounded-lg text-sm flex items-center gap-2" style={{ background: 'rgba(255,179,71,0.1)', color: '#ffb347', border: '1px solid rgba(255,179,71,0.3)' }}>
+        <div className="mb-4 p-3 rounded-lg text-sm flex items-center gap-2" style={{ background: 'rgba(var(--warning-rgb), 0.1)', color: 'var(--warning)', border: '1px solid rgba(var(--warning-rgb), 0.3)' }}>
           <Award size={15} /> {pendingAchievementsCount} achievement{pendingAchievementsCount > 1 ? 's' : ''} awaiting your review below.
         </div>
       )}
@@ -184,26 +202,27 @@ export default function AdminMembersPage() {
       <div className="rounded-xl border overflow-hidden" style={s}>
         <table className="w-full text-sm">
           <thead>
-            <tr style={{ borderBottom: '1px solid #0f2a4a', background: 'rgba(0,212,255,0.05)' }}>
-              <th className="text-left px-4 py-3 font-medium" style={{ color: '#6a8faf' }}>Name</th>
-              <th className="text-left px-4 py-3 font-medium" style={{ color: '#6a8faf' }}>College Roll</th>
-              <th className="text-left px-4 py-3 font-medium" style={{ color: '#6a8faf' }}>Email</th>
-              <th className="text-left px-4 py-3 font-medium" style={{ color: '#6a8faf' }}>Department</th>
-              <th className="text-left px-4 py-3 font-medium" style={{ color: '#6a8faf' }}>Slip</th>
-              <th className="text-left px-4 py-3 font-medium" style={{ color: '#6a8faf' }}>Status</th>
-              <th className="text-left px-4 py-3 font-medium" style={{ color: '#6a8faf' }}>Action</th>
+            <tr style={{ borderBottom: '1px solid var(--border)', background: 'rgba(var(--blue-rgb), 0.05)' }}>
+              <th className="text-left px-4 py-3 font-medium" style={{ color: 'var(--muted)' }}>Name</th>
+              <th className="text-left px-4 py-3 font-medium" style={{ color: 'var(--muted)' }}>College Roll</th>
+              <th className="text-left px-4 py-3 font-medium" style={{ color: 'var(--muted)' }}>Email</th>
+              <th className="text-left px-4 py-3 font-medium" style={{ color: 'var(--muted)' }}>Department</th>
+              <th className="text-left px-4 py-3 font-medium" style={{ color: 'var(--muted)' }}>Slip</th>
+              <th className="text-left px-4 py-3 font-medium" style={{ color: 'var(--muted)' }}>Status</th>
+              <th className="text-left px-4 py-3 font-medium" style={{ color: 'var(--muted)' }}>Roles</th>
+              <th className="text-left px-4 py-3 font-medium" style={{ color: 'var(--muted)' }}>Action</th>
             </tr>
           </thead>
           <tbody>
             {filtered.map(member => (
-              <tr key={member.id} style={{ borderBottom: '1px solid #0a1f35' }}>
-                <td className="px-4 py-3" style={{ color: '#e8f4ff' }}>{member.full_name}</td>
-                <td className="px-4 py-3" style={{ color: '#6a8faf' }}>{member.college_roll || '—'}</td>
-                <td className="px-4 py-3" style={{ color: '#6a8faf' }}>{member.email}</td>
+              <tr key={member.id} style={{ borderBottom: '1px solid var(--surface-alt)' }}>
+                <td className="px-4 py-3" style={{ color: 'var(--white)' }}>{member.full_name}</td>
+                <td className="px-4 py-3" style={{ color: 'var(--muted)' }}>{member.college_roll || '—'}</td>
+                <td className="px-4 py-3" style={{ color: 'var(--muted)' }}>{member.email}</td>
                 <td className="px-4 py-3">
                   <select value={member.department || ''} onChange={e => setDepartment(member, e.target.value)}
                     className="px-2 py-1 rounded text-xs border outline-none"
-                    style={{ background: '#0a1628', borderColor: '#0f2a4a', color: '#e8f4ff' }}>
+                    style={{ background: 'var(--surface)', borderColor: 'var(--border)', color: 'var(--white)' }}>
                     <option value="">—</option>
                     {DEPARTMENTS.map(d => <option key={d} value={d}>{d}</option>)}
                   </select>
@@ -211,42 +230,66 @@ export default function AdminMembersPage() {
                 <td className="px-4 py-3">
                   {member.payment_slip_url ? (
                     <button onClick={() => setViewingSlip(member.payment_slip_url!)}
-                      className="flex items-center gap-1 text-xs underline" style={{ color: '#00d4ff' }}>
+                      className="flex items-center gap-1 text-xs underline" style={{ color: 'var(--blue)' }}>
                       <Eye size={13} /> View
                     </button>
-                  ) : <span className="text-xs" style={{ color: '#3d5a78' }}>—</span>}
+                  ) : <span className="text-xs" style={{ color: 'var(--border-soft)' }}>—</span>}
                 </td>
                 <td className="px-4 py-3">
                   <span className="px-2 py-1 rounded-full text-xs font-medium"
                     style={{
-                      background: member.is_verified ? 'rgba(0,255,128,0.1)' : 'rgba(255,165,0,0.1)',
-                      color: member.is_verified ? '#00ff80' : '#ffa500',
-                      border: `1px solid ${member.is_verified ? 'rgba(0,255,128,0.3)' : 'rgba(255,165,0,0.3)'}`,
+                      background: member.is_verified ? 'rgba(var(--success-rgb), 0.1)' : 'rgba(255,165,0,0.1)',
+                      color: member.is_verified ? 'var(--success)' : 'var(--warning)',
+                      border: `1px solid ${member.is_verified ? 'rgba(var(--success-rgb), 0.3)' : 'rgba(255,165,0,0.3)'}`,
                     }}>
                     {member.is_verified ? 'Verified' : 'Pending'}
                   </span>
                 </td>
                 <td className="px-4 py-3">
                   <div className="flex flex-wrap gap-1.5">
+                    <button onClick={() => toggleRole(member, 'is_organizer')}
+                      title="Toggle Organizer — used for survey/notification audience targeting"
+                      className="px-2 py-1 rounded text-xs font-medium transition-all"
+                      style={{
+                        background: member.is_organizer ? 'rgba(var(--accent2-rgb), 0.15)' : 'transparent',
+                        color: member.is_organizer ? 'var(--accent2)' : 'var(--border-soft)',
+                        border: `1px solid ${member.is_organizer ? 'rgba(var(--accent2-rgb), 0.35)' : 'var(--border)'}`,
+                      }}>
+                      Organizer
+                    </button>
+                    <button onClick={() => toggleRole(member, 'is_executive')}
+                      title="Toggle Executive — used for survey/notification audience targeting"
+                      className="px-2 py-1 rounded text-xs font-medium transition-all"
+                      style={{
+                        background: member.is_executive ? 'rgba(var(--warning-rgb), 0.15)' : 'transparent',
+                        color: member.is_executive ? 'var(--warning)' : 'var(--border-soft)',
+                        border: `1px solid ${member.is_executive ? 'rgba(var(--warning-rgb), 0.35)' : 'var(--border)'}`,
+                      }}>
+                      Executive
+                    </button>
+                  </div>
+                </td>
+                <td className="px-4 py-3">
+                  <div className="flex flex-wrap gap-1.5">
                     <button onClick={() => toggleVerified(member)}
                       className="px-3 py-1 rounded text-xs font-medium transition-all"
                       style={{
-                        background: member.is_verified ? 'rgba(255,80,80,0.1)' : 'rgba(0,212,255,0.1)',
-                        color: member.is_verified ? '#ff5050' : '#00d4ff',
-                        border: `1px solid ${member.is_verified ? 'rgba(255,80,80,0.3)' : 'rgba(0,212,255,0.3)'}`,
+                        background: member.is_verified ? 'rgba(var(--danger-rgb), 0.1)' : 'rgba(var(--blue-rgb), 0.1)',
+                        color: member.is_verified ? 'var(--danger)' : 'var(--blue)',
+                        border: `1px solid ${member.is_verified ? 'rgba(var(--danger-rgb), 0.3)' : 'rgba(var(--blue-rgb), 0.3)'}`,
                       }}>
                       {member.is_verified ? 'Revoke' : 'Approve'}
                     </button>
                     <button onClick={() => { setEmailingMember(member); setEmailResult(null) }}
-                      className="px-3 py-1 rounded text-xs font-medium" style={{ background: 'rgba(96,165,250,0.1)', color: '#60a5fa', border: '1px solid rgba(96,165,250,0.3)' }}>
+                      className="px-3 py-1 rounded text-xs font-medium" style={{ background: 'rgba(var(--info-rgb), 0.1)', color: 'var(--info)', border: '1px solid rgba(var(--info-rgb), 0.3)' }}>
                       Email
                     </button>
                     <button onClick={() => { setAddingAchievementFor(member); setAchError('') }}
-                      className="px-3 py-1 rounded text-xs font-medium" style={{ background: 'rgba(255,179,71,0.1)', color: '#ffb347', border: '1px solid rgba(255,179,71,0.3)' }}>
+                      className="px-3 py-1 rounded text-xs font-medium" style={{ background: 'rgba(var(--warning-rgb), 0.1)', color: 'var(--warning)', border: '1px solid rgba(var(--warning-rgb), 0.3)' }}>
                       + Achievement
                     </button>
                     <button onClick={() => cancelMembership(member)}
-                      className="px-3 py-1 rounded text-xs font-medium" style={{ background: 'rgba(255,80,80,0.05)', color: '#ff5050', border: '1px solid rgba(255,80,80,0.2)' }}>
+                      className="px-3 py-1 rounded text-xs font-medium" style={{ background: 'rgba(var(--danger-rgb), 0.05)', color: 'var(--danger)', border: '1px solid rgba(var(--danger-rgb), 0.2)' }}>
                       Cancel
                     </button>
                   </div>
@@ -254,7 +297,7 @@ export default function AdminMembersPage() {
               </tr>
             ))}
             {filtered.length === 0 && (
-              <tr><td colSpan={7} className="px-4 py-8 text-center" style={{ color: '#6a8faf' }}>No members found.</td></tr>
+              <tr><td colSpan={8} className="px-4 py-8 text-center" style={{ color: 'var(--muted)' }}>No members found.</td></tr>
             )}
           </tbody>
         </table>
@@ -273,19 +316,19 @@ export default function AdminMembersPage() {
                     <img src={achievement.image_url} alt="" className="w-16 h-16 rounded-lg object-cover flex-shrink-0" />
                   )}
                   <div className="flex-1">
-                    <p className="text-sm font-bold" style={{ color: '#e8f4ff' }}>{achievement.title}</p>
-                    <p className="text-xs mt-0.5" style={{ color: '#6a8faf' }}>by {member.full_name}</p>
-                    {achievement.description && <p className="text-xs mt-1" style={{ color: '#6a8faf' }}>{achievement.description}</p>}
+                    <p className="text-sm font-bold" style={{ color: 'var(--white)' }}>{achievement.title}</p>
+                    <p className="text-xs mt-0.5" style={{ color: 'var(--muted)' }}>by {member.full_name}</p>
+                    {achievement.description && <p className="text-xs mt-1" style={{ color: 'var(--muted)' }}>{achievement.description}</p>}
                   </div>
                   {achievement.status === 'pending' ? (
                     <div className="flex gap-2 flex-shrink-0">
                       <button onClick={() => moderateAchievement(member, achievement.id, 'approved')}
-                        className="p-1.5 rounded-lg" style={{ background: 'rgba(0,255,128,0.15)', color: '#00ff80' }}><Check size={15} /></button>
+                        className="p-1.5 rounded-lg" style={{ background: 'rgba(var(--success-rgb), 0.15)', color: 'var(--success)' }}><Check size={15} /></button>
                       <button onClick={() => moderateAchievement(member, achievement.id, 'rejected')}
-                        className="p-1.5 rounded-lg" style={{ background: 'rgba(255,80,80,0.1)', color: '#ff7070' }}><X size={15} /></button>
+                        className="p-1.5 rounded-lg" style={{ background: 'rgba(var(--danger-rgb), 0.1)', color: 'var(--danger-soft)' }}><X size={15} /></button>
                     </div>
                   ) : (
-                    <span className="text-xs px-2 py-0.5 rounded-full flex-shrink-0" style={{ background: 'rgba(0,255,128,0.1)', color: '#00ff80' }}>Approved</span>
+                    <span className="text-xs px-2 py-0.5 rounded-full flex-shrink-0" style={{ background: 'rgba(var(--success-rgb), 0.1)', color: 'var(--success)' }}>Approved</span>
                   )}
                 </div>
               ))}
@@ -304,20 +347,20 @@ export default function AdminMembersPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(2,8,16,0.85)' }}>
           <div className="w-full max-w-md rounded-2xl border p-6" style={s}>
             <h2 className="font-bold text-sm mb-1" style={h}>Email {emailingMember.full_name}</h2>
-            <p className="text-xs mb-4" style={{ color: '#6a8faf' }}>{emailingMember.email}</p>
+            <p className="text-xs mb-4" style={{ color: 'var(--muted)' }}>{emailingMember.email}</p>
             <input value={emailSubject} onChange={e => setEmailSubject(e.target.value)} placeholder="Subject"
-              className="w-full px-3 py-2 rounded-lg text-sm border outline-none mb-3" style={{ background: '#0a1628', borderColor: '#0f2a4a', color: '#e8f4ff' }} />
+              className="w-full px-3 py-2 rounded-lg text-sm border outline-none mb-3" style={{ background: 'var(--surface)', borderColor: 'var(--border)', color: 'var(--white)' }} />
             <textarea rows={5} value={emailBody} onChange={e => setEmailBody(e.target.value)} placeholder="Message"
-              className="w-full px-3 py-2 rounded-lg text-sm border outline-none resize-none mb-3" style={{ background: '#0a1628', borderColor: '#0f2a4a', color: '#e8f4ff' }} />
+              className="w-full px-3 py-2 rounded-lg text-sm border outline-none resize-none mb-3" style={{ background: 'var(--surface)', borderColor: 'var(--border)', color: 'var(--white)' }} />
             {emailResult && (
-              <p className="text-xs mb-3" style={{ color: emailResult.ok ? '#00ff80' : '#ff7070' }}>{emailResult.text}</p>
+              <p className="text-xs mb-3" style={{ color: emailResult.ok ? 'var(--success)' : 'var(--danger-soft)' }}>{emailResult.text}</p>
             )}
             <div className="flex gap-2">
               <button onClick={sendMemberEmail} disabled={emailSending}
-                className="flex-1 py-2 rounded-lg text-sm font-bold disabled:opacity-50" style={{ background: '#00d4ff', color: '#000' }}>
+                className="flex-1 py-2 rounded-lg text-sm font-bold disabled:opacity-50" style={{ background: 'var(--blue)', color: '#000' }}>
                 {emailSending ? 'Sending...' : 'Send Email'}
               </button>
-              <button onClick={() => setEmailingMember(null)} className="px-4 py-2 rounded-lg text-sm" style={{ color: '#6a8faf' }}>Close</button>
+              <button onClick={() => setEmailingMember(null)} className="px-4 py-2 rounded-lg text-sm" style={{ color: 'var(--muted)' }}>Close</button>
             </div>
           </div>
         </div>
@@ -327,18 +370,18 @@ export default function AdminMembersPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(2,8,16,0.85)' }}>
           <div className="w-full max-w-md rounded-2xl border p-6" style={s}>
             <h2 className="font-bold text-sm mb-1" style={h}>Add Achievement — {addingAchievementFor.full_name}</h2>
-            <p className="text-xs mb-4" style={{ color: '#6a8faf' }}>Added achievements are pre-approved and show on the member's profile immediately.</p>
+            <p className="text-xs mb-4" style={{ color: 'var(--muted)' }}>Added achievements are pre-approved and show on the member's profile immediately.</p>
             <input value={achTitle} onChange={e => setAchTitle(e.target.value)} placeholder="Title"
-              className="w-full px-3 py-2 rounded-lg text-sm border outline-none mb-3" style={{ background: '#0a1628', borderColor: '#0f2a4a', color: '#e8f4ff' }} />
+              className="w-full px-3 py-2 rounded-lg text-sm border outline-none mb-3" style={{ background: 'var(--surface)', borderColor: 'var(--border)', color: 'var(--white)' }} />
             <textarea rows={3} value={achDesc} onChange={e => setAchDesc(e.target.value)} placeholder="Description (optional)"
-              className="w-full px-3 py-2 rounded-lg text-sm border outline-none resize-none mb-3" style={{ background: '#0a1628', borderColor: '#0f2a4a', color: '#e8f4ff' }} />
-            {achError && <p className="text-xs mb-3" style={{ color: '#ff7070' }}>{achError}</p>}
+              className="w-full px-3 py-2 rounded-lg text-sm border outline-none resize-none mb-3" style={{ background: 'var(--surface)', borderColor: 'var(--border)', color: 'var(--white)' }} />
+            {achError && <p className="text-xs mb-3" style={{ color: 'var(--danger-soft)' }}>{achError}</p>}
             <div className="flex gap-2">
               <button onClick={addAchievementForMember} disabled={achSaving}
-                className="flex-1 py-2 rounded-lg text-sm font-bold disabled:opacity-50" style={{ background: '#00d4ff', color: '#000' }}>
+                className="flex-1 py-2 rounded-lg text-sm font-bold disabled:opacity-50" style={{ background: 'var(--blue)', color: '#000' }}>
                 {achSaving ? 'Saving...' : 'Add Achievement'}
               </button>
-              <button onClick={() => setAddingAchievementFor(null)} className="px-4 py-2 rounded-lg text-sm" style={{ color: '#6a8faf' }}>Cancel</button>
+              <button onClick={() => setAddingAchievementFor(null)} className="px-4 py-2 rounded-lg text-sm" style={{ color: 'var(--muted)' }}>Cancel</button>
             </div>
           </div>
         </div>

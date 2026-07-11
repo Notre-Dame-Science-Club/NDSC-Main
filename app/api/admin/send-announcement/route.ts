@@ -1,6 +1,8 @@
-import { NextRequest, NextResponse } from 'next/server'
-import { cookies } from 'next/headers'
+import { NextRequest } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase'
+import { apiError, apiOk } from '@/lib/api/response'
+import { requireAdmin } from '@/lib/api/admin-auth'
+import { contact } from '@/lib/config/site'
 
 // This route previously did not exist at all, even though the Olympiad admin
 // page had a "Send Announcement Email" box wired up to call it — so every
@@ -29,11 +31,6 @@ export const maxDuration = 60
 export const dynamic = 'force-dynamic'
 
 type Target = 'all' | 'members' | 'non_members'
-
-async function checkAdmin() {
-  const cookieStore = await cookies()
-  return !!cookieStore.get('admin_session')
-}
 
 function isValidEmail(e: unknown): e is string {
   return typeof e === 'string' && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e)
@@ -82,7 +79,7 @@ async function sendViaResend(to: string[], subject: string, html: string) {
   const apiKey = process.env.RESEND_API_KEY
   if (!apiKey) return { sent: 0, error: 'RESEND_API_KEY is not configured.' }
 
-  const from = process.env.ANNOUNCEMENT_FROM || 'NDSC <onboarding@resend.dev>'
+  const from = process.env.ANNOUNCEMENT_FROM || contact.announcementFallbackSender
 
   // Resend allows up to 50 "to" addresses per call in most plans; batch to be safe
   // and so one bad address doesn't fail the whole list.
@@ -122,9 +119,8 @@ async function sendViaResend(to: string[], subject: string, html: string) {
 }
 
 export async function POST(req: NextRequest) {
-  if (!(await checkAdmin())) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  }
+  const unauthorized = await requireAdmin()
+  if (unauthorized) return unauthorized
 
   const body = await req.json().catch(() => ({}))
   const message = typeof body.message === 'string' ? body.message.trim() : ''
@@ -132,14 +128,14 @@ export async function POST(req: NextRequest) {
   const title = typeof body.title === 'string' && body.title.trim() ? body.title.trim() : 'NDSC Announcement'
 
   if (!message) {
-    return NextResponse.json({ error: 'Message is required.' }, { status: 400 })
+    return apiError('Message is required.', 400)
   }
 
   const recipients = await getRecipients(target)
   const emails = recipients.map(r => r.email)
 
   if (emails.length === 0) {
-    return NextResponse.json({ error: 'No recipients found for this target.' }, { status: 400 })
+    return apiError('No recipients found for this target.', 400)
   }
 
   const html = `
@@ -161,13 +157,13 @@ export async function POST(req: NextRequest) {
     .insert({ title, body: message, target })
 
   if (sent === 0) {
-    return NextResponse.json(
+    return apiOk(
       { error: sendError || 'Could not send the announcement email.', loggedToFeed: !dbError },
       { status: 502 }
     )
   }
 
-  return NextResponse.json({
+  return apiOk({
     success: true,
     sentCount: sent,
     totalRecipients: emails.length,

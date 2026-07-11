@@ -27,23 +27,23 @@ export default function HomepageSettingsAdmin() {
   }
 
   const inp = 'w-full rounded-lg px-3 py-2.5 text-sm outline-none'
-  const s = { background: 'rgba(255,255,255,0.04)', border: '1px solid #0f2a4a', color: '#e8f4ff' }
+  const s = { background: 'rgba(255,255,255,0.04)', border: '1px solid var(--border)', color: 'var(--white)' }
 
   return (
     <div>
-      <h1 className="text-2xl font-bold mb-6" style={{ fontFamily: "'Orbitron',sans-serif", color: '#00d4ff' }}>
+      <h1 className="text-2xl font-bold mb-6" style={{ fontFamily: "'Orbitron',sans-serif", color: 'var(--blue)' }}>
         Homepage Settings
       </h1>
-      <div className="rounded-xl border p-6 space-y-6" style={{ background: '#050d1a', borderColor: '#0f2a4a' }}>
+      <div className="rounded-xl border p-6 space-y-6" style={{ background: 'var(--bg2)', borderColor: 'var(--border)' }}>
         {FIELDS.map(f => (
           <div key={f.key}>
-            <label className="block text-xs mb-1.5 uppercase tracking-wider" style={{ color: '#6a8faf' }}>{f.label}</label>
+            <label className="block text-xs mb-1.5 uppercase tracking-wider" style={{ color: 'var(--muted)' }}>{f.label}</label>
             <div className="flex gap-3">
               <input className={inp} style={s} value={values[f.key] || ''} placeholder={f.placeholder}
                 onChange={e => setValues(v => ({ ...v, [f.key]: e.target.value }))} />
               <button onClick={() => save(f.key)}
                 className="px-4 py-2 rounded-lg text-sm font-bold shrink-0"
-                style={{ background: saved[f.key] ? '#00ff80' : '#00d4ff', color: '#000' }}>
+                style={{ background: saved[f.key] ? 'var(--success)' : 'var(--blue)', color: '#000' }}>
                 {saved[f.key] ? 'Saved!' : 'Save'}
               </button>
             </div>
