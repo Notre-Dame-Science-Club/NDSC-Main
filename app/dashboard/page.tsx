@@ -3,10 +3,15 @@ import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { MessageCircle, Award, Plus, Upload, X, Home, CalendarDays, BookOpen, Trophy, User, Megaphone, Ticket, Link2, CheckCircle, FileText, CalendarCheck, CreditCard } from 'lucide-react'
+import { MessageCircle, Award, Plus, Upload, X, Home, CalendarDays, BookOpen, Trophy, User, Megaphone, Ticket, Link2, CheckCircle, FileText, CalendarCheck, CreditCard, ClipboardList, ArrowRight } from 'lucide-react'
+import SurveyForm from '@/components/SurveyForm'
 
-type Tab = 'home' | 'activities' | 'publications' | 'olympiads' | 'profile'
+type Tab = 'home' | 'activities' | 'publications' | 'olympiads' | 'surveys' | 'profile'
 type Achievement = { id: string; title: string; description?: string; image_url?: string; status: 'pending' | 'approved'; created_at: string }
+type ActiveSurvey = {
+  id: string; title: string; description?: string; cover_image_url?: string
+  show_notification: boolean; notification_title?: string; notification_message?: string; question_count: number
+}
 
 export default function DashboardPage() {
   const router = useRouter()
@@ -23,6 +28,9 @@ export default function DashboardPage() {
   const [shoutPosting, setShoutPosting] = useState(false)
   const [shoutError, setShoutError] = useState('')
   const [tab, setTab] = useState<Tab>('home')
+  const [surveys, setSurveys] = useState<ActiveSurvey[]>([])
+  const [surveysLoading, setSurveysLoading] = useState(false)
+  const [openSurveyId, setOpenSurveyId] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [authChecked, setAuthChecked] = useState(false)
 
@@ -81,9 +89,22 @@ export default function DashboardPage() {
       }
       setLoading(false)
       loadShoutbox()
+      loadSurveys()
     }
     load()
   }, [])
+
+  const loadSurveys = async () => {
+    setSurveysLoading(true)
+    try {
+      const { data: { session } } = await supabase.auth.getSession()
+      const res = await fetch('/api/survey-active', {
+        headers: session ? { Authorization: `Bearer ${session.access_token}` } : {},
+      })
+      if (res.ok) setSurveys(await res.json() || [])
+    } catch { /* non-critical */ }
+    setSurveysLoading(false)
+  }
 
   const loadShoutbox = async () => {
     const { data: { session } } = await supabase.auth.getSession()
@@ -210,6 +231,7 @@ export default function DashboardPage() {
     { key: 'activities', label: 'Activities', icon: CalendarDays },
     { key: 'publications', label: 'Publications', icon: BookOpen },
     { key: 'olympiads', label: 'Olympiads', icon: Trophy },
+    { key: 'surveys', label: 'Surveys', icon: ClipboardList },
     { key: 'profile', label: 'Profile', icon: User },
   ]
 
@@ -551,6 +573,29 @@ export default function DashboardPage() {
           </div>
         )}
 
+        {/* SURVEYS */}
+        {tab === 'surveys' && (
+          <div className="space-y-4">
+            <h3 className="font-semibold text-sm" style={{ color: 'var(--muted)', fontFamily: "'Orbitron', sans-serif" }}>Open Surveys</h3>
+            {surveysLoading ? (
+              <p className="text-sm" style={{ color: 'var(--muted)' }}>Loading...</p>
+            ) : surveys.length === 0 ? (
+              <p className="text-sm" style={{ color: 'var(--muted)' }}>No surveys open for you right now.</p>
+            ) : surveys.map(sv => (
+              <div key={sv.id} className="rounded-xl p-5" style={{ background: 'var(--bg2)', border: '1px solid var(--border)' }}>
+                <h4 className="font-bold text-lg" style={{ color: 'var(--white)' }}>{sv.title}</h4>
+                {sv.description && <p className="text-sm mt-1" style={{ color: 'var(--muted)' }}>{sv.description}</p>}
+                <p className="text-xs mt-2" style={{ color: 'var(--border-soft)' }}>{sv.question_count} question{sv.question_count === 1 ? '' : 's'}</p>
+                <button onClick={() => setOpenSurveyId(sv.id)}
+                  className="inline-flex items-center gap-1.5 mt-3 text-sm px-4 py-2 rounded-lg text-black font-semibold"
+                  style={{ background: 'var(--blue)' }}>
+                  Answer Now <ArrowRight size={14} />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+
         {/* PROFILE */}
         {tab === 'profile' && (
           <div className="space-y-4">
@@ -694,6 +739,22 @@ export default function DashboardPage() {
         )}
 
       </div>
+
+      {openSurveyId && (
+        <div className="fixed inset-0 z-[80] flex items-end sm:items-center justify-center p-0 sm:p-4"
+          style={{ background: 'rgba(2,8,16,0.85)' }} onClick={() => setOpenSurveyId(null)}>
+          <div className="w-full sm:max-w-lg max-h-[90vh] overflow-y-auto rounded-t-2xl sm:rounded-2xl border p-6"
+            style={{ background: 'var(--bg2)', borderColor: 'var(--border)' }} onClick={e => e.stopPropagation()}>
+            <div className="flex justify-end mb-1">
+              <button onClick={() => setOpenSurveyId(null)} style={{ color: 'var(--muted)' }} aria-label="Close"><X size={18} /></button>
+            </div>
+            <SurveyForm surveyId={openSurveyId} compact onSubmitted={() => {
+              setSurveys(prev => prev.filter(s => s.id !== openSurveyId))
+              setTimeout(() => setOpenSurveyId(null), 1400)
+            }} />
+          </div>
+        </div>
+      )}
     </div>
   )
 }

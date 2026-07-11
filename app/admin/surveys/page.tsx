@@ -62,6 +62,27 @@ const s = { background: 'var(--bg2)', borderColor: 'var(--border)' }
 const inputClass = 'w-full px-3 py-2 rounded-lg text-sm outline-none border'
 const inputStyle = { background: 'var(--surface-alt)', borderColor: 'var(--border)', color: 'var(--white-soft)' }
 
+/** Small dependency-free bar chart — consistent with the rest of the admin's plain-CSS visual style rather than pulling in a charting library for one page. */
+function BarChart({ data, color = 'var(--blue)', height = 110, minBarWidth }: {
+  data: { label: string; value: number }[]; color?: string; height?: number; minBarWidth?: number
+}) {
+  const max = Math.max(1, ...data.map(d => d.value))
+  return (
+    <div className="flex items-end gap-1" style={{ height }}>
+      {data.map((d, i) => (
+        <div key={i} className="flex-1 flex flex-col items-center justify-end h-full" style={minBarWidth ? { minWidth: minBarWidth } : undefined}>
+          <span className="text-[9px] mb-0.5 leading-none" style={{ color: 'var(--border-soft)' }}>{d.value > 0 ? d.value : ''}</span>
+          <div className="w-full rounded-t" style={{ height: `${(d.value / max) * 100}%`, minHeight: d.value > 0 ? 3 : 0, background: color, opacity: d.value > 0 ? 1 : 0.15 }} />
+          {d.label && <span className="text-[8px] mt-1 truncate w-full text-center leading-tight" style={{ color: 'var(--border-soft)' }}>{d.label}</span>}
+        </div>
+      ))}
+    </div>
+  )
+}
+
+const formatHour = (hh: number) => { const period = hh < 12 ? 'AM' : 'PM'; const h12 = hh % 12 === 0 ? 12 : hh % 12; return `${h12}${period}` }
+const DOW_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+
 export default function AdminSurveysPage() {
   const [surveys, setSurveys] = useState<Survey[]>([])
   const [loading, setLoading] = useState(true)
@@ -114,6 +135,30 @@ export default function AdminSurveysPage() {
       m.full_name?.toLowerCase().includes(q) || m.email?.toLowerCase().includes(q) || m.batch?.toLowerCase().includes(q)
     )
   }, [members, memberSearch])
+
+  // ── analytics (timing) ──────────────────────────────────────────
+  const timingStats = useMemo(() => {
+    const total = responses.length
+    const memberCount = responses.filter(r => r.member_id).length
+    const hourCounts = Array.from({ length: 24 }, (_, hh) => ({
+      label: hh % 3 === 0 ? formatHour(hh) : '', value: responses.filter(r => new Date(r.created_at).getHours() === hh).length,
+    }))
+    const dowCounts = DOW_LABELS.map((label, i) => ({ label, value: responses.filter(r => new Date(r.created_at).getDay() === i).length }))
+    const dateMap: Record<string, number> = {}
+    for (const r of responses) {
+      const d = new Date(r.created_at).toLocaleDateString('en-CA')
+      dateMap[d] = (dateMap[d] || 0) + 1
+    }
+    const dateEntries = Object.entries(dateMap).sort((a, b) => a[0].localeCompare(b[0]))
+      .map(([d, value]) => ({ label: new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }), value }))
+    const peakHourIdx = hourCounts.reduce((best, cur, i) => cur.value > hourCounts[best].value ? i : best, 0)
+    const peakDowIdx = dowCounts.reduce((best, cur, i) => cur.value > dowCounts[best].value ? i : best, 0)
+    return {
+      total, memberCount, anonCount: total - memberCount, hourCounts, dowCounts, dateEntries,
+      peakHourLabel: total > 0 ? formatHour(peakHourIdx) : '—',
+      peakDowLabel: total > 0 ? DOW_LABELS[peakDowIdx] : '—',
+    }
+  }, [responses])
 
   // ── editor helpers ──────────────────────────────────────────────
   const openNew = () => { setEditing({ ...BLANK, questions: [] }); loadMembers() }
@@ -262,12 +307,12 @@ export default function AdminSurveysPage() {
 
   const distributionEnabled = !!(editing?.show_notification || editing?.send_email)
 
-  // ── responses view ──────────────────────────────────────────────
+  // ── responses / analytics view ──────────────────────────────────
   if (responsesFor) {
     return (
       <div>
         <button onClick={() => setResponsesFor(null)} className="text-xs mb-4" style={{ color: 'var(--blue)' }}>&larr; Back to Surveys</button>
-        <h1 className="text-2xl font-bold mb-1" style={h}>{responsesFor.title} — Responses</h1>
+        <h1 className="text-2xl font-bold mb-1" style={h}>{responsesFor.title} — Analytics</h1>
         <p className="text-sm mb-6" style={{ color: 'var(--muted)' }}>{responses.length} response{responses.length === 1 ? '' : 's'}</p>
 
         {responsesLoading ? (
@@ -278,8 +323,45 @@ export default function AdminSurveysPage() {
           </div>
         ) : (
           <>
+            {/* Summary cards */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
+              {[
+                { label: 'Total responses', value: timingStats.total },
+                { label: 'From members', value: timingStats.memberCount },
+                { label: 'Busiest hour', value: timingStats.peakHourLabel },
+                { label: 'Busiest day', value: timingStats.peakDowLabel },
+              ].map(c => (
+                <div key={c.label} className="rounded-xl border p-3.5" style={s}>
+                  <p className="text-xl font-black" style={{ color: 'var(--blue)', fontFamily: "'Orbitron', sans-serif" }}>{c.value}</p>
+                  <p className="text-xs mt-0.5" style={{ color: 'var(--muted)' }}>{c.label}</p>
+                </div>
+              ))}
+            </div>
+
+            {/* Timing — when people usually respond */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
+              <div className="rounded-xl border p-4" style={s}>
+                <p className="font-bold text-sm mb-3" style={{ color: 'var(--white)' }}>Responses by time of day</p>
+                <BarChart data={timingStats.hourCounts} color="var(--blue)" />
+              </div>
+              <div className="rounded-xl border p-4" style={s}>
+                <p className="font-bold text-sm mb-3" style={{ color: 'var(--white)' }}>Responses by day of week</p>
+                <BarChart data={timingStats.dowCounts} color="var(--accent2)" />
+              </div>
+            </div>
+
+            {timingStats.dateEntries.length > 1 && (
+              <div className="rounded-xl border p-4 mb-8" style={s}>
+                <p className="font-bold text-sm mb-3" style={{ color: 'var(--white)' }}>Responses over time</p>
+                <div className="overflow-x-auto">
+                  <BarChart data={timingStats.dateEntries} color="var(--warning)" minBarWidth={timingStats.dateEntries.length > 14 ? 28 : undefined} />
+                </div>
+              </div>
+            )}
+
             {/* Per-question breakdown */}
             <div className="space-y-4 mb-8">
+              <p className="font-bold text-sm" style={{ color: 'var(--white)' }}>Answers by question</p>
               {(responsesFor.questions || []).map((q, qi) => {
                 const answersForQ = responses.map(r => r.answers?.[q.id]).filter(a => a !== undefined && a !== null && a !== '')
                 const isChoice = ['multiple_choice', 'checkboxes', 'dropdown'].includes(q.type)
