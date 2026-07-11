@@ -6,6 +6,7 @@ import Navbar from "@/components/layout/Navbar";
 import Footer from "@/components/layout/Footer";
 import SurveyNotification from "@/components/SurveyNotification";
 import { supabaseAdmin } from "@/lib/supabase";
+import { darkenHex, hexToRgbString, isValidHex } from "@/lib/color";
 
 export const metadata: Metadata = {
   title: "Notre Dame Science Club (NDSC) | ndscbd.net — Official Website",
@@ -93,16 +94,19 @@ export default async function RootLayout({
 }: {
   children: React.ReactNode;
 }) {
-  // Site-wide Appearance settings (Admin > Appearance) — fetched server-side
-  // so the default theme/font/header size are baked into the first response
-  // instead of flashing in after a client-side fetch.
+  // Site-wide Appearance settings (Admin > Appearance) — stored as extra rows
+  // in homepage_settings (keys: default_theme, font_family, font_google_url,
+  // header_size, accent_color). Fetched server-side so they're baked into the
+  // first response instead of flashing in after a client-side fetch.
   let appearanceRows: { key: string; value: string }[] | null = null;
   try {
-    const res = await supabaseAdmin.from("appearance_settings").select("*");
+    const res = await supabaseAdmin
+      .from("homepage_settings")
+      .select("key, value")
+      .in("key", ["default_theme", "font_family", "font_google_url", "header_size", "accent_color"]);
     appearanceRows = res.data as any;
   } catch {
-    // Table may not exist yet if the schema_update_04.sql migration hasn't
-    // been run — fall back to defaults rather than breaking every page.
+    // Falls back to defaults rather than breaking every page.
   }
   const appearance: Record<string, string> = {};
   for (const row of appearanceRows || []) appearance[row.key] = row.value;
@@ -115,6 +119,13 @@ export default async function RootLayout({
     rootStyle["--font-body"] = appearance.font_family;
     rootStyle["--font-heading"] = appearance.font_family;
   }
+  if (appearance.accent_color && isValidHex(appearance.accent_color)) {
+    const accent = appearance.accent_color.startsWith("#") ? appearance.accent_color : `#${appearance.accent_color}`;
+    rootStyle["--blue"] = accent;
+    rootStyle["--blue2"] = darkenHex(accent, 0.3);
+    rootStyle["--glow"] = `${accent}55`;
+    rootStyle["--blue-rgb"] = hexToRgbString(accent);
+  }
 
   return (
     <html lang="en" suppressHydrationWarning style={rootStyle}>
@@ -123,6 +134,9 @@ export default async function RootLayout({
         <link rel="icon" href="/images/cropped-logo.png" type="image/png" sizes="32x32" />
         <link rel="shortcut icon" href="/favicon.png" />
         <link rel="apple-touch-icon" href="/favicon.png" sizes="180x180" />
+        {appearance.font_google_url && (
+          <link rel="stylesheet" href={appearance.font_google_url} />
+        )}
       </head>
       <body suppressHydrationWarning>
         <Script id="ndsc-theme-init" strategy="beforeInteractive">

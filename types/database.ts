@@ -122,15 +122,9 @@ export interface ScienceMediaRow {
 }
 
 // ── homepage_settings (key-value store) ────────────────────────────────
+// Also holds Appearance settings (Admin > Appearance): default_theme,
+// font_family, header_size — same generic key/value shape, no separate table.
 export interface HomepageSettingRow {
-  key: string
-  value: string
-  updated_at: ISODateString
-}
-
-// ── appearance_settings (key-value store) ───────────────────────────────
-// Keys: default_theme ('dark'|'light'), font_family, header_size ('compact'|'default'|'large')
-export interface AppearanceSettingRow {
   key: string
   value: string
   updated_at: ISODateString
