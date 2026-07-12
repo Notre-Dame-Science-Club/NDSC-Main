@@ -328,7 +328,7 @@ export default function ActivityDashboardPage() {
   const examEnded = olympiad?.scheduled_end_at && new Date(olympiad.scheduled_end_at) < new Date()
 
   return (
-    <div className="min-h-screen py-12 px-4" style={{ background: session?.bg_color || 'var(--bg)', paddingTop: '88px' }}>
+    <div className="min-h-screen py-12 px-4" style={{ background: 'var(--bg)', paddingTop: '88px' }}>
       <div className="max-w-lg mx-auto space-y-5">
 
         <Link href={`/activities/${slug}`} className="inline-flex items-center gap-2 text-sm" style={{ color: 'var(--muted)' }}>

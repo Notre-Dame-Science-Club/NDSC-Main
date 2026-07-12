@@ -355,7 +355,7 @@ function ActivityRegisterPageInner() {
   const isLongDesc = sessionDesc.length > 220
 
   return (
-    <div className="min-h-screen py-12 px-4" style={{ background: sessionInfo?.bg_color || 'var(--bg)', paddingTop: '88px' }}>
+    <div className="min-h-screen py-12 px-4" style={{ background: 'var(--bg)', paddingTop: '88px' }}>
       <div className="max-w-lg mx-auto">
         <Link href={`/activities/${slug}`} className="inline-flex items-center gap-2 text-sm mb-6" style={{ color: 'var(--muted)' }}>
           <ArrowLeft size={14} /> Back to activity
