@@ -66,6 +66,7 @@ export default function ActivityDashboardPage() {
   const [examScheduledStart, setExamScheduledStart] = useState<string | null>(null)
   const [examStarted, setExamStarted] = useState(false)
   const [showFullDesc, setShowFullDesc] = useState(false)
+  const [updates, setUpdates] = useState<any[]>([])
 
   const loadRegistration = async (id: string) => {
     setLoading(true)
@@ -83,6 +84,12 @@ export default function ActivityDashboardPage() {
         college_roll: data.registration.college_roll, hsc_session: data.registration.hsc_session || '',
       })
       localStorage.setItem(STORAGE_KEY, id)
+
+      // Load admin-posted updates for this event (Task 1.7)
+      if (data.session?.id) {
+        fetch(`/api/activity-updates-public?sessionId=${data.session.id}`)
+          .then(r => r.json()).then(d => setUpdates(d.updates || [])).catch(() => {})
+      }
 
       // Load submissions
       const subRes = await fetch(`/api/activity-submission?registration_id=${id}`)
@@ -328,7 +335,7 @@ export default function ActivityDashboardPage() {
   const examEnded = olympiad?.scheduled_end_at && new Date(olympiad.scheduled_end_at) < new Date()
 
   return (
-    <div className="min-h-screen py-12 px-4" style={{ background: session?.bg_color || 'var(--bg)', paddingTop: '88px' }}>
+    <div className="min-h-screen py-12 px-4" style={{ background: 'var(--bg)', paddingTop: '88px' }}>
       <div className="max-w-lg mx-auto space-y-5">
 
         <Link href={`/activities/${slug}`} className="inline-flex items-center gap-2 text-sm" style={{ color: 'var(--muted)' }}>
@@ -346,6 +353,22 @@ export default function ActivityDashboardPage() {
             {session?.title}
           </h1>
           <p className="text-sm" style={{ color: 'var(--muted)' }}>{category?.name}</p>
+          {(session?.reg_status || session?.reg_deadline) && (
+            <div className="flex flex-wrap gap-2 mt-2">
+              {session?.reg_status && (
+                <span className="px-2.5 py-1 rounded-full text-xs font-bold"
+                  style={{ background: 'rgba(255, 176, 32, 0.1)', color: '#ffb020', border: '1px solid rgba(255, 176, 32, 0.3)' }}>
+                  {session.reg_status}
+                </span>
+              )}
+              {session?.reg_deadline && (
+                <span className="px-2.5 py-1 rounded-full text-xs font-bold"
+                  style={{ background: 'rgba(var(--blue-rgb), 0.08)', color: 'var(--blue)', border: '1px solid rgba(var(--blue-rgb), 0.2)' }}>
+                  Deadline: {new Date(session.reg_deadline).toLocaleString('en-BD', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}
+                </span>
+              )}
+            </div>
+          )}
           {session?.description && (
             <div className="mt-2">
               <p className="text-sm leading-relaxed" style={{ color: 'var(--muted)' }}>
@@ -369,6 +392,30 @@ export default function ActivityDashboardPage() {
             </span>
           )}
         </div>
+
+        {updates.length > 0 && (
+          <div className="rounded-2xl border p-4" style={{ background: 'var(--card)', borderColor: 'var(--border)' }}>
+            <p className="text-xs font-bold uppercase tracking-wide mb-3" style={{ color: 'var(--muted)' }}>Updates</p>
+            <div className="flex flex-col gap-3">
+              {updates.map((u: any) => (
+                <div key={u.id} className="pb-3 border-b last:border-0 last:pb-0" style={{ borderColor: 'var(--border)' }}>
+                  <div className="flex items-baseline justify-between gap-3">
+                    <p className="font-semibold text-sm" style={{ color: 'var(--white)' }}>{u.title}</p>
+                    <span className="text-[11px] whitespace-nowrap" style={{ color: 'var(--muted)' }}>
+                      {new Date(u.created_at).toLocaleDateString('en-BD', { month: 'short', day: 'numeric' })}
+                    </span>
+                  </div>
+                  {u.body && <p className="text-xs mt-0.5" style={{ color: '#a0b4c8' }}>{u.body}</p>}
+                  {u.link_url && (
+                    <a href={u.link_url} target="_blank" rel="noopener noreferrer" className="text-xs underline" style={{ color: 'var(--blue)' }}>
+                      Learn more →
+                    </a>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {error && <p className="text-sm" style={{ color: 'var(--danger-soft)' }}>{error}</p>}
 

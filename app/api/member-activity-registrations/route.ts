@@ -25,7 +25,7 @@ export async function GET(req: NextRequest) {
   const [{ data: sessions }, { data: categories }] = await Promise.all([
     supabaseAdmin
       .from('activity_sessions')
-      .select('id, title, slug, is_upcoming, cover_image_url')
+      .select('id, title, slug, is_upcoming, cover_image_url, reg_status, reg_deadline')
       .in('id', sessionIds),
     supabaseAdmin
       .from('activity_reg_categories')

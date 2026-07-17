@@ -70,6 +70,13 @@ export default async function SessionDetailPage({
 
   const ytId = getYoutubeId(session.youtube_url)
 
+  const { data: updates } = await supabaseAdmin
+    .from('activity_updates')
+    .select('id, title, body, link_url, created_at')
+    .eq('activity_session_id', session.id)
+    .order('created_at', { ascending: false })
+    .limit(10)
+
   return (
     <div className="min-h-screen" style={{ paddingTop: '72px', background: 'var(--bg)' }}>
 
@@ -97,7 +104,9 @@ export default async function SessionDetailPage({
         {!ytId && session.cover_image_url && (
           <div className="rounded-2xl overflow-hidden mb-8 border" style={{ borderColor: 'var(--border)' }}>
             <img src={session.cover_image_url} alt={session.title}
-              style={{ width: '100%', maxHeight: '480px', objectFit: 'cover' }} />
+              style={session.image_display_mode === 'native'
+                ? { width: '100%', height: 'auto', objectFit: 'contain' }
+                : { width: '100%', maxHeight: '480px', objectFit: 'cover' }} />
           </div>
         )}
 
@@ -110,6 +119,18 @@ export default async function SessionDetailPage({
             <span className="px-3 py-1 rounded-full text-xs font-bold"
               style={{ background: 'rgba(var(--blue-rgb), 0.06)', color: '#6a9fbf', border: '1px solid rgba(var(--blue-rgb), 0.15)' }}>
               {versionLabel}
+            </span>
+          )}
+          {session.reg_status && (
+            <span className="px-3 py-1 rounded-full text-xs font-bold"
+              style={{ background: 'rgba(255, 176, 32, 0.1)', color: '#ffb020', border: '1px solid rgba(255, 176, 32, 0.3)' }}>
+              {session.reg_status}
+            </span>
+          )}
+          {session.reg_deadline && (
+            <span className="px-3 py-1 rounded-full text-xs font-bold inline-flex items-center gap-1.5"
+              style={{ background: 'rgba(var(--blue-rgb), 0.06)', color: '#6a9fbf', border: '1px solid rgba(var(--blue-rgb), 0.15)' }}>
+              <CalendarDays size={12} /> Deadline: {new Date(session.reg_deadline).toLocaleString('en-BD', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}
             </span>
           )}
         </div>
@@ -165,6 +186,34 @@ export default async function SessionDetailPage({
             style={{ background: 'var(--card)', borderColor: 'var(--border)' }}>
             <p style={{ color: '#a0b4c8', lineHeight: 1.8 }}
               dangerouslySetInnerHTML={{ __html: renderMarkdown(session.description) }} />
+          </div>
+        )}
+
+        {updates && updates.length > 0 && (
+          <div className="rounded-2xl border p-6 mb-8"
+            style={{ background: 'var(--card)', borderColor: 'var(--border)' }}>
+            <h2 className="text-lg font-bold mb-4" style={{ fontFamily: "'Orbitron',sans-serif", color: 'var(--white)' }}>
+              Updates
+            </h2>
+            <div className="flex flex-col gap-4">
+              {updates.map((u: any) => (
+                <div key={u.id} className="pb-4 border-b last:border-0 last:pb-0" style={{ borderColor: 'var(--border)' }}>
+                  <div className="flex items-baseline justify-between gap-3 mb-1">
+                    <p className="font-bold text-sm" style={{ color: 'var(--white)' }}>{u.title}</p>
+                    <span className="text-xs whitespace-nowrap" style={{ color: 'var(--muted)' }}>
+                      {new Date(u.created_at).toLocaleDateString('en-BD', { month: 'short', day: 'numeric' })}
+                    </span>
+                  </div>
+                  {u.body && <p className="text-sm" style={{ color: '#a0b4c8' }}>{u.body}</p>}
+                  {u.link_url && (
+                    <a href={u.link_url} target="_blank" rel="noopener noreferrer"
+                      className="text-xs underline mt-1 inline-block" style={{ color: 'var(--blue)' }}>
+                      Learn more →
+                    </a>
+                  )}
+                </div>
+              ))}
+            </div>
           </div>
         )}
 

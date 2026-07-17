@@ -1,6 +1,6 @@
 "use client";
 import { useState, useEffect, useCallback } from "react";
-import { X, Check, Pencil, Trash2, FileText, Images, CalendarClock, ClipboardCheck, Play } from "lucide-react";
+import { X, Pencil, Trash2, FileText, Images, CalendarClock, ClipboardCheck, Play } from "lucide-react";
 import { ActivityIcon, ACTIVITY_ICON_OPTIONS } from "@/lib/activityIcons";
 
 type ActivityType = {
@@ -10,7 +10,7 @@ type ActivityType = {
 type ActivityVersion = {
   id: string; activity_type_id: string; version_number: number;
   version_label: string; year_start: number; year_end: number | null;
-  description: string;
+  description: string; is_pinned?: boolean; is_highlighted?: boolean;
 };
 type ActivitySession = {
   id: string; activity_version_id: string | null; activity_type_id: string | null;
@@ -18,7 +18,8 @@ type ActivitySession = {
   description: string; cover_image_url: string; youtube_url: string;
   pdf_url: string; gallery_urls: string[]; is_published: boolean;
   is_upcoming?: boolean; registration_enabled?: boolean; registration_note?: string;
-  event_dates?: string[]; bg_color?: string | null;
+  event_dates?: string[]; image_display_mode?: string;
+  reg_status?: string; reg_deadline?: string;
 };
 
 const S = { background: "var(--bg2)", border: "var(--border)", card: "var(--surface-deep)",
@@ -146,6 +147,8 @@ function VersionForm({ typeId, initial, onSave, onClose }: {
     year_start: initial?.year_start ?? new Date().getFullYear(),
     year_end: initial?.year_end ?? null as number | null,
     description: initial?.description || "",
+    is_pinned: initial?.is_pinned ?? false,
+    is_highlighted: initial?.is_highlighted ?? false,
   });
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState("");
@@ -190,6 +193,18 @@ function VersionForm({ typeId, initial, onSave, onClose }: {
         <textarea className={inputCls} style={{ ...inputStyle, resize: "vertical" }} rows={2}
           value={form.description} onChange={e => setForm(p => ({ ...p, description: e.target.value }))} />
       </Field>
+      <div className="flex flex-col gap-2 mb-3">
+        <label className="flex items-center gap-2 text-xs" style={{ color: S.muted }}>
+          <input type="checkbox" checked={form.is_pinned}
+            onChange={e => setForm(p => ({ ...p, is_pinned: e.target.checked }))} />
+          Pin to top of this activity type's list (e.g. "Science Under")
+        </label>
+        <label className="flex items-center gap-2 text-xs" style={{ color: S.muted }}>
+          <input type="checkbox" checked={form.is_highlighted}
+            onChange={e => setForm(p => ({ ...p, is_highlighted: e.target.checked }))} />
+          Highlighted styling on the public activities page
+        </label>
+      </div>
       {err && <p className="text-xs mb-3" style={{ color: S.danger }}>{err}</p>}
       <div className="flex gap-3 justify-end">
         <button onClick={onClose} className="px-4 py-2 rounded-lg text-sm"
@@ -228,7 +243,9 @@ function SessionForm({ typeId, versionId, versions, initial, onSave, onClose }: 
     registration_enabled: initial?.registration_enabled ?? false,
     registration_note: initial?.registration_note || "",
     event_dates: initial?.event_dates || [] as string[],
-    bg_color: initial?.bg_color || "",
+    image_display_mode: initial?.image_display_mode || "cover",
+    reg_status: initial?.reg_status || "",
+    reg_deadline: initial?.reg_deadline ? initial.reg_deadline.slice(0, 16) : "",
   });
   const [newEventDate, setNewEventDate] = useState("");
   const [uploading, setUploading] = useState("");
@@ -275,7 +292,9 @@ function SessionForm({ typeId, versionId, versions, initial, onSave, onClose }: 
         registration_enabled: form.is_upcoming ? form.registration_enabled : false,
         registration_note: form.registration_note,
         event_dates: form.event_dates,
-        bg_color: form.bg_color || null,
+        image_display_mode: form.image_display_mode,
+        reg_status: form.reg_status || null,
+        reg_deadline: form.reg_deadline ? new Date(form.reg_deadline).toISOString() : null,
       };
       // only send version if selected
       if (form.activity_version_id) {
@@ -368,30 +387,15 @@ function SessionForm({ typeId, versionId, versions, initial, onSave, onClose }: 
             className="text-xs" style={{ color: S.muted }} />
           {uploading === "cover_image_url" && <span className="text-xs" style={{ color: S.accent }}>Uploading…</span>}
         </div>
-      </Field>
-
-      <Field label="Registration Page Background">
-        <div className="flex items-center gap-2 flex-wrap">
-          {[
-            { value: "", label: "Default", swatch: "var(--bg)" },
-            { value: "#0f172a", label: "Midnight", swatch: "#0f172a" },
-            { value: "#1a1030", label: "Violet", swatch: "#1a1030" },
-            { value: "#0d211d", label: "Forest", swatch: "#0d211d" },
-            { value: "#2a1210", label: "Ember", swatch: "#2a1210" },
-          ].map(t => (
-            <button key={t.value} type="button" onClick={() => setForm(p => ({ ...p, bg_color: t.value }))}
-              className="w-7 h-7 rounded-full border-2 flex items-center justify-center"
-              style={{ background: t.swatch, borderColor: form.bg_color === t.value ? "#fff" : "transparent" }}
-              title={t.label}>
-              {form.bg_color === t.value && <Check size={12} style={{ color: "#fff" }} strokeWidth={3} />}
-            </button>
-          ))}
-          <input type="color" value={form.bg_color?.startsWith("#") ? form.bg_color : "#0f172a"}
-            onChange={e => setForm(p => ({ ...p, bg_color: e.target.value }))}
-            className="w-7 h-7 rounded-full border-2 cursor-pointer"
-            style={{ borderColor: form.bg_color && !["", "#0f172a", "#1a1030", "#0d211d", "#2a1210"].includes(form.bg_color) ? "#fff" : "transparent", padding: 0, background: "none" }} />
+        <div className="mt-2">
+          <label className="text-xs block mb-1" style={{ color: S.muted }}>Image display</label>
+          <select className={inputCls} style={inputStyle}
+            value={form.image_display_mode}
+            onChange={e => setForm(p => ({ ...p, image_display_mode: e.target.value }))}>
+            <option value="cover">Cover (fixed box, default — events)</option>
+            <option value="native">Native ratio (statement sites / posters / A4 docs)</option>
+          </select>
         </div>
-        <p className="text-xs mt-1" style={{ color: S.muted }}>Sets the page background for this event's registration &amp; dashboard pages. Leave on Default for the standard site background.</p>
       </Field>
 
       <Field label="YouTube URL">
@@ -459,6 +463,16 @@ function SessionForm({ typeId, versionId, versions, initial, onSave, onClose }: 
                 <input className={inputCls} style={inputStyle} placeholder="e.g. Registration closes June 30"
                   value={form.registration_note} onChange={e => setForm(p => ({ ...p, registration_note: e.target.value }))} />
               </Field>
+              <div className="grid grid-cols-2 gap-3">
+                <Field label="Status (shown on the user dashboard)">
+                  <input className={inputCls} style={inputStyle} placeholder="e.g. Open, Closed, Judging, Results Out"
+                    value={form.reg_status} onChange={e => setForm(p => ({ ...p, reg_status: e.target.value }))} />
+                </Field>
+                <Field label="Deadline (shown on the user dashboard)">
+                  <input type="datetime-local" className={inputCls} style={inputStyle}
+                    value={form.reg_deadline} onChange={e => setForm(p => ({ ...p, reg_deadline: e.target.value }))} />
+                </Field>
+              </div>
             </>
           )}
         </div>
@@ -658,12 +672,10 @@ export default function ActivitiesAdminPage() {
                         <span className="text-xs px-1.5 py-0.5 rounded inline-flex items-center gap-1" style={{ background: "rgba(var(--success-rgb), 0.13)", color: "var(--success)" }}><ClipboardCheck size={10} /> Registration ON</span>
                       )}
                     </div>
-                    {s.registration_enabled && (
-                      <a href={`/admin/activity-registration/${s.id}`}
-                        className="inline-block text-xs mt-1.5 underline" style={{ color: S.accent }}>
-                        Manage Registration →
-                      </a>
-                    )}
+                    <a href={`/admin/activity-registration/${s.id}`}
+                      className="inline-block text-xs mt-1.5 underline" style={{ color: S.accent }}>
+                      Manage →
+                    </a>
                   </div>
                   <div className="flex gap-1">
                     <button style={btnGhost} onClick={() => { setEditing(s); setModal("session"); }}><Pencil size={14} /></button>

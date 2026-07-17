@@ -24,7 +24,7 @@ pre-existing was renamed or removed.
 2. [lib/theme.ts — theme tokens & dark/light helpers](#2-libthemets--theme-tokens--darklight-helpers)
 3. [types/ — shared TypeScript types](#3-types--shared-typescript-types)
 4. [lib/auth.ts — server-side auth helpers](#4-libauthts--server-side-auth-helpers)
-5. [lib/api-response.ts — route handler response helpers](#5-libapi-responsets--route-handler-response-helpers)
+5. [lib/api/response.ts — route handler response helpers](#5-libapiresponsets--route-handler-response-helpers)
 6. [hooks/useAdminResource.ts — generic admin CRUD hook](#6-hooksuseadminresourcets--generic-admin-crud-hook)
 7. [components/ui/ — shared UI primitives](#7-componentsui--shared-ui-primitives)
 8. [components/PdfViewer.tsx — consolidated PDF viewer](#8-componentspdfviewertsx--consolidated-pdf-viewer)
@@ -152,20 +152,12 @@ interface OrganizerSession { olympiadIds: string[] }
 interface MemberIdentity { id: string; email: string | undefined }
 ```
 
-### `types/api.ts`
+### `types/api.ts` — removed (2026-07-17 cleanup)
 
-```ts
-interface ApiErrorBody { error: string }
-interface ApiOkBody { success: true }
-type ApiResult<T> =
-  | { ok: true; data: T }
-  | { ok: false; error: string; status: number }
-```
-
-`ApiResult<T>` is for **new** client-side code that wants a discriminated
-union after `await res.json()`. It is not what existing endpoints return —
-see [§9](#9-existing-conventions-this-infrastructure-follows) for why success
-shapes vary today.
+This file only existed to type the dead `lib/api-response.ts` duplicate
+(see §5) and had no other importers anywhere in the app. Deleted along with
+it. `types/index.ts`'s barrel export (`export * from './api'`) was updated
+to drop the reference.
 
 ### `types/admin-resource.ts`
 
@@ -212,7 +204,7 @@ function getMemberFromRequest(req: NextRequest): Promise<MemberIdentity | null>
 
 ```ts
 import { isAdmin } from '@/lib/auth'
-import { apiUnauthorized } from '@/lib/api-response'
+import { apiUnauthorized } from '@/lib/api/response'
 
 export async function POST(req: NextRequest) {
   if (!(await isAdmin())) return apiUnauthorized()
@@ -237,20 +229,43 @@ behavior, no wrapping. Use whichever name reads better at the call site.
 
 ---
 
-## 5. `lib/api-response.ts` — route handler response helpers
+## 5. `lib/api/response.ts` — route handler response helpers
+
+> **Correction (2026-07-17 cleanup):** this section used to describe a file
+> called `lib/api-response.ts` (root of `lib/`, paired with `types/api.ts`).
+> Grepping the whole app found **zero** imports of either — every one of the
+> ~68 call sites actually imports from **`lib/api/response.ts`** (inside the
+> `lib/api/` folder, alongside `admin-auth.ts` and `session-cookie.ts`)
+> instead. The unused pair was a dead duplicate implementation (different
+> `apiOk` signature, never wired up) and has been deleted. This section now
+> documents the real, live file.
 
 Thin wrappers around `NextResponse.json` matching the **error shape**
 essentially every existing route already uses by convention:
 `{ error: string }` with an appropriate status.
 
 ```ts
-function apiError(message: string, status = 400): NextResponse<{ error: string }>
+function apiOk<T>(data: T, init?: { status?: number }): NextResponse<T>
+function apiError(message: unknown, status = 400): NextResponse<{ error: string }>
 function apiUnauthorized(message = 'Unauthorized'): NextResponse<{ error: string }>   // 401
-function apiForbidden(message = 'Forbidden'): NextResponse<{ error: string }>          // 403
-function apiNotFound(message = 'Not found'): NextResponse<{ error: string }>           // 404
-function apiServerError(err: unknown, fallback = 'Something went wrong.'): NextResponse<{ error: string }> // 500
-function apiOk(status = 200): NextResponse<{ success: true }>
-function apiSuccess<T>(data: T, status = 200): NextResponse<T>
+function apiForbidden(message = 'Forbidden.'): NextResponse<{ error: string }>         // 403
+function apiNotFound(message = 'Not found.'): NextResponse<{ error: string }>          // 404
+function apiBadRequest(message = 'Invalid request.'): NextResponse<{ error: string }>  // 400
+function apiServerError(message = 'Something went wrong. Please try again.'): NextResponse<{ error: string }> // 500
+function fromSupabase<T>(result: { data: T; error: { message: string } | null }, status = 400): NextResponse
+```
+
+`apiError`'s `message` param accepts a string, a caught error, or a Supabase
+`{ error }` result and normalizes it to a message — so routes can pass a
+caught exception or a Supabase error object straight through without
+extracting `.message` themselves first.
+
+`fromSupabase(result)` is the shortest form for the common "just forward
+whatever Supabase returned" case:
+
+```ts
+import { fromSupabase } from '@/lib/api/response'
+return fromSupabase(await supabaseAdmin.from('activities').select())
 ```
 
 **Important — success shapes are intentionally NOT standardized here.**
@@ -265,7 +280,7 @@ the same "here's the row(s)" concept:
 | `POST /api/admin/activities` | bare row |
 | `DELETE /api/admin/activities` | `{ success: true }` |
 
-`apiSuccess(data)` just wraps `NextResponse.json(data, { status })` — use it
+`apiOk(data)` just wraps `NextResponse.json(data, { status })` — use it
 to return whatever shape matches your endpoint's sibling routes (e.g. match
 the existing `{ members: [...] }` shape if you're adding a route next to
 `app/api/admin/members`). Don't invent a new shape for an existing resource
@@ -273,10 +288,6 @@ family. For a **brand new** resource with no siblings to match, prefer
 returning the row/array directly (bare), since that's what
 `hooks/useAdminResource.ts`'s default extractors handle with zero
 configuration.
-
-**Naming-compatibility aliases:** the original task plan named the two most
-common helpers `ok(data, status)` / `fail(message, status)`. Both are
-exported as aliases: `ok` = `apiSuccess`, `fail` = `apiError`.
 
 ---
 

@@ -33,6 +33,17 @@ function resolveAccent(theme: string | undefined | null) {
   return 'var(--blue)'
 }
 
+// Resolves formConfig.font_family into a real CSS font stack.
+function resolveFont(font: string | undefined | null) {
+  switch (font) {
+    case 'orbitron': return "'Orbitron', sans-serif"
+    case 'rajdhani': return "'Rajdhani', sans-serif"
+    case 'jakarta': return "'Plus Jakarta Sans', sans-serif"
+    case 'mono': return "'JetBrains Mono', monospace"
+    default: return 'inherit'
+  }
+}
+
 // Shared label style for EVERY field on this form — primary, custom, and
 // config extra fields all use the exact same title styling so nothing looks
 // "more important" than anything else (the inconsistency reported earlier).
@@ -351,27 +362,38 @@ function ActivityRegisterPageInner() {
 
   const contactPersons: any[] = formConfig?.contact_persons || []
   const accent = resolveAccent(formConfig?.bg_theme)
+  const fontFamily = resolveFont(formConfig?.font_family)
   const sessionDesc: string = sessionInfo?.description || ''
   const isLongDesc = sessionDesc.length > 220
+  const displayTitle = formConfig?.auto_pull_title ? sessionInfo?.title : (formConfig?.title || sessionInfo?.title)
+  const displayCover = formConfig?.auto_pull_cover ? sessionInfo?.cover_image_url : (formConfig?.cover_photo_url || sessionInfo?.cover_image_url)
+  const coverRatio = formConfig?.cover_aspect_ratio || 'auto'
+  const pageBg: Record<string, string> = formConfig?.bg_image_url
+    ? { backgroundImage: `url(${formConfig.bg_image_url})`, backgroundSize: 'cover', backgroundPosition: 'center' }
+    : formConfig?.bg_color
+    ? { background: formConfig.bg_color }
+    : { background: 'var(--bg)' }
 
   return (
-    <div className="min-h-screen py-12 px-4" style={{ background: sessionInfo?.bg_color || 'var(--bg)', paddingTop: '88px' }}>
+    <div className="min-h-screen py-12 px-4" style={{ ...pageBg, paddingTop: '88px', fontFamily }}>
       <div className="max-w-lg mx-auto">
         <Link href={`/activities/${slug}`} className="inline-flex items-center gap-2 text-sm mb-6" style={{ color: 'var(--muted)' }}>
           <ArrowLeft size={14} /> Back to activity
         </Link>
 
         {/* Form header from config or session title */}
-        <h1 className="text-2xl font-black mb-1" style={{ fontFamily: "'Orbitron', sans-serif", color: 'var(--white)' }}>
-          {formConfig?.title || sessionInfo?.title}
+        <h1 className="text-2xl font-black mb-1" style={{ fontFamily: fontFamily !== 'inherit' ? fontFamily : "'Orbitron', sans-serif", color: 'var(--white)' }}>
+          {displayTitle}
         </h1>
-        {formConfig?.subtitle && <p className="text-sm mb-2" style={{ color: 'var(--muted)' }}>{formConfig.subtitle}</p>}
+        {!formConfig?.auto_pull_description && formConfig?.subtitle && <p className="text-sm mb-2" style={{ color: 'var(--muted)' }}>{formConfig.subtitle}</p>}
 
         {/* Cover image — form-specific override if set, else the activity session's own cover */}
-        {(formConfig?.cover_photo_url || sessionInfo?.cover_image_url) && (
+        {displayCover && (
           <div className="rounded-2xl overflow-hidden mb-4 border" style={{ borderColor: 'var(--border)' }}>
-            <img src={formConfig?.cover_photo_url || sessionInfo?.cover_image_url} alt=""
-              style={{ width: '100%', maxHeight: '200px', objectFit: 'cover' }} />
+            <img src={displayCover} alt=""
+              style={coverRatio === 'auto'
+                ? { width: '100%', maxHeight: '400px', objectFit: 'contain' }
+                : { width: '100%', aspectRatio: coverRatio, objectFit: 'cover' }} />
           </div>
         )}
 

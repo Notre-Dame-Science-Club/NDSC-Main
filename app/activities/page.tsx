@@ -12,7 +12,7 @@ type ActivityType = {
 type ActivityVersion = {
   id: string; activity_type_id: string; version_number: number;
   version_label: string; year_start: number; year_end: number | null;
-  description: string;
+  description: string; is_pinned?: boolean; is_highlighted?: boolean;
 };
 type ActivitySession = {
   id: string; activity_version_id: string; activity_type_id: string;
@@ -20,6 +20,7 @@ type ActivitySession = {
   description: string; cover_image_url: string; youtube_url: string;
   pdf_url: string; gallery_urls: string[]; is_published: boolean;
   is_upcoming?: boolean; registration_enabled?: boolean; registration_note?: string;
+  image_display_mode?: string;
 };
 
 function getYoutubeId(url: string) {
@@ -34,6 +35,7 @@ function SessionCard({ s }: { s: ActivitySession }) {
   const ytId = getYoutubeId(s.youtube_url);
   const thumb = ytId ? `https://img.youtube.com/vi/${ytId}/hqdefault.jpg` : s.cover_image_url;
   const canRegister = s.is_upcoming && s.registration_enabled;
+  const isNative = s.image_display_mode === 'native' && !ytId;
   return (
     <div
       role="link" tabIndex={0}
@@ -41,10 +43,12 @@ function SessionCard({ s }: { s: ActivitySession }) {
       onKeyDown={(e) => { if (e.key === "Enter") router.push(`/activities/${s.slug}`); }}
       className="group flex flex-col rounded-2xl border overflow-hidden transition-all duration-300 hover:border-[var(--blue)] hover:-translate-y-1 cursor-pointer"
       style={{ borderColor: "var(--border)", background: "var(--card)" }}>
-      <div className="relative overflow-hidden" style={{ height: 200 }}>
+      <div className="relative overflow-hidden" style={isNative ? { width: "100%" } : { height: 200 }}>
         {thumb ? (
           <img src={thumb} alt={s.title}
-            className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" />
+            className={isNative
+              ? "w-full h-auto object-contain transition-transform duration-500 group-hover:scale-105"
+              : "w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"} />
         ) : (
           <div className="w-full h-full flex items-center justify-center opacity-20"
             style={{ background: "var(--bg2)" }}><ImageIcon size={48} /></div>
@@ -116,7 +120,9 @@ function VersionSection({ version, sessions }: { version: ActivityVersion; sessi
         className="w-full flex items-center gap-4 mb-6 group">
         <div className="flex items-center gap-3 flex-1">
           <div className="px-3 py-1 rounded-lg text-sm font-black"
-            style={{ background: "rgba(var(--blue-rgb), .15)", color: "var(--blue)", border: "1px solid rgba(var(--blue-rgb), .3)", fontFamily: "'Orbitron',sans-serif" }}>
+            style={version.is_highlighted
+              ? { background: "rgba(255, 176, 32, .18)", color: "#ffb020", border: "1px solid rgba(255, 176, 32, .45)", fontFamily: "'Orbitron',sans-serif" }
+              : { background: "rgba(var(--blue-rgb), .15)", color: "var(--blue)", border: "1px solid rgba(var(--blue-rgb), .3)", fontFamily: "'Orbitron',sans-serif" }}>
             {version.version_label || `v${version.version_number}`}
           </div>
           <div className="text-left">
@@ -219,9 +225,9 @@ function DynamicActivityTab({ type }: { type: ActivityType }) {
         </div>
       ) : (
         <>
-          {/* Versioned sessions — latest version first */}
+          {/* Versioned sessions — pinned versions first (e.g. "Science Under"), then latest version first */}
           {versions
-            .sort((a, b) => b.version_number - a.version_number)
+            .sort((a, b) => (b.is_pinned ? 1 : 0) - (a.is_pinned ? 1 : 0) || b.version_number - a.version_number)
             .map(v => (
               <VersionSection key={v.id} version={v} sessions={sessionMap[v.id] || []} />
             ))

@@ -33,7 +33,7 @@ export async function GET(req: NextRequest) {
 
   const { data: registrations, error: regError } = await supabaseAdmin
     .from('activity_registrations')
-    .select('id, category_id, full_name, phone, email, college, college_roll, hsc_session, team_members, payment_status, created_at')
+    .select('id, category_id, full_name, phone, email, college, college_roll, hsc_session, project_name, custom_answers, team_members, payment_status, created_at')
     .eq('activity_session_id', sessionId)
     .order('created_at', { ascending: false })
 

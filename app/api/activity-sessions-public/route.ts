@@ -9,6 +9,7 @@ export async function GET() {
     .select(`
       id, title, slug, cover_image_url, session_date, youtube_url,
       is_upcoming, registration_enabled, registration_note, event_dates,
+      image_display_mode, reg_status, reg_deadline,
       activity_types ( name, slug )
     `)
     .eq('is_published', true)

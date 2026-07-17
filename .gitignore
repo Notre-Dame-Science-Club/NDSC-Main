@@ -2,3 +2,13 @@ node_modules
 .next
 *.zip
 *.7z
+*.env
+*.claude
+*.tsbuildinfo
+*.venv
+.venv
+
+scripts/node_modules
+scripts/supabase-export
+scripts/storage-export
+scripts/auth_id_mapping.json

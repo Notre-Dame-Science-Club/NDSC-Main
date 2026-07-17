@@ -13,7 +13,7 @@ export async function GET(req: NextRequest) {
 
   const { data: session, error: sessionError } = await supabaseAdmin
     .from('activity_sessions')
-    .select('id, title, slug, description, cover_image_url, is_upcoming, registration_enabled, registration_note, bg_color')
+    .select('id, title, slug, description, cover_image_url, is_upcoming, registration_enabled, registration_note, image_display_mode, reg_status, reg_deadline')
     .eq('slug', slug)
     .eq('is_published', true)
     .single()

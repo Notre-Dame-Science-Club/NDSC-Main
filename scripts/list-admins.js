@@ -2,7 +2,7 @@
 // Prints out all admin emails (and roles) from the Supabase "admins" table.
 //
 // Usage:
-//   node list-admins.js
+//   node scripts/list-admins.js
 //
 // Requires env vars (same ones already in your .env.local):
 //   NEXT_PUBLIC_SUPABASE_URL

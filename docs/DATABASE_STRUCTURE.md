@@ -1,5 +1,15 @@
 # NDSC Platform — Database Structure
 
+> **Note (2026-07-17 cleanup):** this hand-maintained tree was found to predate
+> several live fields — `members.is_organizer`/`is_executive`, the
+> `activity_updates` table, `activity_versions.is_pinned`/`is_highlighted`,
+> `activity_sessions.image_display_mode`/`reg_status`/`reg_deadline`, and the
+> `form_configs` appearance-pipeline columns (`bg_color`, `font_family`, etc.)
+> — all confirmed in active use via grep across `app/` and `lib/`.
+> **`db/schema.sql` is the verified, up-to-date source of truth going forward.**
+> This file is kept as a more readable narrative companion, but treat any
+> conflict between the two in `db/schema.sql`'s favor.
+
 ## Tree
 
 ```

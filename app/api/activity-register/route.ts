@@ -203,6 +203,59 @@ export async function POST(req: NextRequest) {
 
   const paymentStatus = category.requires_payment ? 'pending' : 'not_required'
 
+  // "Unique field" duplicate check (admin-configurable per custom field).
+  // Scope is the whole activity session, not just this category — e.g. a
+  // school ID marked unique should be caught as a duplicate even if the
+  // second attempt is under a different segment/round of the same event.
+  const uniqueCategoryFields = (category.custom_fields || []).filter((f: any) => f.unique_field)
+  const uniqueTeamFields = (category.team_member_fields || []).filter((f: any) => f.unique_field)
+
+  if (uniqueCategoryFields.length > 0 || uniqueTeamFields.length > 0) {
+    const norm = (v: any) => (v === undefined || v === null ? '' : String(v).trim().toLowerCase())
+
+    const { data: existingRegs } = await supabaseAdmin
+      .from('activity_registrations')
+      .select('custom_answers, team_members')
+      .eq('activity_session_id', category.activity_session_id)
+
+    for (const field of uniqueCategoryFields) {
+      const incoming = norm(custom_answers?.[field.key])
+      if (!incoming) continue
+      const clash = (existingRegs || []).some(
+        (r: any) => norm(r.custom_answers?.[field.key]) === incoming
+      )
+      if (clash) {
+        return apiError(
+          `"${field.label}" is already registered for this event. Duplicate entries aren't allowed for this field.`,
+          409
+        )
+      }
+    }
+
+    for (const field of uniqueTeamFields) {
+      const incomingValues = preparedTeamMembers
+        .map(m => norm(m.custom_answers?.[field.key]))
+        .filter(Boolean)
+
+      // Duplicates within this same submission (two of your own teammates)
+      if (new Set(incomingValues).size !== incomingValues.length) {
+        return apiError(`"${field.label}" must be unique across your own team members.`, 400)
+      }
+
+      for (const v of incomingValues) {
+        const clash = (existingRegs || []).some((r: any) =>
+          (r.team_members || []).some((m: any) => norm(m.custom_answers?.[field.key]) === v)
+        )
+        if (clash) {
+          return apiError(
+            `"${field.label}" is already registered by another team for this event.`,
+            409
+          )
+        }
+      }
+    }
+  }
+
   let editLockedAt: string | null = null
   if (category.edit_window_hours !== null && category.edit_window_hours !== undefined) {
     editLockedAt = new Date(Date.now() + category.edit_window_hours * 3600 * 1000).toISOString()

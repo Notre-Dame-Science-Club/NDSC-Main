@@ -7,7 +7,7 @@ import { Plus, Trash2, ChevronRight, ChevronDown, ArrowLeft, Users, CreditCard, 
 const uid = () => Math.random().toString(36).slice(2, 9)
 
 type FieldType = 'text' | 'textarea' | 'number' | 'photo' | 'file' | 'dropdown' | 'date' | 'time'
-type CustomField = { key: string; label: string; description?: string; type: FieldType; required: boolean; options?: string[]; allow_other?: boolean; max_file_size_mb?: number; max_files?: number }
+type CustomField = { key: string; label: string; description?: string; type: FieldType; required: boolean; options?: string[]; allow_other?: boolean; max_file_size_mb?: number; max_files?: number; unique_field?: boolean }
 type SubmissionField = {
   id: string; title: string; description?: string
   field_type: 'text' | 'textarea' | 'file'; required: boolean
@@ -69,7 +69,7 @@ export default function ActivityRegistrationBuilder() {
   const [error, setError] = useState('')
   const [editingId, setEditingId] = useState<string | null>(null)
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set())
-  const [tab, setTab] = useState<'builder' | 'registrants'>('builder')
+  const [tab, setTab] = useState<'builder' | 'registrants' | 'appearance' | 'files' | 'updates'>('appearance')
 
   const load = async () => {
     try {
@@ -91,6 +91,12 @@ export default function ActivityRegistrationBuilder() {
   }
 
   useEffect(() => { load() }, [sessionId])
+
+  // Registration is the main workflow once it's on; otherwise start on
+  // Appearance since Builder/Registrants have nothing to show yet.
+  useEffect(() => {
+    if (session) setTab(session.registration_enabled ? 'builder' : 'appearance')
+  }, [session?.id, session?.registration_enabled])
 
   const toggleExpand = (id: string) => {
     setExpandedIds(prev => {
@@ -216,7 +222,7 @@ export default function ActivityRegistrationBuilder() {
           <ArrowLeft size={16} />
         </Link>
         <div>
-          <h1 className="text-2xl font-bold" style={h}>Registration Builder</h1>
+          <h1 className="text-2xl font-bold" style={h}>Manage Activity</h1>
           <p className="text-sm" style={{ color: 'var(--muted)' }}>{session?.title || 'Activity Session'}</p>
         </div>
       </div>
@@ -227,20 +233,44 @@ export default function ActivityRegistrationBuilder() {
         </div>
       )}
 
-      <div className="flex gap-2 mb-4">
-        <button onClick={() => setTab('builder')} className="px-4 py-2 rounded-lg text-sm font-semibold"
-          style={tab === 'builder' ? { background: 'rgba(var(--blue-rgb), 0.15)', color: 'var(--blue)', border: '1px solid rgba(var(--blue-rgb), 0.4)' } : { background: 'var(--surface-deep)', color: 'var(--muted)', border: '1px solid var(--border)' }}>
-          Builder
+      <div className="flex gap-2 mb-4 flex-wrap">
+        <button onClick={() => setTab('appearance')} className="px-4 py-2 rounded-lg text-sm font-semibold"
+          style={tab === 'appearance' ? { background: 'rgba(var(--blue-rgb), 0.15)', color: 'var(--blue)', border: '1px solid rgba(var(--blue-rgb), 0.4)' } : { background: 'var(--surface-deep)', color: 'var(--muted)', border: '1px solid var(--border)' }}>
+          Appearance
         </button>
-        <button onClick={() => setTab('registrants')} className="px-4 py-2 rounded-lg text-sm font-semibold"
+        <button onClick={() => setTab('files')} className="px-4 py-2 rounded-lg text-sm font-semibold"
+          style={tab === 'files' ? { background: 'rgba(var(--blue-rgb), 0.15)', color: 'var(--blue)', border: '1px solid rgba(var(--blue-rgb), 0.4)' } : { background: 'var(--surface-deep)', color: 'var(--muted)', border: '1px solid var(--border)' }}>
+          Files
+        </button>
+        <button onClick={() => session?.registration_enabled && setTab('builder')}
+          disabled={!session?.registration_enabled}
+          title={!session?.registration_enabled ? 'Turn on "Registration" for this session (Activities admin) to unlock this' : ''}
+          className="px-4 py-2 rounded-lg text-sm font-semibold disabled:opacity-40 disabled:cursor-not-allowed"
+          style={tab === 'builder' ? { background: 'rgba(var(--blue-rgb), 0.15)', color: 'var(--blue)', border: '1px solid rgba(var(--blue-rgb), 0.4)' } : { background: 'var(--surface-deep)', color: 'var(--muted)', border: '1px solid var(--border)' }}>
+          Registration{!session?.registration_enabled ? ' 🔒' : ''}
+        </button>
+        <button onClick={() => session?.registration_enabled && setTab('registrants')}
+          disabled={!session?.registration_enabled}
+          title={!session?.registration_enabled ? 'Turn on "Registration" for this session (Activities admin) to unlock this' : ''}
+          className="px-4 py-2 rounded-lg text-sm font-semibold disabled:opacity-40 disabled:cursor-not-allowed"
           style={tab === 'registrants' ? { background: 'rgba(var(--blue-rgb), 0.15)', color: 'var(--blue)', border: '1px solid rgba(var(--blue-rgb), 0.4)' } : { background: 'var(--surface-deep)', color: 'var(--muted)', border: '1px solid var(--border)' }}>
-          Registrants
+          Registrants{!session?.registration_enabled ? ' 🔒' : ''}
+        </button>
+        <button onClick={() => setTab('updates')} className="px-4 py-2 rounded-lg text-sm font-semibold"
+          style={tab === 'updates' ? { background: 'rgba(var(--blue-rgb), 0.15)', color: 'var(--blue)', border: '1px solid rgba(var(--blue-rgb), 0.4)' } : { background: 'var(--surface-deep)', color: 'var(--muted)', border: '1px solid var(--border)' }}>
+          Updates
         </button>
       </div>
 
-      {tab === 'registrants' ? (
+      {tab === 'registrants' && session?.registration_enabled ? (
         <RegistrantsPanel sessionId={sessionId} />
-      ) : (
+      ) : tab === 'appearance' ? (
+        <AppearancePanel sessionId={sessionId} />
+      ) : tab === 'files' ? (
+        <FilesPanel sessionId={sessionId} session={session} onSaved={setSession} />
+      ) : tab === 'updates' ? (
+        <UpdatesPanel sessionId={sessionId} />
+      ) : tab === 'builder' && session?.registration_enabled ? (
       <>
       <div className="mb-4 p-4 rounded-xl text-sm" style={{ background: 'rgba(var(--blue-rgb), 0.05)', border: '1px solid rgba(var(--blue-rgb), 0.2)', color: 'var(--muted)' }}>
         Build as many layers as this event needs (e.g. Offline/Online → Class → Subject).
@@ -264,6 +294,10 @@ export default function ActivityRegistrationBuilder() {
         </p>
       )}
       </>
+      ) : (
+        <div className="rounded-xl p-6 text-sm text-center" style={{ background: 'var(--surface-deep)', border: '1px solid var(--border)', color: 'var(--border-soft)' }}>
+          Turn on "Registration" for this session in Activities admin to unlock this tab.
+        </div>
       )}
     </div>
   )
@@ -290,16 +324,42 @@ function RegistrantsPanel({ sessionId }: { sessionId: string }) {
     return r.full_name?.toLowerCase().includes(q) || r.phone?.includes(q) || r.email?.toLowerCase().includes(q) || r.breadcrumb.join(' ').toLowerCase().includes(q)
   })
 
+  const exportCsv = () => {
+    const customKeys = [...new Set(filtered.flatMap(r => Object.keys(r.custom_answers || {})))]
+    const headers = ['Name', 'Phone', 'Email', 'College', 'Roll', 'HSC Session', 'Project Name', 'Category', 'Team Size', 'Payment Status', 'Registered At', ...customKeys, 'Team Members']
+    const escape = (v: any) => `"${String(v ?? '').replace(/"/g, '""')}"`
+    const rows = filtered.map(r => [
+      r.full_name, r.phone, r.email, r.college, r.college_roll, r.hsc_session, r.project_name,
+      r.breadcrumb.join(' > '), r.team_size, r.payment_status, new Date(r.created_at).toISOString(),
+      ...customKeys.map(k => Array.isArray(r.custom_answers?.[k]) ? r.custom_answers[k].join('; ') : (r.custom_answers?.[k] ?? '')),
+      (r.team_members || []).map((m: any) => `${m.full_name} <${m.email || m.college_roll}>`).join('; '),
+    ].map(escape).join(','))
+    const csv = [headers.map(escape).join(','), ...rows].join('\n')
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `registrants-${sessionId}.csv`
+    a.click()
+    URL.revokeObjectURL(url)
+  }
+
   if (loading) return <p className="text-sm" style={{ color: 'var(--border-soft)' }}>Loading registrants…</p>
   if (error) return <p className="text-sm" style={{ color: 'var(--danger-soft)' }}>{error}</p>
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-3">
+      <div className="flex items-center justify-between mb-3 gap-3 flex-wrap">
         <input placeholder="Search by name, phone, email, or category…" value={search} onChange={e => setSearch(e.target.value)}
           className="px-3 py-2 rounded-lg text-sm outline-none border w-full max-w-sm"
           style={{ background: 'var(--surface-alt)', borderColor: 'var(--border)', color: 'var(--white-soft)' }} />
-        <span className="text-xs ml-3 whitespace-nowrap" style={{ color: 'var(--border-soft)' }}>{filtered.length} of {registrations.length} registrant(s)</span>
+        <div className="flex items-center gap-3 ml-auto">
+          <span className="text-xs whitespace-nowrap" style={{ color: 'var(--border-soft)' }}>{filtered.length} of {registrations.length} registrant(s)</span>
+          <button onClick={exportCsv} disabled={filtered.length === 0} className="text-xs px-3 py-1.5 rounded-lg flex-shrink-0 flex items-center gap-1.5 disabled:opacity-40"
+            style={{ background: 'rgba(var(--accent2-rgb), 0.1)', color: 'var(--accent2)', border: '1px solid rgba(var(--accent2-rgb), 0.25)' }}>
+            <Upload size={12} style={{ transform: 'rotate(180deg)' }} /> Export CSV
+          </button>
+        </div>
       </div>
 
       {filtered.length === 0 && (
@@ -347,9 +407,20 @@ function RegistrantsPanel({ sessionId }: { sessionId: string }) {
               <p>Email: {viewing.email}</p>
               <p>College: {viewing.college} {viewing.college_roll && `(Roll ${viewing.college_roll})`}</p>
               {viewing.hsc_session && <p>HSC Session: {viewing.hsc_session}</p>}
+              {viewing.project_name && <p>Project: {viewing.project_name}</p>}
               <p>Registered: {new Date(viewing.created_at).toLocaleString()}</p>
               {viewing.payment_status && <p>Payment: {viewing.payment_status}</p>}
             </div>
+            {viewing.custom_answers && Object.keys(viewing.custom_answers).length > 0 && (
+              <div className="pt-2 border-t" style={{ borderColor: 'var(--border)' }}>
+                <p className="text-xs font-bold mb-1" style={{ color: 'var(--accent2)' }}>SUBMITTED FIELDS</p>
+                {Object.entries(viewing.custom_answers).map(([k, v]: [string, any]) => (
+                  <p key={k} className="text-xs" style={{ color: 'var(--muted)' }}>
+                    {k}: {Array.isArray(v) ? v.join(', ') : String(v)}
+                  </p>
+                ))}
+              </div>
+            )}
             {(viewing.team_members || []).length > 0 && (
               <div className="pt-2 border-t" style={{ borderColor: 'var(--border)' }}>
                 <p className="text-xs font-bold mb-1" style={{ color: 'var(--accent2)' }}>TEAM MEMBERS</p>
@@ -364,6 +435,150 @@ function RegistrantsPanel({ sessionId }: { sessionId: string }) {
               </p>
             )}
           </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// Focused appearance preview + deep link into the full form-config editor
+// (title, subtitle, cover + aspect ratio, auto-pull toggles, background,
+// font, primary/extra fields, contact persons) — that editor already exists
+// at /admin/forms and already supports per-session keys
+// (`activity_register:<sessionId>`), so this panel reuses it instead of
+// duplicating a second appearance UI.
+function AppearancePanel({ sessionId }: { sessionId: string }) {
+  const [config, setConfig] = useState<any>(null)
+  const [loading, setLoading] = useState(true)
+  const formKey = `activity_register:${sessionId}`
+
+  useEffect(() => {
+    fetch(`/api/admin/form-configs?form_key=${formKey}`)
+      .then(r => r.json())
+      .then(d => setConfig(d.config || null))
+      .catch(() => {})
+      .finally(() => setLoading(false))
+  }, [formKey])
+
+  if (loading) return <p className="text-sm" style={{ color: 'var(--border-soft)' }}>Loading appearance…</p>
+
+  return (
+    <div className="rounded-xl p-5" style={{ background: 'var(--surface-deep)', border: '1px solid var(--border)' }}>
+      <p className="text-sm mb-4" style={{ color: 'var(--muted)' }}>
+        Title, description, cover image, background, font, and which primary/extra fields show up are all
+        configured here — this form uses a per-event override so it can look completely different from
+        every other registration form on the site.
+      </p>
+      {config ? (
+        <div className="space-y-2 mb-4 text-sm" style={{ color: 'var(--white-soft)' }}>
+          <p><span style={{ color: 'var(--border-soft)' }}>Title:</span> {config.auto_pull_title ? '(auto-pulled from event)' : (config.title || '(using event title)')}</p>
+          <p><span style={{ color: 'var(--border-soft)' }}>Cover:</span> {config.auto_pull_cover ? '(auto-pulled from event)' : (config.cover_photo_url ? 'Custom image set' : '(using event cover)')}</p>
+          <p><span style={{ color: 'var(--border-soft)' }}>Font:</span> {config.font_family || 'default'}</p>
+          <p><span style={{ color: 'var(--border-soft)' }}>Extra fields:</span> {(config.extra_fields || []).length}</p>
+        </div>
+      ) : (
+        <p className="text-sm mb-4" style={{ color: 'var(--border-soft)' }}>No appearance overrides yet — this form is using site defaults.</p>
+      )}
+      <Link href={`/admin/forms?key=${encodeURIComponent(formKey)}`}
+        className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold"
+        style={{ background: 'rgba(var(--blue-rgb), 0.1)', color: 'var(--blue)', border: '1px solid rgba(var(--blue-rgb), 0.3)' }}>
+        Edit appearance & fields →
+      </Link>
+    </div>
+  )
+}
+
+// Per-event updates/announcements admin can post — shown newest-first on
+// the user-facing "My Events" dashboard for anyone registered here (1.7).
+function UpdatesPanel({ sessionId }: { sessionId: string }) {
+  const [updates, setUpdates] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
+  const [title, setTitle] = useState('')
+  const [body, setBody] = useState('')
+  const [link, setLink] = useState('')
+  const [posting, setPosting] = useState(false)
+
+  const load = () => {
+    fetch(`/api/admin/activity-updates?sessionId=${sessionId}`)
+      .then(r => r.json())
+      .then(d => { if (d.error) setError(d.error); else setUpdates(d.updates || []) })
+      .catch(() => setError('Could not load updates.'))
+      .finally(() => setLoading(false))
+  }
+
+  useEffect(() => { load() }, [sessionId])
+
+  const post = async () => {
+    if (!title.trim()) return
+    setPosting(true)
+    setError('')
+    try {
+      const res = await fetch('/api/admin/activity-updates', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ activity_session_id: sessionId, title, body, link_url: link }),
+      })
+      const data = await res.json()
+      if (!res.ok) { setError(data.error || 'Could not post update.'); return }
+      setUpdates(prev => [data.update, ...prev])
+      setTitle(''); setBody(''); setLink('')
+    } catch {
+      setError('Network error while posting.')
+    } finally {
+      setPosting(false)
+    }
+  }
+
+  const remove = async (id: string) => {
+    if (!confirm('Delete this update?')) return
+    await fetch('/api/admin/activity-updates', {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id }),
+    })
+    setUpdates(prev => prev.filter(u => u.id !== id))
+  }
+
+  if (loading) return <p className="text-sm" style={{ color: 'var(--border-soft)' }}>Loading updates…</p>
+
+  return (
+    <div>
+      {error && (
+        <div className="mb-4 p-3 rounded-lg text-sm" style={{ background: 'rgba(var(--danger-rgb), 0.1)', color: 'var(--danger-soft)', border: '1px solid rgba(var(--danger-rgb), 0.3)' }}>
+          {error}
+        </div>
+      )}
+      <div className="rounded-xl p-4 mb-5 space-y-2" style={{ background: 'var(--surface-deep)', border: '1px solid var(--border)' }}>
+        <p className="text-xs font-bold" style={{ color: 'var(--muted)' }}>POST AN UPDATE</p>
+        <input placeholder="Title (e.g. Venue changed)" value={title} onChange={e => setTitle(e.target.value)}
+          className={inputCls} style={inputStyle} />
+        <textarea placeholder="Details (optional)" value={body} onChange={e => setBody(e.target.value)}
+          rows={2} className={inputCls} style={inputStyle} />
+        <input placeholder="Link (optional)" value={link} onChange={e => setLink(e.target.value)}
+          className={inputCls} style={inputStyle} />
+        <button onClick={post} disabled={posting || !title.trim()}
+          className="text-xs px-4 py-2 rounded-lg font-semibold disabled:opacity-40"
+          style={{ background: 'rgba(var(--blue-rgb), 0.15)', color: 'var(--blue)', border: '1px solid rgba(var(--blue-rgb), 0.4)' }}>
+          {posting ? 'Posting…' : 'Post update'}
+        </button>
+      </div>
+
+      {updates.length === 0 ? (
+        <p className="text-sm" style={{ color: 'var(--border-soft)' }}>No updates posted yet for this event.</p>
+      ) : (
+        <div className="space-y-2">
+          {updates.map(u => (
+            <div key={u.id} className="rounded-xl border p-3" style={{ background: 'var(--surface-deep)', borderColor: 'var(--border)' }}>
+              <div className="flex items-center justify-between gap-2">
+                <p className="text-sm font-semibold" style={{ color: 'var(--white)' }}>{u.title}</p>
+                <button onClick={() => remove(u.id)} style={{ color: 'var(--danger-soft)' }}><Trash2 size={13} /></button>
+              </div>
+              {u.body && <p className="text-xs mt-1" style={{ color: 'var(--muted)' }}>{u.body}</p>}
+              {u.link_url && <a href={u.link_url} target="_blank" rel="noreferrer" className="text-xs mt-1 inline-block" style={{ color: 'var(--blue)' }}>{u.link_url}</a>}
+              <p className="text-xs mt-1" style={{ color: 'var(--border-soft)' }}>{new Date(u.created_at).toLocaleString()}</p>
+            </div>
+          ))}
         </div>
       )}
     </div>
@@ -484,10 +699,16 @@ function CategoryEditor({ category, isLeaf, onSave }: { category: Category; isLe
               </div>
             </div>
           )}
-          <label className="flex items-center gap-2 text-xs" style={{ color: 'var(--muted)' }}>
-            <input type="checkbox" checked={f.required} onChange={e => patchField(setter, f.key, { required: e.target.checked })} />
-            Required
-          </label>
+          <div className="flex items-center gap-4 flex-wrap">
+            <label className="flex items-center gap-2 text-xs" style={{ color: 'var(--muted)' }}>
+              <input type="checkbox" checked={f.required} onChange={e => patchField(setter, f.key, { required: e.target.checked })} />
+              Required
+            </label>
+            <label className="flex items-center gap-2 text-xs" style={{ color: 'var(--muted)' }} title="If two registrants submit the same value for this field, the second submission is rejected as a duplicate.">
+              <input type="checkbox" checked={!!f.unique_field} onChange={e => patchField(setter, f.key, { unique_field: e.target.checked })} />
+              Unique field (no duplicates across this event)
+            </label>
+          </div>
         </div>
       ))}
       <button onClick={() => addField(setter)} className="text-xs px-3 py-1.5 rounded flex items-center gap-1"

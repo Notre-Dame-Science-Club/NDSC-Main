@@ -1,3 +1,6 @@
+-- ARCHIVED (2026-07-17 cleanup) — historical only. Folded into db/schema.sql.
+-- Do not run this file directly; it may conflict with or duplicate the merged schema.
+
 -- Survey / notification system
 -- Run this in the Supabase SQL editor (same as schema_update_01.sql).
 -- NOTE: if schema_update_02.sql (activity_sessions.bg_color) hasn't been

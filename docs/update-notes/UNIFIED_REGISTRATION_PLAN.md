@@ -1,3 +1,5 @@
+> **Archived (2026-07-17 cleanup):** kept for history only. Any `MIGRATION_V*.sql` / `schema_update_*.sql` file mentioned below has been superseded by the single **db/schema.sql**. Do not run the SQL commands in this file directly.
+
 # NDSC — Unified Activity/Olympiad Registration System — Plan & Gap Analysis
 
 Generated from a fresh read of the uploaded zip (`NDSC-Main-main_FIXED.zip`) against the

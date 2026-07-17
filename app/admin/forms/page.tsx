@@ -1,6 +1,7 @@
 'use client'
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
+import { useSearchParams } from 'next/navigation'
 import { ArrowLeft, Plus, Trash2, Save, ChevronDown, ChevronRight, Check } from 'lucide-react'
 
 const inputCls = 'w-full px-3 py-2 rounded-lg text-sm outline-none border'
@@ -47,7 +48,30 @@ type FormConfig = {
   contact_persons: ContactPerson[]
   use_ec_page?: boolean
   ec_ids?: string[]
+  bg_color?: string
+  bg_image_url?: string
+  font_family?: string
+  cover_aspect_ratio?: string
+  auto_pull_title?: boolean
+  auto_pull_description?: boolean
+  auto_pull_cover?: boolean
 }
+
+const FONT_OPTIONS = [
+  { value: 'default', label: 'Default (Inter)' },
+  { value: 'orbitron', label: 'Orbitron (techy, display)' },
+  { value: 'rajdhani', label: 'Rajdhani (condensed)' },
+  { value: 'jakarta', label: 'Plus Jakarta Sans (soft, modern)' },
+  { value: 'mono', label: 'Monospace' },
+]
+
+const COVER_RATIO_OPTIONS = [
+  { value: 'auto', label: 'Native (as uploaded)' },
+  { value: '16/9', label: 'Widescreen 16:9' },
+  { value: '4/3', label: 'Standard 4:3' },
+  { value: '1/1', label: 'Square 1:1' },
+  { value: '21/9', label: 'Banner 21:9' },
+]
 
 const BLANK_EXTRA = (): ExtraField => ({ key: uid(), label: '', description: '', type: 'text', required: false })
 const BLANK_CONTACT = (): ContactPerson => ({ name: '', post: '', phone: '', email: '', whatsapp: '', facebook: '' })
@@ -63,9 +87,17 @@ const blankConfig = (key: string): FormConfig => ({
   contact_persons: [],
   use_ec_page: false,
   ec_ids: [],
+  bg_color: '',
+  bg_image_url: '',
+  font_family: 'default',
+  cover_aspect_ratio: 'auto',
+  auto_pull_title: false,
+  auto_pull_description: false,
+  auto_pull_cover: false,
 })
 
 export default function AdminFormsPage() {
+  const searchParams = useSearchParams()
   const [configs, setConfigs] = useState<FormConfig[]>([])
   const [loading, setLoading] = useState(true)
   const [selected, setSelected] = useState<string | null>(null)
@@ -83,9 +115,19 @@ export default function AdminFormsPage() {
   useEffect(() => {
     fetch('/api/admin/form-configs')
       .then(r => r.json())
-      .then(d => { setConfigs(d.configs || []) })
+      .then(d => {
+        const loaded: FormConfig[] = d.configs || []
+        setConfigs(loaded)
+        const keyParam = searchParams.get('key')
+        if (keyParam) {
+          const existing = loaded.find(c => c.form_key === keyParam)
+          setSelected(keyParam)
+          setEditingConfig(existing ? { ...existing } : blankConfig(keyParam))
+        }
+      })
       .catch(() => {})
       .finally(() => setLoading(false))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   const selectForm = (key: string) => {
@@ -205,19 +247,44 @@ export default function AdminFormsPage() {
                 {/* Basic info */}
                 <Section title="Form Title & Appearance">
                   <Field label="Title shown at the top of the form">
-                    <input value={editingConfig.title} onChange={e => patch('title', e.target.value)}
-                      placeholder="Leave blank to use event/olympiad title" className={inputCls} style={inputStyle} />
+                    <div className="flex items-center gap-2">
+                      <input value={editingConfig.title} onChange={e => patch('title', e.target.value)}
+                        disabled={!!editingConfig.auto_pull_title}
+                        placeholder="Leave blank to use event/olympiad title" className={`${inputCls} disabled:opacity-40`} style={inputStyle} />
+                    </div>
+                    <label className="flex items-center gap-2 text-xs mt-1.5" style={{ color: 'var(--muted)' }}>
+                      <input type="checkbox" checked={!!editingConfig.auto_pull_title} onChange={e => patch('auto_pull_title', e.target.checked)} />
+                      Auto-pull from the parent event's title instead
+                    </label>
                   </Field>
                   <Field label="Subtitle / description under the title">
                     <input value={editingConfig.subtitle} onChange={e => patch('subtitle', e.target.value)}
-                      className={inputCls} style={inputStyle} />
+                      disabled={!!editingConfig.auto_pull_description}
+                      className={`${inputCls} disabled:opacity-40`} style={inputStyle} />
+                    <label className="flex items-center gap-2 text-xs mt-1.5" style={{ color: 'var(--muted)' }}>
+                      <input type="checkbox" checked={!!editingConfig.auto_pull_description} onChange={e => patch('auto_pull_description', e.target.checked)} />
+                      Auto-pull from the parent event's description instead
+                    </label>
                   </Field>
-                  <Field label="Cover photo URL (shown at top of form, same ratio it was uploaded in)">
+                  <Field label="Cover photo URL (shown at top of form)">
                     <input value={editingConfig.cover_photo_url} onChange={e => patch('cover_photo_url', e.target.value)}
-                      placeholder="https://..." className={inputCls} style={inputStyle} />
-                    {editingConfig.cover_photo_url && (
-                      <img src={editingConfig.cover_photo_url} alt="" className="mt-2 rounded-lg w-full h-24 object-cover" />
+                      disabled={!!editingConfig.auto_pull_cover}
+                      placeholder="https://..." className={`${inputCls} disabled:opacity-40`} style={inputStyle} />
+                    <label className="flex items-center gap-2 text-xs mt-1.5" style={{ color: 'var(--muted)' }}>
+                      <input type="checkbox" checked={!!editingConfig.auto_pull_cover} onChange={e => patch('auto_pull_cover', e.target.checked)} />
+                      Auto-pull from the parent event's cover image instead
+                    </label>
+                    {editingConfig.cover_photo_url && !editingConfig.auto_pull_cover && (
+                      <img src={editingConfig.cover_photo_url} alt="" className="mt-2 rounded-lg w-full h-24"
+                        style={{ objectFit: editingConfig.cover_aspect_ratio === 'auto' ? 'contain' : 'cover' }} />
                     )}
+                    <div className="mt-2">
+                      <label className="text-xs block mb-1" style={{ color: 'var(--border-soft)' }}>Render cover at</label>
+                      <select value={editingConfig.cover_aspect_ratio || 'auto'} onChange={e => patch('cover_aspect_ratio', e.target.value)}
+                        className="px-2 py-1.5 rounded text-xs border outline-none" style={inputStyle}>
+                        {COVER_RATIO_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                      </select>
+                    </div>
                   </Field>
                   <Field label="Accent color / theme">
                     <div className="flex flex-wrap gap-2">
@@ -239,6 +306,23 @@ export default function AdminFormsPage() {
                     <p className="text-xs mt-1" style={{ color: 'var(--border-soft)' }}>
                       Controls the accent color (buttons, highlights, "*") and a subtle background tint on this form.
                     </p>
+                  </Field>
+                  <Field label="Page background">
+                    <div className="flex gap-2 items-center">
+                      <input type="color" value={editingConfig.bg_color || '#0b0f19'}
+                        onChange={e => patch('bg_color', e.target.value)}
+                        className="w-9 h-9 rounded cursor-pointer" style={{ padding: 0, background: 'none', border: '1px solid var(--border)' }}
+                        title="Background color" />
+                      <input value={editingConfig.bg_image_url || ''} onChange={e => patch('bg_image_url', e.target.value)}
+                        placeholder="Optional background image URL (tiled/cover behind the whole form)"
+                        className={inputCls} style={inputStyle} />
+                    </div>
+                  </Field>
+                  <Field label="Font">
+                    <select value={editingConfig.font_family || 'default'} onChange={e => patch('font_family', e.target.value)}
+                      className={inputCls} style={inputStyle}>
+                      {FONT_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                    </select>
                   </Field>
                 </Section>
 
