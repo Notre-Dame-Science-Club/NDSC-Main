@@ -446,36 +446,49 @@ function SessionForm({ typeId, versionId, versions, initial, onSave, onClose }: 
         </label>
       </Field>
 
-      {form.is_upcoming && (
-        <div className="rounded-lg p-3 mb-3" style={{ background: "rgba(var(--blue-rgb), 0.04)", border: `1px solid ${S.border}` }}>
-          <label className="flex items-center gap-2 cursor-pointer mb-2">
-            <input type="checkbox" checked={form.registration_enabled}
-              onChange={e => setForm(p => ({ ...p, registration_enabled: e.target.checked }))} />
-            <span className="text-sm font-medium" style={{ color: S.accent }}>Enable online registration for this event</span>
-          </label>
-          {form.registration_enabled && (
-            <>
-              <p className="text-xs mb-2" style={{ color: S.muted }}>
-                Once saved, manage registration categories, fields, team settings, and payment from
-                the dedicated registration builder (link appears on this session's card after saving).
-              </p>
-              <Field label="Registration note (shown publicly, optional)">
-                <input className={inputCls} style={inputStyle} placeholder="e.g. Registration closes June 30"
-                  value={form.registration_note} onChange={e => setForm(p => ({ ...p, registration_note: e.target.value }))} />
+      <div className="rounded-lg p-3 mb-3" style={{ background: "rgba(var(--blue-rgb), 0.04)", border: `1px solid ${S.border}` }}>
+        <label className="flex items-center gap-2 cursor-pointer mb-2">
+          <input type="checkbox" checked={form.registration_enabled}
+            onChange={e => setForm(p => ({
+              ...p,
+              registration_enabled: e.target.checked,
+              // Registration only ever shows publicly on upcoming events, so
+              // turning this on also turns "upcoming" on — previously these
+              // had to be checked in the right order or registration would
+              // silently save as off with no indication why.
+              is_upcoming: e.target.checked ? true : p.is_upcoming,
+            }))} />
+          <span className="text-sm font-medium" style={{ color: S.accent }}>Enable online registration for this event</span>
+        </label>
+        <p className="text-xs mb-2" style={{ color: S.muted }}>
+          Registration only appears on the public site while this event is marked "upcoming" below —
+          checking this box marks it upcoming automatically. If you later uncheck "upcoming" (e.g. once
+          the event has happened), registration turns off with it.
+        </p>
+        {form.registration_enabled && (
+          <>
+            <Field label="Registration note (shown publicly, optional)">
+              <input className={inputCls} style={inputStyle} placeholder="e.g. Registration closes June 30"
+                value={form.registration_note} onChange={e => setForm(p => ({ ...p, registration_note: e.target.value }))} />
+            </Field>
+            <div className="grid grid-cols-2 gap-3">
+              <Field label="Status (shown on the user dashboard)">
+                <input className={inputCls} style={inputStyle} placeholder="e.g. Open, Closed, Judging, Results Out"
+                  value={form.reg_status} onChange={e => setForm(p => ({ ...p, reg_status: e.target.value }))} />
               </Field>
-              <div className="grid grid-cols-2 gap-3">
-                <Field label="Status (shown on the user dashboard)">
-                  <input className={inputCls} style={inputStyle} placeholder="e.g. Open, Closed, Judging, Results Out"
-                    value={form.reg_status} onChange={e => setForm(p => ({ ...p, reg_status: e.target.value }))} />
-                </Field>
-                <Field label="Deadline (shown on the user dashboard)">
-                  <input type="datetime-local" className={inputCls} style={inputStyle}
-                    value={form.reg_deadline} onChange={e => setForm(p => ({ ...p, reg_deadline: e.target.value }))} />
-                </Field>
-              </div>
-            </>
-          )}
-        </div>
+              <Field label="Deadline (shown on the user dashboard)">
+                <input type="datetime-local" className={inputCls} style={inputStyle}
+                  value={form.reg_deadline} onChange={e => setForm(p => ({ ...p, reg_deadline: e.target.value }))} />
+              </Field>
+            </div>
+          </>
+        )}
+      </div>
+
+      {!form.is_upcoming && form.registration_enabled && (
+        <p className="text-xs mb-3" style={{ color: S.danger }}>
+          "Upcoming event" is off — registration will save as disabled. Check "This is an upcoming event" below to keep it on.
+        </p>
       )}
 
       {err && <p className="text-xs mb-3" style={{ color: S.danger }}>{err}</p>}

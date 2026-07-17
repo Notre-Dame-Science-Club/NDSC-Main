@@ -168,9 +168,9 @@ export async function POST(req: NextRequest) {
     const min = category.team_size_min || 1
     const max = category.team_size_max || 99
     if (members.length < min || members.length > max) {
-      return apiOk(
-        { error: `This category requires between ${min} and ${max} team members (not counting yourself as leader).` },
-        { status: 400 }
+      return apiError(
+        `This category requires between ${min} and ${max} team members (not counting yourself as leader).`,
+        400
       )
     }
     for (const m of members) {

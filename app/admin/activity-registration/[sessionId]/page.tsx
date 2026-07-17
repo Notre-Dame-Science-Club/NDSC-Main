@@ -2,11 +2,12 @@
 import { useEffect, useState } from 'react'
 import { useParams } from 'next/navigation'
 import Link from 'next/link'
-import { Plus, Trash2, ChevronRight, ChevronDown, ArrowLeft, Users, CreditCard, Link2, Calendar, X, Zap, Upload, Microscope } from 'lucide-react'
+import { Plus, Trash2, ChevronRight, ChevronDown, ArrowLeft, Users, CreditCard, Link2, Calendar, X, Zap, Upload, Microscope, FileText, Images, Youtube, ImageIcon, Lock, Check } from 'lucide-react'
+import MathInputField from '@/components/olympiad/MathInputField'
 
 const uid = () => Math.random().toString(36).slice(2, 9)
 
-type FieldType = 'text' | 'textarea' | 'number' | 'photo' | 'file' | 'dropdown' | 'date' | 'time'
+type FieldType = 'text' | 'textarea' | 'number' | 'photo' | 'file' | 'dropdown' | 'multiple_choice' | 'checkboxes' | 'date' | 'time'
 type CustomField = { key: string; label: string; description?: string; type: FieldType; required: boolean; options?: string[]; allow_other?: boolean; max_file_size_mb?: number; max_files?: number; unique_field?: boolean }
 type SubmissionField = {
   id: string; title: string; description?: string
@@ -108,10 +109,10 @@ export default function ActivityRegistrationBuilder() {
 
   const isLeaf = (catId: string) => !categories.some(c => c.parent_id === catId)
 
-  const addCategory = async (parentId: string | null) => {
+  const addCategory = async (parentId: string | null, explicitName?: string) => {
     setError('')
-    const name = prompt(parentId ? 'Name for this sub-category:' : 'Name for this top-level category:')
-    if (!name?.trim()) return
+    const name = explicitName ?? prompt(parentId ? 'Name for this sub-category / track:' : 'Name for this category / track:')
+    if (!name?.trim()) return null
     try {
       const res = await fetch('/api/admin/activity-reg-categories', {
         method: 'POST',
@@ -119,12 +120,22 @@ export default function ActivityRegistrationBuilder() {
         body: JSON.stringify({ activity_session_id: sessionId, parent_id: parentId, name: name.trim() }),
       })
       const data = await res.json()
-      if (!res.ok) { setError(data.error || 'Could not add category.'); return }
+      if (!res.ok) { setError(data.error || 'Could not add category.'); return null }
       setCategories(prev => [...prev, data.category])
       if (parentId) setExpandedIds(prev => new Set(prev).add(parentId))
+      return data.category
     } catch {
       setError('Network error while adding.')
+      return null
     }
+  }
+
+  // "I don't need multiple tracks" path: creates a single top-level category behind the
+  // scenes (no name prompt — registration form fields don't need a category label when
+  // there's only one) and drops the admin straight into its field editor.
+  const quickStartSimpleForm = async () => {
+    const created = await addCategory(null, session?.title || 'Registration')
+    if (created) setEditingId(created.id)
   }
 
   const updateCategory = async (id: string, patch: Partial<Category> & { online_type?: string }) => {
@@ -247,14 +258,14 @@ export default function ActivityRegistrationBuilder() {
           title={!session?.registration_enabled ? 'Turn on "Registration" for this session (Activities admin) to unlock this' : ''}
           className="px-4 py-2 rounded-lg text-sm font-semibold disabled:opacity-40 disabled:cursor-not-allowed"
           style={tab === 'builder' ? { background: 'rgba(var(--blue-rgb), 0.15)', color: 'var(--blue)', border: '1px solid rgba(var(--blue-rgb), 0.4)' } : { background: 'var(--surface-deep)', color: 'var(--muted)', border: '1px solid var(--border)' }}>
-          Registration{!session?.registration_enabled ? ' 🔒' : ''}
+          <span className="inline-flex items-center gap-1.5">Registration{!session?.registration_enabled && <Lock size={11} />}</span>
         </button>
         <button onClick={() => session?.registration_enabled && setTab('registrants')}
           disabled={!session?.registration_enabled}
           title={!session?.registration_enabled ? 'Turn on "Registration" for this session (Activities admin) to unlock this' : ''}
           className="px-4 py-2 rounded-lg text-sm font-semibold disabled:opacity-40 disabled:cursor-not-allowed"
           style={tab === 'registrants' ? { background: 'rgba(var(--blue-rgb), 0.15)', color: 'var(--blue)', border: '1px solid rgba(var(--blue-rgb), 0.4)' } : { background: 'var(--surface-deep)', color: 'var(--muted)', border: '1px solid var(--border)' }}>
-          Registrants{!session?.registration_enabled ? ' 🔒' : ''}
+          <span className="inline-flex items-center gap-1.5">Registrants{!session?.registration_enabled && <Lock size={11} />}</span>
         </button>
         <button onClick={() => setTab('updates')} className="px-4 py-2 rounded-lg text-sm font-semibold"
           style={tab === 'updates' ? { background: 'rgba(var(--blue-rgb), 0.15)', color: 'var(--blue)', border: '1px solid rgba(var(--blue-rgb), 0.4)' } : { background: 'var(--surface-deep)', color: 'var(--muted)', border: '1px solid var(--border)' }}>
@@ -272,26 +283,47 @@ export default function ActivityRegistrationBuilder() {
         <UpdatesPanel sessionId={sessionId} />
       ) : tab === 'builder' && session?.registration_enabled ? (
       <>
-      <div className="mb-4 p-4 rounded-xl text-sm" style={{ background: 'rgba(var(--blue-rgb), 0.05)', border: '1px solid rgba(var(--blue-rgb), 0.2)', color: 'var(--muted)' }}>
-        Build as many layers as this event needs (e.g. Offline/Online → Class → Subject).
-        Registration only happens at the bottom-most category in each branch — that's where you
-        configure fields, team settings, payment, and online-submission linking.
-      </div>
+      {categories.length === 0 ? (
+        <div className="space-y-3">
+          <p className="text-sm mb-1" style={{ color: 'var(--muted)' }}>
+            Most events just need one registration form. Only set up multiple categories/tracks
+            if people need to pick between different options (e.g. Offline vs Online, or by subject)
+            with different fields for each.
+          </p>
+          <button onClick={quickStartSimpleForm}
+            className="w-full text-left flex items-center gap-3 p-4 rounded-xl border"
+            style={{ background: 'rgba(var(--blue-rgb), 0.06)', borderColor: 'rgba(var(--blue-rgb), 0.3)' }}>
+            <div className="p-2 rounded-lg" style={{ background: 'rgba(var(--blue-rgb), 0.15)' }}><Plus size={16} style={{ color: 'var(--blue)' }} /></div>
+            <div>
+              <p className="text-sm font-semibold" style={{ color: 'var(--white)' }}>Single registration form</p>
+              <p className="text-xs mt-0.5" style={{ color: 'var(--border-soft)' }}>Jump straight into adding fields — no category picker shown to registrants.</p>
+            </div>
+          </button>
+          <button onClick={() => addCategory(null)}
+            className="w-full text-left flex items-center gap-3 p-4 rounded-xl border"
+            style={{ background: 'var(--surface-deep)', borderColor: 'var(--border)' }}>
+            <div className="p-2 rounded-lg" style={{ background: 'rgba(var(--cat-teal-rgb), 0.12)' }}><Plus size={16} style={{ color: 'var(--cat-teal)' }} /></div>
+            <div>
+              <p className="text-sm font-semibold" style={{ color: 'var(--white)' }}>Multiple categories / tracks</p>
+              <p className="text-xs mt-0.5" style={{ color: 'var(--border-soft)' }}>Registrants pick a category first (you can nest, e.g. Offline → Class → Subject).</p>
+            </div>
+          </button>
+        </div>
+      ) : (
+        <>
+          <div className="mb-4 p-4 rounded-xl text-sm" style={{ background: 'rgba(var(--blue-rgb), 0.05)', border: '1px solid rgba(var(--blue-rgb), 0.2)', color: 'var(--muted)' }}>
+            Registration fields, team settings, payment, and online-submission linking are configured on the
+            bottom-most category in each branch. If you only ever want one form, you don't need to add more here.
+          </div>
 
-      {renderTree(null, 0)}
+          {renderTree(null, 0)}
 
-      <button onClick={() => addCategory(null)}
-        className="mt-3 flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold"
-        style={{ background: 'rgba(var(--blue-rgb), 0.1)', color: 'var(--blue)', border: '1px solid rgba(var(--blue-rgb), 0.3)' }}>
-        <Plus size={15} /> Add Top-Level Category
-      </button>
-
-      {categories.length === 0 && (
-        <p className="mt-4 text-sm" style={{ color: 'var(--border-soft)' }}>
-          No categories yet. Start with something like "Offline" / "Online", or just one category
-          if this event doesn't need sub-segments — registration works even with a single
-          top-level leaf category.
-        </p>
+          <button onClick={() => addCategory(null)}
+            className="mt-3 flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold"
+            style={{ background: 'rgba(var(--blue-rgb), 0.1)', color: 'var(--blue)', border: '1px solid rgba(var(--blue-rgb), 0.3)' }}>
+            <Plus size={15} /> Add Another Category / Track
+          </button>
+        </>
       )}
       </>
       ) : (
@@ -488,6 +520,187 @@ function AppearancePanel({ sessionId }: { sessionId: string }) {
   )
 }
 
+async function uploadSessionFile(file: File, folder: string): Promise<string> {
+  const fd = new FormData()
+  fd.append('file', file)
+  fd.append('folder', folder)
+  const res = await fetch('/api/admin/upload', { method: 'POST', body: fd })
+  const data = await res.json()
+  if (!res.ok || !data.url) throw new Error(data.error || 'Upload failed')
+  return data.url
+}
+
+// File management — cover image, gallery, PDF, and YouTube link for this
+// session. These are the same fields the Activities admin list edits, kept
+// here too so file uploads live alongside the rest of the per-event setup.
+function FilesPanel({ sessionId, session, onSaved }: { sessionId: string; session: any; onSaved: (s: any) => void }) {
+  const [coverUrl, setCoverUrl] = useState(session?.cover_image_url || '')
+  const [pdfUrl, setPdfUrl] = useState(session?.pdf_url || '')
+  const [youtubeUrl, setYoutubeUrl] = useState(session?.youtube_url || '')
+  const [galleryUrls, setGalleryUrls] = useState<string[]>(session?.gallery_urls || [])
+  const [uploading, setUploading] = useState('')
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState('')
+  const [saved, setSaved] = useState(false)
+
+  useEffect(() => {
+    setCoverUrl(session?.cover_image_url || '')
+    setPdfUrl(session?.pdf_url || '')
+    setYoutubeUrl(session?.youtube_url || '')
+    setGalleryUrls(session?.gallery_urls || [])
+  }, [session?.id])
+
+  const handleSingleUpload = async (e: React.ChangeEvent<HTMLInputElement>, field: 'cover' | 'pdf', folder: string) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setUploading(field)
+    setError('')
+    try {
+      const url = await uploadSessionFile(file, folder)
+      if (field === 'cover') setCoverUrl(url); else setPdfUrl(url)
+    } catch (ex: any) {
+      setError(ex.message || 'Upload failed.')
+    } finally {
+      setUploading('')
+      e.target.value = ''
+    }
+  }
+
+  const handleGalleryUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || [])
+    if (!files.length) return
+    setUploading('gallery')
+    setError('')
+    try {
+      const urls = await Promise.all(files.map(f => uploadSessionFile(f, 'gallery')))
+      setGalleryUrls(prev => [...prev, ...urls])
+    } catch (ex: any) {
+      setError(ex.message || 'Upload failed.')
+    } finally {
+      setUploading('')
+      e.target.value = ''
+    }
+  }
+
+  const save = async () => {
+    setSaving(true)
+    setError('')
+    setSaved(false)
+    try {
+      const res = await fetch('/api/admin/activity-sessions', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: sessionId,
+          cover_image_url: coverUrl,
+          pdf_url: pdfUrl,
+          youtube_url: youtubeUrl,
+          gallery_urls: galleryUrls,
+        }),
+      })
+      const data = await res.json()
+      if (!res.ok) { setError(data.error || 'Could not save files.'); return }
+      onSaved(data)
+      setSaved(true)
+      setTimeout(() => setSaved(false), 2000)
+    } catch {
+      setError('Network error while saving.')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <div className="rounded-xl p-5 space-y-5" style={{ background: 'var(--surface-deep)', border: '1px solid var(--border)' }}>
+      <p className="text-sm" style={{ color: 'var(--muted)' }}>
+        Cover image, gallery, PDF, and YouTube link shown on this event's public page. These are
+        separate from the registration form's own cover (set under Appearance).
+      </p>
+
+      {error && (
+        <div className="p-3 rounded-lg text-sm" style={{ background: 'rgba(var(--danger-rgb), 0.1)', color: 'var(--danger-soft)', border: '1px solid rgba(var(--danger-rgb), 0.3)' }}>
+          {error}
+        </div>
+      )}
+
+      <div>
+        <label className="flex items-center gap-1.5 text-xs font-bold mb-2" style={{ color: 'var(--blue)' }}>
+          <ImageIcon size={13} /> COVER IMAGE
+        </label>
+        <div className="flex items-center gap-3">
+          {coverUrl && <img src={coverUrl} alt="Cover" className="h-14 w-24 object-cover rounded-lg" style={{ border: '1px solid var(--border)' }} />}
+          <label className="text-xs px-3 py-2 rounded-lg cursor-pointer" style={{ background: 'rgba(var(--blue-rgb), 0.1)', color: 'var(--blue)', border: '1px solid rgba(var(--blue-rgb), 0.3)' }}>
+            {uploading === 'cover' ? 'Uploading…' : coverUrl ? 'Replace image' : 'Upload image'}
+            <input type="file" accept="image/*" className="hidden" onChange={e => handleSingleUpload(e, 'cover', 'covers')} />
+          </label>
+          {coverUrl && (
+            <button onClick={() => setCoverUrl('')} className="text-xs" style={{ color: 'var(--danger-soft)' }}>Remove</button>
+          )}
+        </div>
+      </div>
+
+      <hr style={{ borderColor: 'var(--border)' }} />
+
+      <div>
+        <label className="flex items-center gap-1.5 text-xs font-bold mb-2" style={{ color: 'var(--cat-teal)' }}>
+          <Images size={13} /> GALLERY
+        </label>
+        {galleryUrls.length > 0 && (
+          <div className="flex flex-wrap gap-2 mb-2">
+            {galleryUrls.map((url, i) => (
+              <div key={i} className="relative">
+                <img src={url} alt={`Gallery ${i + 1}`} className="h-16 w-16 object-cover rounded-lg" style={{ border: '1px solid var(--border)' }} />
+                <button onClick={() => setGalleryUrls(prev => prev.filter((_, j) => j !== i))}
+                  className="absolute -top-1.5 -right-1.5 rounded-full p-0.5" style={{ background: 'var(--danger-soft)', color: '#000' }}>
+                  <X size={11} />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+        <label className="inline-block text-xs px-3 py-2 rounded-lg cursor-pointer" style={{ background: 'rgba(var(--cat-teal-rgb), 0.1)', color: 'var(--cat-teal)', border: '1px solid rgba(var(--cat-teal-rgb), 0.3)' }}>
+          {uploading === 'gallery' ? 'Uploading…' : 'Add gallery images'}
+          <input type="file" accept="image/*" multiple className="hidden" onChange={handleGalleryUpload} />
+        </label>
+      </div>
+
+      <hr style={{ borderColor: 'var(--border)' }} />
+
+      <div>
+        <label className="flex items-center gap-1.5 text-xs font-bold mb-2" style={{ color: 'var(--warning)' }}>
+          <FileText size={13} /> PDF DOCUMENT
+        </label>
+        <div className="flex items-center gap-3">
+          {pdfUrl && <a href={pdfUrl} target="_blank" rel="noreferrer" className="text-xs underline" style={{ color: 'var(--warning)' }}>View current PDF</a>}
+          <label className="text-xs px-3 py-2 rounded-lg cursor-pointer" style={{ background: 'rgba(var(--warning-rgb), 0.1)', color: 'var(--warning)', border: '1px solid rgba(var(--warning-rgb), 0.3)' }}>
+            {uploading === 'pdf' ? 'Uploading…' : pdfUrl ? 'Replace PDF' : 'Upload PDF'}
+            <input type="file" accept=".pdf" className="hidden" onChange={e => handleSingleUpload(e, 'pdf', 'pdfs')} />
+          </label>
+          {pdfUrl && (
+            <button onClick={() => setPdfUrl('')} className="text-xs" style={{ color: 'var(--danger-soft)' }}>Remove</button>
+          )}
+        </div>
+      </div>
+
+      <hr style={{ borderColor: 'var(--border)' }} />
+
+      <div>
+        <label className="flex items-center gap-1.5 text-xs font-bold mb-2" style={{ color: 'var(--danger-soft)' }}>
+          <Youtube size={13} /> YOUTUBE LINK
+        </label>
+        <input value={youtubeUrl} onChange={e => setYoutubeUrl(e.target.value)} placeholder="https://youtube.com/watch?v=..."
+          className={inputCls} style={inputStyle} />
+      </div>
+
+      <button onClick={save} disabled={saving || !!uploading}
+        className="px-5 py-2 rounded-lg text-sm font-bold disabled:opacity-50"
+        style={{ background: 'var(--blue)', color: '#000' }}>
+        {saving ? 'Saving...' : saved ? <span className="inline-flex items-center gap-1.5">Saved <Check size={14} /></span> : 'Save Changes'}
+      </button>
+    </div>
+  )
+}
+
 // Per-event updates/announcements admin can post — shown newest-first on
 // the user-facing "My Events" dashboard for anyone registered here (1.7).
 function UpdatesPanel({ sessionId }: { sessionId: string }) {
@@ -614,6 +827,8 @@ function CategoryEditor({ category, isLeaf, onSave }: { category: Category; isLe
     { value: 'textarea', label: 'Long text' },
     { value: 'number', label: 'Number' },
     { value: 'dropdown', label: 'Dropdown' },
+    { value: 'multiple_choice', label: 'Multiple choice' },
+    { value: 'checkboxes', label: 'Checkboxes' },
     { value: 'date', label: 'Date' },
     { value: 'time', label: 'Time' },
     { value: 'photo', label: 'Photo upload' },
@@ -624,6 +839,15 @@ function CategoryEditor({ category, isLeaf, onSave }: { category: Category; isLe
   const removeField = (setter: typeof setCustomFields, key: string) => setter(prev => prev.filter(f => f.key !== key))
   const patchField = (setter: typeof setCustomFields, key: string, patch: Partial<CustomField>) =>
     setter(prev => prev.map(f => f.key === key ? { ...f, ...patch } : f))
+
+  // Options are edited one-per-row (like the olympiad MCQ builder) so option text
+  // can freely contain commas/spaces instead of being split from one joined string.
+  const addOption = (setter: typeof setCustomFields, key: string) =>
+    setter(prev => prev.map(f => f.key === key ? { ...f, options: [...(f.options || []), ''] } : f))
+  const updateOption = (setter: typeof setCustomFields, key: string, index: number, text: string) =>
+    setter(prev => prev.map(f => f.key === key ? { ...f, options: (f.options || []).map((o, i) => i === index ? text : o) } : f))
+  const removeOption = (setter: typeof setCustomFields, key: string, index: number) =>
+    setter(prev => prev.map(f => f.key === key ? { ...f, options: (f.options || []).filter((_, i) => i !== index) } : f))
 
   const save = async () => {
     setSaving(true)
@@ -670,17 +894,29 @@ function CategoryEditor({ category, isLeaf, onSave }: { category: Category; isLe
           <input placeholder="Description shown under the field title (optional)" value={f.description || ''}
             onChange={e => patchField(setter, f.key, { description: e.target.value })}
             className={inputCls} style={inputStyle} />
-          {f.type === 'dropdown' && (
+          {(f.type === 'dropdown' || f.type === 'multiple_choice' || f.type === 'checkboxes') && (
             <div>
-              <input placeholder="Options, comma-separated (e.g. Physics, Chemistry, Biology)"
-                value={(f.options || []).join(', ')}
-                onChange={e => patchField(setter, f.key, { options: e.target.value.split(',').map(o => o.trim()).filter(Boolean) })}
-                className={inputCls} style={inputStyle} />
-              <p className="text-xs mt-1" style={{ color: 'var(--border-soft)' }}>This is what shows up in the dropdown on the registration form.</p>
-              <label className="flex items-center gap-2 text-xs mt-1.5" style={{ color: 'var(--muted)' }}>
-                <input type="checkbox" checked={!!f.allow_other} onChange={e => patchField(setter, f.key, { allow_other: e.target.checked })} />
-                Let registrants type their own option (adds an &quot;Other&quot; choice)
+              <label className="block text-xs mb-1" style={{ color: 'var(--muted)' }}>
+                {f.type === 'dropdown' ? 'Options shown in the dropdown' : 'Choices registrants can pick from'}
               </label>
+              <div className="space-y-1.5">
+                {(f.options || []).map((opt, oi) => (
+                  <div key={oi} className="flex items-center gap-2">
+                    <MathInputField value={opt} onChange={v => updateOption(setter, f.key, oi, v)}
+                      placeholder="Option text" className={inputCls} style={{ ...inputStyle, padding: '6px 10px' }} />
+                    <button onClick={() => removeOption(setter, f.key, oi)} style={{ color: 'var(--danger-soft)' }}><X size={14} /></button>
+                  </div>
+                ))}
+              </div>
+              <button onClick={() => addOption(setter, f.key)} className="text-xs flex items-center gap-1 mt-1.5" style={{ color: 'var(--blue)' }}>
+                <Plus size={11} /> Add option
+              </button>
+              {f.type === 'dropdown' && (
+                <label className="flex items-center gap-2 text-xs mt-1.5" style={{ color: 'var(--muted)' }}>
+                  <input type="checkbox" checked={!!f.allow_other} onChange={e => patchField(setter, f.key, { allow_other: e.target.checked })} />
+                  Let registrants type their own option (adds an &quot;Other&quot; choice)
+                </label>
+              )}
             </div>
           )}
           {(f.type === 'photo' || f.type === 'file') && (

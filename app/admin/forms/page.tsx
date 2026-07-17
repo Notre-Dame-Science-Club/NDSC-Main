@@ -3,6 +3,8 @@ import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
 import { ArrowLeft, Plus, Trash2, Save, ChevronDown, ChevronRight, Check } from 'lucide-react'
+import FormBlocksBuilder from '@/components/admin/FormBlocksBuilder'
+import { FormBlock, normalizeBlocks } from '@/lib/formBlocks'
 
 const inputCls = 'w-full px-3 py-2 rounded-lg text-sm outline-none border'
 const inputStyle = { background: 'var(--surface)', borderColor: 'var(--border)', color: 'var(--white)' }
@@ -32,7 +34,6 @@ const THEME_PRESETS = [
   { value: 'var(--danger-soft)', label: 'Red', swatch: 'var(--danger-soft)' },
 ]
 
-type ExtraField = { key: string; label: string; description?: string; type: string; required: boolean; options?: string[] }
 type ContactPerson = { name: string; post: string; phone: string; email: string; whatsapp: string; facebook: string }
 type EcMember = { id: string; full_name: string; position: string; email: string; whatsapp: string; facebook_url: string }
 type PrimaryFieldOverride = { field_key: string; label: string; description: string; visible: boolean; required: boolean }
@@ -44,7 +45,7 @@ type FormConfig = {
   cover_photo_url: string
   bg_theme: string
   primary_fields: PrimaryFieldOverride[]
-  extra_fields: ExtraField[]
+  extra_fields: FormBlock[]
   contact_persons: ContactPerson[]
   use_ec_page?: boolean
   ec_ids?: string[]
@@ -73,7 +74,6 @@ const COVER_RATIO_OPTIONS = [
   { value: '21/9', label: 'Banner 21:9' },
 ]
 
-const BLANK_EXTRA = (): ExtraField => ({ key: uid(), label: '', description: '', type: 'text', required: false })
 const BLANK_CONTACT = (): ContactPerson => ({ name: '', post: '', phone: '', email: '', whatsapp: '', facebook: '' })
 
 const blankConfig = (key: string): FormConfig => ({
@@ -116,7 +116,7 @@ export default function AdminFormsPage() {
     fetch('/api/admin/form-configs')
       .then(r => r.json())
       .then(d => {
-        const loaded: FormConfig[] = d.configs || []
+        const loaded: FormConfig[] = (d.configs || []).map((c: FormConfig) => ({ ...c, extra_fields: normalizeBlocks(c.extra_fields) }))
         setConfigs(loaded)
         const keyParam = searchParams.get('key')
         if (keyParam) {
@@ -363,68 +363,13 @@ export default function AdminFormsPage() {
                   })}
                 </Section>
 
-                {/* Extra fields */}
-                <Section title="Extra Custom Fields">
+                {/* Form builder: content blocks + form fields, in order */}
+                <Section title="Form Builder — Extra Content & Fields">
                   <p className="text-xs mb-3" style={{ color: 'var(--border-soft)' }}>
-                    Add any additional fields beyond the primary info. Like Google Forms — each field has a title, description, type, and required toggle.
+                    Build out the rest of the form beyond the primary info above — mix in text, images,
+                    links, and dividers alongside additional fields, in whatever order you like.
                   </p>
-                  {editingConfig.extra_fields.map((f, idx) => (
-                    <div key={f.key} className="p-3 rounded-lg mb-2 space-y-2" style={{ background: 'var(--bg2)', border: '1px solid var(--border)' }}>
-                      <div className="flex gap-2">
-                        <input placeholder="Field title *" value={f.label}
-                          onChange={e => {
-                            const updated = [...editingConfig.extra_fields]
-                            updated[idx] = { ...updated[idx], label: e.target.value }
-                            patch('extra_fields', updated)
-                          }}
-                          className={inputCls} style={inputStyle} />
-                        <select value={f.type}
-                          onChange={e => {
-                            const updated = [...editingConfig.extra_fields]
-                            updated[idx] = { ...updated[idx], type: e.target.value }
-                            patch('extra_fields', updated)
-                          }}
-                          className="px-2 py-2 rounded-lg text-sm border outline-none" style={inputStyle}>
-                          {[['text','Short text'],['textarea','Long text'],['number','Number'],['dropdown','Dropdown'],['date','Date'],['time','Time'],['photo','Photo upload'],['file','File upload']].map(([v,l]) => (
-                            <option key={v} value={v}>{l}</option>
-                          ))}
-                        </select>
-                        <button onClick={() => patch('extra_fields', editingConfig.extra_fields.filter((_, i) => i !== idx))}
-                          style={{ color: 'var(--danger-soft)' }}><Trash2 size={14} /></button>
-                      </div>
-                      <input placeholder="Description / helper text (optional)" value={f.description || ''}
-                        onChange={e => {
-                          const updated = [...editingConfig.extra_fields]
-                          updated[idx] = { ...updated[idx], description: e.target.value }
-                          patch('extra_fields', updated)
-                        }}
-                        className={inputCls} style={inputStyle} />
-                      {f.type === 'dropdown' && (
-                        <input placeholder="Options (comma-separated, e.g. Option A,Option B,Option C)"
-                          value={(f.options || []).join(',')}
-                          onChange={e => {
-                            const updated = [...editingConfig.extra_fields]
-                            updated[idx] = { ...updated[idx], options: e.target.value.split(',').map(s => s.trim()).filter(Boolean) }
-                            patch('extra_fields', updated)
-                          }}
-                          className={inputCls} style={inputStyle} />
-                      )}
-                      <label className="flex items-center gap-2 text-xs" style={{ color: 'var(--muted)' }}>
-                        <input type="checkbox" checked={f.required}
-                          onChange={e => {
-                            const updated = [...editingConfig.extra_fields]
-                            updated[idx] = { ...updated[idx], required: e.target.checked }
-                            patch('extra_fields', updated)
-                          }} />
-                        Required
-                      </label>
-                    </div>
-                  ))}
-                  <button onClick={() => patch('extra_fields', [...editingConfig.extra_fields, BLANK_EXTRA()])}
-                    className="text-xs px-3 py-1.5 rounded flex items-center gap-1"
-                    style={{ background: 'rgba(var(--blue-rgb), 0.1)', color: 'var(--blue)' }}>
-                    <Plus size={11} /> Add field
-                  </button>
+                  <FormBlocksBuilder blocks={editingConfig.extra_fields} onChange={blocks => patch('extra_fields', blocks)} />
                 </Section>
 
                 {/* Contact persons */}

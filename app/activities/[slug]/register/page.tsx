@@ -4,6 +4,7 @@ import { useParams, useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { ChevronRight, ArrowLeft, Upload, Users, Plus, X, CalendarDays, CheckCircle, CreditCard, Link2, Phone, Mail, MessageCircle } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
+import { normalizeBlocks } from '@/lib/formBlocks'
 
 const uid = () => Math.random().toString(36).slice(2, 9)
 
@@ -23,14 +24,42 @@ type Category = {
 type Phase = 'identity' | 'picker' | 'form' | 'submitting' | 'done'
 
 const inputStyle = { background: 'rgba(255,255,255,0.04)', border: '1px solid var(--border)', color: 'var(--white)' }
-const inputCls = 'w-full px-3 py-2.5 rounded-lg text-sm outline-none'
+const inputCls = 'w-full px-3 py-2.5 rounded-lg text-sm outline-none reg-input'
 
 const BLANK_FORM = { full_name: '', phone: '', email: '', college: 'Notre Dame College', college_roll: '', hsc_session: '', division: '' }
 
-// Resolves formConfig.bg_theme ('default' | '#hexcolor') into an actual accent color.
+// Resolves formConfig.bg_theme ('default' | '#hexcolor' | 'var(--preset)') into an actual accent color.
+// Previously this only accepted raw hex, so every preset swatch in the admin (which are all
+// var(--x) references) silently fell back to the default blue — the reported "accent color has
+// no visible effect" bug.
 function resolveAccent(theme: string | undefined | null) {
-  if (theme && theme !== 'default' && /^#[0-9a-fA-F]{3,8}$/.test(theme)) return theme
+  if (theme && theme !== 'default') return theme
   return 'var(--blue)'
+}
+
+// Matching "-rgb" triplet var for each theme preset, so we can build translucent tints/rings
+// (rgba(var(--x-rgb), alpha)) the same way the rest of the site already does.
+const THEME_RGB_VAR: Record<string, string> = {
+  'var(--blue)': 'var(--blue-rgb)',
+  'var(--accent2)': 'var(--accent2-rgb)',
+  'var(--cat-teal)': 'var(--cat-teal-rgb)',
+  'var(--warning)': 'var(--warning-rgb)',
+  'var(--danger-soft)': 'var(--danger-soft-rgb)',
+}
+
+function hexToRgbTriplet(hex: string) {
+  let h = hex.replace('#', '')
+  if (h.length === 3) h = h.split('').map(c => c + c).join('')
+  const r = parseInt(h.slice(0, 2), 16) || 0
+  const g = parseInt(h.slice(2, 4), 16) || 0
+  const b = parseInt(h.slice(4, 6), 16) || 0
+  return `${r}, ${g}, ${b}`
+}
+
+function resolveAccentRgbTriplet(theme: string | undefined | null) {
+  const accent = resolveAccent(theme)
+  if (/^#[0-9a-fA-F]{3,8}$/.test(accent)) return hexToRgbTriplet(accent)
+  return THEME_RGB_VAR[accent] || 'var(--blue-rgb)'
 }
 
 // Resolves formConfig.font_family into a real CSS font stack.
@@ -267,6 +296,112 @@ function ActivityRegisterPageInner() {
     })
   }
 
+  // Renders one custom/extra field's input, driven by field.type. Shared by both the
+  // per-category custom fields and the global form-config extra fields so every field
+  // type (dropdown, date, time, photo/file, number, multiple choice, checkboxes) works
+  // the same way everywhere instead of the config ones silently falling back to a plain
+  // text box regardless of what type was configured.
+  const renderAnswerField = (field: any, key: string) => {
+    if (field.type === 'textarea') {
+      return (
+        <textarea rows={3} value={customAnswers[key] || ''}
+          onChange={e => setCustomAnswers(p => ({ ...p, [key]: e.target.value }))}
+          className={inputCls + ' resize-none'} style={inputStyle} />
+      )
+    }
+    if (field.type === 'dropdown') {
+      return (
+        <div>
+          <select
+            value={otherActive[key] ? '__other__' : (customAnswers[key] || '')}
+            onChange={e => {
+              if (e.target.value === '__other__') {
+                setOtherActive(p => ({ ...p, [key]: true }))
+                setCustomAnswers(p => ({ ...p, [key]: '' }))
+              } else {
+                setOtherActive(p => ({ ...p, [key]: false }))
+                setCustomAnswers(p => ({ ...p, [key]: e.target.value }))
+              }
+            }}
+            className={inputCls} style={inputStyle}>
+            <option value="">Select...</option>
+            {(field.options || []).map((opt: string) => <option key={opt} value={opt}>{opt}</option>)}
+            {field.allow_other && <option value="__other__">Other…</option>}
+          </select>
+          {field.allow_other && otherActive[key] && (
+            <input placeholder="Please specify" value={customAnswers[key] || ''}
+              onChange={e => setCustomAnswers(p => ({ ...p, [key]: e.target.value }))}
+              className={inputCls + ' mt-2'} style={inputStyle} />
+          )}
+        </div>
+      )
+    }
+    if (field.type === 'multiple_choice') {
+      return (
+        <div className="space-y-1.5">
+          {(field.options || []).map((opt: string) => (
+            <label key={opt} className="flex items-center gap-2 px-3 py-2 rounded-lg border text-sm cursor-pointer reg-input" style={inputStyle}>
+              <input type="radio" name={key} checked={(customAnswers[key] || '') === opt}
+                onChange={() => setCustomAnswers(p => ({ ...p, [key]: opt }))} />
+              {opt}
+            </label>
+          ))}
+        </div>
+      )
+    }
+    if (field.type === 'checkboxes') {
+      const selected: string[] = Array.isArray(customAnswers[key]) ? customAnswers[key] : []
+      return (
+        <div className="space-y-1.5">
+          {(field.options || []).map((opt: string) => (
+            <label key={opt} className="flex items-center gap-2 px-3 py-2 rounded-lg border text-sm cursor-pointer reg-input" style={inputStyle}>
+              <input type="checkbox" checked={selected.includes(opt)}
+                onChange={e => setCustomAnswers(p => ({
+                  ...p, [key]: e.target.checked ? [...selected, opt] : selected.filter(o => o !== opt),
+                }))} />
+              {opt}
+            </label>
+          ))}
+        </div>
+      )
+    }
+    if (field.type === 'photo' || field.type === 'file') {
+      const maxFiles = field.max_files && field.max_files > 1 ? field.max_files : 1
+      const val = customAnswers[key]
+      const urls: string[] = Array.isArray(val) ? val : (val ? [val] : [])
+      const isUploading = !!uploadingFields[key]
+      const atCap = urls.length >= maxFiles
+      return (
+        <div className="space-y-2">
+          {urls.length > 0 && (
+            <div className="flex flex-wrap gap-2">
+              {urls.map((u, i) => (
+                <span key={i} className="flex items-center gap-1 px-2 py-1 rounded text-xs" style={{ background: 'var(--bg2)', color: accent }}>
+                  {field.label}{maxFiles > 1 ? ` #${i + 1}` : ''} <CheckCircle size={11} />
+                  <button type="button" onClick={() => removeCustomFile(key, i)}><X size={11} /></button>
+                </span>
+              ))}
+            </div>
+          )}
+          {!atCap && (
+            <label className="flex items-center gap-2 px-3 py-2.5 rounded-lg border cursor-pointer text-sm" style={{ ...inputStyle, color: accent }}>
+              <Upload size={14} />
+              {isUploading ? 'Uploading…' : `Upload ${field.label}${field.max_file_size_mb ? ` (max ${field.max_file_size_mb}MB${maxFiles > 1 ? ` each, up to ${maxFiles} files` : ''})` : maxFiles > 1 ? ` (up to ${maxFiles} files)` : ''}`}
+              <input type="file" multiple={maxFiles > 1} accept={field.type === 'photo' ? 'image/*' : undefined} className="hidden"
+                onChange={e => { handleCustomFileField(key, e.target.files, field); e.target.value = '' }} />
+            </label>
+          )}
+        </div>
+      )
+    }
+    return (
+      <input type={field.type === 'number' ? 'number' : field.type === 'date' ? 'date' : field.type === 'time' ? 'time' : 'text'}
+        value={customAnswers[key] || ''}
+        onChange={e => setCustomAnswers(p => ({ ...p, [key]: e.target.value }))}
+        className={inputCls} style={inputStyle} />
+    )
+  }
+
   const handleTeamFileField = async (memberIdx: number, key: string, file: File | null) => {
     if (!file) return
     try {
@@ -361,7 +496,9 @@ function ActivityRegisterPageInner() {
   if (error && !sessionInfo) return <div className="min-h-screen flex items-center justify-center px-4" style={{ background: 'var(--bg)' }}><p style={{ color: 'var(--danger-soft)' }}>{error}</p></div>
 
   const contactPersons: any[] = formConfig?.contact_persons || []
+  const formBlocks = normalizeBlocks(formConfig?.extra_fields)
   const accent = resolveAccent(formConfig?.bg_theme)
+  const accentRgb = resolveAccentRgbTriplet(formConfig?.bg_theme)
   const fontFamily = resolveFont(formConfig?.font_family)
   const sessionDesc: string = sessionInfo?.description || ''
   const isLongDesc = sessionDesc.length > 220
@@ -375,9 +512,15 @@ function ActivityRegisterPageInner() {
     : { background: 'var(--bg)' }
 
   return (
-    <div className="min-h-screen py-12 px-4" style={{ ...pageBg, paddingTop: '88px', fontFamily }}>
-      <div className="max-w-lg mx-auto">
-        <Link href={`/activities/${slug}`} className="inline-flex items-center gap-2 text-sm mb-6" style={{ color: 'var(--muted)' }}>
+    <div className="min-h-screen py-12 px-4" style={{ ...pageBg, paddingTop: '88px', fontFamily, ['--reg-accent' as any]: accent, ['--reg-accent-rgb' as any]: accentRgb }}>
+      <style>{`
+        .reg-input:focus { border-color: var(--reg-accent) !important; box-shadow: 0 0 0 3px rgba(var(--reg-accent-rgb), 0.2); }
+        .reg-cat-card:hover, .reg-cat-card:focus-visible { border-color: var(--reg-accent) !important; background: rgba(var(--reg-accent-rgb), 0.06) !important; }
+      `}</style>
+      <div className="max-w-lg mx-auto relative">
+        <div aria-hidden className="pointer-events-none absolute -top-20 left-1/2 -translate-x-1/2 w-[440px] h-[320px] rounded-full blur-3xl opacity-[0.15]"
+          style={{ background: accent, zIndex: -1 }} />
+        <Link href={`/activities/${slug}`} className="relative inline-flex items-center gap-2 text-sm mb-6" style={{ color: 'var(--muted)' }}>
           <ArrowLeft size={14} /> Back to activity
         </Link>
 
@@ -434,7 +577,7 @@ function ActivityRegisterPageInner() {
               onKeyDown={e => e.key === 'Enter' && lookupIdentity()} />
             <button onClick={lookupIdentity} disabled={lookupLoading}
               className="w-full mt-3 py-2.5 rounded-lg text-sm font-bold text-black disabled:opacity-60"
-              style={{ background: 'var(--blue)' }}>
+              style={{ background: accent }}>
               {lookupLoading ? 'Checking...' : 'Continue'}
             </button>
             <button onClick={() => { setIdentityChecked(true); proceedAfterIdentity() }}
@@ -456,7 +599,7 @@ function ActivityRegisterPageInner() {
               <p className="text-sm" style={{ color: 'var(--muted)' }}>No options available here yet.</p>
             ) : currentLevelOptions.map(cat => (
               <button key={cat.id} onClick={() => pickCategory(cat)}
-                className="w-full flex items-center justify-between gap-3 p-4 rounded-xl border text-left transition-all hover:-translate-y-0.5"
+                className="reg-cat-card w-full flex items-center justify-between gap-3 p-4 rounded-xl border text-left transition-all hover:-translate-y-0.5"
                 style={{ background: 'var(--bg2)', borderColor: 'var(--border)' }}>
                 <div>
                   <p className="font-semibold text-sm" style={{ color: 'var(--white)' }}>{cat.name}</p>
@@ -567,87 +710,58 @@ function ActivityRegisterPageInner() {
                       {field.label} {field.required && <span style={{ color: accent }}>*</span>}
                     </label>
                     {field.description && <p className={fieldDescCls} style={{ color: 'var(--muted)' }}>{field.description}</p>}
-                    {field.type === 'textarea' ? (
-                      <textarea rows={3} value={customAnswers[field.key] || ''}
-                        onChange={e => setCustomAnswers(p => ({ ...p, [field.key]: e.target.value }))}
-                        className={inputCls + ' resize-none'} style={inputStyle} />
-                    ) : field.type === 'dropdown' ? (
-                      <div>
-                        <select
-                          value={otherActive[field.key] ? '__other__' : (customAnswers[field.key] || '')}
-                          onChange={e => {
-                            if (e.target.value === '__other__') {
-                              setOtherActive(p => ({ ...p, [field.key]: true }))
-                              setCustomAnswers(p => ({ ...p, [field.key]: '' }))
-                            } else {
-                              setOtherActive(p => ({ ...p, [field.key]: false }))
-                              setCustomAnswers(p => ({ ...p, [field.key]: e.target.value }))
-                            }
-                          }}
-                          className={inputCls} style={inputStyle}>
-                          <option value="">Select...</option>
-                          {(field.options || []).map((opt: string) => <option key={opt} value={opt}>{opt}</option>)}
-                          {field.allow_other && <option value="__other__">Other…</option>}
-                        </select>
-                        {field.allow_other && otherActive[field.key] && (
-                          <input placeholder="Please specify" value={customAnswers[field.key] || ''}
-                            onChange={e => setCustomAnswers(p => ({ ...p, [field.key]: e.target.value }))}
-                            className={inputCls + ' mt-2'} style={inputStyle} />
-                        )}
-                      </div>
-                    ) : field.type === 'photo' || field.type === 'file' ? (() => {
-                      const maxFiles = field.max_files && field.max_files > 1 ? field.max_files : 1
-                      const val = customAnswers[field.key]
-                      const urls: string[] = Array.isArray(val) ? val : (val ? [val] : [])
-                      const isUploading = !!uploadingFields[field.key]
-                      const atCap = urls.length >= maxFiles
-                      return (
-                        <div className="space-y-2">
-                          {urls.length > 0 && (
-                            <div className="flex flex-wrap gap-2">
-                              {urls.map((u, i) => (
-                                <span key={i} className="flex items-center gap-1 px-2 py-1 rounded text-xs" style={{ background: 'var(--bg2)', color: accent }}>
-                                  {field.label}{maxFiles > 1 ? ` #${i + 1}` : ''} <CheckCircle size={11} />
-                                  <button type="button" onClick={() => removeCustomFile(field.key, i)}><X size={11} /></button>
-                                </span>
-                              ))}
-                            </div>
-                          )}
-                          {!atCap && (
-                            <label className="flex items-center gap-2 px-3 py-2.5 rounded-lg border cursor-pointer text-sm" style={{ ...inputStyle, color: accent }}>
-                              <Upload size={14} />
-                              {isUploading ? 'Uploading…' : `Upload ${field.label}${field.max_file_size_mb ? ` (max ${field.max_file_size_mb}MB${maxFiles > 1 ? ` each, up to ${maxFiles} files` : ''})` : maxFiles > 1 ? ` (up to ${maxFiles} files)` : ''}`}
-                              <input type="file" multiple={maxFiles > 1} accept={field.type === 'photo' ? 'image/*' : undefined} className="hidden"
-                                onChange={e => { handleCustomFileField(field.key, e.target.files, field); e.target.value = '' }} />
-                            </label>
-                          )}
-                        </div>
-                      )
-                    })() : (
-                      <input type={field.type === 'number' ? 'number' : field.type === 'date' ? 'date' : field.type === 'time' ? 'time' : 'text'}
-                        value={customAnswers[field.key] || ''}
-                        onChange={e => setCustomAnswers(p => ({ ...p, [field.key]: e.target.value }))}
-                        className={inputCls} style={inputStyle} />
-                    )}
+                    {renderAnswerField(field, field.key)}
                   </div>
                 ))}
               </div>
             )}
 
-            {/* Extra fields from global form config */}
-            {(formConfig?.extra_fields || []).length > 0 && (
+            {/* Extra content & fields from global form config, in the order the admin arranged them */}
+            {formBlocks.length > 0 && (
               <div className="space-y-3 pt-1">
-                {formConfig.extra_fields.map((field: any) => (
-                  <div key={field.key}>
-                    <label className={fieldLabelCls} style={{ color: 'var(--white)' }}>
-                      {field.label} {field.required && <span style={{ color: accent }}>*</span>}
-                    </label>
-                    {field.description && <p className={fieldDescCls} style={{ color: 'var(--muted)' }}>{field.description}</p>}
-                    <input type="text" value={customAnswers[`cfg_${field.key}`] || ''}
-                      onChange={e => setCustomAnswers(p => ({ ...p, [`cfg_${field.key}`]: e.target.value }))}
-                      className={inputCls} style={inputStyle} />
-                  </div>
-                ))}
+                {formBlocks.map((block: any) => {
+                  if (block.kind === 'content') {
+                    switch (block.type) {
+                      case 'header':
+                        return <h3 key={block.id} className={block.heading_size === 'lg' ? 'text-lg font-bold' : 'text-base font-bold'} style={{ color: 'var(--white)' }}>{block.text}</h3>
+                      case 'paragraph':
+                        return block.text ? <p key={block.id} className="text-sm leading-relaxed" style={{ color: 'var(--muted)' }}>{block.text}</p> : null
+                      case 'image':
+                        return block.image_url ? (
+                          <img key={block.id} src={block.image_url} alt={block.image_alt || ''} className="rounded-xl w-full max-h-72 object-cover" />
+                        ) : null
+                      case 'link_button':
+                        return block.link_url ? (
+                          <a key={block.id} href={block.link_url} target="_blank" rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-semibold"
+                            style={{ background: `rgba(${accentRgb}, 0.12)`, color: accent, border: `1px solid rgba(${accentRgb}, 0.3)` }}>
+                            <Link2 size={13} /> {block.link_label || 'Learn more'}
+                          </a>
+                        ) : null
+                      case 'video':
+                        return block.video_url ? (
+                          <div key={block.id} className="rounded-xl overflow-hidden" style={{ aspectRatio: '16/9' }}>
+                            <iframe src={block.video_url} className="w-full h-full" allowFullScreen title="Embedded video" />
+                          </div>
+                        ) : null
+                      case 'divider':
+                        return <hr key={block.id} style={{ borderColor: 'var(--border)' }} />
+                      case 'spacer':
+                        return <div key={block.id} style={{ height: block.height_px || 24 }} />
+                      default:
+                        return null
+                    }
+                  }
+                  return (
+                    <div key={block.id}>
+                      <label className={fieldLabelCls} style={{ color: 'var(--white)' }}>
+                        {block.label} {block.required && <span style={{ color: accent }}>*</span>}
+                      </label>
+                      {block.description && <p className={fieldDescCls} style={{ color: 'var(--muted)' }}>{block.description}</p>}
+                      {renderAnswerField(block, `cfg_${block.id}`)}
+                    </div>
+                  )
+                })}
               </div>
             )}
 
@@ -716,7 +830,7 @@ function ActivityRegisterPageInner() {
 
             <button onClick={submit} disabled={submitting}
               className="w-full py-3 rounded-xl font-bold text-sm text-black disabled:opacity-60"
-              style={{ background: 'var(--blue)', fontFamily: "'Orbitron', sans-serif" }}>
+              style={{ background: accent, fontFamily: "'Orbitron', sans-serif" }}>
               {submitting ? 'Submitting...' : 'Submit Registration →'}
             </button>
 
