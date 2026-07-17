@@ -5,20 +5,10 @@ import { useSearchParams } from 'next/navigation'
 import { ArrowLeft, Plus, Trash2, Save, ChevronDown, ChevronRight, Check } from 'lucide-react'
 import FormBlocksBuilder from '@/components/admin/FormBlocksBuilder'
 import { FormBlock, normalizeBlocks } from '@/lib/formBlocks'
+import { THEME_PRESETS, FONT_OPTIONS, COVER_RATIO_OPTIONS } from '@/lib/appearancePresets'
 
 const inputCls = 'w-full px-3 py-2 rounded-lg text-sm outline-none border'
 const inputStyle = { background: 'var(--surface)', borderColor: 'var(--border)', color: 'var(--white)' }
-const uid = () => Math.random().toString(36).slice(2, 9)
-
-const PRIMARY_FIELD_KEYS = [
-  { key: 'full_name', defaultLabel: 'Full Name' },
-  { key: 'phone', defaultLabel: 'Phone Number' },
-  { key: 'email', defaultLabel: 'Email Address' },
-  { key: 'college', defaultLabel: 'College' },
-  { key: 'college_roll', defaultLabel: 'College Roll' },
-  { key: 'hsc_session', defaultLabel: 'HSC Session' },
-  { key: 'division', defaultLabel: 'Division' },
-]
 
 const FORM_PRESETS = [
   { key: 'activity_register', label: 'Activity Registration (global default)' },
@@ -26,17 +16,15 @@ const FORM_PRESETS = [
   { key: 'membership', label: 'Membership Form' },
 ]
 
-const THEME_PRESETS = [
-  { value: 'default', label: 'NDSC Blue (default)', swatch: 'var(--blue)' },
-  { value: 'var(--accent2)', label: 'Violet', swatch: 'var(--accent2)' },
-  { value: 'var(--cat-teal)', label: 'Green', swatch: 'var(--cat-teal)' },
-  { value: 'var(--warning)', label: 'Amber', swatch: 'var(--warning)' },
-  { value: 'var(--danger-soft)', label: 'Red', swatch: 'var(--danger-soft)' },
-]
+// Per-event appearance (title, cover, bg, font, contacts, auto-pulls) used
+// to live here as form_key=activity_register:<sessionId>. That's now a
+// separate 1:1 table (activity_session_form_appearance) edited inline from
+// the event's Manage → Appearance tab. This filter hides any stale rows that
+// somehow survived the backfill so they don't reappear on this page.
+const isPerSessionFormKey = (key: string) => /^activity_register:[0-9a-f-]{36}$/.test(key)
 
 type ContactPerson = { name: string; post: string; phone: string; email: string; whatsapp: string; facebook: string }
 type EcMember = { id: string; full_name: string; position: string; email: string; whatsapp: string; facebook_url: string }
-type PrimaryFieldOverride = { field_key: string; label: string; description: string; visible: boolean; required: boolean }
 
 type FormConfig = {
   form_key: string
@@ -44,7 +32,6 @@ type FormConfig = {
   subtitle: string
   cover_photo_url: string
   bg_theme: string
-  primary_fields: PrimaryFieldOverride[]
   extra_fields: FormBlock[]
   contact_persons: ContactPerson[]
   use_ec_page?: boolean
@@ -58,22 +45,6 @@ type FormConfig = {
   auto_pull_cover?: boolean
 }
 
-const FONT_OPTIONS = [
-  { value: 'default', label: 'Default (Inter)' },
-  { value: 'orbitron', label: 'Orbitron (techy, display)' },
-  { value: 'rajdhani', label: 'Rajdhani (condensed)' },
-  { value: 'jakarta', label: 'Plus Jakarta Sans (soft, modern)' },
-  { value: 'mono', label: 'Monospace' },
-]
-
-const COVER_RATIO_OPTIONS = [
-  { value: 'auto', label: 'Native (as uploaded)' },
-  { value: '16/9', label: 'Widescreen 16:9' },
-  { value: '4/3', label: 'Standard 4:3' },
-  { value: '1/1', label: 'Square 1:1' },
-  { value: '21/9', label: 'Banner 21:9' },
-]
-
 const BLANK_CONTACT = (): ContactPerson => ({ name: '', post: '', phone: '', email: '', whatsapp: '', facebook: '' })
 
 const blankConfig = (key: string): FormConfig => ({
@@ -82,7 +53,6 @@ const blankConfig = (key: string): FormConfig => ({
   subtitle: '',
   cover_photo_url: '',
   bg_theme: 'default',
-  primary_fields: PRIMARY_FIELD_KEYS.map(f => ({ field_key: f.key, label: f.defaultLabel, description: '', visible: true, required: ['full_name','phone','email','college_roll'].includes(f.key) })),
   extra_fields: [],
   contact_persons: [],
   use_ec_page: false,
@@ -116,10 +86,12 @@ export default function AdminFormsPage() {
     fetch('/api/admin/form-configs')
       .then(r => r.json())
       .then(d => {
-        const loaded: FormConfig[] = (d.configs || []).map((c: FormConfig) => ({ ...c, extra_fields: normalizeBlocks(c.extra_fields) }))
+        const loaded: FormConfig[] = (d.configs || [])
+          .filter((c: FormConfig) => !isPerSessionFormKey(c.form_key))
+          .map((c: FormConfig) => ({ ...c, extra_fields: normalizeBlocks(c.extra_fields) }))
         setConfigs(loaded)
         const keyParam = searchParams.get('key')
-        if (keyParam) {
+        if (keyParam && !isPerSessionFormKey(keyParam)) {
           const existing = loaded.find(c => c.form_key === keyParam)
           setSelected(keyParam)
           setEditingConfig(existing ? { ...existing } : blankConfig(keyParam))
@@ -131,6 +103,7 @@ export default function AdminFormsPage() {
   }, [])
 
   const selectForm = (key: string) => {
+    if (isPerSessionFormKey(key)) return
     setSelected(key)
     setSaved(false)
     setError('')
@@ -140,14 +113,6 @@ export default function AdminFormsPage() {
 
   const patch = (field: keyof FormConfig, value: any) => {
     setEditingConfig(prev => prev ? { ...prev, [field]: value } : null)
-  }
-
-  const patchPrimaryField = (fieldKey: string, changes: Partial<PrimaryFieldOverride>) => {
-    if (!editingConfig) return
-    const updated = editingConfig.primary_fields.map(f =>
-      f.field_key === fieldKey ? { ...f, ...changes } : f
-    )
-    patch('primary_fields', updated)
   }
 
   const saveConfig = async () => {
@@ -188,8 +153,9 @@ export default function AdminFormsPage() {
           Form Configuration
         </h1>
         <p className="text-sm mb-8" style={{ color: 'var(--border-soft)' }}>
-          Customize every form on the website — labels, descriptions, extra fields, contact persons, cover images.
-          Changes apply site-wide or per event (use <code style={{ color: 'var(--blue)' }}>activity_register:SESSION_ID</code> as the key for per-event overrides).
+          Customize the global default forms — labels, cover, theme, contact persons, and extra content blocks.
+          For per-event appearance (title, cover, theme, contacts) use the event's Manage → Appearance tab;
+          for per-segment fields (name, phone, email, etc.) use Manage → Segments.
         </p>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -327,47 +293,15 @@ export default function AdminFormsPage() {
                 </Section>
 
 
-                {/* Primary fields */}
-                <Section title="Primary Fields (name, phone, email, etc.)">
-                  <p className="text-xs mb-3" style={{ color: 'var(--border-soft)' }}>
-                    These are always collected. You can rename labels, add descriptions, or hide non-essential ones.
-                    Required fields (name, phone, email, roll) cannot be hidden.
-                  </p>
-                  {editingConfig.primary_fields.map(f => {
-                    const preset = PRIMARY_FIELD_KEYS.find(p => p.key === f.field_key)
-                    const isMandatory = ['full_name', 'phone', 'email', 'college_roll'].includes(f.field_key)
-                    return (
-                      <div key={f.field_key} className="p-3 rounded-lg mb-2" style={{ background: 'var(--bg2)', border: '1px solid var(--border)' }}>
-                        <div className="flex items-center justify-between mb-2">
-                          <span className="text-xs font-semibold" style={{ color: 'var(--muted)' }}>
-                            {preset?.defaultLabel || f.field_key}
-                          </span>
-                          {!isMandatory && (
-                            <label className="flex items-center gap-1 text-xs" style={{ color: 'var(--muted)' }}>
-                              <input type="checkbox" checked={f.visible}
-                                onChange={e => patchPrimaryField(f.field_key, { visible: e.target.checked })} />
-                              Show this field
-                            </label>
-                          )}
-                        </div>
-                        <div className="space-y-2">
-                          <input placeholder={`Label (default: ${preset?.defaultLabel})`} value={f.label}
-                            onChange={e => patchPrimaryField(f.field_key, { label: e.target.value })}
-                            className={inputCls} style={inputStyle} />
-                          <input placeholder="Helper text shown under the field (optional)" value={f.description}
-                            onChange={e => patchPrimaryField(f.field_key, { description: e.target.value })}
-                            className={inputCls} style={inputStyle} />
-                        </div>
-                      </div>
-                    )
-                  })}
-                </Section>
-
-                {/* Form builder: content blocks + form fields, in order */}
+                {/* Form builder: content blocks + form fields, in order.
+                    Note: primary info fields (name, phone, email, college, roll, HSC, division)
+                    are no longer edited here. They're now part of each segment's own
+                    form_field_schema, edited per-event in the Manage Activity page. */}
                 <Section title="Form Builder — Extra Content & Fields">
                   <p className="text-xs mb-3" style={{ color: 'var(--border-soft)' }}>
-                    Build out the rest of the form beyond the primary info above — mix in text, images,
-                    links, and dividers alongside additional fields, in whatever order you like.
+                    Add extra content blocks (text, images, links, dividers) and additional fields
+                    to this form, in whatever order you like. The core info fields (name, phone,
+                    email, etc.) are configured per-event in the Manage Activity page under each segment.
                   </p>
                   <FormBlocksBuilder blocks={editingConfig.extra_fields} onChange={blocks => patch('extra_fields', blocks)} />
                 </Section>

@@ -81,6 +81,7 @@ export async function POST(req: NextRequest) {
     image_display_mode: body.image_display_mode || 'cover',
     reg_status: body.reg_status || null,
     reg_deadline: body.reg_deadline || null,
+    notify_publicly: body.is_published ? (body.notify_publicly ?? false) : false,
   }
 
   // activity_type_id — সবসময় required

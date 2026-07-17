@@ -142,7 +142,9 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  // Validate required custom fields
+  // Validate required custom fields (legacy `custom_fields` shape — the
+  // pre-segment-redesign per-category extras. Still honored for backward
+  // compat with existing rows.)
   for (const field of category.custom_fields || []) {
     const val = custom_answers?.[field.key]
     const isEmpty = val === undefined || val === null || val === '' || (Array.isArray(val) && val.length === 0)
@@ -153,6 +155,41 @@ export async function POST(req: NextRequest) {
       const maxFiles = field.max_files && field.max_files > 1 ? field.max_files : 1
       if (val.length > maxFiles) {
         return apiError(`"${field.label}" allows at most ${maxFiles} file${maxFiles > 1 ? 's' : ''}.`, 400)
+      }
+    }
+  }
+
+  // Validate the new unified form_field_schema. Built-in fields' values
+  // live on the top-level body (full_name, phone, etc.); all other fields
+  // live in custom_answers. We also re-enforce the hard minimum
+  // (full_name, phone, email, college_roll) here as a backstop for the
+  // case where admin deleted a built-in field from the schema and the
+  // client never sent it.
+  const HARD_MIN = ['full_name', 'phone', 'email', 'college_roll']
+  for (const key of HARD_MIN) {
+    if (!body[key]?.toString().trim()) {
+      return apiError(`"${key.replace(/_/g, ' ')}" is required.`, 400)
+    }
+  }
+  if (Array.isArray(category.form_field_schema)) {
+    for (const field of category.form_field_schema) {
+      if (!field || !field.required) continue
+      // For built-in fields the value is on the top-level body, mapped by
+      // the field's is_builtin key.
+      const builtinKey = field.is_builtin as string | undefined
+      const value = builtinKey
+        ? body[builtinKey]
+        : custom_answers?.[field.key ?? field.id]
+      const isEmpty = value === undefined || value === null || value === '' || (Array.isArray(value) && value.length === 0)
+      if (isEmpty) {
+        return apiError(`"${field.label || field.key || field.id}" is required.`, 400)
+      }
+      // Photo / file field max-files cap
+      if ((field.type === 'photo' || field.type === 'file') && Array.isArray(value)) {
+        const maxFiles = field.max_files && field.max_files > 1 ? field.max_files : 1
+        if (value.length > maxFiles) {
+          return apiError(`"${field.label}" allows at most ${maxFiles} file${maxFiles > 1 ? 's' : ''}.`, 400)
+        }
       }
     }
   }

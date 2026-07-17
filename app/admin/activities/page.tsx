@@ -20,6 +20,7 @@ type ActivitySession = {
   is_upcoming?: boolean; registration_enabled?: boolean; registration_note?: string;
   event_dates?: string[]; image_display_mode?: string;
   reg_status?: string; reg_deadline?: string;
+  notify_publicly?: boolean;
 };
 
 const S = { background: "var(--bg2)", border: "var(--border)", card: "var(--surface-deep)",
@@ -246,6 +247,7 @@ function SessionForm({ typeId, versionId, versions, initial, onSave, onClose }: 
     image_display_mode: initial?.image_display_mode || "cover",
     reg_status: initial?.reg_status || "",
     reg_deadline: initial?.reg_deadline ? initial.reg_deadline.slice(0, 16) : "",
+    notify_publicly: initial?.notify_publicly ?? false,
   });
   const [newEventDate, setNewEventDate] = useState("");
   const [uploading, setUploading] = useState("");
@@ -295,6 +297,7 @@ function SessionForm({ typeId, versionId, versions, initial, onSave, onClose }: 
         image_display_mode: form.image_display_mode,
         reg_status: form.reg_status || null,
         reg_deadline: form.reg_deadline ? new Date(form.reg_deadline).toISOString() : null,
+        notify_publicly: form.is_published ? form.notify_publicly : false,
       };
       // only send version if selected
       if (form.activity_version_id) {
@@ -433,10 +436,32 @@ function SessionForm({ typeId, versionId, versions, initial, onSave, onClose }: 
       <Field label="">
         <label className="flex items-center gap-2 cursor-pointer">
           <input type="checkbox" checked={form.is_published}
-            onChange={e => setForm(p => ({ ...p, is_published: e.target.checked }))} />
+            onChange={e => setForm(p => ({
+              ...p,
+              is_published: e.target.checked,
+              // Notifying publicly about an unpublished event makes no sense
+              // (the link it points to wouldn't be visible yet), so turning
+              // "published" off turns this back off too.
+              notify_publicly: e.target.checked ? p.notify_publicly : false,
+            }))} />
           <span className="text-sm" style={{ color: S.text }}>Published (visible on website)</span>
         </label>
       </Field>
+
+      {form.is_published && (
+        <div className="rounded-lg p-3 mb-3" style={{ background: "rgba(var(--blue-rgb), 0.04)", border: `1px solid ${S.border}` }}>
+          <label className="flex items-center gap-2 cursor-pointer">
+            <input type="checkbox" checked={form.notify_publicly}
+              onChange={e => setForm(p => ({ ...p, notify_publicly: e.target.checked }))} />
+            <span className="text-sm font-medium" style={{ color: S.accent }}>Notify publicly (pop up on the site for every visitor)</span>
+          </label>
+          <p className="text-xs mt-1.5" style={{ color: S.muted }}>
+            Shows a small popup to visitors when they arrive on the site — cover image, title, a short
+            blurb from the description above, when it happens, and whether registration is currently
+            open. It keeps showing until you turn this back off or the event's date passes.
+          </p>
+        </div>
+      )}
 
       <Field label="">
         <label className="flex items-center gap-2 cursor-pointer">

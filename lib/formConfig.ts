@@ -14,7 +14,7 @@
 
 export const FORM_CONFIG_COLUMNS = [
   'id', 'form_key', 'title', 'subtitle', 'cover_photo_url', 'bg_theme',
-  'primary_fields', 'extra_fields', 'contact_persons',
+  'extra_fields', 'contact_persons',
   'bg_color', 'bg_image_url', 'font_family', 'cover_aspect_ratio',
   'auto_pull_title', 'auto_pull_description', 'auto_pull_cover',
   'updated_at',

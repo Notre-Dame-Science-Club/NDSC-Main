@@ -31,6 +31,10 @@ export type FormBlock = {
   allow_other?: boolean
   max_file_size_mb?: number
   max_files?: number
+  // Stable answer key for non-built-in fields — what the value is stored
+  // under in custom_answers on the registration row. Admin-editable, but
+  // defaults to a sanitized version of the label.
+  key?: string
   // content-only
   text?: string                 // header / paragraph body text
   heading_size?: 'lg' | 'md'    // header only
@@ -40,6 +44,14 @@ export type FormBlock = {
   link_label?: string
   video_url?: string
   height_px?: number             // spacer only
+  // built-in fields (segment form_field_schema only) — set automatically for
+  // the 7 default fields; admin can clear `is_builtin` by deleting the field.
+  // `db_column: 'top_level'` means the answer also writes to a dedicated
+  // activity_registrations column; `jsonb` means only custom_answers.
+  is_builtin?: BuiltinFieldKey
+  db_column?: 'top_level' | 'jsonb'
+  // field-only
+  placeholder?: string
 }
 
 export const uid = () => Math.random().toString(36).slice(2, 9)
@@ -90,6 +102,41 @@ export function blankBlock(type: FieldBlockType | ContentBlockType): FormBlock {
     default: return { ...base, kind: 'content', type }
   }
 }
+
+// Built-in field key values — match the top-level columns on
+// activity_registrations so the server can write a field's answer directly to
+// the matching column when the field is marked `is_builtin`. Adding a new key
+// here means adding a matching column on activity_registrations.
+export type BuiltinFieldKey =
+  | 'full_name' | 'phone' | 'email' | 'college'
+  | 'college_roll' | 'hsc_session' | 'division'
+
+// The 7 default fields pre-loaded into every new segment's form_field_schema.
+// Used as a single source of truth so:
+//   1. The admin segment editor has a "new segment" default that matches the
+//      server's hard-minimum requirements.
+//   2. /admin/forms (which is now only theme/cover/contact) no longer needs its
+//      own hard-coded PRIMARY_FIELD_KEYS list.
+//   3. The migration script above can reference the same shape.
+//
+// Admin can still delete any of these in the UI; the server enforces the
+// minimum (full_name, phone, email, college_roll) regardless.
+export function builtinFieldDefs(): FormBlock[] {
+  return [
+    { id: 'full_name', kind: 'field', type: 'text', label: 'Full Name', description: '', required: true, is_builtin: 'full_name', db_column: 'top_level' },
+    { id: 'phone', kind: 'field', type: 'text', label: 'Phone Number', description: '', required: true, is_builtin: 'phone', db_column: 'top_level' },
+    { id: 'email', kind: 'field', type: 'text', label: 'Email Address', description: '', required: true, is_builtin: 'email', db_column: 'top_level' },
+    { id: 'college', kind: 'field', type: 'text', label: 'College', description: '', required: false, placeholder: 'Notre Dame College', is_builtin: 'college', db_column: 'top_level' },
+    { id: 'college_roll', kind: 'field', type: 'text', label: 'College Roll', description: '', required: true, is_builtin: 'college_roll', db_column: 'top_level' },
+    { id: 'hsc_session', kind: 'field', type: 'text', label: 'HSC Session', description: '', required: false, placeholder: 'e.g. 2024-25', is_builtin: 'hsc_session', db_column: 'top_level' },
+    { id: 'division', kind: 'field', type: 'text', label: 'Division', description: '', required: false, placeholder: 'e.g. Dhaka', is_builtin: 'division', db_column: 'top_level' },
+  ]
+}
+
+// Server-side hard minimum — the server will reject a registration if any of
+// these are missing from the payload, even if the segment's form_field_schema
+// doesn't include them. This is the backstop for accidental admin deletion.
+export const HARD_MINIMUM_KEYS: BuiltinFieldKey[] = ['full_name', 'phone', 'email', 'college_roll']
 
 /** Upgrades stored data (old flat field-only shape, or already-new blocks) into FormBlock[]. */
 export function normalizeBlocks(raw: any): FormBlock[] {

@@ -4,12 +4,18 @@ import { useParams, useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { ChevronRight, ArrowLeft, Upload, Users, Plus, X, CalendarDays, CheckCircle, CreditCard, Link2, Phone, Mail, MessageCircle } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
-import { normalizeBlocks } from '@/lib/formBlocks'
+import FieldsRenderer from '@/components/FieldsRenderer'
+import { resolveAccent, resolveAccentRgbTriplet, resolveFont, resolveContactPersons } from '@/lib/appearance'
+
+// Per-session storage key. New per-segment deep-link flow uses
+// `ndsc_seg_<sessionId>` (JSON map of { [segmentId]: registrationId }) so a
+// user can be enrolled in multiple segments of one event. The legacy flat
+// `ndsc_reg_<sessionId>` is still written so older dashboards keep resolving.
+function sessionRegKey(sessionId: string) { return `ndsc_reg_${sessionId}` }
+function sessionSegKey(sessionId: string) { return `ndsc_seg_${sessionId}` }
 
 const uid = () => Math.random().toString(36).slice(2, 9)
 
-// Per-session storage key so each event remembers its own registration
-function sessionRegKey(sessionId: string) { return `ndsc_reg_${sessionId}` }
 const PRIMARY_INFO_KEY = 'ndsc_primary_info'
 
 type Category = {
@@ -19,6 +25,11 @@ type Category = {
   is_online_submission: boolean; linked_olympiad_id: string | null
   schedule_date: string | null; schedule_time: string | null; schedule_room: string | null
   project_name_enabled: boolean; project_name_label: string | null
+  is_segment?: boolean; icon?: string | null; bg_image_url?: string | null
+  // New unified per-segment field schema. When present, this is the single
+  // source of truth for what the form shows; `custom_fields` and the old
+  // hardcoded primary-info block are ignored.
+  form_field_schema?: any[]
 }
 
 type Phase = 'identity' | 'picker' | 'form' | 'submitting' | 'done'
@@ -27,51 +38,6 @@ const inputStyle = { background: 'rgba(255,255,255,0.04)', border: '1px solid va
 const inputCls = 'w-full px-3 py-2.5 rounded-lg text-sm outline-none reg-input'
 
 const BLANK_FORM = { full_name: '', phone: '', email: '', college: 'Notre Dame College', college_roll: '', hsc_session: '', division: '' }
-
-// Resolves formConfig.bg_theme ('default' | '#hexcolor' | 'var(--preset)') into an actual accent color.
-// Previously this only accepted raw hex, so every preset swatch in the admin (which are all
-// var(--x) references) silently fell back to the default blue — the reported "accent color has
-// no visible effect" bug.
-function resolveAccent(theme: string | undefined | null) {
-  if (theme && theme !== 'default') return theme
-  return 'var(--blue)'
-}
-
-// Matching "-rgb" triplet var for each theme preset, so we can build translucent tints/rings
-// (rgba(var(--x-rgb), alpha)) the same way the rest of the site already does.
-const THEME_RGB_VAR: Record<string, string> = {
-  'var(--blue)': 'var(--blue-rgb)',
-  'var(--accent2)': 'var(--accent2-rgb)',
-  'var(--cat-teal)': 'var(--cat-teal-rgb)',
-  'var(--warning)': 'var(--warning-rgb)',
-  'var(--danger-soft)': 'var(--danger-soft-rgb)',
-}
-
-function hexToRgbTriplet(hex: string) {
-  let h = hex.replace('#', '')
-  if (h.length === 3) h = h.split('').map(c => c + c).join('')
-  const r = parseInt(h.slice(0, 2), 16) || 0
-  const g = parseInt(h.slice(2, 4), 16) || 0
-  const b = parseInt(h.slice(4, 6), 16) || 0
-  return `${r}, ${g}, ${b}`
-}
-
-function resolveAccentRgbTriplet(theme: string | undefined | null) {
-  const accent = resolveAccent(theme)
-  if (/^#[0-9a-fA-F]{3,8}$/.test(accent)) return hexToRgbTriplet(accent)
-  return THEME_RGB_VAR[accent] || 'var(--blue-rgb)'
-}
-
-// Resolves formConfig.font_family into a real CSS font stack.
-function resolveFont(font: string | undefined | null) {
-  switch (font) {
-    case 'orbitron': return "'Orbitron', sans-serif"
-    case 'rajdhani': return "'Rajdhani', sans-serif"
-    case 'jakarta': return "'Plus Jakarta Sans', sans-serif"
-    case 'mono': return "'JetBrains Mono', monospace"
-    default: return 'inherit'
-  }
-}
 
 // Shared label style for EVERY field on this form — primary, custom, and
 // config extra fields all use the exact same title styling so nothing looks
@@ -84,6 +50,7 @@ function ActivityRegisterPageInner() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const startCategoryId = searchParams.get('start')
+  const segmentId = searchParams.get('segment')
   const slug = params.slug as string
 
   const [phase, setPhase] = useState<Phase>('identity')
@@ -110,17 +77,37 @@ function ActivityRegisterPageInner() {
   const [teamMembers, setTeamMembers] = useState<any[]>([])
   const [submitting, setSubmitting] = useState(false)
 
-  // Form config from admin (title overrides, extra fields, contact)
-  const [formConfig, setFormConfig] = useState<any>(null)
+  // Per-session appearance overrides (replaces the old form_configs
+  // activity_register:<sessionId> row — now in
+  // activity_session_form_appearance, edited in the admin Appearance tab).
+  const [appearance, setAppearance] = useState<any>(null)
+  const [ecMembers, setEcMembers] = useState<any[]>([])
   const [showFullDesc, setShowFullDesc] = useState(false)
 
   useEffect(() => {
     fetch(`/api/activity-reg-categories-public?slug=${slug}`)
       .then(r => r.json())
-      .then(d => {
+      .then(async d => {
         if (d.error) { setError(d.error); return }
         setSessionInfo(d.session)
         setCategories(d.categories || [])
+
+        // Segment-card deep-link (?segment=<id>) — skip the picker entirely
+        // and jump straight to the form for that single segment. The
+        // event-page segment card already chose which segment, so showing
+        // a picker here would be redundant and confusing.
+        if (segmentId) {
+          const list: Category[] = d.categories || []
+          const target = list.find((c: Category) => c.id === segmentId)
+          if (target) {
+            setPath([target])
+            const min = target.team_size_min || 0
+            setTeamMembers(Array.from({ length: min }, () => ({
+              id: uid(), full_name: '', email: '', college_roll: '', password: '', custom_answers: {}
+            })))
+            setDeepLinkIsLeaf(true)
+          }
+        }
 
         // Deep-link from the Olympiad page (?start=<categoryId>) — jump the
         // picker straight to that primary field's children instead of the
@@ -144,31 +131,17 @@ function ActivityRegisterPageInner() {
           }
         }
 
-        // Load per-session form config
+        // Load per-session appearance + EC members (for the "use EC page"
+        // contact-persons resolution). Done in parallel.
         if (d.session?.id) {
-          fetch(`/api/form-config?form_key=activity_register:${d.session.id}`)
-            .then(r => r.json())
-            .then(async fc => {
-              if (!fc.config) return
-              // If admin chose to pull contacts from the EC page, resolve
-              // those EC ids into actual contact-person objects here so the
-              // rest of the page can treat it the same as manual contacts.
-              if (fc.config.use_ec_page && fc.config.ec_ids?.length > 0) {
-                try {
-                  const ecRes = await fetch('/api/executives')
-                  const ecList = await ecRes.json()
-                  const resolved = (Array.isArray(ecList) ? ecList : [])
-                    .filter((ec: any) => fc.config.ec_ids.includes(ec.id))
-                    .map((ec: any) => ({
-                      name: ec.full_name, post: ec.position, phone: '',
-                      email: ec.email || '', whatsapp: ec.whatsapp || '', facebook: ec.facebook_url || '',
-                    }))
-                  fc.config.contact_persons = resolved
-                } catch { /* fall back to whatever manual contacts exist */ }
-              }
-              setFormConfig(fc.config)
-            })
-            .catch(() => {})
+          const [apprRes, ecRes] = await Promise.all([
+            fetch(`/api/activity-session-appearance-public?session_id=${d.session.id}`),
+            fetch('/api/executives'),
+          ])
+          const apprData = await apprRes.json().catch(() => ({}))
+          setAppearance(apprData.appearance || null)
+          const ecData = await ecRes.json().catch(() => [])
+          setEcMembers(Array.isArray(ecData) ? ecData : [])
         }
       })
       .catch(() => setError('Could not load this activity.'))
@@ -445,9 +418,18 @@ function ActivityRegisterPageInner() {
         }))
       }
 
-      // Save per-session registration ID
+      // Save per-session registration ID. New per-segment map (so a user
+      // can be enrolled in multiple segments of one event); legacy flat
+      // key is still written for older dashboards that only know the flat
+      // shape.
       if (sessionInfo?.id) {
         localStorage.setItem(sessionRegKey(sessionInfo.id), data.registration.id)
+        try {
+          const raw = localStorage.getItem(sessionSegKey(sessionInfo.id))
+          const map: Record<string, string> = raw ? JSON.parse(raw) : {}
+          map[currentLeaf.id] = data.registration.id
+          localStorage.setItem(sessionSegKey(sessionInfo.id), JSON.stringify(map))
+        } catch { /* ignore — the per-segment map is best-effort */ }
       }
       localStorage.setItem('ndsc_activity_reg_id', data.registration.id)
 
@@ -474,41 +456,22 @@ function ActivityRegisterPageInner() {
     }
   }
 
-  // ─────────────────────────────────────────────────────────────
-  // Field label helper — respects form config overrides
-  const fieldLabel = (key: string, fallback: string) => {
-    if (!formConfig?.primary_fields) return fallback
-    const override = formConfig.primary_fields.find((f: any) => f.field_key === key)
-    return override?.label || fallback
-  }
-  const fieldDesc = (key: string) => {
-    if (!formConfig?.primary_fields) return null
-    const override = formConfig.primary_fields.find((f: any) => f.field_key === key)
-    return override?.description || null
-  }
-  const fieldVisible = (key: string) => {
-    if (!formConfig?.primary_fields) return true
-    const override = formConfig.primary_fields.find((f: any) => f.field_key === key)
-    return override ? override.visible !== false : true
-  }
-
   if (loading) return <div className="min-h-screen flex items-center justify-center" style={{ background: 'var(--bg)' }}><p style={{ color: 'var(--muted)' }}>Loading...</p></div>
   if (error && !sessionInfo) return <div className="min-h-screen flex items-center justify-center px-4" style={{ background: 'var(--bg)' }}><p style={{ color: 'var(--danger-soft)' }}>{error}</p></div>
 
-  const contactPersons: any[] = formConfig?.contact_persons || []
-  const formBlocks = normalizeBlocks(formConfig?.extra_fields)
-  const accent = resolveAccent(formConfig?.bg_theme)
-  const accentRgb = resolveAccentRgbTriplet(formConfig?.bg_theme)
-  const fontFamily = resolveFont(formConfig?.font_family)
+  const contactPersons: any[] = resolveContactPersons(appearance?.form_contact_persons, ecMembers)
+  const accent = resolveAccent(appearance?.form_bg_theme)
+  const accentRgb = resolveAccentRgbTriplet(appearance?.form_bg_theme)
+  const fontFamily = resolveFont(appearance?.form_font_family)
   const sessionDesc: string = sessionInfo?.description || ''
   const isLongDesc = sessionDesc.length > 220
-  const displayTitle = formConfig?.auto_pull_title ? sessionInfo?.title : (formConfig?.title || sessionInfo?.title)
-  const displayCover = formConfig?.auto_pull_cover ? sessionInfo?.cover_image_url : (formConfig?.cover_photo_url || sessionInfo?.cover_image_url)
-  const coverRatio = formConfig?.cover_aspect_ratio || 'auto'
-  const pageBg: Record<string, string> = formConfig?.bg_image_url
-    ? { backgroundImage: `url(${formConfig.bg_image_url})`, backgroundSize: 'cover', backgroundPosition: 'center' }
-    : formConfig?.bg_color
-    ? { background: formConfig.bg_color }
+  const displayTitle = appearance?.form_auto_pull_title ? sessionInfo?.title : (appearance?.form_title || sessionInfo?.title)
+  const displayCover = appearance?.form_auto_pull_cover ? sessionInfo?.cover_image_url : (appearance?.form_cover_photo_url || sessionInfo?.cover_image_url)
+  const coverRatio = appearance?.form_cover_aspect_ratio || 'auto'
+  const pageBg: Record<string, string> = appearance?.form_bg_image_url
+    ? { backgroundImage: `url(${appearance.form_bg_image_url})`, backgroundSize: 'cover', backgroundPosition: 'center' }
+    : appearance?.form_bg_color
+    ? { background: appearance.form_bg_color }
     : { background: 'var(--bg)' }
 
   return (
@@ -528,7 +491,7 @@ function ActivityRegisterPageInner() {
         <h1 className="text-2xl font-black mb-1" style={{ fontFamily: fontFamily !== 'inherit' ? fontFamily : "'Orbitron', sans-serif", color: 'var(--white)' }}>
           {displayTitle}
         </h1>
-        {!formConfig?.auto_pull_description && formConfig?.subtitle && <p className="text-sm mb-2" style={{ color: 'var(--muted)' }}>{formConfig.subtitle}</p>}
+        {!appearance?.form_auto_pull_description && appearance?.form_subtitle && <p className="text-sm mb-2" style={{ color: 'var(--muted)' }}>{appearance.form_subtitle}</p>}
 
         {/* Cover image — form-specific override if set, else the activity session's own cover */}
         {displayCover && (
@@ -639,57 +602,23 @@ function ActivityRegisterPageInner() {
               </div>
             )}
 
-            {/* Primary info fields — labels/visibility driven by formConfig, same styling as every other field below */}
-            <div className="space-y-3">
-              {fieldVisible('full_name') && (
-                <div>
-                  <label className={fieldLabelCls} style={{ color: 'var(--white)' }}>{fieldLabel('full_name', 'Full Name')} <span style={{ color: accent }}>*</span></label>
-                  {fieldDesc('full_name') && <p className={fieldDescCls} style={{ color: 'var(--muted)' }}>{fieldDesc('full_name')}</p>}
-                  <input value={form.full_name} onChange={e => setForm(f => ({ ...f, full_name: e.target.value }))} className={inputCls} style={inputStyle} />
-                </div>
-              )}
-              {fieldVisible('phone') && (
-                <div>
-                  <label className={fieldLabelCls} style={{ color: 'var(--white)' }}>{fieldLabel('phone', 'Phone Number')} <span style={{ color: accent }}>*</span></label>
-                  {fieldDesc('phone') && <p className={fieldDescCls} style={{ color: 'var(--muted)' }}>{fieldDesc('phone')}</p>}
-                  <input value={form.phone} onChange={e => setForm(f => ({ ...f, phone: e.target.value }))} className={inputCls} style={inputStyle} />
-                </div>
-              )}
-              {fieldVisible('email') && (
-                <div>
-                  <label className={fieldLabelCls} style={{ color: 'var(--white)' }}>{fieldLabel('email', 'Email Address')} <span style={{ color: accent }}>*</span></label>
-                  {fieldDesc('email') && <p className={fieldDescCls} style={{ color: 'var(--muted)' }}>{fieldDesc('email')}</p>}
-                  <input type="email" value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} className={inputCls} style={inputStyle} />
-                </div>
-              )}
-              <div className="grid grid-cols-2 gap-3">
-                {fieldVisible('college') && (
-                  <div>
-                    <label className={fieldLabelCls} style={{ color: 'var(--white)' }}>{fieldLabel('college', 'College')}</label>
-                    <input value={form.college} onChange={e => setForm(f => ({ ...f, college: e.target.value }))} className={inputCls} style={inputStyle} />
-                  </div>
-                )}
-                {fieldVisible('college_roll') && (
-                  <div>
-                    <label className={fieldLabelCls} style={{ color: 'var(--white)' }}>{fieldLabel('college_roll', 'College Roll')} <span style={{ color: accent }}>*</span></label>
-                    <input value={form.college_roll} onChange={e => setForm(f => ({ ...f, college_roll: e.target.value }))} className={inputCls} style={inputStyle} />
-                  </div>
-                )}
-              </div>
-              {fieldVisible('hsc_session') && (
-                <div>
-                  <label className={fieldLabelCls} style={{ color: 'var(--white)' }}>{fieldLabel('hsc_session', 'HSC Session')}</label>
-                  {fieldDesc('hsc_session') && <p className={fieldDescCls} style={{ color: 'var(--muted)' }}>{fieldDesc('hsc_session')}</p>}
-                  <input value={form.hsc_session} onChange={e => setForm(f => ({ ...f, hsc_session: e.target.value }))} className={inputCls} style={inputStyle} />
-                </div>
-              )}
-              {fieldVisible('division') && (
-                <div>
-                  <label className={fieldLabelCls} style={{ color: 'var(--white)' }}>{fieldLabel('division', 'Division')}</label>
-                  <input value={form.division} onChange={e => setForm(f => ({ ...f, division: e.target.value }))} className={inputCls} style={inputStyle} />
-                </div>
-              )}
-            </div>
+            {/* Fields — driven by the segment's form_field_schema. Every
+                segment is seeded with the 7 built-in fields by
+                schema_update_05_segments.sql, so there is no fallback path
+                here. (The legacy hardcoded primary-info block that used to
+                live in the else branch was removed in the per-session
+                appearance migration — the schema migration also backfilled
+                form_field_schema on every existing segment, so the
+                fallback had nothing left to fall back to.) */}
+            <FieldsRenderer
+              schema={currentLeaf.form_field_schema || []}
+              form={form}
+              onFormChange={setForm}
+              customAnswers={customAnswers}
+              onCustomAnswersChange={setCustomAnswers}
+              accent={accent}
+              upload={uploadFieldFile}
+            />
 
             {/* Project name field */}
             {currentLeaf.project_name_enabled && (
@@ -713,55 +642,6 @@ function ActivityRegisterPageInner() {
                     {renderAnswerField(field, field.key)}
                   </div>
                 ))}
-              </div>
-            )}
-
-            {/* Extra content & fields from global form config, in the order the admin arranged them */}
-            {formBlocks.length > 0 && (
-              <div className="space-y-3 pt-1">
-                {formBlocks.map((block: any) => {
-                  if (block.kind === 'content') {
-                    switch (block.type) {
-                      case 'header':
-                        return <h3 key={block.id} className={block.heading_size === 'lg' ? 'text-lg font-bold' : 'text-base font-bold'} style={{ color: 'var(--white)' }}>{block.text}</h3>
-                      case 'paragraph':
-                        return block.text ? <p key={block.id} className="text-sm leading-relaxed" style={{ color: 'var(--muted)' }}>{block.text}</p> : null
-                      case 'image':
-                        return block.image_url ? (
-                          <img key={block.id} src={block.image_url} alt={block.image_alt || ''} className="rounded-xl w-full max-h-72 object-cover" />
-                        ) : null
-                      case 'link_button':
-                        return block.link_url ? (
-                          <a key={block.id} href={block.link_url} target="_blank" rel="noopener noreferrer"
-                            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-semibold"
-                            style={{ background: `rgba(${accentRgb}, 0.12)`, color: accent, border: `1px solid rgba(${accentRgb}, 0.3)` }}>
-                            <Link2 size={13} /> {block.link_label || 'Learn more'}
-                          </a>
-                        ) : null
-                      case 'video':
-                        return block.video_url ? (
-                          <div key={block.id} className="rounded-xl overflow-hidden" style={{ aspectRatio: '16/9' }}>
-                            <iframe src={block.video_url} className="w-full h-full" allowFullScreen title="Embedded video" />
-                          </div>
-                        ) : null
-                      case 'divider':
-                        return <hr key={block.id} style={{ borderColor: 'var(--border)' }} />
-                      case 'spacer':
-                        return <div key={block.id} style={{ height: block.height_px || 24 }} />
-                      default:
-                        return null
-                    }
-                  }
-                  return (
-                    <div key={block.id}>
-                      <label className={fieldLabelCls} style={{ color: 'var(--white)' }}>
-                        {block.label} {block.required && <span style={{ color: accent }}>*</span>}
-                      </label>
-                      {block.description && <p className={fieldDescCls} style={{ color: 'var(--muted)' }}>{block.description}</p>}
-                      {renderAnswerField(block, `cfg_${block.id}`)}
-                    </div>
-                  )
-                })}
               </div>
             )}
 

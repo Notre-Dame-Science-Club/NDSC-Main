@@ -2,8 +2,13 @@
 import { useEffect, useState } from 'react'
 import { useParams } from 'next/navigation'
 import Link from 'next/link'
-import { Plus, Trash2, ChevronRight, ChevronDown, ArrowLeft, Users, CreditCard, Link2, Calendar, X, Zap, Upload, Microscope, FileText, Images, Youtube, ImageIcon, Lock, Check } from 'lucide-react'
+import { Plus, Trash2, ChevronRight, ChevronDown, ArrowLeft, Users, CreditCard, Link2, Calendar, X, Zap, Upload, Microscope, FileText, Images, Youtube, ImageIcon, Lock, Check, Sparkles, Save } from 'lucide-react'
 import MathInputField from '@/components/olympiad/MathInputField'
+import { FormBlock, normalizeBlocks, builtinFieldDefs } from '@/lib/formBlocks'
+import FieldsEditor from '@/components/admin/FieldsEditor'
+import ContactPersonsEditor from '@/components/admin/ContactPersonsEditor'
+import { THEME_PRESETS, FONT_OPTIONS, COVER_RATIO_OPTIONS } from '@/lib/appearancePresets'
+import { resolveAccent, resolveFont } from '@/lib/appearance'
 
 const uid = () => Math.random().toString(36).slice(2, 9)
 
@@ -23,6 +28,10 @@ type Category = {
   description: string | null
   display_order: number
   custom_fields: CustomField[]
+  form_field_schema: FormBlock[]
+  is_segment: boolean
+  icon: string | null
+  bg_image_url: string | null
   requires_team: boolean
   team_size_min: number | null
   team_size_max: number | null
@@ -136,6 +145,35 @@ export default function ActivityRegistrationBuilder() {
   const quickStartSimpleForm = async () => {
     const created = await addCategory(null, session?.title || 'Registration')
     if (created) setEditingId(created.id)
+  }
+
+  // Create a new top-level segment. The category row has `is_segment = true` and
+  // starts with the 7 built-in fields pre-seeded into form_field_schema so the
+  // admin lands on a working form immediately.
+  const addSegment = async () => {
+    const name = prompt('Name for this segment (e.g. "Quiz", "Workshop"):')
+    if (!name?.trim()) return
+    setError('')
+    try {
+      const res = await fetch('/api/admin/activity-reg-categories', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          activity_session_id: sessionId,
+          parent_id: null,
+          name: name.trim(),
+          is_segment: true,
+          form_field_schema: builtinFieldDefs(),
+          registration_open: true,
+        }),
+      })
+      const data = await res.json()
+      if (!res.ok) { setError(data.error || 'Could not add segment.'); return }
+      setCategories(prev => [...prev, data.category])
+      setEditingId(data.category.id)
+    } catch {
+      setError('Network error while adding segment.')
+    }
   }
 
   const updateCategory = async (id: string, patch: Partial<Category> & { online_type?: string }) => {
@@ -276,54 +314,55 @@ export default function ActivityRegistrationBuilder() {
       {tab === 'registrants' && session?.registration_enabled ? (
         <RegistrantsPanel sessionId={sessionId} />
       ) : tab === 'appearance' ? (
-        <AppearancePanel sessionId={sessionId} />
+        <AppearancePanel sessionId={sessionId} session={session} onSaved={setSession} />
       ) : tab === 'files' ? (
         <FilesPanel sessionId={sessionId} session={session} onSaved={setSession} />
       ) : tab === 'updates' ? (
         <UpdatesPanel sessionId={sessionId} />
       ) : tab === 'builder' && session?.registration_enabled ? (
       <>
-      {categories.length === 0 ? (
-        <div className="space-y-3">
+      <div className="mb-5 p-4 rounded-xl text-sm" style={{ background: 'rgba(var(--blue-rgb), 0.05)', border: '1px solid rgba(var(--blue-rgb), 0.2)', color: 'var(--muted)' }}>
+        Each <span style={{ color: 'var(--blue)' }}>segment</span> below is a top-level
+        registration option for this event. They appear as cards on the public
+        event page, each with its own Register button and its own custom form.
+        Add a few segments if your event has different parallel tracks (e.g. Quiz
+        + Workshop), or one if it's a single registration form.
+      </div>
+
+      {/* Segments — top-level registration targets. Each is a public card on the event page. */}
+      <SegmentsSection
+        segments={categories.filter(c => c.parent_id === null && c.is_segment)}
+        onAdd={addSegment}
+        onPatch={(id, patch) => updateCategory(id, patch)}
+        onDelete={deleteCategory}
+        editingId={editingId}
+        setEditingId={setEditingId}
+      />
+
+      {categories.some(c => !(c.parent_id === null && c.is_segment)) && (
+        <div className="mt-8 pt-5 border-t" style={{ borderColor: 'var(--border)' }}>
+          <p className="text-xs font-bold mb-3" style={{ color: 'var(--muted)' }}>
+            Legacy / nested categories (not shown as public cards)
+          </p>
+          {renderTree(null, 0)}
+        </div>
+      )}
+
+      {categories.filter(c => c.parent_id === null && c.is_segment).length === 0 && (
+        <div className="mt-5 space-y-3">
           <p className="text-sm mb-1" style={{ color: 'var(--muted)' }}>
-            Most events just need one registration form. Only set up multiple categories/tracks
-            if people need to pick between different options (e.g. Offline vs Online, or by subject)
-            with different fields for each.
+            Don't want separate segments? You can use a single registration form for this event.
           </p>
           <button onClick={quickStartSimpleForm}
-            className="w-full text-left flex items-center gap-3 p-4 rounded-xl border"
-            style={{ background: 'rgba(var(--blue-rgb), 0.06)', borderColor: 'rgba(var(--blue-rgb), 0.3)' }}>
-            <div className="p-2 rounded-lg" style={{ background: 'rgba(var(--blue-rgb), 0.15)' }}><Plus size={16} style={{ color: 'var(--blue)' }} /></div>
-            <div>
-              <p className="text-sm font-semibold" style={{ color: 'var(--white)' }}>Single registration form</p>
-              <p className="text-xs mt-0.5" style={{ color: 'var(--border-soft)' }}>Jump straight into adding fields — no category picker shown to registrants.</p>
-            </div>
-          </button>
-          <button onClick={() => addCategory(null)}
             className="w-full text-left flex items-center gap-3 p-4 rounded-xl border"
             style={{ background: 'var(--surface-deep)', borderColor: 'var(--border)' }}>
             <div className="p-2 rounded-lg" style={{ background: 'rgba(var(--cat-teal-rgb), 0.12)' }}><Plus size={16} style={{ color: 'var(--cat-teal)' }} /></div>
             <div>
-              <p className="text-sm font-semibold" style={{ color: 'var(--white)' }}>Multiple categories / tracks</p>
-              <p className="text-xs mt-0.5" style={{ color: 'var(--border-soft)' }}>Registrants pick a category first (you can nest, e.g. Offline → Class → Subject).</p>
+              <p className="text-sm font-semibold" style={{ color: 'var(--white)' }}>Single registration form (legacy)</p>
+              <p className="text-xs mt-0.5" style={{ color: 'var(--border-soft)' }}>One top-level category, no segment cards on the public page. The category tree below is used instead.</p>
             </div>
           </button>
         </div>
-      ) : (
-        <>
-          <div className="mb-4 p-4 rounded-xl text-sm" style={{ background: 'rgba(var(--blue-rgb), 0.05)', border: '1px solid rgba(var(--blue-rgb), 0.2)', color: 'var(--muted)' }}>
-            Registration fields, team settings, payment, and online-submission linking are configured on the
-            bottom-most category in each branch. If you only ever want one form, you don't need to add more here.
-          </div>
-
-          {renderTree(null, 0)}
-
-          <button onClick={() => addCategory(null)}
-            className="mt-3 flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold"
-            style={{ background: 'rgba(var(--blue-rgb), 0.1)', color: 'var(--blue)', border: '1px solid rgba(var(--blue-rgb), 0.3)' }}>
-            <Plus size={15} /> Add Another Category / Track
-          </button>
-        </>
       )}
       </>
       ) : (
@@ -338,19 +377,39 @@ export default function ActivityRegistrationBuilder() {
 function RegistrantsPanel({ sessionId }: { sessionId: string }) {
   const [loading, setLoading] = useState(true)
   const [registrations, setRegistrations] = useState<any[]>([])
+  const [segments, setSegments] = useState<any[]>([])
   const [error, setError] = useState('')
   const [search, setSearch] = useState('')
+  const [segmentFilter, setSegmentFilter] = useState<string>('all')
   const [viewing, setViewing] = useState<any | null>(null)
 
   useEffect(() => {
     fetch(`/api/admin/activity-registrations-list?sessionId=${sessionId}`)
       .then(r => r.json())
-      .then(d => { if (d.error) setError(d.error); else setRegistrations(d.registrations || []) })
+      .then(d => {
+        if (d.error) setError(d.error)
+        else {
+          setRegistrations(d.registrations || [])
+          setSegments(d.segments || [])
+        }
+      })
       .catch(() => setError('Could not load registrants.'))
       .finally(() => setLoading(false))
   }, [sessionId])
 
   const filtered = registrations.filter(r => {
+    // Segment chip filter — restrict to a single top-level is_segment row
+    // (plus its children, so sub-categories stay under the same chip).
+    if (segmentFilter !== 'all') {
+      if (r.category_id !== segmentFilter) {
+        // Allow descendants of the selected segment to also match — the
+        // chip represents "this whole segment, including its sub-categories".
+        const cat = (segments.find(s => s.id === segmentFilter) as any)
+        // No descendant data here, so we only match exact id; sub-categories
+        // are unusual for is_segment rows anyway.
+        if (!cat) return false
+      }
+    }
     if (!search.trim()) return true
     const q = search.toLowerCase()
     return r.full_name?.toLowerCase().includes(q) || r.phone?.includes(q) || r.email?.toLowerCase().includes(q) || r.breadcrumb.join(' ').toLowerCase().includes(q)
@@ -394,6 +453,35 @@ function RegistrantsPanel({ sessionId }: { sessionId: string }) {
         </div>
       </div>
 
+      {/* Segment filter chips — only shown when the event has segments */}
+      {segments.length > 0 && (
+        <div className="flex flex-wrap gap-1.5 mb-3">
+          <button onClick={() => setSegmentFilter('all')}
+            className="text-xs px-3 py-1.5 rounded-full transition-colors"
+            style={segmentFilter === 'all'
+              ? { background: 'var(--blue)', color: '#000', fontWeight: 600 }
+              : { background: 'var(--surface-deep)', color: 'var(--muted)', border: '1px solid var(--border)' }}>
+            All
+          </button>
+          {segments.map(seg => {
+            const count = registrations.filter(r => r.category_id === seg.id).length
+            const active = segmentFilter === seg.id
+            return (
+              <button key={seg.id} onClick={() => setSegmentFilter(seg.id)}
+                className="text-xs px-3 py-1.5 rounded-full transition-colors inline-flex items-center gap-1.5"
+                style={active
+                  ? { background: 'rgba(var(--blue-rgb), 0.18)', color: 'var(--blue)', border: '1px solid rgba(var(--blue-rgb), 0.4)', fontWeight: 600 }
+                  : { background: 'var(--surface-deep)', color: 'var(--muted)', border: '1px solid var(--border)' }}>
+                {seg.name}
+                <span className="text-[10px] px-1 rounded" style={{ background: active ? 'rgba(var(--blue-rgb), 0.3)' : 'var(--surface)', color: active ? 'var(--blue)' : 'var(--border-soft)' }}>
+                  {count}
+                </span>
+              </button>
+            )
+          })}
+        </div>
+      )}
+
       {filtered.length === 0 && (
         <p className="text-sm py-8 text-center" style={{ color: 'var(--border-soft)' }}>
           {registrations.length === 0 ? 'No one has registered for this event yet.' : 'No registrants match your search.'}
@@ -426,7 +514,24 @@ function RegistrantsPanel({ sessionId }: { sessionId: string }) {
         ))}
       </div>
 
-      {viewing && (
+      {viewing && (() => {
+        // Render custom_answers in the segment's form_field_schema order, so
+        // the admin sees the answers laid out exactly like the registrant
+        // did. Falls back to insertion order if no schema is available.
+        const viewingSegment = segments.find(s => s.id === viewing.category_id)
+        const orderedKeys: string[] = []
+        if (viewingSegment?.form_field_schema?.length) {
+          for (const f of viewingSegment.form_field_schema) {
+            const k = f.key || f.id
+            if (k && !f.is_builtin && viewing.custom_answers && k in viewing.custom_answers) orderedKeys.push(k)
+          }
+        }
+        if (viewing.custom_answers) {
+          for (const k of Object.keys(viewing.custom_answers)) {
+            if (!orderedKeys.includes(k)) orderedKeys.push(k)
+          }
+        }
+        return (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.6)' }} onClick={() => setViewing(null)}>
           <div className="max-w-md w-full rounded-2xl p-5 space-y-2 max-h-[80vh] overflow-y-auto" style={{ background: 'var(--surface-deep)', border: '1px solid var(--border)' }} onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-1">
@@ -443,14 +548,21 @@ function RegistrantsPanel({ sessionId }: { sessionId: string }) {
               <p>Registered: {new Date(viewing.created_at).toLocaleString()}</p>
               {viewing.payment_status && <p>Payment: {viewing.payment_status}</p>}
             </div>
-            {viewing.custom_answers && Object.keys(viewing.custom_answers).length > 0 && (
+            {orderedKeys.length > 0 && (
               <div className="pt-2 border-t" style={{ borderColor: 'var(--border)' }}>
                 <p className="text-xs font-bold mb-1" style={{ color: 'var(--accent2)' }}>SUBMITTED FIELDS</p>
-                {Object.entries(viewing.custom_answers).map(([k, v]: [string, any]) => (
-                  <p key={k} className="text-xs" style={{ color: 'var(--muted)' }}>
-                    {k}: {Array.isArray(v) ? v.join(', ') : String(v)}
-                  </p>
-                ))}
+                {orderedKeys.map((k: string) => {
+                  // Look up the schema's display label, falling back to the
+                  // raw key for legacy custom_answers with no schema.
+                  const field = viewingSegment?.form_field_schema?.find((f: any) => (f.key || f.id) === k)
+                  const label = field?.label || k
+                  const v = viewing.custom_answers?.[k]
+                  return (
+                    <p key={k} className="text-xs" style={{ color: 'var(--muted)' }}>
+                      {label}: {Array.isArray(v) ? v.join(', ') : String(v)}
+                    </p>
+                  )
+                })}
               </div>
             )}
             {(viewing.team_members || []).length > 0 && (
@@ -468,54 +580,213 @@ function RegistrantsPanel({ sessionId }: { sessionId: string }) {
             )}
           </div>
         </div>
-      )}
+        )
+      })()}
     </div>
   )
 }
 
-// Focused appearance preview + deep link into the full form-config editor
-// (title, subtitle, cover + aspect ratio, auto-pull toggles, background,
-// font, primary/extra fields, contact persons) — that editor already exists
-// at /admin/forms and already supports per-session keys
-// (`activity_register:<sessionId>`), so this panel reuses it instead of
-// duplicating a second appearance UI.
-function AppearancePanel({ sessionId }: { sessionId: string }) {
-  const [config, setConfig] = useState<any>(null)
+// Per-session appearance editor. The full editor used to live at
+// /admin/forms?key=activity_register:<sessionId>, but that page also
+// hosted a FormBlocksBuilder — the same field editor the per-segment
+// system already has on the Registration tab. The two were redundant, so
+// per-session appearance was moved onto the new
+// activity_session_form_appearance table and edited here. The /admin/forms
+// page is still used for the global `activity_register`, `olympiad_register`,
+// and `membership` form configs.
+function AppearancePanel({ sessionId, session, onSaved }: { sessionId: string; session: any; onSaved: (s: any) => void }) {
+  const [appearance, setAppearance] = useState<any>(null)
   const [loading, setLoading] = useState(true)
-  const formKey = `activity_register:${sessionId}`
+  const [saving, setSaving] = useState(false)
+  const [saved, setSaved] = useState(false)
+  const [error, setError] = useState('')
 
   useEffect(() => {
-    fetch(`/api/admin/form-configs?form_key=${formKey}`)
+    fetch(`/api/admin/activity-session-appearance?session_id=${sessionId}`)
       .then(r => r.json())
-      .then(d => setConfig(d.config || null))
-      .catch(() => {})
+      .then(d => setAppearance(d.appearance || {}))
+      .catch(() => setAppearance({}))
       .finally(() => setLoading(false))
-  }, [formKey])
+  }, [sessionId])
+
+  const patch = (field: string, value: any) => setAppearance((prev: any) => ({ ...(prev || {}), [field]: value }))
+
+  const save = async () => {
+    setSaving(true); setError(''); setSaved(false)
+    try {
+      const res = await fetch('/api/admin/activity-session-appearance', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ session_id: sessionId, ...(appearance || {}) }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error)
+      setAppearance(data.appearance)
+      setSaved(true)
+      setTimeout(() => setSaved(false), 2500)
+    } catch (e: any) { setError(e.message || 'Save failed.') }
+    finally { setSaving(false) }
+  }
 
   if (loading) return <p className="text-sm" style={{ color: 'var(--border-soft)' }}>Loading appearance…</p>
 
+  // Live preview values — apply auto-pull rules so the preview matches
+  // what the public register page will show.
+  const previewTitle = appearance?.form_auto_pull_title ? session?.title : (appearance?.form_title || session?.title)
+  const previewCover = appearance?.form_auto_pull_cover ? session?.cover_image_url : (appearance?.form_cover_photo_url || session?.cover_image_url)
+  const previewAccent = resolveAccent(appearance?.form_bg_theme)
+  const previewFont = resolveFont(appearance?.form_font_family)
+
   return (
-    <div className="rounded-xl p-5" style={{ background: 'var(--surface-deep)', border: '1px solid var(--border)' }}>
-      <p className="text-sm mb-4" style={{ color: 'var(--muted)' }}>
-        Title, description, cover image, background, font, and which primary/extra fields show up are all
-        configured here — this form uses a per-event override so it can look completely different from
-        every other registration form on the site.
-      </p>
-      {config ? (
-        <div className="space-y-2 mb-4 text-sm" style={{ color: 'var(--white-soft)' }}>
-          <p><span style={{ color: 'var(--border-soft)' }}>Title:</span> {config.auto_pull_title ? '(auto-pulled from event)' : (config.title || '(using event title)')}</p>
-          <p><span style={{ color: 'var(--border-soft)' }}>Cover:</span> {config.auto_pull_cover ? '(auto-pulled from event)' : (config.cover_photo_url ? 'Custom image set' : '(using event cover)')}</p>
-          <p><span style={{ color: 'var(--border-soft)' }}>Font:</span> {config.font_family || 'default'}</p>
-          <p><span style={{ color: 'var(--border-soft)' }}>Extra fields:</span> {(config.extra_fields || []).length}</p>
+    <div className="space-y-4">
+      {/* Live preview — same fields the public register page reads */}
+      <div className="rounded-xl p-4" style={{ background: 'var(--surface-deep)', border: '1px solid var(--border)' }}>
+        <p className="text-xs font-bold mb-2" style={{ color: 'var(--muted)' }}>PREVIEW (what the public form will look like)</p>
+        <div className="rounded-lg p-4" style={{ background: 'var(--bg2)', border: '1px solid var(--border)' }}>
+          <h3 className="text-lg font-black mb-1" style={{ fontFamily: previewFont !== 'inherit' ? previewFont : "'Orbitron', sans-serif", color: 'var(--white)' }}>{previewTitle || '(no title)'}</h3>
+          {previewCover && (
+            <div className="rounded overflow-hidden mb-2" style={{ border: '1px solid var(--border)' }}>
+              <img src={previewCover} alt="cover preview" className="w-full max-h-32 object-cover" />
+            </div>
+          )}
+          <div className="flex gap-2 items-center text-xs" style={{ color: 'var(--border-soft)' }}>
+            <span className="px-2 py-1 rounded" style={{ background: 'rgba(var(--blue-rgb), 0.1)', color: 'var(--blue)' }}>accent: {appearance?.form_bg_theme || 'default'}</span>
+            <span className="px-2 py-1 rounded" style={{ background: 'var(--surface)', color: 'var(--muted)' }}>font: {appearance?.form_font_family || 'default'}</span>
+            {appearance?.form_bg_color && <span className="px-2 py-1 rounded flex items-center gap-1" style={{ background: 'var(--surface)', color: 'var(--muted)' }}>
+              <span className="w-3 h-3 rounded-sm" style={{ background: appearance.form_bg_color }} /> bg: {appearance.form_bg_color}
+            </span>}
+          </div>
         </div>
-      ) : (
-        <p className="text-sm mb-4" style={{ color: 'var(--border-soft)' }}>No appearance overrides yet — this form is using site defaults.</p>
-      )}
-      <Link href={`/admin/forms?key=${encodeURIComponent(formKey)}`}
-        className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold"
-        style={{ background: 'rgba(var(--blue-rgb), 0.1)', color: 'var(--blue)', border: '1px solid rgba(var(--blue-rgb), 0.3)' }}>
-        Edit appearance & fields →
-      </Link>
+      </div>
+
+      {/* Editor */}
+      <div className="rounded-xl p-5 space-y-4" style={{ background: 'var(--surface-deep)', border: '1px solid var(--border)' }}>
+        <p className="text-sm" style={{ color: 'var(--muted)' }}>
+          Title, description, cover image, background, font, and contact persons for this event's
+          registration form. The form fields themselves (name, phone, email, etc.) are configured
+          per-segment on the Registration tab — not here.
+        </p>
+
+        <Field label="Title shown at the top of the form (leave blank to use the event title)">
+          <input className={inputCls} style={inputStyle}
+            disabled={!!appearance?.form_auto_pull_title}
+            value={appearance?.form_title || ''}
+            onChange={e => patch('form_title', e.target.value)} />
+          <label className="flex items-center gap-2 text-xs mt-1.5" style={{ color: 'var(--muted)' }}>
+            <input type="checkbox" checked={!!appearance?.form_auto_pull_title}
+              onChange={e => patch('form_auto_pull_title', e.target.checked)} />
+            Auto-pull from the event's title instead
+          </label>
+        </Field>
+
+        <Field label="Subtitle / description shown under the title">
+          <input className={inputCls} style={inputStyle}
+            disabled={!!appearance?.form_auto_pull_description}
+            value={appearance?.form_subtitle || ''}
+            onChange={e => patch('form_subtitle', e.target.value)} />
+          <label className="flex items-center gap-2 text-xs mt-1.5" style={{ color: 'var(--muted)' }}>
+            <input type="checkbox" checked={!!appearance?.form_auto_pull_description}
+              onChange={e => patch('form_auto_pull_description', e.target.checked)} />
+            Auto-pull from the event's description instead
+          </label>
+        </Field>
+
+        <Field label="Cover photo URL (leave blank to use the event's cover image)">
+          <input className={inputCls} style={inputStyle}
+            disabled={!!appearance?.form_auto_pull_cover}
+            value={appearance?.form_cover_photo_url || ''}
+            onChange={e => patch('form_cover_photo_url', e.target.value)} />
+          <label className="flex items-center gap-2 text-xs mt-1.5" style={{ color: 'var(--muted)' }}>
+            <input type="checkbox" checked={!!appearance?.form_auto_pull_cover}
+              onChange={e => patch('form_auto_pull_cover', e.target.checked)} />
+            Auto-pull from the event's cover image instead
+          </label>
+          {appearance?.form_cover_photo_url && !appearance?.form_auto_pull_cover && (
+            <img src={appearance.form_cover_photo_url} alt="" className="mt-2 rounded-lg w-full h-24"
+              style={{ objectFit: appearance?.form_cover_aspect_ratio === 'auto' ? 'contain' : 'cover' }} />
+          )}
+          <div className="mt-2">
+            <label className="text-xs block mb-1" style={{ color: 'var(--border-soft)' }}>Render cover at</label>
+            <select className={inputCls} style={inputStyle}
+              value={appearance?.form_cover_aspect_ratio || 'auto'}
+              onChange={e => patch('form_cover_aspect_ratio', e.target.value)}>
+              {COVER_RATIO_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+            </select>
+          </div>
+        </Field>
+
+        <Field label="Accent color (asterisks, buttons, focus rings)">
+          <div className="flex flex-wrap gap-2">
+            {THEME_PRESETS.map(t => (
+              <button key={t.value} type="button" onClick={() => patch('form_bg_theme', t.value === 'default' ? null : t.value)}
+                className="w-9 h-9 rounded-full border-2 flex items-center justify-center"
+                style={{ background: t.swatch, borderColor: (appearance?.form_bg_theme || 'default') === t.value ? '#fff' : 'transparent' }}
+                title={t.label}>
+                {((appearance?.form_bg_theme || 'default') === t.value) && <Check size={13} style={{ color: '#000' }} strokeWidth={3} />}
+              </button>
+            ))}
+            <input type="color"
+              value={appearance?.form_bg_theme?.startsWith('#') ? appearance.form_bg_theme : '#3b82f6'}
+              onChange={e => patch('form_bg_theme', e.target.value)}
+              className="w-9 h-9 rounded-full border-2 cursor-pointer"
+              style={{ borderColor: appearance?.form_bg_theme?.startsWith('#') ? '#fff' : 'transparent', padding: 0, background: 'none' }}
+              title="Custom color" />
+          </div>
+          <p className="text-xs mt-1" style={{ color: 'var(--border-soft)' }}>
+            Current accent: <span className="font-mono">{previewAccent}</span>
+          </p>
+        </Field>
+
+        <Field label="Page background">
+          <div className="flex gap-2 items-center">
+            <input type="color" value={appearance?.form_bg_color || '#0b0f19'}
+              onChange={e => patch('form_bg_color', e.target.value)}
+              className="w-9 h-9 rounded cursor-pointer" style={{ padding: 0, background: 'none', border: '1px solid var(--border)' }}
+              title="Background color" />
+            <input className={inputCls} style={inputStyle}
+              value={appearance?.form_bg_image_url || ''}
+              placeholder="Optional background image URL (tiled/cover behind the whole form)"
+              onChange={e => patch('form_bg_image_url', e.target.value)} />
+          </div>
+        </Field>
+
+        <Field label="Font">
+          <select className={inputCls} style={inputStyle}
+            value={appearance?.form_font_family || 'default'}
+            onChange={e => patch('form_font_family', e.target.value)}>
+            {FONT_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+          </select>
+        </Field>
+
+        <Field label="Contact persons (shown at the bottom of the form)">
+          <p className="text-xs mb-3" style={{ color: 'var(--border-soft)' }}>
+            Add contact info for people students can reach out to, or pull from the Executive Committee page.
+          </p>
+          <ContactPersonsEditor
+            value={appearance?.form_contact_persons || []}
+            onChange={next => patch('form_contact_persons', next)}
+            idPrefix={`appearance-${sessionId}`}
+          />
+        </Field>
+
+        {error && <p className="text-sm p-3 rounded-lg" style={{ background: 'rgba(var(--danger-rgb), 0.1)', color: 'var(--danger-soft)' }}>{error}</p>}
+
+        <button onClick={save} disabled={saving}
+          className="px-5 py-2 rounded-lg text-sm font-bold disabled:opacity-50 flex items-center gap-2"
+          style={{ background: saved ? 'var(--cat-teal)' : 'var(--blue)', color: '#000' }}>
+          <Save size={14} />
+          {saving ? 'Saving…' : saved ? 'Saved' : 'Save Appearance'}
+        </button>
+      </div>
+    </div>
+  )
+}
+
+function Field({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div>
+      <label className="block text-xs mb-1 font-medium" style={{ color: 'var(--muted)' }}>{label}</label>
+      {children}
     </div>
   )
 }
@@ -876,84 +1147,6 @@ function CategoryEditor({ category, isLeaf, onSave }: { category: Category; isLe
     setSaving(false)
   }
 
-  const FieldListEditor = ({ fields, setter, title }: { fields: CustomField[]; setter: typeof setCustomFields; title: string }) => (
-    <div className="space-y-2">
-      <p className="text-xs font-bold" style={{ color: 'var(--muted)' }}>{title}</p>
-      {fields.map(f => (
-        <div key={f.key} className="p-3 rounded-lg space-y-2" style={{ background: 'var(--surface)' }}>
-          <div className="flex gap-2">
-            <input placeholder="Field title (e.g. Submit your NDC ID card photo)" value={f.label}
-              onChange={e => patchField(setter, f.key, { label: e.target.value })}
-              className={inputCls} style={inputStyle} />
-            <select value={f.type} onChange={e => patchField(setter, f.key, { type: e.target.value as FieldType })}
-              className="px-2 py-2 rounded-lg text-sm border outline-none" style={inputStyle}>
-              {fieldTypeOptions.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-            </select>
-            <button onClick={() => removeField(setter, f.key)} style={{ color: 'var(--danger-soft)' }}><Trash2 size={14} /></button>
-          </div>
-          <input placeholder="Description shown under the field title (optional)" value={f.description || ''}
-            onChange={e => patchField(setter, f.key, { description: e.target.value })}
-            className={inputCls} style={inputStyle} />
-          {(f.type === 'dropdown' || f.type === 'multiple_choice' || f.type === 'checkboxes') && (
-            <div>
-              <label className="block text-xs mb-1" style={{ color: 'var(--muted)' }}>
-                {f.type === 'dropdown' ? 'Options shown in the dropdown' : 'Choices registrants can pick from'}
-              </label>
-              <div className="space-y-1.5">
-                {(f.options || []).map((opt, oi) => (
-                  <div key={oi} className="flex items-center gap-2">
-                    <MathInputField value={opt} onChange={v => updateOption(setter, f.key, oi, v)}
-                      placeholder="Option text" className={inputCls} style={{ ...inputStyle, padding: '6px 10px' }} />
-                    <button onClick={() => removeOption(setter, f.key, oi)} style={{ color: 'var(--danger-soft)' }}><X size={14} /></button>
-                  </div>
-                ))}
-              </div>
-              <button onClick={() => addOption(setter, f.key)} className="text-xs flex items-center gap-1 mt-1.5" style={{ color: 'var(--blue)' }}>
-                <Plus size={11} /> Add option
-              </button>
-              {f.type === 'dropdown' && (
-                <label className="flex items-center gap-2 text-xs mt-1.5" style={{ color: 'var(--muted)' }}>
-                  <input type="checkbox" checked={!!f.allow_other} onChange={e => patchField(setter, f.key, { allow_other: e.target.checked })} />
-                  Let registrants type their own option (adds an &quot;Other&quot; choice)
-                </label>
-              )}
-            </div>
-          )}
-          {(f.type === 'photo' || f.type === 'file') && (
-            <div className="flex items-center gap-3">
-              <div className="flex items-center gap-2">
-                <label className="text-xs whitespace-nowrap" style={{ color: 'var(--muted)' }}>Max file size (MB)</label>
-                <input type="number" min={1} placeholder="5" value={f.max_file_size_mb ?? ''}
-                  onChange={e => patchField(setter, f.key, { max_file_size_mb: e.target.value ? Number(e.target.value) : undefined })}
-                  className={inputCls} style={{ ...inputStyle, maxWidth: 100 }} />
-              </div>
-              <div className="flex items-center gap-2">
-                <label className="text-xs whitespace-nowrap" style={{ color: 'var(--muted)' }}>Max files</label>
-                <input type="number" min={1} placeholder="1" value={f.max_files ?? ''}
-                  onChange={e => patchField(setter, f.key, { max_files: e.target.value ? Number(e.target.value) : undefined })}
-                  className={inputCls} style={{ ...inputStyle, maxWidth: 100 }} />
-              </div>
-            </div>
-          )}
-          <div className="flex items-center gap-4 flex-wrap">
-            <label className="flex items-center gap-2 text-xs" style={{ color: 'var(--muted)' }}>
-              <input type="checkbox" checked={f.required} onChange={e => patchField(setter, f.key, { required: e.target.checked })} />
-              Required
-            </label>
-            <label className="flex items-center gap-2 text-xs" style={{ color: 'var(--muted)' }} title="If two registrants submit the same value for this field, the second submission is rejected as a duplicate.">
-              <input type="checkbox" checked={!!f.unique_field} onChange={e => patchField(setter, f.key, { unique_field: e.target.checked })} />
-              Unique field (no duplicates across this event)
-            </label>
-          </div>
-        </div>
-      ))}
-      <button onClick={() => addField(setter)} className="text-xs px-3 py-1.5 rounded flex items-center gap-1"
-        style={{ background: 'rgba(var(--blue-rgb), 0.1)', color: 'var(--blue)' }}>
-        <Plus size={11} /> Add field
-      </button>
-    </div>
-  )
-
   return (
     <div className="p-4 border-t space-y-4" style={{ borderColor: 'var(--border)' }}>
       <div>
@@ -977,7 +1170,7 @@ function CategoryEditor({ category, isLeaf, onSave }: { category: Category; isLe
       {isLeaf && (
         <>
           <hr style={{ borderColor: 'var(--border)' }} />
-          <FieldListEditor fields={customFields} setter={setCustomFields} title="EXTRA REGISTRATION FIELDS (besides name, phone, email, college, roll, HSC session)" />
+          <LegacyFieldListEditor fields={customFields} onChange={setCustomFields} title="EXTRA REGISTRATION FIELDS (besides name, phone, email, college, roll, HSC session)" />
 
           <hr style={{ borderColor: 'var(--border)' }} />
           <div>
@@ -997,7 +1190,7 @@ function CategoryEditor({ category, isLeaf, onSave }: { category: Category; isLe
                     <input type="number" value={teamMax} onChange={e => setTeamMax(e.target.value)} className={inputCls} style={inputStyle} />
                   </div>
                 </div>
-                <FieldListEditor fields={teamFields} setter={setTeamFields} title="INFO COLLECTED PER TEAM MEMBER" />
+                <LegacyFieldListEditor fields={teamFields} onChange={setTeamFields} title="INFO COLLECTED PER TEAM MEMBER" />
                 <p className="text-xs" style={{ color: 'var(--border-soft)' }}>
                   The team leader sets a password for each member during registration — every
                   member gets an email with their info and password so they can log in to their own dashboard.
@@ -1195,6 +1388,528 @@ function CategoryEditor({ category, isLeaf, onSave }: { category: Category; isLe
         className="px-5 py-2 rounded-lg text-sm font-bold disabled:opacity-50"
         style={{ background: 'var(--blue)', color: '#000' }}>
         {saving ? 'Saving...' : 'Save Changes'}
+      </button>
+    </div>
+  )
+}
+
+// Segments section — the new top-level building block. Each segment is a public
+// card on the event page, with its own icon, bg image, and form_field_schema.
+function SegmentsSection({
+  segments, onAdd, onPatch, onDelete, editingId, setEditingId,
+}: {
+  segments: Category[]
+  onAdd: () => void
+  onPatch: (id: string, patch: Partial<Category> & { online_type?: string }) => void
+  onDelete: (id: string) => void
+  editingId: string | null
+  setEditingId: (id: string | null) => void
+}) {
+  return (
+    <div className="space-y-3">
+      {segments.length === 0 ? (
+        <div className="p-8 rounded-xl border-2 border-dashed text-center" style={{ borderColor: 'rgba(var(--blue-rgb), 0.3)', background: 'rgba(var(--blue-rgb), 0.04)' }}>
+          <Sparkles size={20} style={{ color: 'var(--blue)' }} className="mx-auto mb-2" />
+          <p className="text-sm font-semibold mb-1" style={{ color: 'var(--white)' }}>No segments yet</p>
+          <p className="text-xs mb-3" style={{ color: 'var(--muted)' }}>
+            Add your first segment to start collecting registrations for this event.
+          </p>
+          <button onClick={onAdd}
+            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-bold"
+            style={{ background: 'var(--blue)', color: '#000' }}>
+            <Plus size={14} /> Add segment
+          </button>
+        </div>
+      ) : (
+        <>
+          {segments.map(seg => (
+            <div key={seg.id} className="rounded-xl border" style={{ background: 'var(--bg2)', borderColor: 'var(--border)' }}>
+              <div className="flex items-center gap-2 p-3">
+                <span className="text-sm font-semibold flex-1" style={{ color: 'var(--white)' }}>{seg.name}</span>
+                <span className="text-xs px-2 py-0.5 rounded-full" style={{ background: 'rgba(var(--blue-rgb), 0.1)', color: 'var(--blue)' }}>Segment</span>
+                {seg.requires_team && <Users size={13} style={{ color: 'var(--accent2)' }} />}
+                {seg.requires_payment && <CreditCard size={13} style={{ color: 'var(--warning)' }} />}
+                {seg.is_online_submission && <Link2 size={13} style={{ color: 'var(--blue)' }} />}
+                <button onClick={() => setEditingId(editingId === seg.id ? null : seg.id)}
+                  className="text-xs px-2 py-1 rounded" style={{ background: 'rgba(var(--blue-rgb), 0.1)', color: 'var(--blue)' }}>
+                  {editingId === seg.id ? 'Close' : 'Edit'}
+                </button>
+                <button onClick={() => onDelete(seg.id)} style={{ color: 'var(--danger-soft)' }}>
+                  <Trash2 size={14} />
+                </button>
+              </div>
+              {editingId === seg.id && (
+                <SegmentEditor segment={seg} onSave={patch => onPatch(seg.id, patch)} />
+              )}
+            </div>
+          ))}
+          <button onClick={onAdd}
+            className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold"
+            style={{ background: 'rgba(var(--blue-rgb), 0.1)', color: 'var(--blue)', border: '1px solid rgba(var(--blue-rgb), 0.3)' }}>
+            <Plus size={14} /> Add another segment
+          </button>
+        </>
+      )}
+    </div>
+  )
+}
+
+// Editor for one segment. Reuses the same shape as the legacy CategoryEditor
+// (team/payment/online/schedule/submission_config/project_name) but lives at the
+// top level and adds:
+//   - icon (text name) and bg_image_url (upload)
+//   - form_field_schema editor (the new Google Forms–style unified field list)
+function SegmentEditor({ segment, onSave }: { segment: Category; onSave: (patch: Partial<Category> & { online_type?: string }) => void }) {
+  const [name, setName] = useState(segment.name)
+  const [description, setDescription] = useState(segment.description || '')
+  const [icon, setIcon] = useState(segment.icon || '')
+  const [bgImageUrl, setBgImageUrl] = useState(segment.bg_image_url || '')
+  const [registrationOpen, setRegistrationOpen] = useState(segment.registration_open !== false)
+  const [formFieldSchema, setFormFieldSchema] = useState<FormBlock[]>(segment.form_field_schema || [])
+  const [requiresTeam, setRequiresTeam] = useState(segment.requires_team)
+  const [teamMin, setTeamMin] = useState(segment.team_size_min?.toString() || '')
+  const [teamMax, setTeamMax] = useState(segment.team_size_max?.toString() || '')
+  const [teamFields, setTeamFields] = useState<CustomField[]>(segment.team_member_fields || [])
+  const [requiresPayment, setRequiresPayment] = useState(segment.requires_payment)
+  const [paymentAmount, setPaymentAmount] = useState(segment.payment_amount?.toString() || '')
+  const [paymentLabel, setPaymentLabel] = useState(segment.payment_label || '')
+  const [isOnlineSubmission, setIsOnlineSubmission] = useState(segment.is_online_submission)
+  const [onlineType, setOnlineType] = useState(deriveOnlineType(segment.linked_olympiad))
+  const [scheduleDate, setScheduleDate] = useState(segment.schedule_date || '')
+  const [scheduleTime, setScheduleTime] = useState(segment.schedule_time || '')
+  const [scheduleRoom, setScheduleRoom] = useState(segment.schedule_room || '')
+  const [editWindowHours, setEditWindowHours] = useState(segment.edit_window_hours?.toString() || '')
+  const [submissionConfig, setSubmissionConfig] = useState<SubmissionField[]>(segment.submission_config || [])
+  const [submissionWho, setSubmissionWho] = useState<'leader' | 'any_member'>(segment.submission_who || 'leader')
+  const [projectNameEnabled, setProjectNameEnabled] = useState(segment.project_name_enabled || false)
+  const [projectNameLabel, setProjectNameLabel] = useState(segment.project_name_label || 'Project Name')
+  const [saving, setSaving] = useState(false)
+  const [bgUploading, setBgUploading] = useState(false)
+  const [bgError, setBgError] = useState('')
+
+  const handleBgUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setBgUploading(true)
+    setBgError('')
+    try {
+      const fd = new FormData()
+      fd.append('file', file)
+      const res = await fetch('/api/admin/upload', { method: 'POST', body: fd })
+      const data = await res.json()
+      if (!res.ok || !data.url) throw new Error(data.error || 'Upload failed')
+      setBgImageUrl(data.url)
+    } catch (ex: any) { setBgError(ex.message || 'Upload failed') }
+    finally { setBgUploading(false); e.target.value = '' }
+  }
+
+  const save = async () => {
+    setSaving(true)
+    await onSave({
+      name, description, icon: icon || null, bg_image_url: bgImageUrl || null,
+      registration_open: registrationOpen,
+      form_field_schema: formFieldSchema,
+      requires_team: requiresTeam,
+      team_size_min: teamMin ? Number(teamMin) : null,
+      team_size_max: teamMax ? Number(teamMax) : null,
+      team_member_fields: teamFields,
+      requires_payment: requiresPayment,
+      payment_amount: paymentAmount ? Number(paymentAmount) : null,
+      payment_label: paymentLabel || null,
+      is_online_submission: isOnlineSubmission,
+      online_type: isOnlineSubmission ? onlineType : undefined,
+      schedule_date: scheduleDate || null,
+      schedule_time: scheduleTime || null,
+      schedule_room: scheduleRoom || null,
+      edit_window_hours: editWindowHours ? Number(editWindowHours) : null,
+      submission_config: submissionConfig,
+      submission_who: submissionWho,
+      project_name_enabled: projectNameEnabled,
+      project_name_label: projectNameLabel || null,
+    })
+    setSaving(false)
+  }
+
+  return (
+    <div className="p-4 border-t space-y-4" style={{ borderColor: 'var(--border)' }}>
+      <div>
+        <label className="block text-xs mb-1" style={{ color: 'var(--muted)' }}>Segment name</label>
+        <input value={name} onChange={e => setName(e.target.value)} className={inputCls} style={inputStyle} />
+      </div>
+      <div>
+        <label className="block text-xs mb-1" style={{ color: 'var(--muted)' }}>Description (shown on the public segment card)</label>
+        <textarea rows={2} value={description} onChange={e => setDescription(e.target.value)} className={inputCls + ' resize-none'} style={inputStyle} />
+      </div>
+
+      <div className="grid grid-cols-2 gap-3">
+        <div>
+          <label className="block text-xs mb-1" style={{ color: 'var(--muted)' }}>Icon (Lucide name or emoji)</label>
+          <input value={icon} onChange={e => setIcon(e.target.value)} placeholder="e.g. flask, trophy, or 🔬"
+            className={inputCls} style={inputStyle} />
+        </div>
+        <div>
+          <label className="block text-xs mb-1" style={{ color: 'var(--muted)' }}>Background image (optional)</label>
+          <div className="flex items-center gap-2">
+            {bgImageUrl && <img src={bgImageUrl} alt="" className="h-9 w-14 object-cover rounded" style={{ border: '1px solid var(--border)' }} />}
+            <label className="text-xs px-3 py-1.5 rounded cursor-pointer whitespace-nowrap"
+              style={{ background: 'rgba(var(--blue-rgb), 0.1)', color: 'var(--blue)', border: '1px solid rgba(var(--blue-rgb), 0.3)' }}>
+              {bgUploading ? 'Uploading…' : bgImageUrl ? 'Replace' : 'Upload'}
+              <input type="file" accept="image/*" className="hidden" onChange={handleBgUpload} />
+            </label>
+            {bgImageUrl && (
+              <button onClick={() => setBgImageUrl('')} className="text-xs" style={{ color: 'var(--danger-soft)' }}>Remove</button>
+            )}
+          </div>
+          {bgError && <p className="text-xs mt-1" style={{ color: 'var(--danger-soft)' }}>{bgError}</p>}
+        </div>
+      </div>
+
+      <label className="flex items-center gap-2 text-sm cursor-pointer" style={{ color: registrationOpen ? 'var(--cat-teal)' : 'var(--danger-soft)' }}>
+        <input type="checkbox" checked={registrationOpen} onChange={e => setRegistrationOpen(e.target.checked)} />
+        {registrationOpen ? 'Accepting new registrants' : 'Closed to new registrants'}
+      </label>
+
+      <hr style={{ borderColor: 'var(--border)' }} />
+
+      {/* The unified field editor — full Google Forms–style control over
+          what registrants fill in for this segment. Built-in fields are
+          pre-loaded but can be deleted (with a warning). */}
+      <FieldsEditor
+        blocks={formFieldSchema}
+        onChange={setFormFieldSchema}
+        label="Registration Form Fields"
+        description="The fields students see when registering for this segment. The 7 built-in fields (name, phone, email, college, roll, HSC session, division) are pre-loaded but you can edit, reorder, or delete any of them."
+      />
+
+      <hr style={{ borderColor: 'var(--border)' }} />
+
+      {/* Team registration */}
+      <div>
+        <label className="flex items-center gap-2 text-sm font-semibold mb-2" style={{ color: 'var(--accent2)' }}>
+          <input type="checkbox" checked={requiresTeam} onChange={e => setRequiresTeam(e.target.checked)} />
+          <Users size={14} /> Team registration
+        </label>
+        {requiresTeam && (
+          <div className="space-y-3 pl-6">
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs mb-1" style={{ color: 'var(--muted)' }}>Min team size</label>
+                <input type="number" value={teamMin} onChange={e => setTeamMin(e.target.value)} className={inputCls} style={inputStyle} />
+              </div>
+              <div>
+                <label className="block text-xs mb-1" style={{ color: 'var(--muted)' }}>Max team size</label>
+                <input type="number" value={teamMax} onChange={e => setTeamMax(e.target.value)} className={inputCls} style={inputStyle} />
+              </div>
+            </div>
+            <LegacyFieldListEditor fields={teamFields} onChange={setTeamFields} title="INFO COLLECTED PER TEAM MEMBER" />
+          </div>
+        )}
+      </div>
+
+      <hr style={{ borderColor: 'var(--border)' }} />
+
+      {/* Payment */}
+      <div>
+        <label className="flex items-center gap-2 text-sm font-semibold mb-2" style={{ color: 'var(--warning)' }}>
+          <input type="checkbox" checked={requiresPayment} onChange={e => setRequiresPayment(e.target.checked)} />
+          <CreditCard size={14} /> Requires payment
+        </label>
+        {requiresPayment && (
+          <div className="grid grid-cols-2 gap-3 pl-6">
+            <div>
+              <label className="block text-xs mb-1" style={{ color: 'var(--muted)' }}>Amount (BDT)</label>
+              <input type="number" value={paymentAmount} onChange={e => setPaymentAmount(e.target.value)} className={inputCls} style={inputStyle} />
+            </div>
+            <div>
+              <label className="block text-xs mb-1" style={{ color: 'var(--muted)' }}>Payment label</label>
+              <input placeholder="e.g. Registration fee" value={paymentLabel} onChange={e => setPaymentLabel(e.target.value)} className={inputCls} style={inputStyle} />
+            </div>
+          </div>
+        )}
+      </div>
+
+      <hr style={{ borderColor: 'var(--border)' }} />
+
+      {/* Online submission (links to Olympiad) */}
+      <div>
+        <label className="flex items-center gap-2 text-sm font-semibold mb-1" style={{ color: 'var(--blue)' }}>
+          <input type="checkbox" checked={isOnlineSubmission} onChange={e => setIsOnlineSubmission(e.target.checked)} />
+          <Link2 size={14} /> Online-submission / exam round
+        </label>
+        <p className="text-xs pl-6 mb-2" style={{ color: 'var(--border-soft)' }}>
+          {segment.linked_olympiad_id
+            ? 'Already linked to an Olympiad — registrants access exam/submission from their dashboard.'
+            : 'Saving with this on will auto-create a linked Olympiad.'}
+        </p>
+        {segment.linked_olympiad_id && (
+          <div className="pl-6 space-y-2">
+            <div>
+              <label className="block text-xs mb-1" style={{ color: 'var(--muted)' }}>Online Type</label>
+              <select value={onlineType} onChange={e => setOnlineType(e.target.value)}
+                className="px-2 py-2 rounded-lg text-sm border outline-none w-full max-w-xs" style={inputStyle}>
+                <option value="pure_submission">Pure Submission</option>
+                <option value="full_quiz">Full Quiz System</option>
+                <option value="mixed">Mixed</option>
+                <option value="science_relay">Science Relay</option>
+              </select>
+            </div>
+            <Link href={`/admin/olympiads?edit=${segment.linked_olympiad_id}&back_session=${segment.activity_session_id}`}
+              className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-bold"
+              style={{ background: 'rgba(var(--blue-rgb), 0.12)', color: 'var(--blue)', border: '1px solid rgba(var(--blue-rgb), 0.3)' }}>
+              <Zap size={13} /> Configure questions, scheduling & relay →
+            </Link>
+          </div>
+        )}
+      </div>
+
+      {isOnlineSubmission && (
+        <>
+          <hr style={{ borderColor: 'var(--border)' }} />
+          <div>
+            <p className="text-xs font-bold mb-2" style={{ color: 'var(--blue)' }}>
+              <Upload size={13} className="inline mr-1.5 -mt-0.5" /> SUBMISSION FIELDS
+            </p>
+            <p className="text-xs mb-3" style={{ color: 'var(--border-soft)' }}>
+              Leave empty for live MCQ exams. Add fields for project uploads, answer sheets, videos.
+            </p>
+            {submissionConfig.map((field, idx) => (
+              <div key={field.id} className="p-3 rounded-lg mb-2 space-y-2" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+                <div className="flex gap-2 items-start">
+                  <div className="flex-1 space-y-2">
+                    <input placeholder="Field title" value={field.title}
+                      onChange={e => setSubmissionConfig(prev => prev.map((f, i) => i === idx ? { ...f, title: e.target.value } : f))}
+                      className={inputCls} style={inputStyle} />
+                    <input placeholder="Description" value={field.description || ''}
+                      onChange={e => setSubmissionConfig(prev => prev.map((f, i) => i === idx ? { ...f, description: e.target.value } : f))}
+                      className={inputCls} style={inputStyle} />
+                  </div>
+                  <button onClick={() => setSubmissionConfig(prev => prev.filter((_, i) => i !== idx))} style={{ color: 'var(--danger-soft)', marginTop: '4px' }}>
+                    <Trash2 size={14} />
+                  </button>
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="block text-xs mb-1" style={{ color: 'var(--muted)' }}>Field type</label>
+                    <select value={field.field_type}
+                      onChange={e => setSubmissionConfig(prev => prev.map((f, i) => i === idx ? { ...f, field_type: e.target.value as any } : f))}
+                      className={inputCls} style={inputStyle}>
+                      <option value="text">Short text</option>
+                      <option value="textarea">Long text</option>
+                      <option value="file">File upload</option>
+                    </select>
+                  </div>
+                  {field.field_type === 'file' && (
+                    <>
+                      <div>
+                        <label className="block text-xs mb-1" style={{ color: 'var(--muted)' }}>Allowed file types (comma-separated)</label>
+                        <input placeholder="pdf,jpg,png,mp4" value={(field.file_types || []).join(',')}
+                          onChange={e => setSubmissionConfig(prev => prev.map((f, i) => i === idx ? { ...f, file_types: e.target.value.split(',').map(s => s.trim()).filter(Boolean) } : f))}
+                          className={inputCls} style={inputStyle} />
+                      </div>
+                      <div>
+                        <label className="block text-xs mb-1" style={{ color: 'var(--muted)' }}>Max file size (MB)</label>
+                        <input type="number" placeholder="5" value={field.max_file_size_mb || ''}
+                          onChange={e => setSubmissionConfig(prev => prev.map((f, i) => i === idx ? { ...f, max_file_size_mb: Number(e.target.value) } : f))}
+                          className={inputCls} style={inputStyle} />
+                      </div>
+                      <div>
+                        <label className="block text-xs mb-1" style={{ color: 'var(--muted)' }}>Max files</label>
+                        <input type="number" placeholder="1" value={field.max_files || ''}
+                          onChange={e => setSubmissionConfig(prev => prev.map((f, i) => i === idx ? { ...f, max_files: Number(e.target.value) } : f))}
+                          className={inputCls} style={inputStyle} />
+                      </div>
+                    </>
+                  )}
+                </div>
+                <label className="flex items-center gap-2 text-xs" style={{ color: 'var(--muted)' }}>
+                  <input type="checkbox" checked={field.required}
+                    onChange={e => setSubmissionConfig(prev => prev.map((f, i) => i === idx ? { ...f, required: e.target.checked } : f))} />
+                  Required
+                </label>
+              </div>
+            ))}
+            <button onClick={() => setSubmissionConfig(prev => [...prev, BLANK_SUBMISSION_FIELD()])}
+              className="text-xs px-3 py-1.5 rounded flex items-center gap-1 mt-1"
+              style={{ background: 'rgba(var(--blue-rgb), 0.1)', color: 'var(--blue)' }}>
+              <Plus size={11} /> Add submission field
+            </button>
+            {submissionConfig.length > 0 && (
+              <div className="mt-3">
+                <label className="block text-xs mb-1" style={{ color: 'var(--muted)' }}>Who can submit?</label>
+                <select value={submissionWho} onChange={e => setSubmissionWho(e.target.value as any)}
+                  className={inputCls} style={inputStyle}>
+                  <option value="leader">Team leader only</option>
+                  <option value="any_member">Any team member</option>
+                </select>
+              </div>
+            )}
+          </div>
+        </>
+      )}
+
+      <hr style={{ borderColor: 'var(--border)' }} />
+
+      <div>
+        <label className="flex items-center gap-2 text-sm font-semibold mb-2" style={{ color: 'var(--accent2)' }}>
+          <input type="checkbox" checked={projectNameEnabled} onChange={e => setProjectNameEnabled(e.target.checked)} />
+          <Microscope size={14} /> Collect a project name
+        </label>
+        {projectNameEnabled && (
+          <div className="pl-6">
+            <label className="block text-xs mb-1" style={{ color: 'var(--muted)' }}>Field label</label>
+            <input value={projectNameLabel} onChange={e => setProjectNameLabel(e.target.value)}
+              placeholder="Project Name" className={inputCls} style={inputStyle} />
+          </div>
+        )}
+      </div>
+
+      <hr style={{ borderColor: 'var(--border)' }} />
+
+      <div>
+        <p className="text-xs font-bold mb-2" style={{ color: 'var(--cat-teal)' }}>
+          <Calendar size={13} className="inline mr-1.5 -mt-0.5" /> SCHEDULE
+        </p>
+        <div className="grid grid-cols-3 gap-3">
+          <div>
+            <label className="block text-xs mb-1" style={{ color: 'var(--muted)' }}>Date</label>
+            <input type="date" value={scheduleDate} onChange={e => setScheduleDate(e.target.value)} className={inputCls} style={inputStyle} />
+          </div>
+          <div>
+            <label className="block text-xs mb-1" style={{ color: 'var(--muted)' }}>Time</label>
+            <input placeholder="10:00 AM - 12:00 PM" value={scheduleTime} onChange={e => setScheduleTime(e.target.value)} className={inputCls} style={inputStyle} />
+          </div>
+          <div>
+            <label className="block text-xs mb-1" style={{ color: 'var(--muted)' }}>Room / Venue</label>
+            <input value={scheduleRoom} onChange={e => setScheduleRoom(e.target.value)} className={inputCls} style={inputStyle} />
+          </div>
+        </div>
+      </div>
+
+      <hr style={{ borderColor: 'var(--border)' }} />
+
+      <div>
+        <label className="block text-xs mb-1" style={{ color: 'var(--muted)' }}>
+          Self-edit window (hours after registering — blank for no time limit)
+        </label>
+        <input type="number" placeholder="e.g. 48" value={editWindowHours} onChange={e => setEditWindowHours(e.target.value)} className={inputCls} style={inputStyle} />
+      </div>
+
+      <button onClick={save} disabled={saving}
+        className="px-5 py-2 rounded-lg text-sm font-bold disabled:opacity-50"
+        style={{ background: 'var(--blue)', color: '#000' }}>
+        {saving ? 'Saving...' : 'Save Segment'}
+      </button>
+    </div>
+  )
+}
+
+// Module-level shared field-list editor for the legacy per-category custom_fields
+// (and per-segment team_member_fields) shape. Used by both CategoryEditor and
+// SegmentEditor. Kept here rather than inside CategoryEditor so the segment
+// editor can reuse it without hoisting.
+const LEGACY_FIELD_TYPE_OPTIONS: { value: FieldType; label: string }[] = [
+  { value: 'text', label: 'Short text' },
+  { value: 'textarea', label: 'Long text' },
+  { value: 'number', label: 'Number' },
+  { value: 'dropdown', label: 'Dropdown' },
+  { value: 'multiple_choice', label: 'Multiple choice' },
+  { value: 'checkboxes', label: 'Checkboxes' },
+  { value: 'date', label: 'Date' },
+  { value: 'time', label: 'Time' },
+  { value: 'photo', label: 'Photo upload' },
+  { value: 'file', label: 'File upload' },
+]
+
+function LegacyFieldListEditor({ fields, onChange, title }: { fields: CustomField[]; onChange: (next: CustomField[]) => void; title: string }) {
+  const patchField = (key: string, p: Partial<CustomField>) => onChange(fields.map(f => f.key === key ? { ...f, ...p } : f))
+  const removeField = (key: string) => onChange(fields.filter(f => f.key !== key))
+  const addField = () => onChange([...fields, BLANK_FIELD()])
+  const addOption = (key: string) => patchField(key, { options: [...(fields.find(f => f.key === key)?.options || []), ''] })
+  const updateOption = (key: string, idx: number, text: string) => {
+    const f = fields.find(f => f.key === key); if (!f) return
+    const opts = (f.options || []).map((o, i) => i === idx ? text : o)
+    patchField(key, { options: opts })
+  }
+  const removeOption = (key: string, idx: number) => {
+    const f = fields.find(f => f.key === key); if (!f) return
+    const opts = (f.options || []).filter((_, i) => i !== idx)
+    patchField(key, { options: opts })
+  }
+
+  return (
+    <div className="space-y-2">
+      <p className="text-xs font-bold" style={{ color: 'var(--muted)' }}>{title}</p>
+      {fields.map(f => (
+        <div key={f.key} className="p-3 rounded-lg space-y-2" style={{ background: 'var(--surface)' }}>
+          <div className="flex gap-2">
+            <input placeholder="Field title (e.g. Submit your NDC ID card photo)" value={f.label}
+              onChange={e => patchField(f.key, { label: e.target.value })}
+              className={inputCls} style={inputStyle} />
+            <select value={f.type} onChange={e => patchField(f.key, { type: e.target.value as FieldType })}
+              className="px-2 py-2 rounded-lg text-sm border outline-none" style={inputStyle}>
+              {LEGACY_FIELD_TYPE_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+            </select>
+            <button onClick={() => removeField(f.key)} style={{ color: 'var(--danger-soft)' }}><Trash2 size={14} /></button>
+          </div>
+          <input placeholder="Description shown under the field title (optional)" value={f.description || ''}
+            onChange={e => patchField(f.key, { description: e.target.value })}
+            className={inputCls} style={inputStyle} />
+          {(f.type === 'dropdown' || f.type === 'multiple_choice' || f.type === 'checkboxes') && (
+            <div>
+              <label className="block text-xs mb-1" style={{ color: 'var(--muted)' }}>
+                {f.type === 'dropdown' ? 'Options shown in the dropdown' : 'Choices registrants can pick from'}
+              </label>
+              <div className="space-y-1.5">
+                {(f.options || []).map((opt, oi) => (
+                  <div key={oi} className="flex items-center gap-2">
+                    <MathInputField value={opt} onChange={v => updateOption(f.key, oi, v)}
+                      placeholder="Option text" className={inputCls} style={{ ...inputStyle, padding: '6px 10px' }} />
+                    <button onClick={() => removeOption(f.key, oi)} style={{ color: 'var(--danger-soft)' }}><X size={14} /></button>
+                  </div>
+                ))}
+              </div>
+              <button onClick={() => addOption(f.key)} className="text-xs flex items-center gap-1 mt-1.5" style={{ color: 'var(--blue)' }}>
+                <Plus size={11} /> Add option
+              </button>
+              {f.type === 'dropdown' && (
+                <label className="flex items-center gap-2 text-xs mt-1.5" style={{ color: 'var(--muted)' }}>
+                  <input type="checkbox" checked={!!f.allow_other} onChange={e => patchField(f.key, { allow_other: e.target.checked })} />
+                  Let registrants type their own option (adds an &quot;Other&quot; choice)
+                </label>
+              )}
+            </div>
+          )}
+          {(f.type === 'photo' || f.type === 'file') && (
+            <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2">
+                <label className="text-xs whitespace-nowrap" style={{ color: 'var(--muted)' }}>Max file size (MB)</label>
+                <input type="number" min={1} placeholder="5" value={f.max_file_size_mb ?? ''}
+                  onChange={e => patchField(f.key, { max_file_size_mb: e.target.value ? Number(e.target.value) : undefined })}
+                  className={inputCls} style={{ ...inputStyle, maxWidth: 100 }} />
+              </div>
+              <div className="flex items-center gap-2">
+                <label className="text-xs whitespace-nowrap" style={{ color: 'var(--muted)' }}>Max files</label>
+                <input type="number" min={1} placeholder="1" value={f.max_files ?? ''}
+                  onChange={e => patchField(f.key, { max_files: e.target.value ? Number(e.target.value) : undefined })}
+                  className={inputCls} style={{ ...inputStyle, maxWidth: 100 }} />
+              </div>
+            </div>
+          )}
+          <div className="flex items-center gap-4 flex-wrap">
+            <label className="flex items-center gap-2 text-xs" style={{ color: 'var(--muted)' }}>
+              <input type="checkbox" checked={f.required} onChange={e => patchField(f.key, { required: e.target.checked })} />
+              Required
+            </label>
+            <label className="flex items-center gap-2 text-xs" style={{ color: 'var(--muted)' }} title="If two registrants submit the same value for this field, the second submission is rejected as a duplicate.">
+              <input type="checkbox" checked={!!f.unique_field} onChange={e => patchField(f.key, { unique_field: e.target.checked })} />
+              Unique field (no duplicates across this event)
+            </label>
+          </div>
+        </div>
+      ))}
+      <button onClick={addField} className="text-xs px-3 py-1.5 rounded flex items-center gap-1"
+        style={{ background: 'rgba(var(--blue-rgb), 0.1)', color: 'var(--blue)' }}>
+        <Plus size={11} /> Add field
       </button>
     </div>
   )

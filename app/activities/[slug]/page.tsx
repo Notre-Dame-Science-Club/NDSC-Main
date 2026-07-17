@@ -3,9 +3,10 @@ import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import PdfViewer from './PdfViewer'
 import { normalizeUploadUrl, normalizeUploadUrls } from '@/lib/uploadUrl'
-import ActivityRegisterButton from './ActivityRegisterButton'
-import { ActivityIcon } from '@/lib/activityIcons'
 import { CalendarDays, MapPin, FileText, Download, Images } from 'lucide-react'
+import { ActivityIcon } from '@/lib/activityIcons'
+import SegmentCard from '@/components/SegmentCard'
+import MyRegistrationStrip from './MyRegistrationStrip'
 
 export const dynamic = 'force-dynamic'
 
@@ -76,6 +77,39 @@ export default async function SessionDetailPage({
     .eq('activity_session_id', session.id)
     .order('created_at', { ascending: false })
     .limit(10)
+
+  // Load top-level segment rows (is_segment = true) for the new card layout.
+  // Categories are filtered by registration_open and descendants in the
+  // public API; for the event page we read directly with a coarse filter
+  // (only top-level is_segment rows, and only open ones) so we don't need
+  // a network round-trip. We still respect the closed-parent-cascades
+  // rule, but at the top level this only affects orphan categories without
+  // parents — which by definition are all top-level.
+  const { data: segmentRows } = await supabaseAdmin
+    .from('activity_reg_categories')
+    .select('id, name, description, icon, bg_image_url, schedule_date, schedule_time, schedule_room, requires_team, requires_payment, payment_amount, payment_label, is_online_submission, registration_open, display_order')
+    .eq('activity_session_id', session.id)
+    .is('parent_id', null)
+    .eq('is_segment', true)
+    .eq('registration_open', true)
+    .order('display_order', { ascending: true })
+
+  const segments = (segmentRows || []).map((r: any) => ({
+    id: r.id,
+    name: r.name,
+    description: r.description,
+    icon: r.icon,
+    bg_image_url: r.bg_image_url ? normalizeUploadUrl(r.bg_image_url) : null,
+    schedule_date: r.schedule_date,
+    schedule_time: r.schedule_time,
+    schedule_room: r.schedule_room,
+    requires_team: r.requires_team,
+    requires_payment: r.requires_payment,
+    payment_amount: r.payment_amount,
+    payment_label: r.payment_label,
+    is_online_submission: r.is_online_submission,
+  }))
+  const hasSegments = segments.length > 0
 
   return (
     <div className="min-h-screen" style={{ paddingTop: '72px', background: 'var(--bg)' }}>
@@ -156,8 +190,29 @@ export default async function SessionDetailPage({
           {session.location && <span className="inline-flex items-center gap-1.5"><MapPin size={14} /> {session.location}</span>}
         </div>
 
-        {/* ── Registration CTA — smart Register / Dashboard toggle ── */}
-        {session.is_upcoming && session.registration_enabled && (
+        {/* ── Segments — new top-level layout. Each segment is a public
+            card with its own Register button. If no segments exist, fall
+            back to the legacy single-form CTA. ── */}
+        {session.is_upcoming && session.registration_enabled && hasSegments && (
+          <div className="mb-8">
+            <h2 className="text-xl font-bold mb-4 flex items-center gap-2"
+              style={{ fontFamily: "'Orbitron',sans-serif", color: 'var(--white)' }}>
+              Segments
+            </h2>
+            <MyRegistrationStrip slug={session.slug} sessionId={session.id} segments={segments} />
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              {segments.map(seg => (
+                <SegmentCard key={seg.id} segment={seg} slug={session.slug} sessionId={session.id} />
+              ))}
+            </div>
+            {session.registration_note && (
+              <p className="text-xs mt-3" style={{ color: 'var(--muted)' }}>{session.registration_note}</p>
+            )}
+          </div>
+        )}
+
+        {/* Legacy single-form CTA — only shown when no segments exist */}
+        {session.is_upcoming && session.registration_enabled && !hasSegments && (
           <div className="rounded-2xl border p-6 mb-8 flex items-center justify-between gap-4 flex-wrap"
             style={{ background: 'rgba(var(--blue-rgb), 0.06)', borderColor: 'rgba(var(--blue-rgb), 0.3)' }}>
             <div>
@@ -166,8 +221,11 @@ export default async function SessionDetailPage({
                 <p className="text-sm" style={{ color: 'var(--muted)' }}>{session.registration_note}</p>
               )}
             </div>
-            {/* Client component: checks localStorage and shows Register or Go to Dashboard */}
-            <ActivityRegisterButton slug={session.slug} sessionId={session.id} />
+            <Link href={`/activities/${session.slug}/register`}
+              className="px-6 py-3 rounded-xl font-bold text-sm text-black flex-shrink-0 transition-all hover:-translate-y-0.5"
+              style={{ background: 'var(--blue)', fontFamily: "'Orbitron', sans-serif" }}>
+              Register Now →
+            </Link>
           </div>
         )}
 

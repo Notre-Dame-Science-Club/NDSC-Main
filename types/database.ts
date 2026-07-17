@@ -459,13 +459,11 @@ export interface OlympiadRegistrationRow {
 }
 
 // ── form_configs ─────────────────────────────────────────────────────────
-export interface FormPrimaryField {
-  field_key: string
-  label: string
-  description?: string
-  visible: boolean
-  required: boolean
-}
+// The legacy `primary_fields` column was removed in the per-session
+// appearance migration — its only reader (the hardcoded fallback block on
+// the public register page) was deleted alongside it. The form_configs
+// table itself still exists for the global `activity_register`,
+// `olympiad_register`, and `membership` keys.
 
 export interface FormContactPerson {
   name: string
@@ -486,7 +484,6 @@ export interface FormConfigRow {
   subtitle: string
   cover_photo_url: string
   bg_theme: string // default "default"
-  primary_fields: FormPrimaryField[]
   extra_fields: CustomFieldDef[]
   contact_persons: FormContactPerson[] | { use_ec_page: true; ec_ids: string[] }
   // Appearance pipeline (1.3a) — background, font, cover ratio, and
@@ -498,5 +495,32 @@ export interface FormConfigRow {
   auto_pull_title?: boolean
   auto_pull_description?: boolean
   auto_pull_cover?: boolean
+  updated_at: ISODateString
+}
+
+// ── activity_session_form_appearance ─────────────────────────────────────
+// Per-session registration-form appearance (the 1:1 replacement for the old
+// `form_configs` rows whose `form_key` started with `activity_register:`).
+// One row per activity_session, holding the title/subtitle/cover/bg/font
+// overrides that the public register page reads.
+//
+// Note: contact_persons is stored in the same union shape as form_configs:
+// either an array of manual contacts, or `{ use_ec_page: true, ec_ids: [...] }`.
+export type AppearanceContactPersons = FormContactPerson[] | { use_ec_page: true; ec_ids: string[] }
+
+export interface ActivitySessionFormAppearance {
+  session_id: UUID
+  form_title: string | null
+  form_subtitle: string | null
+  form_cover_photo_url: string | null
+  form_cover_aspect_ratio: FormCoverAspectRatio | null
+  form_bg_theme: string | null
+  form_bg_color: string | null
+  form_bg_image_url: string | null
+  form_font_family: FormFontFamily | null
+  form_auto_pull_title: boolean
+  form_auto_pull_description: boolean
+  form_auto_pull_cover: boolean
+  form_contact_persons: AppearanceContactPersons
   updated_at: ISODateString
 }

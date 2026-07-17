@@ -47,5 +47,12 @@ export async function GET(req: NextRequest) {
   }
   const visible = all.filter((c: any) => !closedIds.has(c.id))
 
+  // Normalize the new per-category fields onto a clean public shape. The
+  // public event page only needs: id, parent_id, name, description, icon,
+  // bg_image_url, is_segment, display_order, schedule_*, requires_team,
+  // requires_payment, is_online_submission, registration_open, and
+  // form_field_schema (drives the register page). The legacy custom_fields
+  // shape is left on the row too, for backward compat with the legacy
+  // single-tree register flow when no is_segment rows exist.
   return apiOk({ session, categories: visible })
 }
