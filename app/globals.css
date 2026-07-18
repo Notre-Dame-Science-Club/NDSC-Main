@@ -146,19 +146,88 @@ body {
   font-family: var(--font-body);
   overflow-x: hidden;
   -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  font-feature-settings: "ss01", "cv11";
+  text-rendering: optimizeLegibility;
 }
 
 h1, h2, h3, h4 {
   font-family: var(--font-heading);
-  font-weight: 800;
+  font-weight: 700;
+  /* balance prevents orphaned words on tight lines — applies to all headings */
+  text-wrap: balance;
+}
+
+/* Number-heavy data (countdown, stats) should use tabular figures so digits
+   don't shift width as they tick. Pair with the existing `tabular-nums` class. */
+.tabular-nums { font-variant-numeric: tabular-nums; }
+
+/* ═══════════════════════════════════════════
+   ACCESSIBLE FOCUS RING
+   Applied globally to keyboard nav. Mouse
+   clicks don't trigger it (`:focus-visible`).
+   Uses the theme accent so it never goes
+   invisible against any background.
+═══════════════════════════════════════════ */
+:focus { outline: none; }
+:focus-visible {
+  outline: 2px solid var(--blue);
+  outline-offset: 3px;
+  border-radius: 4px;
+  transition: outline-offset 0.15s ease;
+}
+
+/* Buttons feel less "twitchy" with a real press response — most existing
+   buttons only defined a hover state, so a click felt lifeless. */
+button, a[role="button"], [type="button"], [type="submit"] {
+  -webkit-tap-highlight-color: transparent;
+}
+button:active:not(:disabled), a[role="button"]:active {
+  transform: translateY(1px) scale(0.99);
+}
+
+/* Skip-to-content link — visible only on keyboard focus. Required for
+   keyboard users to bypass the navbar; was missing entirely. */
+.skip-link {
+  position: fixed;
+  top: -100px;
+  left: 1rem;
+  z-index: 9999;
+  padding: 0.6rem 1rem;
+  background: var(--blue);
+  color: #000;
+  font-weight: 600;
+  font-size: 0.85rem;
+  border-radius: 0 0 8px 8px;
+  text-decoration: none;
+  transition: top 0.2s ease;
+}
+.skip-link:focus { top: 0; }
+
+/* Subtle film grain overlay — pointer-events-none so it never blocks input.
+   Breaks the "perfectly digital" flat look that a pure vector UI tends to have. */
+.grain-overlay {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 1;
+  opacity: 0.035;
+  mix-blend-mode: overlay;
+  background-image: url("data:image/svg+xml;utf8,<svg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0.5 0 0 0 0 0.7 0 0 0 0 1 0 0 0 0.55 0'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>");
 }
 
 /* ═══════════════════════════════════════════
    SCROLLBAR
 ═══════════════════════════════════════════ */
-::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar { width: 8px; height: 8px; }
 ::-webkit-scrollbar-track { background: var(--bg); }
-::-webkit-scrollbar-thumb { background: var(--blue2); border-radius: 3px; }
+::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, var(--blue) 0%, var(--blue2) 100%);
+  border-radius: 4px;
+  border: 2px solid var(--bg);
+}
+::-webkit-scrollbar-thumb:hover { background: var(--blue); }
+* { scrollbar-color: var(--blue) var(--bg); scrollbar-width: thin; }
 
 /* ═══════════════════════════════════════════
    UTILITIES
@@ -179,33 +248,164 @@ h1, h2, h3, h4 {
   background-size: 60px 60px;
 }
 .card-hover {
-  transition: border-color 0.3s, transform 0.3s;
+  transition: border-color 0.25s ease, transform 0.25s ease, box-shadow 0.25s ease;
 }
 .card-hover:hover {
   border-color: var(--blue);
   transform: translateY(-4px);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.35), 0 0 24px rgba(var(--blue-rgb), 0.12);
+}
+
+/* ═══════════════════════════════════════════
+   CARD-LIFT — the new "big" hover used by
+   homepage / activities / about cards. The
+   difference vs `.card-hover` is the spring
+   curve on translateY and the deeper shadow.
+
+   Implementation note: the "border lights up" effect is an inset
+   box-shadow, NOT a border-color change. Many callers pass an inline
+   `style={{ borderColor: "var(--border)" }}` which wins on specificity
+   and would silently disable a `:hover` border-color change. An inset
+   shadow sits on top of the existing border visually and isn't subject
+   to that specificity trap. The cyan glow is layered as a soft outer
+   shadow so the card "lights up" without recoloring the border itself.
+═══════════════════════════════════════════ */
+.card-lift {
+  transition:
+    transform 0.4s cubic-bezier(0.22, 1, 0.36, 1),
+    box-shadow 0.3s ease;
+  will-change: transform;
+}
+.card-lift:hover {
+  transform: translateY(-8px);
+  box-shadow:
+    inset 0 0 0 1px rgba(var(--blue-rgb), 0.55),
+    0 20px 48px rgba(0, 0, 0, 0.45),
+    0 0 40px rgba(var(--blue-rgb), 0.12);
+}
+.card-lift:active {
+  transform: translateY(-4px);
+  transition-duration: 0.1s;
+}
+
+/* ═══════════════════════════════════════════
+   LINK-UNDERLINE — animated underline that
+   grows from the left. Use on inline links
+   instead of changing color alone — gives
+   a more deliberate interaction than just
+   `hover:text-blue`.
+═══════════════════════════════════════════ */
+.link-underline {
+  background-image: linear-gradient(var(--blue), var(--blue));
+  background-size: 0% 1px;
+  background-position: 0% 100%;
+  background-repeat: no-repeat;
+  transition: background-size 0.3s ease, color 0.2s ease;
+}
+.link-underline:hover {
+  background-size: 100% 1px;
+}
+
+/* ═══════════════════════════════════════════
+   REVEAL-MASK — clip-path reveal used for
+   big headlines. Use sparingly; the regular
+   `.reveal` (fade+translate) covers most cases.
+═══════════════════════════════════════════ */
+.reveal-mask {
+  clip-path: inset(0 100% 0 0);
+  transition: clip-path 0.9s cubic-bezier(0.65, 0, 0.35, 1);
+}
+.reveal-mask.visible {
+  clip-path: inset(0 0 0 0);
+}
+
+/* Reveal variants — vary the entry direction so every section doesn't
+   look identical. Apply with a class on top of `.reveal` (which provides
+   the opacity transition). */
+.reveal-up    { transform: translateY(28px); }
+.reveal-left  { transform: translateX(-32px); }
+.reveal-right { transform: translateX(32px); }
+.reveal-scale { transform: scale(0.94); }
+.reveal.visible { transform: none; }
+
+/* ═══════════════════════════════════════════
+   GLOW-CARD — for hero/CTA panels that need
+   a soft accent ring on hover. Sits below
+   `.card-lift` and adds the glow ring.
+═══════════════════════════════════════════ */
+.glow-card {
+  position: relative;
+  isolation: isolate;
+}
+.glow-card::before {
+  content: "";
+  position: absolute;
+  inset: -1px;
+  border-radius: inherit;
+  padding: 1px;
+  background: linear-gradient(135deg, rgba(var(--blue-rgb), 0.5), transparent 60%);
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  pointer-events: none;
+  z-index: -1;
+}
+.glow-card:hover::before { opacity: 1; }
+
+/* ═══════════════════════════════════════════
+   FORM CONTROLS — CSS-driven focus (replaces
+   the JS onFocus/onBlur handlers the old
+   Input/Textarea/Select components used).
+═══════════════════════════════════════════ */
+.ndsc-input {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--border);
+  color: var(--white);
+  transition: border-color 0.18s ease, background 0.18s ease, box-shadow 0.18s ease;
+}
+.ndsc-input::placeholder { color: var(--muted); opacity: 0.7; }
+.ndsc-input:hover:not(:disabled) {
+  border-color: rgba(var(--blue-rgb), 0.4);
+  background: rgba(255, 255, 255, 0.06);
+}
+.ndsc-input:focus,
+.ndsc-input:focus-visible {
+  border-color: var(--blue);
+  background: rgba(255, 255, 255, 0.06);
+  box-shadow: 0 0 0 3px rgba(var(--blue-rgb), 0.15);
+  outline: none;
+}
+.ndsc-input:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 /* ═══════════════════════════════════════════
    SECTION LABEL
+   - tighter, more deliberate: short bar + tag. Was getting lost among
+     the loud accents on the rest of the page.
 ═══════════════════════════════════════════ */
 .section-label {
-  font-family: 'Share Tech Mono', monospace;
-  font-size: 0.75rem;
-  letter-spacing: 0.35em;
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.32em;
   color: var(--blue);
   text-transform: uppercase;
   display: flex;
   align-items: center;
   gap: 0.75rem;
   margin-bottom: 0.75rem;
+  font-weight: 400;
 }
 .section-label::before {
   content: '';
   display: inline-block;
-  width: 30px;
+  width: 28px;
   height: 1px;
   background: var(--blue);
+  flex-shrink: 0;
 }
 
 /* ═══════════════════════════════════════════
@@ -240,52 +440,83 @@ h1, h2, h3, h4 {
 
 /* ═══════════════════════════════════════════
    BUTTONS
+   - explicit transform/opacity transitions instead of `transition: all`
+     (which transitions properties you didn't mean to — a common bug)
+   - press feedback (translateY + scale) on :active
+   - reduced-motion users get a no-op hover, no movement
 ═══════════════════════════════════════════ */
 .btn-primary {
   background: linear-gradient(135deg, var(--blue) 0%, var(--blue2) 100%);
   color: #000;
   border: none;
-  box-shadow: 0 0 24px rgba(0,212,255,0.35);
-  transition: transform 0.2s, box-shadow 0.2s;
+  font-weight: 700;
+  box-shadow: 0 0 24px rgba(var(--blue-rgb), 0.35);
+  transition: transform 0.2s ease, box-shadow 0.2s ease, filter 0.2s ease;
 }
 .btn-primary:hover {
   transform: translateY(-2px);
-  box-shadow: 0 0 40px rgba(0,212,255,0.6);
+  box-shadow: 0 0 40px rgba(var(--blue-rgb), 0.6);
+  filter: brightness(1.05);
+}
+.btn-primary:active {
+  transform: translateY(0) scale(0.98);
+  box-shadow: 0 0 18px rgba(var(--blue-rgb), 0.4);
 }
 .btn-outline {
   background: transparent;
   color: var(--blue);
   border: 1.5px solid var(--blue);
-  transition: background 0.2s, color 0.2s, transform 0.2s;
+  font-weight: 700;
+  transition: background 0.2s ease, color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
 }
 .btn-outline:hover {
   background: var(--blue);
   color: #000;
   transform: translateY(-2px);
+  box-shadow: 0 0 28px rgba(var(--blue-rgb), 0.35);
+}
+.btn-outline:active {
+  transform: translateY(0) scale(0.98);
+}
+
+/* Honor the OS "reduce motion" preference across the site. Existing
+   animations used `cubic-bezier(0.22, 1, 0.36, 1)` which is fine but
+   the *durations* of marquee/reveal are still jarring for some users. */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }
 
 /* ═══════════════════════════════════════════
    TICKER PILL
+   - squared corners (4px) instead of full pill — the brand is angular/tech
+     so the rounded-full shape was reading as too soft
 ═══════════════════════════════════════════ */
 .ticker-pill {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding: 5px 14px 5px 10px;
-  border-radius: 999px;
-  border: 1px solid rgba(0,212,255,0.25);
-  background: rgba(0,212,255,0.06);
+  gap: 8px;
+  padding: 6px 14px 6px 12px;
+  border-radius: 4px;
+  border: 1px solid rgba(var(--blue-rgb), 0.28);
+  background: rgba(var(--blue-rgb), 0.06);
   font-family: var(--font-mono);
   font-size: 0.68rem;
-  letter-spacing: 0.18em;
+  letter-spacing: 0.16em;
   color: var(--blue);
   cursor: pointer;
-  transition: border-color 0.2s, background 0.2s;
+  transition: border-color 0.2s ease, background 0.2s ease, transform 0.2s ease;
   text-decoration: none;
+  font-weight: 400;
 }
 .ticker-pill:hover {
-  border-color: rgba(0,212,255,0.55);
-  background: rgba(0,212,255,0.12);
+  border-color: var(--blue);
+  background: rgba(var(--blue-rgb), 0.12);
+  transform: translateY(-1px);
 }
 
 /* ═══════════════════════════════════════════
@@ -368,8 +599,7 @@ h1, h2, h3, h4 {
 .theme-toggle {
   position: fixed;
   bottom: 1.5rem;
-  left: 1.5rem;
-  right: auto;
+  right: 1.5rem;
   z-index: 998;
   width: 44px;
   height: 44px;
@@ -382,13 +612,18 @@ h1, h2, h3, h4 {
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: all 0.3s;
-  box-shadow: 0 0 20px rgba(0,212,255,0.15);
+  transition: transform 0.25s ease, box-shadow 0.25s ease, background 0.25s ease, color 0.25s ease;
+  box-shadow: 0 0 20px rgba(var(--blue-rgb), 0.15);
+  backdrop-filter: blur(12px);
 }
 .theme-toggle:hover {
   background: var(--blue);
   color: #000;
-  transform: scale(1.1);
+  transform: scale(1.08);
+  box-shadow: 0 0 28px rgba(var(--blue-rgb), 0.4);
+}
+.theme-toggle:active {
+  transform: scale(0.95);
 }
 
 /* ═══════════════════════════════════════════
@@ -397,4 +632,168 @@ h1, h2, h3, h4 {
 @keyframes progressBar {
   from { width: 0; }
   to   { width: 100%; }
+}
+
+/* ═══════════════════════════════════════════
+   SCAN LINE — a thin gradient bar that
+   "draws" across a container via scaleX.
+   Used as a one-shot on the hero CTA group.
+═══════════════════════════════════════════ */
+@keyframes scanX {
+  from { transform: scaleX(0); }
+  to   { transform: scaleX(1); }
+}
+.scan-line {
+  display: block;
+  height: 1px;
+  width: 100%;
+  background: linear-gradient(90deg, transparent, var(--blue), transparent);
+  transform-origin: left center;
+  animation: scanX 0.9s cubic-bezier(0.22, 1, 0.36, 1) 1.1s both;
+}
+
+/* ═══════════════════════════════════════════
+   CONIC-SWEEP — a rotating conic-gradient
+   ring. Used on the about-page motto to
+   replace the spinning dashed circles.
+   Variable `--sweep-angle` lets the parent
+   offset the start of the sweep so it doesn't
+   look like a continuous spin.
+═══════════════════════════════════════════ */
+@keyframes conicSweep {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+.conic-sweep {
+  --sweep-angle: 0deg;
+  background: conic-gradient(
+    from var(--sweep-angle),
+    transparent 0deg,
+    rgba(var(--blue-rgb), 0.6) 60deg,
+    transparent 120deg,
+    transparent 360deg
+  );
+  mask: radial-gradient(circle, transparent 56%, #000 57%, #000 100%);
+  -webkit-mask: radial-gradient(circle, transparent 56%, #000 57%, #000 100%);
+  animation: conicSweep 6s linear infinite;
+}
+
+/* Drift — slow figure-8 motion for ambient orbs in section heroes. */
+@keyframes drift {
+  0%, 100% { transform: translate(0, 0); }
+  25%      { transform: translate(14px, -10px); }
+  50%      { transform: translate(-8px, -18px); }
+  75%      { transform: translate(-16px, 6px); }
+}
+.orb-drift { animation: drift 14s ease-in-out infinite; }
+
+/* ═══════════════════════════════════════════
+   SKELETON — drifting gradient for loading
+   placeholders. Pure CSS, no JS, respects
+   prefers-reduced-motion (handled in the
+   `prefers-reduced-motion` block above).
+═══════════════════════════════════════════ */
+@keyframes skeletonShimmer {
+  0%   { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+.skeleton {
+  background: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0.04) 0%,
+    rgba(255, 255, 255, 0.08) 50%,
+    rgba(255, 255, 255, 0.04) 100%
+  );
+  background-size: 200% 100%;
+  animation: skeletonShimmer 1.6s linear infinite;
+}
+
+/* ═══════════════════════════════════════════
+   SEARCH DROPDOWN — gentle slide-down + fade
+   for the activities search results panel.
+   Subtle, so it doesn't fight the actual
+   results appearing.
+═══════════════════════════════════════════ */
+@keyframes searchDrop {
+  0%   { opacity: 0; transform: translateY(-6px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+.search-dropdown {
+  animation: searchDrop 180ms cubic-bezier(0.22, 1, 0.36, 1);
+  transform-origin: top center;
+}
+
+/* ═══════════════════════════════════════════
+   REGISTER CTA — small, deliberate action
+   button on activity session cards. Lives
+   in the card footer (bottom-right), not
+   the cover, so the cover image isn't
+   competing with a chunky button overlay.
+
+   Visual treatment:
+   - Filled cyan→deep-cyan gradient (not a
+     flat single color — gives the button
+     depth without being heavy)
+   - 1px inner highlight on top to suggest
+     a beveled edge
+   - Soft drop shadow tinted with cyan
+   - On hover: lift + brighten + arrow nudges
+     right (the .cta-arrow child animates
+     separately)
+   - On press: sinks 1px for tactile feel
+═══════════════════════════════════════════ */
+.register-cta {
+  color: #001218;
+  background: linear-gradient(180deg, #6df3ff 0%, var(--blue) 55%, #00a8cc 100%);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.45),
+    0 4px 14px rgba(var(--blue-rgb), 0.35),
+    0 0 0 1px rgba(var(--blue-rgb), 0.1);
+  transition:
+    transform 0.18s cubic-bezier(0.22, 1, 0.36, 1),
+    box-shadow 0.25s ease,
+    filter 0.2s ease;
+  position: relative;
+  isolation: isolate;
+}
+.register-cta::before {
+  /* Thin highlight strip on the top edge — adds a "lit" feel without
+     looking like a separate gradient. Hidden by default, fades in on
+     hover so the button reads as a real, responsive control. */
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.18), transparent 40%);
+  opacity: 0;
+  transition: opacity 0.25s ease;
+  pointer-events: none;
+  z-index: -1;
+}
+.register-cta:hover {
+  transform: translateY(-1px);
+  filter: brightness(1.08);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.55),
+    0 8px 20px rgba(var(--blue-rgb), 0.5),
+    0 0 0 1px rgba(var(--blue-rgb), 0.2);
+}
+.register-cta:hover::before { opacity: 1; }
+.register-cta:active {
+  transform: translateY(1px);
+  filter: brightness(0.95);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.3),
+    0 2px 8px rgba(var(--blue-rgb), 0.3);
+}
+.register-cta:focus-visible {
+  outline: 2px solid var(--blue);
+  outline-offset: 2px;
+}
+.register-cta .cta-arrow {
+  transition: transform 0.2s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.register-cta:hover .cta-arrow {
+  transform: translateX(2px);
 }

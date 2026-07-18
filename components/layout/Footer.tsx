@@ -7,8 +7,11 @@ export default function Footer() {
     <footer
       className="relative"
       style={{
-        background: "linear-gradient(180deg, var(--bg2) 0%, #000308 100%)",
-        borderTop: "1px solid rgba(0,212,255,0.12)",
+        /* was ending in #000308 (near-pure black) — broke from the rest of the
+           palette. Now stays in the dark-blue family with a subtle vertical
+           gradient that still feels grounded. */
+        background: "linear-gradient(180deg, var(--bg2) 0%, var(--bg3) 100%)",
+        borderTop: "1px solid rgba(var(--blue-rgb), 0.12)",
       }}
     >
       {/* Top glow line */}

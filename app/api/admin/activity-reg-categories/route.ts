@@ -112,6 +112,7 @@ export async function POST(req: NextRequest) {
     icon: body.icon || null,
     bg_image_url: body.bg_image_url || null,
     requires_team: body.requires_team ?? false,
+    team_optional: body.requires_team ? (body.team_optional ?? false) : false,
     team_size_min: body.team_size_min ?? null,
     team_size_max: body.team_size_max ?? null,
     team_member_fields: body.team_member_fields || [],

@@ -264,8 +264,8 @@ export default function AboutPage() {
 
         {/* Hero heading — centered */}
         <div className="relative max-w-3xl mx-auto px-4 sm:px-6 text-center mb-10">
-          <div className="section-label justify-center mb-3">[ EST. 1955 ]</div>
-          <h1 className="text-4xl sm:text-6xl font-black mb-5" style={{ fontFamily: "'Orbitron',sans-serif" }}>
+          <div className="reveal section-label justify-center mb-3">[ EST. 1955 ]</div>
+          <h1 className="reveal text-4xl sm:text-6xl font-black mb-5" style={{ fontFamily: "'Orbitron',sans-serif" }}>
             ABOUT <span style={{ color: "var(--blue)" }}>NDSC</span>
           </h1>
         </div>
@@ -303,16 +303,16 @@ export default function AboutPage() {
       {/* ══ HISTORY ARTICLE ═══════════════════════════════════ */}
       <section className="py-16 sm:py-20" style={{ background: "var(--bg2)" }}>
         <div className="max-w-4xl mx-auto px-4 sm:px-6">
-          <div className="section-label mb-2">Historical Narrative</div>
-          <h2 className="text-2xl sm:text-3xl font-black mb-3" style={{ fontFamily: "'Orbitron',sans-serif" }}>
+          <div className="reveal section-label mb-2">Historical Narrative</div>
+          <h2 className="reveal text-2xl sm:text-3xl font-black mb-3" style={{ fontFamily: "'Orbitron',sans-serif" }}>
             OUR <span style={{ color: "var(--blue)" }}>LEGACY</span>
           </h2>
-          <p className="text-xs mb-8" style={{ color: "var(--muted)", fontFamily: "'Share Tech Mono',monospace", letterSpacing: "0.1em" }}>
+          <p className="reveal text-xs mb-8" style={{ color: "var(--muted)", fontFamily: "'Share Tech Mono',monospace", letterSpacing: "0.1em" }}>
             A Comprehensive Historical Account (1955 – 2026)
           </p>
 
           {/* Pull quote */}
-          <div className="relative pl-5 mb-8 border-l-2" style={{ borderColor: "var(--blue)" }}>
+          <div className="reveal relative pl-5 mb-8 border-l-2" style={{ borderColor: "var(--blue)" }}>
             <p className="text-base sm:text-lg font-semibold italic leading-relaxed" style={{ color: "var(--white)" }}>
               &ldquo;The pioneer science club of the Indian Subcontinent — 70 years of igniting curiosity, innovation, and scientific excellence.&rdquo;
             </p>
@@ -349,11 +349,11 @@ export default function AboutPage() {
       {/* ══ DEPARTMENTS ═════════════════════════════════════════ */}
       <section id="departments" className="py-16 sm:py-20">
         <div className="max-w-7xl mx-auto px-4 sm:px-6">
-          <div className="section-label mb-2">Structure</div>
-          <h2 className="text-2xl sm:text-3xl font-black mb-3" style={{ fontFamily: "'Orbitron',sans-serif" }}>
+          <div className="reveal section-label mb-2">Structure</div>
+          <h2 className="reveal text-2xl sm:text-3xl font-black mb-3" style={{ fontFamily: "'Orbitron',sans-serif" }}>
             OUR <span style={{ color: "var(--blue)" }}>DEPARTMENTS</span>
           </h2>
-          <p className="text-sm mb-12 max-w-xl" style={{ color: "var(--muted)" }}>
+          <p className="reveal text-sm mb-12 max-w-xl" style={{ color: "var(--muted)" }}>
             NDSC is structured into 7 specialized departments, each driving a unique aspect of our scientific mission.
           </p>
 
@@ -424,12 +424,12 @@ export default function AboutPage() {
       {/* ══ MODERATOR MESSAGE ════════════════════════════════════ */}
       <section id="moderator" className="py-16 sm:py-20" style={{ background: "var(--bg2)" }}>
         <div className="max-w-4xl mx-auto px-4 sm:px-6">
-          <div className="section-label mb-2">Message</div>
-          <h2 className="text-2xl sm:text-3xl font-black mb-8" style={{ fontFamily: "'Orbitron',sans-serif" }}>
+          <div className="reveal section-label mb-2">Message</div>
+          <h2 className="reveal text-2xl sm:text-3xl font-black mb-8" style={{ fontFamily: "'Orbitron',sans-serif" }}>
             FROM THE <span style={{ color: "var(--accent2)" }}>MODERATOR</span>
           </h2>
           <div
-            className="p-6 sm:p-10 rounded-2xl border relative overflow-hidden"
+            className="reveal card-lift p-6 sm:p-10 rounded-2xl border relative overflow-hidden"
             style={{ borderColor: "rgba(var(--accent2-rgb), 0.35)", background: "rgba(var(--accent2-rgb), 0.04)" }}
           >
             <div
@@ -461,12 +461,12 @@ export default function AboutPage() {
       {/* ══ GS MESSAGE ══════════════════════════════════════════ */}
       <section id="gs" className="py-16 sm:py-20">
         <div className="max-w-4xl mx-auto px-4 sm:px-6">
-          <div className="section-label mb-2">Message</div>
-          <h2 className="text-2xl sm:text-3xl font-black mb-8" style={{ fontFamily: "'Orbitron',sans-serif" }}>
+          <div className="reveal section-label mb-2">Message</div>
+          <h2 className="reveal text-2xl sm:text-3xl font-black mb-8" style={{ fontFamily: "'Orbitron',sans-serif" }}>
             FROM THE <span style={{ color: "var(--blue)" }}>GENERAL SECRETARY</span>
           </h2>
           <div
-            className="p-6 sm:p-10 rounded-2xl border relative overflow-hidden"
+            className="reveal card-lift p-6 sm:p-10 rounded-2xl border relative overflow-hidden"
             style={{ borderColor: "rgba(var(--blue-rgb), .3)", background: "rgba(var(--blue-rgb), .03)" }}
           >
             <div
@@ -503,21 +503,52 @@ export default function AboutPage() {
       </section>
 
       {/* ══ MOTTO ════════════════════════════════════════════════ */}
-      <section className="py-16 sm:py-20 text-center" style={{ background: "var(--bg2)" }}>
+      <section className="py-20 sm:py-24 text-center" style={{ background: "var(--bg2)" }}>
         <div className="max-w-3xl mx-auto px-4 sm:px-6">
-          <div className="relative w-28 h-28 sm:w-36 sm:h-36 rounded-full border mx-auto mb-8 flex items-center justify-center"
-            style={{ borderColor: "var(--border)" }}>
-            <div className="absolute inset-0 rounded-full border border-dashed"
-              style={{ borderColor: "var(--blue)", opacity: .4, animation: "spin 10s linear infinite" }} />
-            <div className="absolute inset-[-12px] rounded-full border border-dashed"
-              style={{ borderColor: "var(--blue2)", opacity: .2, animation: "spin 16s linear infinite reverse" }} />
-            <Image src="/images/cropped-logo.png" alt="NDSC" width={80} height={80} className="object-contain relative z-10" />
+          {/* Motto mark — replaces the old two spinning dashed circles with
+              a single conic-gradient sweep ring (one rotation, 6s) and a
+              subtle scale-pulse on the inner logo. Reads as deliberate,
+              not as a CSS demo. */}
+          <div
+            className="relative w-32 h-32 sm:w-40 sm:h-40 rounded-full mx-auto mb-10 flex items-center justify-center"
+            style={{ border: "1px solid var(--border)" }}
+          >
+            <span
+              aria-hidden="true"
+              className="absolute inset-[-6px] rounded-full conic-sweep"
+            />
+            <span
+              aria-hidden="true"
+              className="absolute inset-[-2px] rounded-full"
+              style={{
+                background: "radial-gradient(circle, transparent 60%, rgba(var(--blue-rgb), 0.12) 100%)",
+              }}
+            />
+            <div
+              className="logo-float-anim"
+              style={{ animationDuration: "6s" }}
+            >
+              <Image
+                src="/images/cropped-logo.png"
+                alt="NDSC"
+                width={84}
+                height={84}
+                className="object-contain relative z-10"
+                style={{ filter: "drop-shadow(0 0 14px rgba(var(--blue-rgb), 0.5))" }}
+              />
+            </div>
           </div>
-          <div className="section-label justify-center mb-3">Our Motto</div>
-          <h2 className="text-3xl sm:text-5xl font-black mb-5" style={{ fontFamily: "'Orbitron',sans-serif" }}>
+          <div className="reveal section-label justify-center mb-3">Our Motto</div>
+          <h2
+            className="reveal text-3xl sm:text-5xl font-black mb-5"
+            style={{ fontFamily: "'Orbitron',sans-serif" }}
+          >
             <span style={{ color: "var(--blue)" }}>SCIENCE</span> IN<br />HUMAN WELFARE
           </h2>
-          <p className="text-sm sm:text-base leading-relaxed max-w-xl mx-auto" style={{ color: "var(--muted)" }}>
+          <p
+            className="reveal text-sm sm:text-base leading-relaxed max-w-xl mx-auto"
+            style={{ color: "var(--muted)" }}
+          >
             This motto reflects our belief that science is not just an academic pursuit — it is a tool
             for improving lives, solving real-world problems, and creating a better future for humanity.
             Every activity we organize, every article we publish, and every olympiad we host is guided by this core principle.
@@ -528,11 +559,11 @@ export default function AboutPage() {
       {/* ══ FULL MILESTONES TABLE ════════════════════════════════ */}
       <section className="py-16 sm:py-24">
         <div className="max-w-7xl mx-auto px-4 sm:px-6">
-          <div className="section-label mb-2">Chronological Record</div>
-          <h2 className="text-2xl sm:text-4xl font-black mb-3" style={{ fontFamily: "'Orbitron',sans-serif" }}>
+          <div className="reveal section-label mb-2">Chronological Record</div>
+          <h2 className="reveal text-2xl sm:text-4xl font-black mb-3" style={{ fontFamily: "'Orbitron',sans-serif" }}>
             KEY <span style={{ color: "var(--blue)" }}>MILESTONES</span>
           </h2>
-          <p className="text-sm mb-12 max-w-xl" style={{ color: "var(--muted)" }}>
+          <p className="reveal text-sm mb-12 max-w-xl" style={{ color: "var(--muted)" }}>
             40+ key milestones chronicling NDSC&apos;s journey from 1953 to its 70th Anniversary in 2026.
           </p>
 
@@ -559,10 +590,13 @@ export default function AboutPage() {
                 ))}
               </div>
 
-              {/* Active era detail card */}
+              {/* Active era detail card — key={activeEra} makes React remount
+                  it on era change, so the .reveal class re-runs and gives
+                  a clean crossfade between eras. */}
               {(() => { const EraIcon = ERAS[activeEra].icon; return (
               <div
-                className="p-6 sm:p-8 rounded-2xl border mb-6 transition-all duration-300"
+                key={activeEra}
+                className="reveal p-6 sm:p-8 rounded-2xl border mb-6"
                 style={{ borderColor: ERAS[activeEra].color + "55", background: ERAS[activeEra].color + "0a" }}
               >
                 <div className="flex items-center gap-3 mb-4">
@@ -682,11 +716,15 @@ export default function AboutPage() {
 
           {/* Stats row */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mt-14">
-            {[["70+", "Years of Legacy"], ["5000+", "Alumni Members"], ["100+", "Events Hosted"], ["7", "Departments"]].map(([n, l]) => (
+            {[["70+", "Years of Legacy"], ["5000+", "Alumni Members"], ["100+", "Events Hosted"], ["7", "Departments"]].map(([n, l], i) => (
               <div
                 key={l}
-                className="p-5 rounded-xl border text-center card-hover"
-                style={{ borderColor: "var(--border)", background: "var(--card)" }}
+                className="reveal card-lift p-5 rounded-xl border text-center"
+                style={{
+                  borderColor: "var(--border)",
+                  background: "var(--card)",
+                  transitionDelay: `${i * 0.08}s`,
+                }}
               >
                 <p
                   className="text-2xl sm:text-3xl font-black mb-1"
@@ -704,16 +742,20 @@ export default function AboutPage() {
       {/* ══ GOALS ════════════════════════════════════════════════ */}
       <section className="py-16 sm:py-20" style={{ background: "var(--bg2)" }}>
         <div className="max-w-4xl mx-auto px-4 sm:px-6">
-          <div className="section-label mb-2">Mission</div>
-          <h2 className="text-2xl sm:text-3xl font-black mb-10" style={{ fontFamily: "'Orbitron',sans-serif" }}>
+          <div className="reveal section-label mb-2">Mission</div>
+          <h2 className="reveal text-2xl sm:text-3xl font-black mb-10" style={{ fontFamily: "'Orbitron',sans-serif" }}>
             OUR <span style={{ color: "var(--blue)" }}>GOALS</span>
           </h2>
           <div className="space-y-4">
             {GOALS.map((g, i) => (
               <div
                 key={g.title}
-                className="flex gap-5 p-5 sm:p-6 rounded-xl border transition-all hover:border-[var(--blue)] hover:translate-x-1"
-                style={{ borderColor: "var(--border)", background: "var(--card)" }}
+                className="reveal card-lift flex gap-5 p-5 sm:p-6 rounded-xl border"
+                style={{
+                  borderColor: "var(--border)",
+                  background: "var(--card)",
+                  transitionDelay: `${i * 0.06}s`,
+                }}
               >
                 <span
                   className="text-xl sm:text-2xl font-black shrink-0 opacity-25 leading-none pt-1"

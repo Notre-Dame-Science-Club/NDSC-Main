@@ -6,6 +6,7 @@ import Navbar from "@/components/layout/Navbar";
 import Footer from "@/components/layout/Footer";
 import SurveyNotification from "@/components/SurveyNotification";
 import ActivityNotification from "@/components/ActivityNotification";
+import ScrollReveal from "@/components/ScrollReveal";
 import { supabaseAdmin } from "@/lib/supabase";
 import { darkenHex, hexToRgbString, isValidHex } from "@/lib/color";
 
@@ -129,7 +130,7 @@ export default async function RootLayout({
   }
 
   return (
-    <html lang="en" suppressHydrationWarning style={rootStyle}>
+    <html lang="en" suppressHydrationWarning data-scroll-behavior="smooth" style={rootStyle}>
       <head>
         <link rel="icon" href="/favicon.png" type="image/png" sizes="any" />
         <link rel="icon" href="/images/cropped-logo.png" type="image/png" sizes="32x32" />
@@ -148,8 +149,11 @@ export default async function RootLayout({
             })();
           `}
         </Script>
+        <a href="#main-content" className="skip-link">Skip to content</a>
+        <div className="grain-overlay" aria-hidden="true" />
+        <ScrollReveal />
         <Navbar />
-        <main>{children}</main>
+        <main id="main-content">{children}</main>
         <Footer />
         <SurveyNotification />
         <ActivityNotification />

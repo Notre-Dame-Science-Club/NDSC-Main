@@ -583,14 +583,14 @@ export default function OlympiadPage() {
     <div className="min-h-screen py-16 px-4" style={{ background: bg }}>
       <div className="max-w-4xl mx-auto">
         <div className="text-center mb-12">
-          <h1 className="text-3xl font-bold mb-3" style={{ fontFamily: 'Orbitron, monospace', color: 'var(--blue)' }}>NDSC Olympiads</h1>
-          <p style={{ color: 'var(--muted)' }}>Take part in NDSC science olympiads, test your knowledge, and win prizes.</p>
+          <h1 className="reveal text-3xl font-bold mb-3" style={{ fontFamily: 'Orbitron, monospace', color: 'var(--blue)' }}>NDSC Olympiads</h1>
+          <p className="reveal" style={{ color: 'var(--muted)' }}>Take part in NDSC science olympiads, test your knowledge, and win prizes.</p>
         </div>
         {listLoading && <p className="text-center" style={{ color: 'var(--border-soft)' }}>Loading…</p>}
         {!listLoading && totalCount === 0 && <p className="text-center py-12" style={{ color: 'var(--border-soft)' }}>No online olympiad rounds open right now. Check back soon.</p>}
         <div className="space-y-4">
           {onlineCards.map(c => (
-            <div key={`activity-${c.category_id}`} className="flex gap-5 p-5" style={card}>
+            <div key={`activity-${c.category_id}`} className="reveal card-lift flex gap-5 p-5" style={card}>
               {c.cover_image_url && <img src={c.cover_image_url} alt="" className="w-24 h-24 rounded-xl object-cover flex-shrink-0" />}
               <div className="flex-1">
                 <p className="text-xs mb-1" style={{ color: 'var(--border-soft)' }}>{c.session_title}</p>
@@ -607,7 +607,7 @@ export default function OlympiadPage() {
           ))}
 
           {openStandalone.map(({ o }) => (
-            <div key={`oly-${o.id}`} className="flex gap-5 p-5" style={{ ...card, borderLeft: o.theme_accent_color ? `3px solid ${o.theme_accent_color}` : card.border }}>
+            <div key={`oly-${o.id}`} className="reveal card-lift flex gap-5 p-5" style={{ ...card, borderLeft: o.theme_accent_color ? `3px solid ${o.theme_accent_color}` : card.border }}>
               {(o.theme_header_logo_url || o.cover_image_url) && <img src={o.theme_header_logo_url || o.cover_image_url} alt="" className="w-24 h-24 rounded-xl object-cover flex-shrink-0" />}
               <div className="flex-1">
                 <h2 className="font-bold text-lg mb-1" style={{ color: 'var(--white-soft)' }}>{o.name}</h2>
@@ -991,7 +991,7 @@ export default function OlympiadPage() {
     return (
       <div className="min-h-screen py-12 px-4" style={theme.pageStyle}>
         <div className="max-w-2xl mx-auto space-y-5">
-          <div className="p-6 text-center" style={card}>
+          <div className="reveal p-6 text-center" style={card}>
             {theme.headerLogo && <img src={theme.headerLogo} alt="" className="h-12 mx-auto mb-2 object-contain" />}
             <h2 className="text-xl font-bold mb-1" style={{ fontFamily: 'Orbitron, monospace', color: theme.accent || 'var(--blue)' }}>{theme.headerTitle} — Result</h2>
             <p className="text-3xl font-black mt-3" style={{ color: 'var(--success)' }}>

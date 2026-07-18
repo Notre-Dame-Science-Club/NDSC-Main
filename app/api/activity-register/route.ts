@@ -202,11 +202,16 @@ export async function POST(req: NextRequest) {
   let preparedTeamMembers: any[] = []
   if (category.requires_team) {
     const members: TeamMemberInput[] = Array.isArray(team_members) ? team_members : []
-    const min = category.team_size_min || 1
+    // Team is optional: allow 0 members (solo registration). Required: enforce min.
+    const min = category.team_optional ? 0 : (category.team_size_min || 1)
     const max = category.team_size_max || 99
     if (members.length < min || members.length > max) {
+      const lowerBound = category.team_optional
+        ? (category.team_size_min || 0)
+        : min
+      const upperBound = max
       return apiError(
-        `This category requires between ${min} and ${max} team members (not counting yourself as leader).`,
+        `This category accepts between ${lowerBound} and ${upperBound} team member${upperBound === 1 ? '' : 's'} (not counting yourself as leader).`,
         400
       )
     }
@@ -240,32 +245,112 @@ export async function POST(req: NextRequest) {
 
   const paymentStatus = category.requires_payment ? 'pending' : 'not_required'
 
-  // "Unique field" duplicate check (admin-configurable per custom field).
-  // Scope is the whole activity session, not just this category — e.g. a
-  // school ID marked unique should be caught as a duplicate even if the
-  // second attempt is under a different segment/round of the same event.
-  const uniqueCategoryFields = (category.custom_fields || []).filter((f: any) => f.unique_field)
-  const uniqueTeamFields = (category.team_member_fields || []).filter((f: any) => f.unique_field)
+  // ── Unique field duplicate check ──────────────────────────────────────
+  // Walks the segment's form_field_schema (the new V8 unified field list)
+  // and the legacy custom_fields / team_member_fields shapes. Any field
+  // with `unique_field: true` is enforced across the entire activity
+  // session (not just this category) so a duplicate is caught even when
+  // the second attempt is in a different segment of the same event.
+  //
+  // For top-level built-in columns (college_roll, email, etc.) the value
+  // is read from the top-level body. For custom answers, from
+  // `custom_answers[key]`. For team members, from `team_members[i].<col>`.
+  // When a clash is found the error message names the field, the value,
+  // and (when known) the existing registrant so the user can recover
+  // gracefully — the live /api/activity-unique-check endpoint surfaces
+  // the same info to the form before submit.
+  const TOP_LEVEL_COLS = new Set([
+    'full_name', 'phone', 'email', 'college',
+    'college_roll', 'hsc_session', 'division',
+  ])
+  const norm = (v: any) => (v === undefined || v === null ? '' : String(v).trim().toLowerCase())
 
-  if (uniqueCategoryFields.length > 0 || uniqueTeamFields.length > 0) {
-    const norm = (v: any) => (v === undefined || v === null ? '' : String(v).trim().toLowerCase())
+  // Collect every unique-flagged field. New shape first (form_field_schema),
+  // then legacy fallback. Each entry has { label, source, key } where
+  // `source` describes where to read/write the value.
+  const uniqueFields: { label: string; source: 'top_level' | 'custom'; key: string; builtinCol?: string }[] = []
+  if (Array.isArray(category.form_field_schema)) {
+    for (const f of category.form_field_schema) {
+      if (!f || !f.unique_field) continue
+      const builtinCol = f.is_builtin as string | undefined
+      if (builtinCol && TOP_LEVEL_COLS.has(builtinCol)) {
+        uniqueFields.push({ label: f.label || builtinCol, source: 'top_level', key: builtinCol, builtinCol })
+      } else {
+        // Custom key in custom_answers
+        const k = (f.key || f.id || builtinCol || '') as string
+        if (!k) continue
+        uniqueFields.push({ label: f.label || k, source: 'custom', key: k, builtinCol })
+      }
+    }
+  }
+  // Legacy fallback — if the segment has no form_field_schema (older event)
+  // or admin never set unique_field on the new schema, still honor the old
+  // shape.
+  for (const f of (category.custom_fields || [])) {
+    if (!f?.unique_field || !f.key) continue
+    if (!uniqueFields.some(x => x.source === 'custom' && x.key === f.key)) {
+      uniqueFields.push({ label: f.label || f.key, source: 'custom', key: f.key })
+    }
+  }
 
+  // Team-member unique fields (legacy `team_member_fields` shape, plus any
+  // team fields admins add inline).
+  const uniqueTeamFields: { label: string; key: string }[] = []
+  for (const f of (category.team_member_fields || [])) {
+    if (f?.unique_field && f.key) uniqueTeamFields.push({ label: f.label || f.key, key: f.key })
+  }
+
+  if (uniqueFields.length > 0 || uniqueTeamFields.length > 0) {
     const { data: existingRegs } = await supabaseAdmin
       .from('activity_registrations')
-      .select('custom_answers, team_members')
+      .select('id, full_name, email, college_roll, custom_answers, team_members')
       .eq('activity_session_id', category.activity_session_id)
 
-    for (const field of uniqueCategoryFields) {
-      const incoming = norm(custom_answers?.[field.key])
-      if (!incoming) continue
-      const clash = (existingRegs || []).some(
-        (r: any) => norm(r.custom_answers?.[field.key]) === incoming
-      )
-      if (clash) {
-        return apiError(
-          `"${field.label}" is already registered for this event. Duplicate entries aren't allowed for this field.`,
-          409
-        )
+    // For each unique field, check the leader values across existing
+    // registrations AND any team members in those registrations. The
+    // first match wins and is reported with the existing registrant's
+    // name so the message is actionable.
+    for (const f of uniqueFields) {
+      const incomingRaw = f.source === 'top_level' ? body[f.key] : custom_answers?.[f.key]
+      const incomingNorm = norm(incomingRaw)
+      if (!incomingNorm) continue
+      const incomingDisplay = String(incomingRaw).trim()
+
+      for (const r of (existingRegs || [])) {
+        // Leader column clash
+        let leaderVal: any
+        if (f.source === 'top_level') {
+          leaderVal = (r as any)[f.key]
+        } else {
+          leaderVal = (r as any).custom_answers?.[f.key]
+        }
+        if (norm(leaderVal) === incomingNorm) {
+          return apiError(
+            `"${f.label}" with value "${incomingDisplay}" is already registered for this event${r.full_name ? ` by ${r.full_name}` : ''}. ` +
+            `Duplicate entries aren't allowed for unique fields.`,
+            409
+          )
+        }
+        // Team member clash
+        for (const m of ((r as any).team_members || [])) {
+          let mVal: any
+          if (f.source === 'top_level') {
+            if (f.key === 'full_name') mVal = m.full_name
+            else if (f.key === 'email') mVal = m.email
+            else if (f.key === 'college_roll') mVal = m.college_roll
+            else if (f.key === 'phone') mVal = m.phone
+            else mVal = m[f.key]
+          } else {
+            mVal = m.custom_answers?.[f.key]
+          }
+          if (norm(mVal) === incomingNorm) {
+            return apiError(
+              `"${f.label}" with value "${incomingDisplay}" is already on team "${r.full_name || 'someone'}'s team" for this event. ` +
+              `If that's you, open your team dashboard instead of re-registering.`,
+              409
+            )
+          }
+        }
       }
     }
 
