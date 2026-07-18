@@ -123,9 +123,9 @@ export default function Navbar() {
     <>
       <style>{`
         .navbar-glass {
-          background: rgba(2, 8, 16, 0.97);
-          backdrop-filter: blur(20px);
-          -webkit-backdrop-filter: blur(20px);
+          background: rgba(2, 8, 16, 0.92);
+          backdrop-filter: blur(20px) saturate(180%);
+          -webkit-backdrop-filter: blur(20px) saturate(180%);
           border-bottom: 1px solid rgba(0, 212, 255, 0.12);
         }
         .nav-link {
@@ -154,28 +154,35 @@ export default function Navbar() {
         .nav-link.active { color: var(--blue); }
         .nav-link.active::after { width: 100%; }
 
+        /* Static, deliberate brand mark — replaces the old sliding-gradient
+           "shimmer" (3s linear infinite background-position) which read as
+           a 1999s web ring instead of a logo.
+
+           The text now uses a fixed cyan→deep-cyan gradient with stops
+           that read as one deliberate piece, not a moving bar. Hover
+           swaps it to a crisp solid color and adds a small scale. */
         .ndsc-logo-text {
-          background: linear-gradient(135deg, #00d4ff 0%, #0099cc 60%, #00d4ff 100%);
-          background-size: 200% auto;
+          background: linear-gradient(180deg, #e8f4ff 0%, #00d4ff 100%);
           -webkit-background-clip: text;
           background-clip: text;
           -webkit-text-fill-color: transparent;
-          animation: shimmerText 3s linear infinite;
-        }
-        @keyframes shimmerText {
-          0% { background-position: 0% center; }
-          100% { background-position: 200% center; }
+          transition: filter 0.3s ease;
         }
         .ndsc-logo-glow {
-          filter: drop-shadow(0 0 8px rgba(0,212,255,0.5));
-          transition: filter 0.3s;
+          transition: transform 0.3s cubic-bezier(0.22, 1, 0.36, 1), filter 0.3s ease;
         }
         .ndsc-logo-glow:hover {
-          filter: drop-shadow(0 0 16px rgba(0,212,255,0.85));
+          transform: scale(1.04);
+          filter:
+            drop-shadow(0 0 10px rgba(0, 212, 255, 0.7))
+            drop-shadow(0 0 22px rgba(0, 212, 255, 0.25));
+        }
+        .ndsc-logo-glow:hover .ndsc-logo-text {
+          filter: brightness(1.15);
         }
       `}</style>
 
-      <header className="navbar-glass fixed top-0 left-0 w-full z-50 transition-all duration-300">
+      <header className="navbar-glass fixed top-0 left-0 w-full z-50 transition-[background,backdrop-filter,border-color] duration-300">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 flex items-center justify-between" style={{ height: "var(--navbar-height, 64px)" }}>
 
           {/* LOGO */}

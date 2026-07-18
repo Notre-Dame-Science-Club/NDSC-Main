@@ -20,7 +20,7 @@ const PRIMARY_INFO_KEY = 'ndsc_primary_info'
 
 type Category = {
   id: string; parent_id: string | null; name: string; description: string | null
-  custom_fields: any[]; requires_team: boolean; team_size_min: number | null; team_size_max: number | null
+  custom_fields: any[]; requires_team: boolean; team_optional?: boolean; team_size_min: number | null; team_size_max: number | null
   team_member_fields: any[]; requires_payment: boolean; payment_amount: number | null; payment_label: string | null
   is_online_submission: boolean; linked_olympiad_id: string | null
   schedule_date: string | null; schedule_time: string | null; schedule_room: string | null
@@ -161,7 +161,33 @@ function ActivityRegisterPageInner() {
         setKnownInfo(info)
         setForm(f => ({ ...f, ...info }))
         setIdentityChecked(true)
-        setPhase('picker')
+        // Reuse the same flow as the identity step — `proceedAfterIdentity`
+        // handles deep-link, auto-skip (single-leaf / no-segment), and the
+        // normal picker. We re-fetch the public categories here so the
+        // autoSkip decision is based on the real tree, not an empty list.
+        const r = await fetch(`/api/activity-reg-categories-public?slug=${slug}`)
+        const d = await r.json().catch(() => ({}))
+        const list: Category[] = d.categories || []
+        if (list.length > 0) setCategories(list)
+        // The deep-link logic in the first effect has already set the path /
+        // teamMembers when ?segment= or ?start= is present. For all other
+        // cases decide here: skip the picker if there's nothing meaningful
+        // to pick, otherwise go to the picker.
+        if (deepLinkIsLeaf) {
+          setPhase('form')
+          return
+        }
+        const leaves = list.filter((c: Category) => !list.some(x => x.parent_id === c.id))
+        if (leaves.length === 1) {
+          setPath([leaves[0]])
+          const min = leaves[0].team_size_min || 0
+          setTeamMembers(Array.from({ length: min }, () => ({
+            id: uid(), full_name: '', email: '', college_roll: '', password: '', custom_answers: {}
+          })))
+          setPhase('form')
+        } else {
+          setPhase('picker')
+        }
       }
     })
 
@@ -178,9 +204,37 @@ function ActivityRegisterPageInner() {
 
   const isLeaf = (cat: Category) => !categories.some(c => c.parent_id === cat.id)
 
+  // True when the category tree has nothing for the user to actually pick —
+  // either there are no categories, or there's exactly one leaf and no
+  // parent layer above it. In that case the register page should auto-skip
+  // the picker and go straight to the form (used by the "no segments"
+  // event-page CTA, which links here expecting to land on the form).
+  const autoSkipPicker = !segmentId && !startCategoryId && (() => {
+    if (categories.length === 0) return true
+    const leaves = categories.filter(isLeaf)
+    if (leaves.length === 1) return true
+    return false
+  })()
+
   // After identity is confirmed, go straight to the form if we arrived via
-  // a leaf-level Olympiad deep-link, otherwise go to the picker as normal.
-  const proceedAfterIdentity = () => setPhase(deepLinkIsLeaf ? 'form' : 'picker')
+  // a leaf-level Olympiad deep-link, OR if the tree auto-skips the picker
+  // (no segments + single leaf, or no categories at all).
+  const proceedAfterIdentity = () => {
+    if (deepLinkIsLeaf) { setPhase('form'); return }
+    if (autoSkipPicker) {
+      const leaves = categories.filter(isLeaf)
+      if (leaves.length === 1) {
+        setPath([leaves[0]])
+        const min = leaves[0].team_size_min || 0
+        setTeamMembers(Array.from({ length: min }, () => ({
+          id: uid(), full_name: '', email: '', college_roll: '', password: '', custom_answers: {}
+        })))
+      }
+      setPhase('form')
+      return
+    }
+    setPhase('picker')
+  }
 
   const lookupIdentity = async () => {
     if (!lookupQuery.trim()) { setIdentityChecked(true); proceedAfterIdentity(); return }
@@ -459,6 +513,21 @@ function ActivityRegisterPageInner() {
   if (loading) return <div className="min-h-screen flex items-center justify-center" style={{ background: 'var(--bg)' }}><p style={{ color: 'var(--muted)' }}>Loading...</p></div>
   if (error && !sessionInfo) return <div className="min-h-screen flex items-center justify-center px-4" style={{ background: 'var(--bg)' }}><p style={{ color: 'var(--danger-soft)' }}>{error}</p></div>
 
+  // No segments AND no legacy categories at all — admin hasn't configured
+  // any registration target. Show a friendly message instead of an empty
+  // form.
+  if (!loading && categories.length === 0) {
+    return (
+      <div className="min-h-screen flex items-center justify-center px-4" style={{ background: 'var(--bg)', paddingTop: '88px' }}>
+        <div className="text-center max-w-md">
+          <p className="text-lg font-semibold mb-2" style={{ color: 'var(--white)' }}>Registration isn't set up yet</p>
+          <p className="text-sm" style={{ color: 'var(--muted)' }}>This event doesn't have any registration categories configured. Please check back later or contact the organizers.</p>
+          <Link href={`/activities/${slug}`} className="inline-block mt-4 text-sm underline" style={{ color: 'var(--blue)' }}>← Back to event</Link>
+        </div>
+      </div>
+    )
+  }
+
   const contactPersons: any[] = resolveContactPersons(appearance?.form_contact_persons, ecMembers)
   const accent = resolveAccent(appearance?.form_bg_theme)
   const accentRgb = resolveAccentRgbTriplet(appearance?.form_bg_theme)
@@ -569,7 +638,7 @@ function ActivityRegisterPageInner() {
                   {cat.description && <p className="text-xs mt-0.5" style={{ color: 'var(--muted)' }}>{cat.description}</p>}
                   {isLeaf(cat) && (
                     <div className="flex gap-2 mt-1.5 flex-wrap">
-                      {cat.requires_team && <span className="text-xs px-2 py-0.5 rounded-full" style={{ background: 'rgba(var(--accent2-rgb), 0.1)', color: 'var(--accent2)' }}>Team event</span>}
+                      {cat.requires_team && <span className="text-xs px-2 py-0.5 rounded-full" style={{ background: 'rgba(var(--accent2-rgb), 0.1)', color: 'var(--accent2)' }}>{cat.team_optional ? 'Team (optional)' : 'Team event'}</span>}
                       {cat.requires_payment && <span className="text-xs px-2 py-0.5 rounded-full" style={{ background: 'rgba(var(--warning-rgb), 0.1)', color: 'var(--warning)' }}>{cat.payment_label || 'Fee'}: ৳{cat.payment_amount}</span>}
                       {cat.is_online_submission && <span className="text-xs px-2 py-0.5 rounded-full" style={{ background: 'rgba(var(--blue-rgb), 0.1)', color: 'var(--blue)' }}>Online round</span>}
                     </div>
@@ -650,9 +719,12 @@ function ActivityRegisterPageInner() {
               <div className="pt-2">
                 <p className="text-sm font-bold flex items-center gap-2 mb-1" style={{ color: 'var(--accent2)' }}>
                   <Users size={15} /> Team Members ({teamMembers.length})
+                  {currentLeaf.team_optional && <span className="text-[10px] font-normal px-1.5 py-0.5 rounded" style={{ background: 'rgba(var(--accent2-rgb), 0.12)', color: 'var(--accent2)' }}>optional</span>}
                 </p>
                 <p className="text-xs mb-3" style={{ color: 'var(--muted)' }}>
-                  You are the team leader. Add your team members below. Each will receive an email with login credentials to access the team dashboard.
+                  {currentLeaf.team_optional
+                    ? 'This event accepts both individuals and teams. Leave this empty to register alone, or add team members below. Each will receive an email with login credentials to access the team dashboard.'
+                    : 'You are the team leader. Add your team members below. Each will receive an email with login credentials to access the team dashboard.'}
                 </p>
                 <div className="space-y-3">
                   {teamMembers.map((m, idx) => (

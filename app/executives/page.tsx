@@ -425,7 +425,10 @@ export default function ExecutivesPage() {
       <link rel="preconnect" href="https://fonts.googleapis.com" />
       <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700;800;900&family=Montserrat:wght@700;800;900&family=Orbitron:wght@700;900&display=swap" rel="stylesheet" />
       <style>{`
-        @font-face { font-family:'Gilroy'; src:url('https://db.onlinewebfonts.com/t/bd86c5e428d0bdc2ddc2c3b36ee5b9aa.woff2') format('woff2'); font-weight:800; font-display:swap; }
+        /* Gilroy hosted on onlinewebfonts is gone (404) and the host also
+           sends no CORS headers. Fall back to Montserrat — already in
+           globals.css's --font-display stack — so the executives page
+           keeps the same geometric-display feel without a broken request. */
         .exec-grid { display:grid; gap:1.4rem; grid-template-columns:repeat(3,1fr); }
         @media(max-width:639px){
           .exec-grid { grid-template-columns:1fr; gap:1rem; }

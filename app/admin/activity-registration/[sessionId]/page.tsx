@@ -33,6 +33,7 @@ type Category = {
   icon: string | null
   bg_image_url: string | null
   requires_team: boolean
+  team_optional: boolean
   team_size_min: number | null
   team_size_max: number | null
   team_member_fields: CustomField[]
@@ -1075,6 +1076,7 @@ function CategoryEditor({ category, isLeaf, onSave }: { category: Category; isLe
   const [registrationOpen, setRegistrationOpen] = useState(category.registration_open !== false)
   const [customFields, setCustomFields] = useState<CustomField[]>(category.custom_fields || [])
   const [requiresTeam, setRequiresTeam] = useState(category.requires_team)
+  const [teamOptional, setTeamOptional] = useState(category.team_optional || false)
   const [teamMin, setTeamMin] = useState(category.team_size_min?.toString() || '')
   const [teamMax, setTeamMax] = useState(category.team_size_max?.toString() || '')
   const [teamFields, setTeamFields] = useState<CustomField[]>(category.team_member_fields || [])
@@ -1127,6 +1129,7 @@ function CategoryEditor({ category, isLeaf, onSave }: { category: Category; isLe
       registration_open: registrationOpen,
       custom_fields: customFields,
       requires_team: requiresTeam,
+      team_optional: requiresTeam ? teamOptional : false,
       team_size_min: teamMin ? Number(teamMin) : null,
       team_size_max: teamMax ? Number(teamMax) : null,
       team_member_fields: teamFields,
@@ -1180,6 +1183,10 @@ function CategoryEditor({ category, isLeaf, onSave }: { category: Category; isLe
             </label>
             {requiresTeam && (
               <div className="space-y-3 pl-6">
+                <label className="flex items-center gap-2 text-xs" style={{ color: 'var(--muted)' }}>
+                  <input type="checkbox" checked={teamOptional} onChange={e => setTeamOptional(e.target.checked)} />
+                  Team is optional — registrants may also sign up alone
+                </label>
                 <div className="grid grid-cols-2 gap-3">
                   <div>
                     <label className="block text-xs mb-1" style={{ color: 'var(--muted)' }}>Min team size</label>
@@ -1467,6 +1474,7 @@ function SegmentEditor({ segment, onSave }: { segment: Category; onSave: (patch:
   const [registrationOpen, setRegistrationOpen] = useState(segment.registration_open !== false)
   const [formFieldSchema, setFormFieldSchema] = useState<FormBlock[]>(segment.form_field_schema || [])
   const [requiresTeam, setRequiresTeam] = useState(segment.requires_team)
+  const [teamOptional, setTeamOptional] = useState(segment.team_optional || false)
   const [teamMin, setTeamMin] = useState(segment.team_size_min?.toString() || '')
   const [teamMax, setTeamMax] = useState(segment.team_size_max?.toString() || '')
   const [teamFields, setTeamFields] = useState<CustomField[]>(segment.team_member_fields || [])
@@ -1510,6 +1518,7 @@ function SegmentEditor({ segment, onSave }: { segment: Category; onSave: (patch:
       registration_open: registrationOpen,
       form_field_schema: formFieldSchema,
       requires_team: requiresTeam,
+      team_optional: requiresTeam ? teamOptional : false,
       team_size_min: teamMin ? Number(teamMin) : null,
       team_size_max: teamMax ? Number(teamMax) : null,
       team_member_fields: teamFields,

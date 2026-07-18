@@ -87,7 +87,7 @@ export default async function SessionDetailPage({
   // parents — which by definition are all top-level.
   const { data: segmentRows } = await supabaseAdmin
     .from('activity_reg_categories')
-    .select('id, name, description, icon, bg_image_url, schedule_date, schedule_time, schedule_room, requires_team, requires_payment, payment_amount, payment_label, is_online_submission, registration_open, display_order')
+    .select('id, name, description, icon, bg_image_url, schedule_date, schedule_time, schedule_room, requires_team, team_optional, requires_payment, payment_amount, payment_label, is_online_submission, registration_open, display_order')
     .eq('activity_session_id', session.id)
     .is('parent_id', null)
     .eq('is_segment', true)
@@ -104,6 +104,7 @@ export default async function SessionDetailPage({
     schedule_time: r.schedule_time,
     schedule_room: r.schedule_room,
     requires_team: r.requires_team,
+    team_optional: r.team_optional,
     requires_payment: r.requires_payment,
     payment_amount: r.payment_amount,
     payment_label: r.payment_label,

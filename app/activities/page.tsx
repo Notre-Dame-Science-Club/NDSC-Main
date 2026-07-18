@@ -1,7 +1,7 @@
 "use client";
 import { useState, useEffect, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
-import { Play, FileText, Mic, ChevronDown, ChevronUp, Search, X, UserPlus, Image as ImageIcon, Images, CalendarDays, MapPin, Clock, Microscope } from "lucide-react";
+import { Play, FileText, Mic, ChevronDown, ChevronUp, Search, X, Image as ImageIcon, Images, CalendarDays, MapPin, Clock, Microscope, ArrowRight } from "lucide-react";
 import { ActivityIcon } from "@/lib/activityIcons";
 import Link from "next/link";
 
@@ -29,59 +29,109 @@ function getYoutubeId(url: string) {
   return m ? m[1] : null;
 }
 
+/* ── Skeleton Loader ─────────────────────────────────────────────
+   3-card skeleton grid that matches the SessionCard shape. Replaces
+   the old "Loading..." text. The skeletons have a subtle shimmer via
+   a CSS gradient that drifts across — see globals.css .skeleton.
+   No JS animation needed; pure CSS, respects prefers-reduced-motion. */
+function SkeletonCard() {
+  return (
+    <div className="rounded-2xl border overflow-hidden" style={{ borderColor: "var(--border)", background: "var(--card)" }}>
+      <div className="skeleton w-full" style={{ height: 200 }} />
+      <div className="p-5 space-y-3">
+        <div className="skeleton h-4 rounded" style={{ width: "75%" }} />
+        <div className="skeleton h-3 rounded" style={{ width: "92%" }} />
+        <div className="skeleton h-3 rounded" style={{ width: "60%" }} />
+      </div>
+    </div>
+  );
+}
+function ActivitiesSkeleton() {
+  return (
+    <div>
+      <div className="mb-12">
+        <div className="skeleton h-3 rounded mb-3" style={{ width: 120 }} />
+        <div className="skeleton h-9 rounded mb-3" style={{ width: "40%" }} />
+        <div className="skeleton h-3 rounded" style={{ width: "55%" }} />
+      </div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+        <SkeletonCard /><SkeletonCard /><SkeletonCard />
+      </div>
+    </div>
+  );
+}
+
 /* ── Session Card ─────────────────────────────────────────────── */
 function SessionCard({ s }: { s: ActivitySession }) {
   const router = useRouter();
   const ytId = getYoutubeId(s.youtube_url);
   const thumb = ytId ? `https://img.youtube.com/vi/${ytId}/hqdefault.jpg` : s.cover_image_url;
   const canRegister = s.is_upcoming && s.registration_enabled;
-  const isNative = s.image_display_mode === 'native' && !ytId;
   return (
     <div
       role="link" tabIndex={0}
       onClick={() => router.push(`/activities/${s.slug}`)}
       onKeyDown={(e) => { if (e.key === "Enter") router.push(`/activities/${s.slug}`); }}
-      className="group flex flex-col rounded-2xl border overflow-hidden transition-all duration-300 hover:border-[var(--blue)] hover:-translate-y-1 cursor-pointer"
+      className="reveal card-lift group flex flex-col rounded-2xl border overflow-hidden cursor-pointer"
       style={{ borderColor: "var(--border)", background: "var(--card)" }}>
-      <div className="relative overflow-hidden" style={isNative ? { width: "100%" } : { height: 200 }}>
+      {/* Cover — always rendered at the image's natural aspect ratio.
+          The grid row will stretch cards in the same row to the tallest
+          card's height, so the title/date/footer below stay aligned
+          across cards even when the images themselves differ in shape.
+          Background uses var(--bg2) so a transparent or small image
+          doesn't reveal the page background. */}
+      <div className="relative w-full overflow-hidden" style={{ background: "var(--bg2)" }}>
         {thumb ? (
           <img src={thumb} alt={s.title}
-            className={isNative
-              ? "w-full h-auto object-contain transition-transform duration-500 group-hover:scale-105"
-              : "w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"} />
+            className="w-full h-auto block transition-transform duration-700 ease-out group-hover:scale-[1.04]" />
         ) : (
-          <div className="w-full h-full flex items-center justify-center opacity-20"
-            style={{ background: "var(--bg2)" }}><ImageIcon size={48} /></div>
+          <div className="w-full flex items-center justify-center opacity-20"
+            style={{ aspectRatio: "16/10" }}>
+            <ImageIcon size={48} />
+          </div>
         )}
-        <div className="absolute inset-0"
+        {/* Bottom shadow overlay for legibility of any badge that sits on
+            the image. Skipped on hover (full image visible). */}
+        <div className="absolute inset-0 pointer-events-none"
           style={{ background: "linear-gradient(0deg,rgba(2,8,16,.75) 0%,transparent 60%)" }} />
+        <div
+          aria-hidden="true"
+          className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none"
+          style={{ background: "linear-gradient(180deg, transparent 50%, rgba(0,0,0,0.4) 100%)" }}
+        />
+        {/* YouTube play badge — small, non-screaming */}
         {ytId && (
-          <div className="absolute top-3 right-3 w-8 h-8 rounded-full flex items-center justify-center"
-            style={{ background: "rgba(255,0,0,.8)" }}>
-            <Play size={12} fill="white" color="white" />
+          <div className="absolute top-3 right-3 w-9 h-9 rounded-full flex items-center justify-center backdrop-blur-sm"
+            style={{ background: "rgba(0,0,0,.55)", border: "1px solid rgba(255,255,255,.18)" }}>
+            <Play size={13} fill="white" color="white" />
           </div>
         )}
-        {s.pdf_url && (
-          <div className="absolute bottom-3 right-3 px-2 py-1 rounded text-xs font-bold flex items-center gap-1"
-            style={{ background: "rgba(var(--blue-rgb), .85)", color: "#000" }}>
-            <FileText size={10} /> PDF
-          </div>
-        )}
-        {s.gallery_urls?.length > 0 && (
-          <div className="absolute bottom-3 left-3 px-2 py-1 rounded text-xs font-bold flex items-center gap-1"
-            style={{ background: "rgba(46,204,113,.85)", color: "#000" }}>
-            <Images size={11} /> {s.gallery_urls.length}
-          </div>
-        )}
-        {canRegister && (
-          <Link
-            href={`/activities/${s.slug}/register`}
-            onClick={(e) => e.stopPropagation()}
-            className="absolute top-3 left-3 flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-black z-10 transition-transform hover:scale-105"
-            style={{ background: "var(--blue)", color: "#000", fontFamily: "'Orbitron',sans-serif" }}>
-            <UserPlus size={12} /> Register Now
-          </Link>
-        )}
+        {/* PDF & gallery badges — small monochrome chips on the bottom edge
+            of the cover, low-emphasis so they don't compete with the image. */}
+        <div className="absolute bottom-3 left-3 right-3 flex items-center gap-2">
+          {s.pdf_url && (
+            <span className="px-2 py-1 rounded-md text-[10px] font-black tracking-wider flex items-center gap-1 backdrop-blur-sm"
+              style={{ background: "rgba(0,0,0,.55)", color: "var(--blue)", border: "1px solid rgba(var(--blue-rgb),.35)" }}>
+              <FileText size={10} /> PDF
+            </span>
+          )}
+          {s.gallery_urls?.length > 0 && (
+            <span className="px-2 py-1 rounded-md text-[10px] font-black tracking-wider flex items-center gap-1 backdrop-blur-sm"
+              style={{ background: "rgba(0,0,0,.55)", color: "#4ade80", border: "1px solid rgba(74,222,128,.35)" }}>
+              <Images size={10} /> {s.gallery_urls.length}
+            </span>
+          )}
+          {canRegister && (
+            <span className="px-2 py-1 rounded-md text-[10px] font-black tracking-wider flex items-center gap-1 backdrop-blur-sm ml-auto"
+              style={{ background: "rgba(0,0,0,.6)", color: "var(--blue)", border: "1px solid rgba(var(--blue-rgb),.45)" }}>
+              <span className="relative flex h-1.5 w-1.5">
+                <span className="animate-ping absolute h-full w-full rounded-full opacity-70" style={{ background: "var(--blue)" }} />
+                <span className="relative rounded-full h-1.5 w-1.5" style={{ background: "var(--blue)" }} />
+              </span>
+              REGISTRATION OPEN
+            </span>
+          )}
+        </div>
       </div>
       <div className="p-5 flex-1 flex flex-col">
         <h3 className="font-bold text-sm mb-2 group-hover:text-[var(--blue)] transition-colors line-clamp-2"
@@ -91,17 +141,33 @@ function SessionCard({ s }: { s: ActivitySession }) {
             {s.description}
           </p>
         )}
-        <div className="mt-auto flex flex-wrap gap-2 text-xs" style={{ color: "var(--muted)" }}>
-          {s.session_date && (
-            <span className="inline-flex items-center gap-1"><CalendarDays size={12} /> {new Date(s.session_date).toLocaleDateString("en-BD", {
-              day: "numeric", month: "short", year: "numeric"
-            })}</span>
+        <div className="mt-auto flex items-end justify-between gap-3 text-xs" style={{ color: "var(--muted)" }}>
+          <div className="flex flex-col gap-1 min-w-0">
+            {s.session_date && (
+              <span className="inline-flex items-center gap-1 truncate"><CalendarDays size={12} /> {new Date(s.session_date).toLocaleDateString("en-BD", {
+                day: "numeric", month: "short", year: "numeric"
+              })}</span>
+            )}
+            {s.location && <span className="inline-flex items-center gap-1 truncate"><MapPin size={12} /> {s.location}</span>}
+            {canRegister && s.registration_note && (
+              <span className="inline-flex items-center gap-1 truncate" style={{ color: "var(--blue)" }}><Clock size={11} /> {s.registration_note}</span>
+            )}
+          </div>
+          {canRegister ? (
+            <Link
+              href={`/activities/${s.slug}/register`}
+              onClick={(e) => e.stopPropagation()}
+              className="register-cta shrink-0 inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-[11px] font-black tracking-widest"
+              style={{ fontFamily: "'Orbitron',sans-serif" }}>
+              REGISTER <ArrowRight size={12} className="cta-arrow" />
+            </Link>
+          ) : (
+            <span className="shrink-0 inline-flex items-center gap-1 text-[10px] font-bold tracking-widest px-3 py-1.5 rounded-lg"
+              style={{ color: "var(--muted)", border: "1px solid var(--border)" }}>
+              VIEW →
+            </span>
           )}
-          {s.location && <span className="inline-flex items-center gap-1"><MapPin size={12} /> {s.location}</span>}
         </div>
-        {canRegister && s.registration_note && (
-          <p className="text-[11px] mt-2 inline-flex items-center gap-1" style={{ color: "var(--blue)" }}><Clock size={11} /> {s.registration_note}</p>
-        )}
       </div>
     </div>
   );
@@ -117,7 +183,7 @@ function VersionSection({ version, sessions }: { version: ActivityVersion; sessi
   return (
     <div className="mb-10">
       <button onClick={() => setOpen(o => !o)}
-        className="w-full flex items-center gap-4 mb-6 group">
+        className="reveal w-full flex items-center gap-4 mb-6 group">
         <div className="flex items-center gap-3 flex-1">
           <div className="px-3 py-1 rounded-lg text-sm font-black"
             style={version.is_highlighted
@@ -199,7 +265,7 @@ function DynamicActivityTab({ type }: { type: ActivityType }) {
     load();
   }, [type.id]);
 
-  if (loading) return <div className="text-center py-20" style={{ color: "var(--muted)" }}>Loading...</div>;
+  if (loading) return <ActivitiesSkeleton />;
 
   const hasContent = versions.length > 0 || directSessions.length > 0;
 
@@ -207,12 +273,12 @@ function DynamicActivityTab({ type }: { type: ActivityType }) {
     <div>
       {/* Header */}
       <div className="mb-12">
-        <div className="section-label mb-2 inline-flex items-center gap-1.5"><ActivityIcon icon={type.icon} size={13} /> Activity</div>
-        <h2 className="text-3xl font-black mb-2" style={{ fontFamily: "'Orbitron',sans-serif" }}>
+        <div className="reveal section-label mb-2 inline-flex items-center gap-1.5"><ActivityIcon icon={type.icon} size={13} /> Activity</div>
+        <h2 className="reveal text-3xl font-black mb-2" style={{ fontFamily: "'Orbitron',sans-serif" }}>
           <span style={{ color: "var(--blue)" }}>{type.name.toUpperCase()}</span>
         </h2>
         {type.description && (
-          <p className="text-sm max-w-2xl" style={{ color: "var(--muted)", lineHeight: 1.7 }}>
+          <p className="reveal text-sm max-w-2xl" style={{ color: "var(--muted)", lineHeight: 1.7 }}>
             {type.description}
           </p>
         )}
@@ -237,7 +303,7 @@ function DynamicActivityTab({ type }: { type: ActivityType }) {
           {directSessions.filter(s => s.is_published).length > 0 && (
             <div>
               {versions.length > 0 && (
-                <h3 className="text-lg font-bold mb-6" style={{ fontFamily: "'Orbitron',sans-serif", color: "var(--muted)" }}>
+                <h3 className="reveal text-lg font-bold mb-6" style={{ fontFamily: "'Orbitron',sans-serif", color: "var(--muted)" }}>
                   Other Sessions
                 </h3>
               )}
@@ -376,7 +442,7 @@ function ActivitySearchBar() {
       </div>
 
       {open && (
-        <div className="absolute left-0 right-0 mt-2 rounded-xl border overflow-hidden text-left z-40 max-h-96 overflow-y-auto"
+        <div className="search-dropdown absolute left-0 right-0 mt-2 rounded-xl border overflow-hidden text-left z-40 max-h-96 overflow-y-auto"
           style={{ background: "var(--bg2)", borderColor: "var(--border)" }}>
           {loading ? (
             <p className="px-4 py-3 text-sm" style={{ color: "var(--muted)" }}>Searching...</p>
@@ -410,11 +476,11 @@ export default function ActivitiesPage() {
     <div className="min-h-screen relative z-10" style={{ paddingTop: "72px" }}>
       <div className="py-16 text-center border-b"
         style={{ background: "linear-gradient(180deg,var(--bg2),var(--bg))", borderColor: "var(--border)" }}>
-        <div className="section-label justify-center mb-2">Explore</div>
-        <h1 className="text-4xl md:text-5xl font-black mb-6" style={{ fontFamily: "'Orbitron',sans-serif" }}>
+        <div className="reveal section-label justify-center mb-2">Explore</div>
+        <h1 className="reveal text-4xl md:text-5xl font-black mb-6" style={{ fontFamily: "'Orbitron',sans-serif" }}>
           ALL <span style={{ color: "var(--blue)" }}>ACTIVITIES</span>
         </h1>
-        <div className="max-w-md mx-auto px-4">
+        <div className="reveal max-w-md mx-auto px-4">
           <ActivitySearchBar />
         </div>
       </div>

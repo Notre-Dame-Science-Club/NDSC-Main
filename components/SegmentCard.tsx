@@ -24,6 +24,7 @@ type Segment = {
   schedule_time: string | null
   schedule_room: string | null
   requires_team: boolean
+  team_optional?: boolean
   requires_payment: boolean
   payment_amount: number | null
   payment_label: string | null
@@ -125,7 +126,7 @@ export default function SegmentCard({
         {/* Badges */}
         <div className="flex flex-wrap gap-1.5 mt-3">
           {segment.requires_team && (
-            <span className="text-[10px] uppercase tracking-wide px-2 py-0.5 rounded-full" style={{ background: 'rgba(var(--accent2-rgb), 0.12)', color: 'var(--accent2)' }}>Team</span>
+            <span className="text-[10px] uppercase tracking-wide px-2 py-0.5 rounded-full" style={{ background: 'rgba(var(--accent2-rgb), 0.12)', color: 'var(--accent2)' }}>{segment.team_optional ? 'Team (optional)' : 'Team'}</span>
           )}
           {segment.requires_payment && (
             <span className="text-[10px] uppercase tracking-wide px-2 py-0.5 rounded-full" style={{ background: 'rgba(var(--warning-rgb), 0.12)', color: 'var(--warning)' }}>৳{segment.payment_amount}</span>

@@ -109,7 +109,7 @@ export default function PublicationPage() {
       <section className="py-24 border-b"
         style={{ background: 'linear-gradient(180deg, var(--bg2), var(--bg))', borderColor: 'var(--border)' }}>
         <div className="max-w-7xl mx-auto px-6">
-          <div className="section-label mb-2">Annual Publication</div>
+          <div className="reveal section-label mb-2">Annual Publication</div>
           <div className="flex flex-col lg:flex-row items-center gap-16">
             {audri ? (
               <div className="shrink-0 cursor-pointer group" onClick={() => audri.pdf_url && openPdf(audri)}>
@@ -141,7 +141,7 @@ export default function PublicationPage() {
             )}
 
             <div>
-              <h1 className="text-4xl md:text-5xl font-black mb-2"
+              <h1 className="reveal text-4xl md:text-5xl font-black mb-2"
                 style={{ fontFamily: "'Orbitron',sans-serif" }}>
                 অদ্রি <span style={{ color: 'var(--blue)' }}>(AUDRI)</span>
               </h1>
@@ -189,8 +189,8 @@ export default function PublicationPage() {
       {/* Wall Magazine */}
       <section className="py-20 border-b" style={{ borderColor: 'var(--border)' }}>
         <div className="max-w-7xl mx-auto px-6">
-          <div className="section-label mb-2">Club Publication</div>
-          <div className="flex items-end justify-between mb-10 flex-wrap gap-4">
+          <div className="reveal section-label mb-2">Club Publication</div>
+          <div className="reveal flex items-end justify-between mb-10 flex-wrap gap-4">
             <h2 className="text-3xl font-black" style={{ fontFamily: "'Orbitron',sans-serif" }}>
               WALL <span style={{ color: 'var(--blue)' }}>MAGAZINE</span>
             </h2>
@@ -212,8 +212,8 @@ export default function PublicationPage() {
       <section className="py-20 border-b"
         style={{ borderColor: 'var(--border)', background: 'var(--bg2)' }}>
         <div className="max-w-7xl mx-auto px-6">
-          <div className="section-label mb-2">3D Wall Magazine</div>
-          <div className="flex items-end justify-between mb-10 flex-wrap gap-4">
+          <div className="reveal section-label mb-2">3D Wall Magazine</div>
+          <div className="reveal flex items-end justify-between mb-10 flex-wrap gap-4">
             <h2 className="text-3xl font-black" style={{ fontFamily: "'Orbitron',sans-serif" }}>
               <span style={{ color: 'var(--accent2)' }}>TRIMATRIK</span>
             </h2>
@@ -234,8 +234,8 @@ export default function PublicationPage() {
       {/* Abhishkar */}
       <section className="py-20" style={{ background: 'var(--bg)' }}>
         <div className="max-w-7xl mx-auto px-6">
-          <div className="section-label mb-2">Focus Publication</div>
-          <div className="flex items-end justify-between mb-10 flex-wrap gap-4">
+          <div className="reveal section-label mb-2">Focus Publication</div>
+          <div className="reveal flex items-end justify-between mb-10 flex-wrap gap-4">
             <h2 className="text-3xl font-black" style={{ fontFamily: "'Orbitron',sans-serif" }}>
               <span style={{ color: 'var(--accent)' }}>ABHISHKAR</span> FOCUS
             </h2>
@@ -259,8 +259,8 @@ export default function PublicationPage() {
         return (
           <section key={category} className="py-20 border-t" style={{ borderColor: 'var(--border)', background: 'var(--bg2)' }}>
             <div className="max-w-7xl mx-auto px-6">
-              <div className="section-label mb-2">{meta.sectionLabel}</div>
-              <div className="flex items-end justify-between mb-10 flex-wrap gap-4">
+              <div className="reveal section-label mb-2">{meta.sectionLabel}</div>
+              <div className="reveal flex items-end justify-between mb-10 flex-wrap gap-4">
                 <h2 className="text-3xl font-black" style={{ fontFamily: "'Orbitron',sans-serif" }}>
                   <span style={{ color: meta.accent }}>{meta.title.toUpperCase()}</span>
                 </h2>
@@ -344,7 +344,7 @@ function PrevCover({ pub, accentColor }: { pub: Publication; accentColor: string
         </div>
       )}
 
-      <div className="group cursor-pointer" style={{ width: 120 }}
+      <div className="reveal group cursor-pointer" style={{ width: 120 }}
         onClick={() => pub.pdf_url && setOpen(true)}>
         <div className="relative rounded-lg overflow-hidden mb-2 transition-transform duration-300 group-hover:-translate-y-1"
           style={{ border: `1px solid var(--border)` }}>
@@ -414,7 +414,7 @@ function FeatureCard({
   )
 
   return (
-    <div className="flex flex-col md:flex-row gap-12 items-center rounded-2xl border p-8 md:p-10"
+    <div className="reveal card-lift flex flex-col md:flex-row gap-12 items-center rounded-2xl border p-8 md:p-10"
       style={{ borderColor: 'var(--border)', background: 'rgba(255,255,255,0.02)' }}>
       {imageRight ? <>{textEl}{imgEl}</> : <>{imgEl}{textEl}</>}
     </div>

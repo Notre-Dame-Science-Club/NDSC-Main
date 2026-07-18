@@ -75,15 +75,18 @@ export function PioneerSection() {
                 delay={0.1}
                 slideDir="left"
               />
-              {/* Paragraphs — gap matches the ~1rem space between paragraphs themselves */}
+              {/* Paragraphs — staggered reveal. With the one-shot LoopingP
+                  (no more infinite loop), 0.5/1.2/2.0s waits were excessive;
+                  tightened to a 200ms staircase so the section reads as one
+                  fluid reveal rather than three separate events. */}
               <div className="space-y-3 text-sm leading-[1.9]" style={{ color: "var(--muted)", fontFamily: "'Poppins',sans-serif" }}>
-                <LoopingP delay={0.5}>
+                <LoopingP delay={0.1}>
                   Notre Dame Science Club, also known as <strong style={{ color: "var(--white)" }}>NDSC</strong>, is the most promising, versatile, and eminent co-curricular activities club of Notre Dame College, Dhaka. It began its inception in <strong style={{ color: "var(--blue)" }}>1955</strong> with a singular mission — to ignite a passion for science among students. It holds the proud distinction of being the <strong style={{ color: "var(--blue)" }}>pioneer science club of the Indian Subcontinent</strong>.
                 </LoopingP>
-                <LoopingP delay={1.2}>
+                <LoopingP delay={0.25}>
                   Holding the noble motto &ldquo;Science in Human Welfare,&rdquo; the eminent scientist <strong style={{ color: "var(--white)" }}>Fr. Richard William Timm, C.S.C.</strong> inaugurated the flag of NDSC on September 18, 1955, alongside 19 founding student members.
                 </LoopingP>
-                <LoopingP delay={2.0}>
+                <LoopingP delay={0.4}>
                   The NDSC has a long history of inspiring its followers to rediscover their innate passion for science by serving as the country&apos;s <strong style={{ color: "var(--white)" }}>oldest and most prestigious scientific club</strong>. NDSC provides necessary guidelines to budding scientists and is the trailblazer in spreading scientific awareness among the people.
                 </LoopingP>
               </div>

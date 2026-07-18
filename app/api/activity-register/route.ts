@@ -202,11 +202,16 @@ export async function POST(req: NextRequest) {
   let preparedTeamMembers: any[] = []
   if (category.requires_team) {
     const members: TeamMemberInput[] = Array.isArray(team_members) ? team_members : []
-    const min = category.team_size_min || 1
+    // Team is optional: allow 0 members (solo registration). Required: enforce min.
+    const min = category.team_optional ? 0 : (category.team_size_min || 1)
     const max = category.team_size_max || 99
     if (members.length < min || members.length > max) {
+      const lowerBound = category.team_optional
+        ? (category.team_size_min || 0)
+        : min
+      const upperBound = max
       return apiError(
-        `This category requires between ${min} and ${max} team members (not counting yourself as leader).`,
+        `This category accepts between ${lowerBound} and ${upperBound} team member${upperBound === 1 ? '' : 's'} (not counting yourself as leader).`,
         400
       )
     }
