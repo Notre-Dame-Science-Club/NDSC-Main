@@ -76,6 +76,10 @@ function ActivityRegisterPageInner() {
   const [uploadingFields, setUploadingFields] = useState<Record<string, boolean>>({})
   const [teamMembers, setTeamMembers] = useState<any[]>([])
   const [submitting, setSubmitting] = useState(false)
+  // True when any unique-flagged field has a live "taken" match — disables
+  // submit until the user changes the value. The FieldsRenderer reports up
+  // via `onUniqueBlock`.
+  const [uniqueBlocked, setUniqueBlocked] = useState(false)
 
   // Per-session appearance overrides (replaces the old form_configs
   // activity_register:<sessionId> row — now in
@@ -440,6 +444,7 @@ function ActivityRegisterPageInner() {
   const submit = async () => {
     if (!currentLeaf) return
     setError('')
+    if (uniqueBlocked) return setError('One or more unique fields already exist for this event. Please fix them above before submitting.')
     if (!form.full_name.trim()) return setError('Name is required.')
     if (!form.phone.trim()) return setError('Phone number is required.')
     if (!form.email.trim()) return setError('Email is required.')
@@ -687,6 +692,9 @@ function ActivityRegisterPageInner() {
               onCustomAnswersChange={setCustomAnswers}
               accent={accent}
               upload={uploadFieldFile}
+              sessionId={sessionInfo?.id}
+              eventSlug={slug}
+              onUniqueBlock={setUniqueBlocked}
             />
 
             {/* Project name field */}
@@ -780,10 +788,10 @@ function ActivityRegisterPageInner() {
               </div>
             )}
 
-            <button onClick={submit} disabled={submitting}
+            <button onClick={submit} disabled={submitting || uniqueBlocked}
               className="w-full py-3 rounded-xl font-bold text-sm text-black disabled:opacity-60"
               style={{ background: accent, fontFamily: "'Orbitron', sans-serif" }}>
-              {submitting ? 'Submitting...' : 'Submit Registration →'}
+              {submitting ? 'Submitting...' : uniqueBlocked ? 'Fix the unique-field warning above to continue' : 'Submit Registration →'}
             </button>
 
             {/* Contact persons */}

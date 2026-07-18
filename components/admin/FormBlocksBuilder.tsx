@@ -155,10 +155,16 @@ function BlockSettings({ block, onPatch }: { block: FormBlock; onPatch: (patch: 
             </div>
           </div>
         )}
-        <label className="flex items-center gap-2 text-xs" style={{ color: 'var(--muted)' }}>
-          <input type="checkbox" checked={!!block.required} onChange={e => onPatch({ required: e.target.checked })} />
-          Required
-        </label>
+        <div className="flex items-center gap-4 flex-wrap">
+          <label className="flex items-center gap-2 text-xs" style={{ color: 'var(--muted)' }}>
+            <input type="checkbox" checked={!!block.required} onChange={e => onPatch({ required: e.target.checked })} />
+            Required
+          </label>
+          <label className="flex items-center gap-2 text-xs" style={{ color: 'var(--muted)' }} title="If two registrants submit the same value for this field, the second submission is rejected. The form will also show a live 'already registered' notice.">
+            <input type="checkbox" checked={!!block.unique_field} onChange={e => onPatch({ unique_field: e.target.checked })} />
+            Unique field (no duplicates across this event)
+          </label>
+        </div>
       </>
     )
   }

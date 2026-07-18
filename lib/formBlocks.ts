@@ -52,6 +52,13 @@ export type FormBlock = {
   db_column?: 'top_level' | 'jsonb'
   // field-only
   placeholder?: string
+  // When true, the server enforces uniqueness for this field's value across
+  // all registrations in the same activity session. The public form does a
+  // live lookup on blur and surfaces an "already registered" / "added by X"
+  // notice before submit. Use sparingly (typically just for college_roll or
+  // email). Multiple unique fields can coexist — each is checked
+  // independently.
+  unique_field?: boolean
 }
 
 export const uid = () => Math.random().toString(36).slice(2, 9)
@@ -154,6 +161,7 @@ export function normalizeBlocks(raw: any): FormBlock[] {
       allow_other: item?.allow_other,
       max_file_size_mb: item?.max_file_size_mb,
       max_files: item?.max_files,
+      unique_field: !!item?.unique_field,
     }
   })
 }
