@@ -3,7 +3,7 @@ import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
-import { Menu, X, ChevronDown } from "lucide-react";
+import { Menu, X, ChevronDown, Search, Home, Info, Microscope, Newspaper, Users, Trophy, UserPlus } from "lucide-react";
 import { ActivityIcon } from "@/lib/activityIcons";
 
 type NavChild = { href: string; label: string; icon?: string };
@@ -24,6 +24,17 @@ const STATIC_NAV: NavItem[] = [
   { href: "/olympiad", label: "Olympiad" },
   { href: "/membership", label: "Membership" },
 ];
+
+/* Map each top-level nav item to a lucide icon used in the mobile drawer. */
+const NAV_ICON: Record<string, React.ReactNode> = {
+  "/": <Home size={16} />,
+  "/about": <Info size={16} />,
+  "Activities": <Microscope size={16} />,
+  "/publication": <Newspaper size={16} />,
+  "Executives": <Users size={16} />,
+  "/olympiad": <Trophy size={16} />,
+  "/membership": <UserPlus size={16} />,
+};
 
 const HIDE_NAVBAR_ON = ["/login", "/register", "/dashboard", "/admin"];
 
@@ -262,68 +273,236 @@ export default function Navbar() {
         </div>
       </header>
 
-      {/* MOBILE MENU */}
-      <div className="fixed inset-0 z-40 lg:hidden flex flex-col transition-all duration-300"
-        style={{
-          background: "rgba(2,8,16,0.99)", backdropFilter: "blur(20px)",
-          opacity: mobileOpen ? 1 : 0, pointerEvents: mobileOpen ? "all" : "none",
-          transform: mobileOpen ? "translateX(0)" : "translateX(100%)",
-        }}>
-        <div className="flex items-center justify-between px-5 py-4 border-b shrink-0" style={{ borderColor: "var(--border)" }}>
-          <div className="flex items-center gap-3">
-            <Image src="/images/cropped-logo.png" alt="NDSC" width={32} height={32} />
-            <div className="flex flex-col">
-              <span className="text-sm font-black tracking-widest ndsc-logo-text" style={{ fontFamily: "'Orbitron',sans-serif" }}>NDSC</span>
-              <span className="text-[9px] tracking-wider" style={{ color: "rgba(0,212,255,0.5)", fontFamily: "'Share Tech Mono',monospace" }}>Notre Dame Science Club</span>
+      {/* MOBILE DRAWER (slides in from the left, like the reference) */}
+      <style>{`
+        .mnav-backdrop {
+          position: fixed; inset: 0; z-index: 39; background: rgba(0, 0, 0, 0.55);
+          backdrop-filter: blur(2px); -webkit-backdrop-filter: blur(2px);
+          opacity: 0; pointer-events: none;
+          transition: opacity 0.3s ease;
+        }
+        .mnav-backdrop.open { opacity: 1; pointer-events: auto; }
+        .mnav-drawer {
+          position: fixed; top: 0; left: 0; bottom: 0; z-index: 40;
+          width: min(86vw, 360px);
+          display: flex; flex-direction: column;
+          background: linear-gradient(180deg, rgba(8, 39, 122, 0.96) 0%, rgba(6, 26, 58, 0.97) 100%);
+          backdrop-filter: blur(20px) saturate(150%);
+          -webkit-backdrop-filter: blur(20px) saturate(150%);
+          border-right: 1px solid rgba(0, 212, 255, 0.18);
+          box-shadow: 18px 0 50px rgba(0, 0, 0, 0.5);
+          transform: translateX(-100%);
+          transition: transform 0.32s cubic-bezier(0.22, 1, 0.36, 1);
+          will-change: transform;
+        }
+        .mnav-drawer.open { transform: translateX(0); }
+        .mnav-header {
+          display: flex; align-items: center; justify-content: space-between;
+          padding: 18px 18px 14px;
+          border-bottom: 1px solid rgba(255, 255, 255, 0.10);
+          flex-shrink: 0;
+        }
+        .mnav-brand { display: flex; align-items: center; gap: 10px; }
+        .mnav-brand .t1 {
+          font-family: 'Orbitron', sans-serif;
+          font-size: 14px; font-weight: 900; letter-spacing: 0.22em;
+          background: linear-gradient(180deg, #e8f4ff 0%, #00d4ff 100%);
+          -webkit-background-clip: text; background-clip: text;
+          -webkit-text-fill-color: transparent;
+        }
+        .mnav-brand .t2 {
+          font-family: 'Share Tech Mono', monospace;
+          font-size: 9px; letter-spacing: 0.18em;
+          color: rgba(0, 212, 255, 0.55); margin-top: 2px;
+        }
+        .mnav-close {
+          width: 36px; height: 36px;
+          display: flex; align-items: center; justify-content: center;
+          border-radius: 10px;
+          background: rgba(255, 255, 255, 0.06);
+          border: 1px solid rgba(255, 255, 255, 0.12);
+          color: #cbd5e1;
+          transition: background 0.2s, color 0.2s, transform 0.2s;
+          cursor: pointer;
+        }
+        .mnav-close:hover { background: rgba(0, 212, 255, 0.18); color: #00d4ff; transform: rotate(90deg); }
+        .mnav-search {
+          padding: 14px 18px 10px;
+          flex-shrink: 0;
+        }
+        .mnav-search-box {
+          display: flex; align-items: center; gap: 8px;
+          padding: 10px 12px;
+          border-radius: 12px;
+          background: rgba(255, 255, 255, 0.06);
+          border: 1px solid rgba(255, 255, 255, 0.10);
+          color: #cbd5e1;
+        }
+        .mnav-search input {
+          flex: 1; min-width: 0; background: transparent; border: 0; outline: 0;
+          color: #fff; font-size: 13px; font-family: 'Poppins', sans-serif;
+        }
+        .mnav-search input::placeholder { color: rgba(203, 213, 225, 0.55); }
+        .mnav-list {
+          flex: 1; overflow-y: auto;
+          padding: 8px 12px 16px;
+          display: flex; flex-direction: column; gap: 4px;
+        }
+        .mnav-item {
+          position: relative;
+          display: flex; align-items: center; gap: 12px;
+          padding: 12px 14px;
+          border-radius: 12px;
+          color: #e2e8f0;
+          text-decoration: none;
+          font-size: 14px; font-weight: 600;
+          font-family: 'Poppins', sans-serif;
+          background: transparent;
+          border: 1px solid transparent;
+          transition: background 0.2s, color 0.2s, border-color 0.2s, transform 0.2s;
+          width: 100%; text-align: left;
+          cursor: pointer;
+        }
+        .mnav-item:hover {
+          background: rgba(0, 212, 255, 0.08);
+          border-color: rgba(0, 212, 255, 0.18);
+          color: #ffffff;
+        }
+        .mnav-item.active {
+          background: rgba(0, 212, 255, 0.12);
+          border-color: rgba(0, 212, 255, 0.32);
+          color: #00d4ff;
+        }
+        .mnav-item .ico {
+          width: 32px; height: 32px; min-width: 32px;
+          display: flex; align-items: center; justify-content: center;
+          border-radius: 9px;
+          background: rgba(0, 212, 255, 0.10);
+          border: 1px solid rgba(0, 212, 255, 0.22);
+          color: #00d4ff;
+        }
+        .mnav-item.active .ico {
+          background: rgba(0, 212, 255, 0.22);
+          border-color: rgba(0, 212, 255, 0.45);
+        }
+        .mnav-item .arrow { margin-left: auto; color: rgba(203, 213, 225, 0.6); transition: transform 0.2s; }
+        .mnav-item.open .arrow { transform: rotate(180deg); color: #00d4ff; }
+        .mnav-sub {
+          display: flex; flex-direction: column; gap: 2px;
+          padding: 4px 4px 8px 56px;
+        }
+        .mnav-sub a {
+          display: flex; align-items: center; gap: 8px;
+          padding: 8px 10px;
+          border-radius: 8px;
+          color: #94a3b8;
+          text-decoration: none;
+          font-size: 13px; font-weight: 500;
+          transition: color 0.2s, background 0.2s;
+        }
+        .mnav-sub a:hover { color: #00d4ff; background: rgba(0, 212, 255, 0.05); }
+        .mnav-auth {
+          padding: 12px 18px 22px;
+          flex-shrink: 0;
+          border-top: 1px solid rgba(255, 255, 255, 0.10);
+        }
+      `}</style>
+
+      {/* Backdrop */}
+      <div
+        className={`mnav-backdrop lg:hidden ${mobileOpen ? "open" : ""}`}
+        onClick={() => setMobileOpen(false)}
+        aria-hidden="true"
+      />
+
+      {/* Drawer */}
+      <aside
+        className={`mnav-drawer lg:hidden ${mobileOpen ? "open" : ""}`}
+        role="dialog"
+        aria-modal="true"
+        aria-label="Mobile navigation"
+      >
+        <div className="mnav-header">
+          <Link href="/" className="mnav-brand" onClick={() => setMobileOpen(false)}>
+            <div style={{ width: 32, height: 32, position: "relative" }}>
+              <Image src="/images/cropped-logo.png" alt="NDSC" fill className="object-contain" />
             </div>
-          </div>
-          <button onClick={() => setMobileOpen(false)} className="p-1"><X size={22} style={{ color: "var(--muted)" }} /></button>
+            <div className="flex flex-col">
+              <span className="t1">NDSC</span>
+              <span className="t2">Notre Dame Science Club</span>
+            </div>
+          </Link>
+          <button suppressHydrationWarning className="mnav-close" onClick={() => setMobileOpen(false)} aria-label="Close menu">
+            <X size={18} />
+          </button>
         </div>
 
-        <nav className="flex-1 overflow-y-auto px-5 py-6 flex flex-col gap-1">
-          {nav.map((item) =>
-            item.children && item.children.length > 0 ? (
-              <div key={item.label}>
-                <button
-                  onClick={() => {
-                    if (item.label === "Activities") setActOpen(!actOpen);
-                    if (item.label === "Executives") setExecOpen(!execOpen);
-                  }}
-                  className="w-full flex items-center justify-between py-3 text-base font-bold border-b transition-colors"
-                  style={{ borderColor: "var(--border)", color: "var(--white)", fontFamily: "'Orbitron',sans-serif" }}>
-                  {item.label}
-                  <ChevronDown size={16} style={{
-                    color: "var(--muted)",
-                    transform: (item.label === "Activities" && actOpen) || (item.label === "Executives" && execOpen) ? "rotate(180deg)" : "",
-                    transition: "transform .2s",
-                  }} />
-                </button>
-                {((item.label === "Activities" && actOpen) || (item.label === "Executives" && execOpen)) && (
-                  <div className="pl-4 mt-1 mb-2 flex flex-col gap-1">
-                    {item.children.map((c) => (
-                      <Link key={c.href} href={c.href} className="flex items-center gap-2 py-2 text-sm transition-colors hover:text-[var(--blue)]" style={{ color: "var(--muted)" }}>
-                        {c.icon ? (
-                          <ActivityIcon icon={c.icon} size={14} className="shrink-0" style={{ color: "var(--blue)" }} />
-                        ) : (
-                          <span className="text-xs" style={{ color: "var(--blue)" }}>→</span>
-                        )}
-                        {c.label}
-                      </Link>
-                    ))}
-                  </div>
-                )}
-              </div>
-            ) : item.href ? (
-              <Link key={item.href} href={item.href}
-                className="py-3 text-base font-bold border-b transition-colors hover:text-[var(--blue)]"
-                style={{ borderColor: "var(--border)", color: pathname === item.href ? "var(--blue)" : "var(--white)", fontFamily: "'Orbitron',sans-serif" }}>
-                {item.label}
-              </Link>
-            ) : null
-          )}
-          <AuthButton mobile />
+        <div className="mnav-search">
+          <div className="mnav-search-box">
+            <Search size={15} style={{ color: "rgba(0,212,255,0.7)" }} />
+            <input suppressHydrationWarning type="text" placeholder="Search the site…" disabled />
+          </div>
+        </div>
+
+        <nav className="mnav-list">
+          {nav.map((item) => {
+            if (item.children && item.children.length > 0) {
+              const isOpen = (item.label === "Activities" && actOpen) || (item.label === "Executives" && execOpen);
+              const icon = NAV_ICON[item.label] ?? <ChevronDown size={16} />;
+              return (
+                <div key={item.label}>
+                  <button
+                    suppressHydrationWarning
+                    className={`mnav-item ${isOpen ? "open" : ""}`}
+                    onClick={() => {
+                      if (item.label === "Activities") setActOpen(!actOpen);
+                      if (item.label === "Executives") setExecOpen(!execOpen);
+                    }}
+                  >
+                    <span className="ico">{icon}</span>
+                    <span>{item.label}</span>
+                    <ChevronDown size={14} className="arrow" />
+                  </button>
+                  {isOpen && (
+                    <div className="mnav-sub">
+                      {item.children.map((c) => (
+                        <Link key={c.href} href={c.href} onClick={() => setMobileOpen(false)}>
+                          {c.icon ? (
+                            <ActivityIcon icon={c.icon} size={14} className="shrink-0" style={{ color: "var(--blue)" }} />
+                          ) : (
+                            <span style={{ width: 6, height: 6, borderRadius: 3, background: "var(--blue)", display: "inline-block" }} />
+                          )}
+                          {c.label}
+                        </Link>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              );
+            }
+            if (item.href) {
+              const active = pathname === item.href;
+              const icon = NAV_ICON[item.href] ?? <ChevronDown size={16} />;
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  onClick={() => setMobileOpen(false)}
+                  className={`mnav-item ${active ? "active" : ""}`}
+                >
+                  <span className="ico">{icon}</span>
+                  <span>{item.label}</span>
+                </Link>
+              );
+            }
+            return null;
+          })}
         </nav>
-      </div>
+
+        <div className="mnav-auth">
+          <AuthButton mobile />
+        </div>
+      </aside>
     </>
   );
 }
