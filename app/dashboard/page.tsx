@@ -415,58 +415,99 @@ export default function DashboardPage() {
                 <p className="text-sm" style={{ color: 'var(--muted)' }}>You haven't registered for any events yet.</p>
               ) : (
                 <div className="space-y-3">
-                  {myRegistrations.map(reg => (
-                    <div key={reg.id} className="rounded-xl p-4 flex items-start justify-between gap-3"
-                      style={{ background: 'var(--bg2)', border: '1px solid var(--border)' }}>
-                      <div className="flex-1 min-w-0">
-                        <p className="font-semibold text-sm truncate" style={{ color: 'var(--white)' }}>
-                          {reg.session?.title || 'Event'}
-                        </p>
-                        <p className="text-xs mt-0.5" style={{ color: 'var(--muted)' }}>
-                          {reg.category?.name}
-                          {reg.project_name && <span style={{ color: 'var(--blue)' }}> — {reg.project_name}</span>}
-                        </p>
-                        <div className="flex gap-2 mt-1.5 flex-wrap">
-                          {reg.session?.reg_status && (
-                            <span className="text-xs px-1.5 py-0.5 rounded-full font-semibold"
-                              style={{ background: 'rgba(255, 176, 32, 0.1)', color: '#ffb020' }}>
-                              {reg.session.reg_status}
-                            </span>
-                          )}
-                          {reg.session?.reg_deadline && (
-                            <span className="text-xs flex items-center gap-1" style={{ color: 'var(--cat-teal)' }}>
-                              <CalendarDays size={11} /> Deadline {new Date(reg.session.reg_deadline).toLocaleDateString('en-BD', { month: 'short', day: 'numeric' })}
-                            </span>
-                          )}
-                          {reg.category?.schedule_date && (
-                            <span className="text-xs flex items-center gap-1" style={{ color: 'var(--cat-teal)' }}>
-                              <CalendarDays size={11} /> {new Date(reg.category.schedule_date).toLocaleDateString('en-BD', { month: 'short', day: 'numeric' })}
-                            </span>
-                          )}
-                          {reg.payment_status && reg.payment_status !== 'not_required' && (
-                            <span className="text-xs px-1.5 py-0.5 rounded-full flex items-center gap-1" style={{
-                              background: reg.payment_status === 'paid' ? 'rgba(var(--success-rgb), 0.1)' : 'rgba(var(--warning-rgb), 0.1)',
-                              color: reg.payment_status === 'paid' ? 'var(--success)' : 'var(--warning)',
-                            }}>
-                              <CreditCard size={10} /> {reg.payment_status}
-                            </span>
-                          )}
-                          {reg.category?.is_online_submission && (
-                            <span className="text-xs px-1.5 py-0.5 rounded-full" style={{ background: 'rgba(var(--blue-rgb), 0.1)', color: 'var(--blue)' }}>
-                              <Link2 size={10} className="inline mr-1 -mt-0.5" /> Online round
-                            </span>
-                          )}
+                  {(() => {
+                    // Group by event (session). A user may have registered in
+                    // multiple segments of one event, so we want one card per
+                    // event with sub-rows per segment.
+                    const groups: Record<string, { session: any; regs: any[] }> = {}
+                    for (const r of myRegistrations) {
+                      const sid = r.session?.id || r.activity_session_id
+                      if (!groups[sid]) groups[sid] = { session: r.session, regs: [] }
+                      groups[sid].regs.push(r)
+                    }
+                    return Object.values(groups).map(({ session, regs }) => (
+                      <div key={session?.id || regs[0].activity_session_id} className="rounded-2xl overflow-hidden"
+                        style={{ background: 'var(--bg2)', border: '1px solid var(--border)' }}>
+                        {session?.cover_image_url && (
+                          <img src={session.cover_image_url} alt={session.title}
+                            className="w-full h-32 object-cover" />
+                        )}
+                        <div className="p-4">
+                          <div className="flex items-start justify-between gap-3 mb-3">
+                            <div className="flex-1 min-w-0">
+                              <p className="font-bold text-base truncate" style={{ color: 'var(--white)' }}>
+                                {session?.title || 'Event'}
+                              </p>
+                              {session?.reg_status && (
+                                <span className="text-xs px-1.5 py-0.5 rounded-full font-semibold inline-block mt-1"
+                                  style={{ background: 'rgba(255, 176, 32, 0.1)', color: '#ffb020' }}>
+                                  {session.reg_status}
+                                </span>
+                              )}
+                            </div>
+                            {session?.slug && (
+                              <Link href={`/activities/${session.slug}/dashboard`}
+                                className="flex-shrink-0 px-3 py-1.5 rounded-lg text-xs font-bold"
+                                style={{ background: 'rgba(var(--blue-rgb), 0.1)', color: 'var(--blue)', border: '1px solid rgba(var(--blue-rgb), 0.3)', whiteSpace: 'nowrap' }}>
+                                Dashboard →
+                              </Link>
+                            )}
+                          </div>
+
+                          <div className="space-y-2">
+                            {regs.map(reg => (
+                              <div key={reg.id} className="rounded-lg p-3"
+                                style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid var(--border)' }}>
+                                <div className="flex items-start justify-between gap-2">
+                                  <div className="flex-1 min-w-0">
+                                    <p className="text-sm font-semibold" style={{ color: 'var(--white)' }}>
+                                      {reg.category?.name || 'Registration'}
+                                    </p>
+                                    {reg.project_name && (
+                                      <p className="text-xs mt-0.5" style={{ color: 'var(--blue)' }}>Project: {reg.project_name}</p>
+                                    )}
+                                    <div className="flex gap-2 mt-1.5 flex-wrap">
+                                      {reg.session?.reg_deadline && (
+                                        <span className="text-xs flex items-center gap-1" style={{ color: 'var(--cat-teal)' }}>
+                                          <CalendarDays size={11} /> Deadline {new Date(reg.session.reg_deadline).toLocaleDateString('en-BD', { month: 'short', day: 'numeric' })}
+                                        </span>
+                                      )}
+                                      {reg.category?.schedule_date && (
+                                        <span className="text-xs flex items-center gap-1" style={{ color: 'var(--cat-teal)' }}>
+                                          <CalendarDays size={11} /> {new Date(reg.category.schedule_date).toLocaleDateString('en-BD', { month: 'short', day: 'numeric' })}
+                                          {reg.category?.schedule_time && ` ${reg.category.schedule_time}`}
+                                        </span>
+                                      )}
+                                      {reg.payment_status && reg.payment_status !== 'not_required' && (
+                                        <span className="text-xs px-1.5 py-0.5 rounded-full flex items-center gap-1" style={{
+                                          background: reg.payment_status === 'paid' ? 'rgba(var(--success-rgb), 0.1)' : 'rgba(var(--warning-rgb), 0.1)',
+                                          color: reg.payment_status === 'paid' ? 'var(--success)' : 'var(--warning)',
+                                        }}>
+                                          <CreditCard size={10} /> {reg.payment_status}
+                                        </span>
+                                      )}
+                                      {reg.category?.is_online_submission && (
+                                        <span className="text-xs px-1.5 py-0.5 rounded-full" style={{ background: 'rgba(var(--blue-rgb), 0.1)', color: 'var(--blue)' }}>
+                                          <Link2 size={10} className="inline mr-1 -mt-0.5" /> Online round
+                                        </span>
+                                      )}
+                                    </div>
+                                  </div>
+                                  {reg.session?.slug && (
+                                    <Link href={`/activities/${reg.session.slug}/dashboard?reg=${reg.id}`}
+                                      className="flex-shrink-0 text-xs underline whitespace-nowrap"
+                                      style={{ color: 'var(--blue)' }}>
+                                      Open →
+                                    </Link>
+                                  )}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
                         </div>
                       </div>
-                      {reg.session?.slug && (
-                        <Link href={`/activities/${reg.session.slug}/dashboard?reg=${reg.id}`}
-                          className="flex-shrink-0 px-3 py-1.5 rounded-lg text-xs font-bold"
-                          style={{ background: 'rgba(var(--blue-rgb), 0.1)', color: 'var(--blue)', border: '1px solid rgba(var(--blue-rgb), 0.3)', whiteSpace: 'nowrap' }}>
-                          Dashboard →
-                        </Link>
-                      )}
-                    </div>
-                  ))}
+                    ))
+                  })()}
                 </div>
               )}
             </div>
