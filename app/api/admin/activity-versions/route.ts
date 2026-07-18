@@ -32,6 +32,8 @@ export async function POST(req: NextRequest) {
     year_start: body.year_start,
     year_end: body.year_end || null,
     description: body.description || '',
+    is_pinned: body.is_pinned ?? false,
+    is_highlighted: body.is_highlighted ?? false,
   }
 
   const { data, error } = await supabaseAdmin

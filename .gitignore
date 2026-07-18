@@ -2,3 +2,20 @@ node_modules
 .next
 *.zip
 *.7z
+*.tsbuildinfo
+*.claude
+*.venv
+.claude
+.venv
+.astra
+.dont_touch
+.hashmaps
+.atr_keys
+dev
+test
+
+# scripts/ — migration tooling output & its own deps, not source
+scripts/node_modules
+scripts/supabase-export
+scripts/storage-export
+scripts/auth_id_mapping.json

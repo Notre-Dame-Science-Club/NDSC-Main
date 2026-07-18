@@ -427,6 +427,17 @@ export default function DashboardPage() {
                           {reg.project_name && <span style={{ color: 'var(--blue)' }}> — {reg.project_name}</span>}
                         </p>
                         <div className="flex gap-2 mt-1.5 flex-wrap">
+                          {reg.session?.reg_status && (
+                            <span className="text-xs px-1.5 py-0.5 rounded-full font-semibold"
+                              style={{ background: 'rgba(255, 176, 32, 0.1)', color: '#ffb020' }}>
+                              {reg.session.reg_status}
+                            </span>
+                          )}
+                          {reg.session?.reg_deadline && (
+                            <span className="text-xs flex items-center gap-1" style={{ color: 'var(--cat-teal)' }}>
+                              <CalendarDays size={11} /> Deadline {new Date(reg.session.reg_deadline).toLocaleDateString('en-BD', { month: 'short', day: 'numeric' })}
+                            </span>
+                          )}
                           {reg.category?.schedule_date && (
                             <span className="text-xs flex items-center gap-1" style={{ color: 'var(--cat-teal)' }}>
                               <CalendarDays size={11} /> {new Date(reg.category.schedule_date).toLocaleDateString('en-BD', { month: 'short', day: 'numeric' })}

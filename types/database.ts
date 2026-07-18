@@ -51,6 +51,10 @@ export interface MemberRow {
   payment_slip_url: string
   is_verified: boolean
   achievements: MemberAchievement[]
+  /** Used for survey/notification audience targeting — see lib/survey.ts */
+  is_organizer?: boolean
+  /** Used for survey/notification audience targeting — see lib/survey.ts */
+  is_executive?: boolean
   created_at: ISODateString
 }
 
@@ -148,7 +152,11 @@ export interface ActivityVersionRow {
   year_start: number
   year_end: number | null
   description: string
+  is_pinned?: boolean      // pins this version to the top of its type's list (e.g. "Science Under")
+  is_highlighted?: boolean // distinct highlighted styling on the public activities list
 }
+
+export type ActivityImageDisplayMode = 'cover' | 'native'
 
 export interface ActivitySessionRow {
   id: UUID
@@ -168,6 +176,19 @@ export interface ActivitySessionRow {
   registration_enabled?: boolean
   registration_note?: string
   event_dates?: string[] // ["YYYY-MM-DD", ...]
+  image_display_mode?: ActivityImageDisplayMode // 'cover' (default, events) | 'native' (statement sites/posters)
+  reg_status?: string | null       // admin-defined label, e.g. Open | Closed | Judging | Results Out
+  reg_deadline?: ISODateString | null
+}
+
+// ── activity_updates — per-event admin updates/announcements feed ────────
+export interface ActivityUpdateRow {
+  id: UUID
+  activity_session_id: UUID
+  title: string
+  body: string
+  link_url?: string | null
+  created_at: ISODateString
 }
 
 // ── activity_reg_categories (self-referencing tree) ─────────────────────
@@ -179,6 +200,8 @@ export interface CustomFieldDef {
   description?: string
   type: CustomFieldType
   required: boolean
+  unique_field?: boolean // when true, a second registration in the same session with an
+                          // identical value for this field is rejected as a duplicate
 }
 
 export type SubmissionFieldType = 'file' | 'text' | 'textarea'
@@ -436,13 +459,11 @@ export interface OlympiadRegistrationRow {
 }
 
 // ── form_configs ─────────────────────────────────────────────────────────
-export interface FormPrimaryField {
-  field_key: string
-  label: string
-  description?: string
-  visible: boolean
-  required: boolean
-}
+// The legacy `primary_fields` column was removed in the per-session
+// appearance migration — its only reader (the hardcoded fallback block on
+// the public register page) was deleted alongside it. The form_configs
+// table itself still exists for the global `activity_register`,
+// `olympiad_register`, and `membership` keys.
 
 export interface FormContactPerson {
   name: string
@@ -453,6 +474,9 @@ export interface FormContactPerson {
   facebook?: string
 }
 
+export type FormCoverAspectRatio = 'auto' | '16/9' | '4/3' | '1/1' | '21/9'
+export type FormFontFamily = 'default' | 'orbitron' | 'rajdhani' | 'jakarta' | 'mono'
+
 export interface FormConfigRow {
   id: UUID
   form_key: string // "activity_register", "olympiad_register:<id>", ...
@@ -460,8 +484,43 @@ export interface FormConfigRow {
   subtitle: string
   cover_photo_url: string
   bg_theme: string // default "default"
-  primary_fields: FormPrimaryField[]
   extra_fields: CustomFieldDef[]
   contact_persons: FormContactPerson[] | { use_ec_page: true; ec_ids: string[] }
+  // Appearance pipeline (1.3a) — background, font, cover ratio, and
+  // per-field "pull this from the parent event instead of typing it" toggles
+  bg_color?: string | null
+  bg_image_url?: string | null
+  font_family?: FormFontFamily
+  cover_aspect_ratio?: FormCoverAspectRatio
+  auto_pull_title?: boolean
+  auto_pull_description?: boolean
+  auto_pull_cover?: boolean
+  updated_at: ISODateString
+}
+
+// ── activity_session_form_appearance ─────────────────────────────────────
+// Per-session registration-form appearance (the 1:1 replacement for the old
+// `form_configs` rows whose `form_key` started with `activity_register:`).
+// One row per activity_session, holding the title/subtitle/cover/bg/font
+// overrides that the public register page reads.
+//
+// Note: contact_persons is stored in the same union shape as form_configs:
+// either an array of manual contacts, or `{ use_ec_page: true, ec_ids: [...] }`.
+export type AppearanceContactPersons = FormContactPerson[] | { use_ec_page: true; ec_ids: string[] }
+
+export interface ActivitySessionFormAppearance {
+  session_id: UUID
+  form_title: string | null
+  form_subtitle: string | null
+  form_cover_photo_url: string | null
+  form_cover_aspect_ratio: FormCoverAspectRatio | null
+  form_bg_theme: string | null
+  form_bg_color: string | null
+  form_bg_image_url: string | null
+  form_font_family: FormFontFamily | null
+  form_auto_pull_title: boolean
+  form_auto_pull_description: boolean
+  form_auto_pull_cover: boolean
+  form_contact_persons: AppearanceContactPersons
   updated_at: ISODateString
 }

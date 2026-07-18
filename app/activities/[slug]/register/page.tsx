@@ -4,11 +4,18 @@ import { useParams, useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { ChevronRight, ArrowLeft, Upload, Users, Plus, X, CalendarDays, CheckCircle, CreditCard, Link2, Phone, Mail, MessageCircle } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
+import FieldsRenderer from '@/components/FieldsRenderer'
+import { resolveAccent, resolveAccentRgbTriplet, resolveFont, resolveContactPersons } from '@/lib/appearance'
+
+// Per-session storage key. New per-segment deep-link flow uses
+// `ndsc_seg_<sessionId>` (JSON map of { [segmentId]: registrationId }) so a
+// user can be enrolled in multiple segments of one event. The legacy flat
+// `ndsc_reg_<sessionId>` is still written so older dashboards keep resolving.
+function sessionRegKey(sessionId: string) { return `ndsc_reg_${sessionId}` }
+function sessionSegKey(sessionId: string) { return `ndsc_seg_${sessionId}` }
 
 const uid = () => Math.random().toString(36).slice(2, 9)
 
-// Per-session storage key so each event remembers its own registration
-function sessionRegKey(sessionId: string) { return `ndsc_reg_${sessionId}` }
 const PRIMARY_INFO_KEY = 'ndsc_primary_info'
 
 type Category = {
@@ -18,20 +25,19 @@ type Category = {
   is_online_submission: boolean; linked_olympiad_id: string | null
   schedule_date: string | null; schedule_time: string | null; schedule_room: string | null
   project_name_enabled: boolean; project_name_label: string | null
+  is_segment?: boolean; icon?: string | null; bg_image_url?: string | null
+  // New unified per-segment field schema. When present, this is the single
+  // source of truth for what the form shows; `custom_fields` and the old
+  // hardcoded primary-info block are ignored.
+  form_field_schema?: any[]
 }
 
 type Phase = 'identity' | 'picker' | 'form' | 'submitting' | 'done'
 
 const inputStyle = { background: 'rgba(255,255,255,0.04)', border: '1px solid var(--border)', color: 'var(--white)' }
-const inputCls = 'w-full px-3 py-2.5 rounded-lg text-sm outline-none'
+const inputCls = 'w-full px-3 py-2.5 rounded-lg text-sm outline-none reg-input'
 
 const BLANK_FORM = { full_name: '', phone: '', email: '', college: 'Notre Dame College', college_roll: '', hsc_session: '', division: '' }
-
-// Resolves formConfig.bg_theme ('default' | '#hexcolor') into an actual accent color.
-function resolveAccent(theme: string | undefined | null) {
-  if (theme && theme !== 'default' && /^#[0-9a-fA-F]{3,8}$/.test(theme)) return theme
-  return 'var(--blue)'
-}
 
 // Shared label style for EVERY field on this form — primary, custom, and
 // config extra fields all use the exact same title styling so nothing looks
@@ -44,6 +50,7 @@ function ActivityRegisterPageInner() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const startCategoryId = searchParams.get('start')
+  const segmentId = searchParams.get('segment')
   const slug = params.slug as string
 
   const [phase, setPhase] = useState<Phase>('identity')
@@ -70,17 +77,37 @@ function ActivityRegisterPageInner() {
   const [teamMembers, setTeamMembers] = useState<any[]>([])
   const [submitting, setSubmitting] = useState(false)
 
-  // Form config from admin (title overrides, extra fields, contact)
-  const [formConfig, setFormConfig] = useState<any>(null)
+  // Per-session appearance overrides (replaces the old form_configs
+  // activity_register:<sessionId> row — now in
+  // activity_session_form_appearance, edited in the admin Appearance tab).
+  const [appearance, setAppearance] = useState<any>(null)
+  const [ecMembers, setEcMembers] = useState<any[]>([])
   const [showFullDesc, setShowFullDesc] = useState(false)
 
   useEffect(() => {
     fetch(`/api/activity-reg-categories-public?slug=${slug}`)
       .then(r => r.json())
-      .then(d => {
+      .then(async d => {
         if (d.error) { setError(d.error); return }
         setSessionInfo(d.session)
         setCategories(d.categories || [])
+
+        // Segment-card deep-link (?segment=<id>) — skip the picker entirely
+        // and jump straight to the form for that single segment. The
+        // event-page segment card already chose which segment, so showing
+        // a picker here would be redundant and confusing.
+        if (segmentId) {
+          const list: Category[] = d.categories || []
+          const target = list.find((c: Category) => c.id === segmentId)
+          if (target) {
+            setPath([target])
+            const min = target.team_size_min || 0
+            setTeamMembers(Array.from({ length: min }, () => ({
+              id: uid(), full_name: '', email: '', college_roll: '', password: '', custom_answers: {}
+            })))
+            setDeepLinkIsLeaf(true)
+          }
+        }
 
         // Deep-link from the Olympiad page (?start=<categoryId>) — jump the
         // picker straight to that primary field's children instead of the
@@ -104,31 +131,17 @@ function ActivityRegisterPageInner() {
           }
         }
 
-        // Load per-session form config
+        // Load per-session appearance + EC members (for the "use EC page"
+        // contact-persons resolution). Done in parallel.
         if (d.session?.id) {
-          fetch(`/api/form-config?form_key=activity_register:${d.session.id}`)
-            .then(r => r.json())
-            .then(async fc => {
-              if (!fc.config) return
-              // If admin chose to pull contacts from the EC page, resolve
-              // those EC ids into actual contact-person objects here so the
-              // rest of the page can treat it the same as manual contacts.
-              if (fc.config.use_ec_page && fc.config.ec_ids?.length > 0) {
-                try {
-                  const ecRes = await fetch('/api/executives')
-                  const ecList = await ecRes.json()
-                  const resolved = (Array.isArray(ecList) ? ecList : [])
-                    .filter((ec: any) => fc.config.ec_ids.includes(ec.id))
-                    .map((ec: any) => ({
-                      name: ec.full_name, post: ec.position, phone: '',
-                      email: ec.email || '', whatsapp: ec.whatsapp || '', facebook: ec.facebook_url || '',
-                    }))
-                  fc.config.contact_persons = resolved
-                } catch { /* fall back to whatever manual contacts exist */ }
-              }
-              setFormConfig(fc.config)
-            })
-            .catch(() => {})
+          const [apprRes, ecRes] = await Promise.all([
+            fetch(`/api/activity-session-appearance-public?session_id=${d.session.id}`),
+            fetch('/api/executives'),
+          ])
+          const apprData = await apprRes.json().catch(() => ({}))
+          setAppearance(apprData.appearance || null)
+          const ecData = await ecRes.json().catch(() => [])
+          setEcMembers(Array.isArray(ecData) ? ecData : [])
         }
       })
       .catch(() => setError('Could not load this activity.'))
@@ -256,6 +269,112 @@ function ActivityRegisterPageInner() {
     })
   }
 
+  // Renders one custom/extra field's input, driven by field.type. Shared by both the
+  // per-category custom fields and the global form-config extra fields so every field
+  // type (dropdown, date, time, photo/file, number, multiple choice, checkboxes) works
+  // the same way everywhere instead of the config ones silently falling back to a plain
+  // text box regardless of what type was configured.
+  const renderAnswerField = (field: any, key: string) => {
+    if (field.type === 'textarea') {
+      return (
+        <textarea rows={3} value={customAnswers[key] || ''}
+          onChange={e => setCustomAnswers(p => ({ ...p, [key]: e.target.value }))}
+          className={inputCls + ' resize-none'} style={inputStyle} />
+      )
+    }
+    if (field.type === 'dropdown') {
+      return (
+        <div>
+          <select
+            value={otherActive[key] ? '__other__' : (customAnswers[key] || '')}
+            onChange={e => {
+              if (e.target.value === '__other__') {
+                setOtherActive(p => ({ ...p, [key]: true }))
+                setCustomAnswers(p => ({ ...p, [key]: '' }))
+              } else {
+                setOtherActive(p => ({ ...p, [key]: false }))
+                setCustomAnswers(p => ({ ...p, [key]: e.target.value }))
+              }
+            }}
+            className={inputCls} style={inputStyle}>
+            <option value="">Select...</option>
+            {(field.options || []).map((opt: string) => <option key={opt} value={opt}>{opt}</option>)}
+            {field.allow_other && <option value="__other__">Other…</option>}
+          </select>
+          {field.allow_other && otherActive[key] && (
+            <input placeholder="Please specify" value={customAnswers[key] || ''}
+              onChange={e => setCustomAnswers(p => ({ ...p, [key]: e.target.value }))}
+              className={inputCls + ' mt-2'} style={inputStyle} />
+          )}
+        </div>
+      )
+    }
+    if (field.type === 'multiple_choice') {
+      return (
+        <div className="space-y-1.5">
+          {(field.options || []).map((opt: string) => (
+            <label key={opt} className="flex items-center gap-2 px-3 py-2 rounded-lg border text-sm cursor-pointer reg-input" style={inputStyle}>
+              <input type="radio" name={key} checked={(customAnswers[key] || '') === opt}
+                onChange={() => setCustomAnswers(p => ({ ...p, [key]: opt }))} />
+              {opt}
+            </label>
+          ))}
+        </div>
+      )
+    }
+    if (field.type === 'checkboxes') {
+      const selected: string[] = Array.isArray(customAnswers[key]) ? customAnswers[key] : []
+      return (
+        <div className="space-y-1.5">
+          {(field.options || []).map((opt: string) => (
+            <label key={opt} className="flex items-center gap-2 px-3 py-2 rounded-lg border text-sm cursor-pointer reg-input" style={inputStyle}>
+              <input type="checkbox" checked={selected.includes(opt)}
+                onChange={e => setCustomAnswers(p => ({
+                  ...p, [key]: e.target.checked ? [...selected, opt] : selected.filter(o => o !== opt),
+                }))} />
+              {opt}
+            </label>
+          ))}
+        </div>
+      )
+    }
+    if (field.type === 'photo' || field.type === 'file') {
+      const maxFiles = field.max_files && field.max_files > 1 ? field.max_files : 1
+      const val = customAnswers[key]
+      const urls: string[] = Array.isArray(val) ? val : (val ? [val] : [])
+      const isUploading = !!uploadingFields[key]
+      const atCap = urls.length >= maxFiles
+      return (
+        <div className="space-y-2">
+          {urls.length > 0 && (
+            <div className="flex flex-wrap gap-2">
+              {urls.map((u, i) => (
+                <span key={i} className="flex items-center gap-1 px-2 py-1 rounded text-xs" style={{ background: 'var(--bg2)', color: accent }}>
+                  {field.label}{maxFiles > 1 ? ` #${i + 1}` : ''} <CheckCircle size={11} />
+                  <button type="button" onClick={() => removeCustomFile(key, i)}><X size={11} /></button>
+                </span>
+              ))}
+            </div>
+          )}
+          {!atCap && (
+            <label className="flex items-center gap-2 px-3 py-2.5 rounded-lg border cursor-pointer text-sm" style={{ ...inputStyle, color: accent }}>
+              <Upload size={14} />
+              {isUploading ? 'Uploading…' : `Upload ${field.label}${field.max_file_size_mb ? ` (max ${field.max_file_size_mb}MB${maxFiles > 1 ? ` each, up to ${maxFiles} files` : ''})` : maxFiles > 1 ? ` (up to ${maxFiles} files)` : ''}`}
+              <input type="file" multiple={maxFiles > 1} accept={field.type === 'photo' ? 'image/*' : undefined} className="hidden"
+                onChange={e => { handleCustomFileField(key, e.target.files, field); e.target.value = '' }} />
+            </label>
+          )}
+        </div>
+      )
+    }
+    return (
+      <input type={field.type === 'number' ? 'number' : field.type === 'date' ? 'date' : field.type === 'time' ? 'time' : 'text'}
+        value={customAnswers[key] || ''}
+        onChange={e => setCustomAnswers(p => ({ ...p, [key]: e.target.value }))}
+        className={inputCls} style={inputStyle} />
+    )
+  }
+
   const handleTeamFileField = async (memberIdx: number, key: string, file: File | null) => {
     if (!file) return
     try {
@@ -299,9 +418,18 @@ function ActivityRegisterPageInner() {
         }))
       }
 
-      // Save per-session registration ID
+      // Save per-session registration ID. New per-segment map (so a user
+      // can be enrolled in multiple segments of one event); legacy flat
+      // key is still written for older dashboards that only know the flat
+      // shape.
       if (sessionInfo?.id) {
         localStorage.setItem(sessionRegKey(sessionInfo.id), data.registration.id)
+        try {
+          const raw = localStorage.getItem(sessionSegKey(sessionInfo.id))
+          const map: Record<string, string> = raw ? JSON.parse(raw) : {}
+          map[currentLeaf.id] = data.registration.id
+          localStorage.setItem(sessionSegKey(sessionInfo.id), JSON.stringify(map))
+        } catch { /* ignore — the per-segment map is best-effort */ }
       }
       localStorage.setItem('ndsc_activity_reg_id', data.registration.id)
 
@@ -328,50 +456,50 @@ function ActivityRegisterPageInner() {
     }
   }
 
-  // ─────────────────────────────────────────────────────────────
-  // Field label helper — respects form config overrides
-  const fieldLabel = (key: string, fallback: string) => {
-    if (!formConfig?.primary_fields) return fallback
-    const override = formConfig.primary_fields.find((f: any) => f.field_key === key)
-    return override?.label || fallback
-  }
-  const fieldDesc = (key: string) => {
-    if (!formConfig?.primary_fields) return null
-    const override = formConfig.primary_fields.find((f: any) => f.field_key === key)
-    return override?.description || null
-  }
-  const fieldVisible = (key: string) => {
-    if (!formConfig?.primary_fields) return true
-    const override = formConfig.primary_fields.find((f: any) => f.field_key === key)
-    return override ? override.visible !== false : true
-  }
-
   if (loading) return <div className="min-h-screen flex items-center justify-center" style={{ background: 'var(--bg)' }}><p style={{ color: 'var(--muted)' }}>Loading...</p></div>
   if (error && !sessionInfo) return <div className="min-h-screen flex items-center justify-center px-4" style={{ background: 'var(--bg)' }}><p style={{ color: 'var(--danger-soft)' }}>{error}</p></div>
 
-  const contactPersons: any[] = formConfig?.contact_persons || []
-  const accent = resolveAccent(formConfig?.bg_theme)
+  const contactPersons: any[] = resolveContactPersons(appearance?.form_contact_persons, ecMembers)
+  const accent = resolveAccent(appearance?.form_bg_theme)
+  const accentRgb = resolveAccentRgbTriplet(appearance?.form_bg_theme)
+  const fontFamily = resolveFont(appearance?.form_font_family)
   const sessionDesc: string = sessionInfo?.description || ''
   const isLongDesc = sessionDesc.length > 220
+  const displayTitle = appearance?.form_auto_pull_title ? sessionInfo?.title : (appearance?.form_title || sessionInfo?.title)
+  const displayCover = appearance?.form_auto_pull_cover ? sessionInfo?.cover_image_url : (appearance?.form_cover_photo_url || sessionInfo?.cover_image_url)
+  const coverRatio = appearance?.form_cover_aspect_ratio || 'auto'
+  const pageBg: Record<string, string> = appearance?.form_bg_image_url
+    ? { backgroundImage: `url(${appearance.form_bg_image_url})`, backgroundSize: 'cover', backgroundPosition: 'center' }
+    : appearance?.form_bg_color
+    ? { background: appearance.form_bg_color }
+    : { background: 'var(--bg)' }
 
   return (
-    <div className="min-h-screen py-12 px-4" style={{ background: 'var(--bg)', paddingTop: '88px' }}>
-      <div className="max-w-lg mx-auto">
-        <Link href={`/activities/${slug}`} className="inline-flex items-center gap-2 text-sm mb-6" style={{ color: 'var(--muted)' }}>
+    <div className="min-h-screen py-12 px-4" style={{ ...pageBg, paddingTop: '88px', fontFamily, ['--reg-accent' as any]: accent, ['--reg-accent-rgb' as any]: accentRgb }}>
+      <style>{`
+        .reg-input:focus { border-color: var(--reg-accent) !important; box-shadow: 0 0 0 3px rgba(var(--reg-accent-rgb), 0.2); }
+        .reg-cat-card:hover, .reg-cat-card:focus-visible { border-color: var(--reg-accent) !important; background: rgba(var(--reg-accent-rgb), 0.06) !important; }
+      `}</style>
+      <div className="max-w-lg mx-auto relative">
+        <div aria-hidden className="pointer-events-none absolute -top-20 left-1/2 -translate-x-1/2 w-[440px] h-[320px] rounded-full blur-3xl opacity-[0.15]"
+          style={{ background: accent, zIndex: -1 }} />
+        <Link href={`/activities/${slug}`} className="relative inline-flex items-center gap-2 text-sm mb-6" style={{ color: 'var(--muted)' }}>
           <ArrowLeft size={14} /> Back to activity
         </Link>
 
         {/* Form header from config or session title */}
-        <h1 className="text-2xl font-black mb-1" style={{ fontFamily: "'Orbitron', sans-serif", color: 'var(--white)' }}>
-          {formConfig?.title || sessionInfo?.title}
+        <h1 className="text-2xl font-black mb-1" style={{ fontFamily: fontFamily !== 'inherit' ? fontFamily : "'Orbitron', sans-serif", color: 'var(--white)' }}>
+          {displayTitle}
         </h1>
-        {formConfig?.subtitle && <p className="text-sm mb-2" style={{ color: 'var(--muted)' }}>{formConfig.subtitle}</p>}
+        {!appearance?.form_auto_pull_description && appearance?.form_subtitle && <p className="text-sm mb-2" style={{ color: 'var(--muted)' }}>{appearance.form_subtitle}</p>}
 
         {/* Cover image — form-specific override if set, else the activity session's own cover */}
-        {(formConfig?.cover_photo_url || sessionInfo?.cover_image_url) && (
+        {displayCover && (
           <div className="rounded-2xl overflow-hidden mb-4 border" style={{ borderColor: 'var(--border)' }}>
-            <img src={formConfig?.cover_photo_url || sessionInfo?.cover_image_url} alt=""
-              style={{ width: '100%', maxHeight: '200px', objectFit: 'cover' }} />
+            <img src={displayCover} alt=""
+              style={coverRatio === 'auto'
+                ? { width: '100%', maxHeight: '400px', objectFit: 'contain' }
+                : { width: '100%', aspectRatio: coverRatio, objectFit: 'cover' }} />
           </div>
         )}
 
@@ -412,7 +540,7 @@ function ActivityRegisterPageInner() {
               onKeyDown={e => e.key === 'Enter' && lookupIdentity()} />
             <button onClick={lookupIdentity} disabled={lookupLoading}
               className="w-full mt-3 py-2.5 rounded-lg text-sm font-bold text-black disabled:opacity-60"
-              style={{ background: 'var(--blue)' }}>
+              style={{ background: accent }}>
               {lookupLoading ? 'Checking...' : 'Continue'}
             </button>
             <button onClick={() => { setIdentityChecked(true); proceedAfterIdentity() }}
@@ -434,7 +562,7 @@ function ActivityRegisterPageInner() {
               <p className="text-sm" style={{ color: 'var(--muted)' }}>No options available here yet.</p>
             ) : currentLevelOptions.map(cat => (
               <button key={cat.id} onClick={() => pickCategory(cat)}
-                className="w-full flex items-center justify-between gap-3 p-4 rounded-xl border text-left transition-all hover:-translate-y-0.5"
+                className="reg-cat-card w-full flex items-center justify-between gap-3 p-4 rounded-xl border text-left transition-all hover:-translate-y-0.5"
                 style={{ background: 'var(--bg2)', borderColor: 'var(--border)' }}>
                 <div>
                   <p className="font-semibold text-sm" style={{ color: 'var(--white)' }}>{cat.name}</p>
@@ -474,57 +602,23 @@ function ActivityRegisterPageInner() {
               </div>
             )}
 
-            {/* Primary info fields — labels/visibility driven by formConfig, same styling as every other field below */}
-            <div className="space-y-3">
-              {fieldVisible('full_name') && (
-                <div>
-                  <label className={fieldLabelCls} style={{ color: 'var(--white)' }}>{fieldLabel('full_name', 'Full Name')} <span style={{ color: accent }}>*</span></label>
-                  {fieldDesc('full_name') && <p className={fieldDescCls} style={{ color: 'var(--muted)' }}>{fieldDesc('full_name')}</p>}
-                  <input value={form.full_name} onChange={e => setForm(f => ({ ...f, full_name: e.target.value }))} className={inputCls} style={inputStyle} />
-                </div>
-              )}
-              {fieldVisible('phone') && (
-                <div>
-                  <label className={fieldLabelCls} style={{ color: 'var(--white)' }}>{fieldLabel('phone', 'Phone Number')} <span style={{ color: accent }}>*</span></label>
-                  {fieldDesc('phone') && <p className={fieldDescCls} style={{ color: 'var(--muted)' }}>{fieldDesc('phone')}</p>}
-                  <input value={form.phone} onChange={e => setForm(f => ({ ...f, phone: e.target.value }))} className={inputCls} style={inputStyle} />
-                </div>
-              )}
-              {fieldVisible('email') && (
-                <div>
-                  <label className={fieldLabelCls} style={{ color: 'var(--white)' }}>{fieldLabel('email', 'Email Address')} <span style={{ color: accent }}>*</span></label>
-                  {fieldDesc('email') && <p className={fieldDescCls} style={{ color: 'var(--muted)' }}>{fieldDesc('email')}</p>}
-                  <input type="email" value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} className={inputCls} style={inputStyle} />
-                </div>
-              )}
-              <div className="grid grid-cols-2 gap-3">
-                {fieldVisible('college') && (
-                  <div>
-                    <label className={fieldLabelCls} style={{ color: 'var(--white)' }}>{fieldLabel('college', 'College')}</label>
-                    <input value={form.college} onChange={e => setForm(f => ({ ...f, college: e.target.value }))} className={inputCls} style={inputStyle} />
-                  </div>
-                )}
-                {fieldVisible('college_roll') && (
-                  <div>
-                    <label className={fieldLabelCls} style={{ color: 'var(--white)' }}>{fieldLabel('college_roll', 'College Roll')} <span style={{ color: accent }}>*</span></label>
-                    <input value={form.college_roll} onChange={e => setForm(f => ({ ...f, college_roll: e.target.value }))} className={inputCls} style={inputStyle} />
-                  </div>
-                )}
-              </div>
-              {fieldVisible('hsc_session') && (
-                <div>
-                  <label className={fieldLabelCls} style={{ color: 'var(--white)' }}>{fieldLabel('hsc_session', 'HSC Session')}</label>
-                  {fieldDesc('hsc_session') && <p className={fieldDescCls} style={{ color: 'var(--muted)' }}>{fieldDesc('hsc_session')}</p>}
-                  <input value={form.hsc_session} onChange={e => setForm(f => ({ ...f, hsc_session: e.target.value }))} className={inputCls} style={inputStyle} />
-                </div>
-              )}
-              {fieldVisible('division') && (
-                <div>
-                  <label className={fieldLabelCls} style={{ color: 'var(--white)' }}>{fieldLabel('division', 'Division')}</label>
-                  <input value={form.division} onChange={e => setForm(f => ({ ...f, division: e.target.value }))} className={inputCls} style={inputStyle} />
-                </div>
-              )}
-            </div>
+            {/* Fields — driven by the segment's form_field_schema. Every
+                segment is seeded with the 7 built-in fields by
+                schema_update_05_segments.sql, so there is no fallback path
+                here. (The legacy hardcoded primary-info block that used to
+                live in the else branch was removed in the per-session
+                appearance migration — the schema migration also backfilled
+                form_field_schema on every existing segment, so the
+                fallback had nothing left to fall back to.) */}
+            <FieldsRenderer
+              schema={currentLeaf.form_field_schema || []}
+              form={form}
+              onFormChange={setForm}
+              customAnswers={customAnswers}
+              onCustomAnswersChange={setCustomAnswers}
+              accent={accent}
+              upload={uploadFieldFile}
+            />
 
             {/* Project name field */}
             {currentLeaf.project_name_enabled && (
@@ -545,85 +639,7 @@ function ActivityRegisterPageInner() {
                       {field.label} {field.required && <span style={{ color: accent }}>*</span>}
                     </label>
                     {field.description && <p className={fieldDescCls} style={{ color: 'var(--muted)' }}>{field.description}</p>}
-                    {field.type === 'textarea' ? (
-                      <textarea rows={3} value={customAnswers[field.key] || ''}
-                        onChange={e => setCustomAnswers(p => ({ ...p, [field.key]: e.target.value }))}
-                        className={inputCls + ' resize-none'} style={inputStyle} />
-                    ) : field.type === 'dropdown' ? (
-                      <div>
-                        <select
-                          value={otherActive[field.key] ? '__other__' : (customAnswers[field.key] || '')}
-                          onChange={e => {
-                            if (e.target.value === '__other__') {
-                              setOtherActive(p => ({ ...p, [field.key]: true }))
-                              setCustomAnswers(p => ({ ...p, [field.key]: '' }))
-                            } else {
-                              setOtherActive(p => ({ ...p, [field.key]: false }))
-                              setCustomAnswers(p => ({ ...p, [field.key]: e.target.value }))
-                            }
-                          }}
-                          className={inputCls} style={inputStyle}>
-                          <option value="">Select...</option>
-                          {(field.options || []).map((opt: string) => <option key={opt} value={opt}>{opt}</option>)}
-                          {field.allow_other && <option value="__other__">Other…</option>}
-                        </select>
-                        {field.allow_other && otherActive[field.key] && (
-                          <input placeholder="Please specify" value={customAnswers[field.key] || ''}
-                            onChange={e => setCustomAnswers(p => ({ ...p, [field.key]: e.target.value }))}
-                            className={inputCls + ' mt-2'} style={inputStyle} />
-                        )}
-                      </div>
-                    ) : field.type === 'photo' || field.type === 'file' ? (() => {
-                      const maxFiles = field.max_files && field.max_files > 1 ? field.max_files : 1
-                      const val = customAnswers[field.key]
-                      const urls: string[] = Array.isArray(val) ? val : (val ? [val] : [])
-                      const isUploading = !!uploadingFields[field.key]
-                      const atCap = urls.length >= maxFiles
-                      return (
-                        <div className="space-y-2">
-                          {urls.length > 0 && (
-                            <div className="flex flex-wrap gap-2">
-                              {urls.map((u, i) => (
-                                <span key={i} className="flex items-center gap-1 px-2 py-1 rounded text-xs" style={{ background: 'var(--bg2)', color: accent }}>
-                                  {field.label}{maxFiles > 1 ? ` #${i + 1}` : ''} <CheckCircle size={11} />
-                                  <button type="button" onClick={() => removeCustomFile(field.key, i)}><X size={11} /></button>
-                                </span>
-                              ))}
-                            </div>
-                          )}
-                          {!atCap && (
-                            <label className="flex items-center gap-2 px-3 py-2.5 rounded-lg border cursor-pointer text-sm" style={{ ...inputStyle, color: accent }}>
-                              <Upload size={14} />
-                              {isUploading ? 'Uploading…' : `Upload ${field.label}${field.max_file_size_mb ? ` (max ${field.max_file_size_mb}MB${maxFiles > 1 ? ` each, up to ${maxFiles} files` : ''})` : maxFiles > 1 ? ` (up to ${maxFiles} files)` : ''}`}
-                              <input type="file" multiple={maxFiles > 1} accept={field.type === 'photo' ? 'image/*' : undefined} className="hidden"
-                                onChange={e => { handleCustomFileField(field.key, e.target.files, field); e.target.value = '' }} />
-                            </label>
-                          )}
-                        </div>
-                      )
-                    })() : (
-                      <input type={field.type === 'number' ? 'number' : field.type === 'date' ? 'date' : field.type === 'time' ? 'time' : 'text'}
-                        value={customAnswers[field.key] || ''}
-                        onChange={e => setCustomAnswers(p => ({ ...p, [field.key]: e.target.value }))}
-                        className={inputCls} style={inputStyle} />
-                    )}
-                  </div>
-                ))}
-              </div>
-            )}
-
-            {/* Extra fields from global form config */}
-            {(formConfig?.extra_fields || []).length > 0 && (
-              <div className="space-y-3 pt-1">
-                {formConfig.extra_fields.map((field: any) => (
-                  <div key={field.key}>
-                    <label className={fieldLabelCls} style={{ color: 'var(--white)' }}>
-                      {field.label} {field.required && <span style={{ color: accent }}>*</span>}
-                    </label>
-                    {field.description && <p className={fieldDescCls} style={{ color: 'var(--muted)' }}>{field.description}</p>}
-                    <input type="text" value={customAnswers[`cfg_${field.key}`] || ''}
-                      onChange={e => setCustomAnswers(p => ({ ...p, [`cfg_${field.key}`]: e.target.value }))}
-                      className={inputCls} style={inputStyle} />
+                    {renderAnswerField(field, field.key)}
                   </div>
                 ))}
               </div>
@@ -694,7 +710,7 @@ function ActivityRegisterPageInner() {
 
             <button onClick={submit} disabled={submitting}
               className="w-full py-3 rounded-xl font-bold text-sm text-black disabled:opacity-60"
-              style={{ background: 'var(--blue)', fontFamily: "'Orbitron', sans-serif" }}>
+              style={{ background: accent, fontFamily: "'Orbitron', sans-serif" }}>
               {submitting ? 'Submitting...' : 'Submit Registration →'}
             </button>
 

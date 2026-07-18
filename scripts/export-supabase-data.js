@@ -5,9 +5,9 @@
  * (bypasses RLS, so this gets everything including admin-only rows).
  *
  * Usage:
- *   1. Place this file in the root of your NDSC project (next to .env.local)
+ *   1. Run from the project root (this file lives in scripts/, but Node still resolves .env.local from the cwd)
  *   2. npm install @supabase/supabase-js dotenv
- *   3. node export-supabase-data.js
+ *   3. node scripts/export-supabase-data.js
  *
  * Output:
  *   ./supabase-export/json/<table>.json   (array of row objects)

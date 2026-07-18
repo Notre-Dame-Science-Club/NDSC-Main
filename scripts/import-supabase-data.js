@@ -2,17 +2,17 @@
  * NDSC Supabase data import (for the NEW project)
  * ------------------------------------------------
  * Loads the JSON files produced by export-supabase-data.js into a new
- * Supabase project. Run schema.sql on the new project FIRST.
+ * Supabase project. Run db/schema.sql on the new project FIRST.
  *
  * Usage:
  *   1. Create a NEW Supabase project.
- *   2. Run schema.sql in its SQL Editor.
+ *   2. Run db/schema.sql in its SQL Editor.
  *   3. Copy your NEW project's URL + service role key into a .env.local
  *      here (or edit NEW_SUPABASE_URL / NEW_SERVICE_ROLE_KEY below).
  *   4. Place this file next to the supabase-export/ folder produced by
  *      export-supabase-data.js.
  *   5. npm install @supabase/supabase-js dotenv
- *   6. node import-supabase-data.js
+ *   6. node scripts/import-supabase-data.js
  *
  * Tables are inserted in dependency order (parents before children) so
  * foreign keys resolve correctly.
@@ -94,7 +94,7 @@ async function importTable(table) {
 
 async function main() {
   console.log(`Importing into: ${NEW_SUPABASE_URL}\n`)
-  console.log('Make sure you already ran schema.sql on this project.\n')
+  console.log('Make sure you already ran db/schema.sql on this project.\n')
 
   for (const table of IMPORT_ORDER) {
     await importTable(table)
@@ -106,7 +106,7 @@ async function main() {
   console.log('    supabase.auth.admin.createUser() with the same emails, or send')
   console.log('    password-reset invites, then let members.id map to the new')
   console.log('    auth.users.id.')
-  console.log('  - Re-check RLS policies before going live (see bottom of schema.sql).')
+  console.log('  - Re-check RLS policies before going live (see bottom of db/schema.sql).')
 }
 
 main().catch((err) => {

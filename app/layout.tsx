@@ -5,6 +5,7 @@ import "katex/dist/katex.min.css";
 import Navbar from "@/components/layout/Navbar";
 import Footer from "@/components/layout/Footer";
 import SurveyNotification from "@/components/SurveyNotification";
+import ActivityNotification from "@/components/ActivityNotification";
 import { supabaseAdmin } from "@/lib/supabase";
 import { darkenHex, hexToRgbString, isValidHex } from "@/lib/color";
 
@@ -151,6 +152,7 @@ export default async function RootLayout({
         <main>{children}</main>
         <Footer />
         <SurveyNotification />
+        <ActivityNotification />
       </body>
     </html>
   );

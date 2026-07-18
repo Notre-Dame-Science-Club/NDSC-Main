@@ -1,8 +1,14 @@
 -- ============================================================================
--- NDSC Platform — full schema, reconstructed from DATABASE_STRUCTURE.md,
--- types/database.ts, and schema_update_01/03/04.sql.
--- Run this on a fresh Supabase project (SQL Editor) BEFORE importing data
--- with import-supabase-data.js.
+-- NDSC Platform — full schema. Single source of truth for the database.
+--
+-- This is the merged result of the old schema.sql + schema_update_01/03/04/05.sql,
+-- verified field-by-field against types/database.ts and actual `.from(...)`
+-- usage across app/ and lib/ as of the 2026-07-17 cleanup (see
+-- docs/update-notes/ for the full verification notes). The individual
+-- schema_update_*.sql files that used to sit at the repo root are kept
+-- for history only, under docs/update-notes/schema-history/ — this file
+-- supersedes all of them. Run this single file on a fresh Supabase project
+-- (SQL Editor) BEFORE importing data with scripts/import-supabase-data.js.
 --
 -- IMPORTANT CAVEATS (read before running):
 --  1. This defines columns as loosely-typed as the app actually treats them
@@ -18,11 +24,32 @@
 --     RLS policies appropriate to your security model; a reasonable default
 --     (RLS enabled, service_role bypasses it, no anon policies) is included
 --     as a commented starting point at the bottom.
---  3. `activities` table is marked "unused, no writer/reader in app" in the
---     original docs — included for completeness but may be dead.
---  4. `appearance_settings` was defined in schema_update_04.sql but the app
---     actually reuses `homepage_settings` for appearance data instead — see
---     comment in that section. Included in case it has legacy rows.
+--  3. `activities` table: confirmed still dead in this cleanup — a CRUD API
+--     route exists (app/api/admin/activities/route.ts) but no page calls it.
+--     Included for completeness in case it holds legacy rows.
+--  4. `appearance_settings`: confirmed still unused in this cleanup — the
+--     live Appearance route (app/api/admin/appearance-settings/route.ts)
+--     reads/writes `homepage_settings` under a shared set of keys instead.
+--     Table kept in case it holds legacy rows; don't build new code against it.
+--  5. `members.is_organizer` / `members.is_executive` (added by the old
+--     schema_update_03.sql) ARE actively read/written by the app (survey
+--     audience targeting, admin/members role toggles) — confirmed via grep
+--     across app/ and lib/survey.ts. types/database.ts was missing these
+--     two fields on MemberRow; that's been added back as part of this pass.
+--  6. The old root-level `schema_updates.sql` (plural) proposed a different,
+--     never-implemented appearance pipeline directly on `activity_sessions`
+--     (background_image_url, title_text, title_color, button_color,
+--     button_text_color, custom_css, registration_form_definition). None of
+--     those columns are referenced anywhere in the current app — the actual
+--     implementation that shipped is the form_configs-based pipeline from
+--     schema_update_05.sql (bg_color, bg_image_url, font_family,
+--     cover_aspect_ratio, auto_pull_*) below. The superseded draft is kept
+--     under docs/update-notes/schema-history/ for history only — do not run it.
+--  7. `schema_update_02.sql` is referenced by a comment in the old
+--     schema_update_03.sql ("activity_sessions.bg_color") but the file
+--     itself was never present in this repo. Its one column (`bg_color` on
+--     activity_sessions) was already folded into the base schema below, so
+--     nothing is missing — just noting the gap in the numbering for history.
 -- ============================================================================
 
 create extension if not exists "pgcrypto"; -- for gen_random_uuid()
@@ -49,8 +76,8 @@ create table if not exists members (
   payment_slip_url text,
   is_verified      boolean default false,
   achievements     jsonb default '[]',
-  is_organizer     boolean default false,
-  is_executive     boolean default false,
+  is_organizer     boolean default false,  -- confirmed live: survey audience targeting, admin/members toggle
+  is_executive     boolean default false,  -- confirmed live: survey audience targeting, admin/members toggle
   created_at       timestamptz default now()
 );
 
@@ -155,7 +182,9 @@ create table if not exists activity_versions (
   version_label     text,
   year_start        int,
   year_end          int,
-  description       text
+  description       text,
+  is_pinned         boolean default false,  -- from schema_update_05.sql; pins version to top of its type's list
+  is_highlighted    boolean default false   -- from schema_update_05.sql; distinct styling on public activities list
 );
 
 create table if not exists activity_sessions (
@@ -176,8 +205,31 @@ create table if not exists activity_sessions (
   registration_enabled  boolean default false,
   registration_note     text,
   event_dates           jsonb default '[]',
-  bg_color              text                            -- referenced by schema_update_03.sql comment
+  bg_color              text,                           -- referenced by schema_update_03.sql comment
+  -- from schema_update_05.sql (Task 1 — Activity Update):
+  image_display_mode    text not null default 'cover',   -- 'cover' (fixed box, events) | 'native' (statement sites/posters)
+  reg_status            text,                            -- admin-defined label, e.g. Open | Closed | Judging | Results Out
+  reg_deadline          timestamptz,                      -- shown as countdown/date on the user dashboard
+  -- from schema_update_06.sql — site-wide "new event" popup (mirrors surveys.show_notification):
+  -- when true, this session is eligible to appear as the entry-popup in ActivityNotification
+  -- (components/ActivityNotification.tsx) for every visitor, until the admin turns it back off
+  -- or the event's date passes.
+  notify_publicly        boolean not null default false
 );
+
+-- ── activity_updates — per-event admin updates/announcements feed ───────
+-- from schema_update_05.sql (Task 1 — Activity Update), confirmed live via
+-- app/api/admin/activity-updates, app/api/activity-updates-public,
+-- app/activities/[slug]/page.tsx
+create table if not exists activity_updates (
+  id                    uuid primary key default gen_random_uuid(),
+  activity_session_id   uuid not null references activity_sessions(id) on delete cascade,
+  title                 text not null,
+  body                  text not null default '',
+  link_url              text,
+  created_at            timestamptz not null default now()
+);
+create index if not exists idx_activity_updates_session on activity_updates(activity_session_id);
 
 -- ── activity_reg_categories (self-referencing tree) ─────────────────────
 create table if not exists activity_reg_categories (
@@ -353,6 +405,12 @@ create table if not exists olympiad_registrations (
 );
 
 -- ── form_configs ─────────────────────────────────────────────────────────
+-- Global form appearance overrides keyed by form_key ("activity_register",
+-- "olympiad_register:<id>", "membership", ...). Per-event appearance used
+-- to live here as rows with form_key like "activity_register:<sessionId>",
+-- but those were migrated to the 1:1 activity_session_form_appearance
+-- table below (which keeps activity_sessions lean — most sessions don't
+-- customize appearance, and a 1:1 table makes that a single-row check).
 create table if not exists form_configs (
   id               uuid primary key default gen_random_uuid(),
   form_key         text unique,                              -- "activity_register", "olympiad_register:<id>", ...
@@ -360,10 +418,44 @@ create table if not exists form_configs (
   subtitle         text,
   cover_photo_url  text,
   bg_theme         text default 'default',
-  primary_fields   jsonb default '[]',
   extra_fields     jsonb default '[]',
   contact_persons  jsonb default '[]',
+  -- registration-form appearance pipeline, from schema_update_05.sql,
+  -- confirmed live via app/admin/forms/page.tsx, app/olympiad/page.tsx,
+  -- app/activities/[slug]/register/page.tsx, app/api/olympiad/route.ts
+  bg_color               text,
+  bg_image_url           text,
+  font_family            text default 'default',   -- 'default' | 'orbitron' | 'rajdhani' | 'jakarta' | 'mono'
+  cover_aspect_ratio     text default 'auto',       -- 'auto' | '16/9' | '4/3' | '1/1' | '21/9'
+  auto_pull_title        boolean not null default false,
+  auto_pull_description  boolean not null default false,
+  auto_pull_cover        boolean not null default false,
   updated_at       timestamptz default now()
+);
+
+-- ── activity_session_form_appearance ─────────────────────────────────────
+-- 1:1 with activity_sessions. Holds the per-session registration-form
+-- appearance overrides (title, subtitle, cover, bg, font, contact
+-- persons, auto-pull toggles). Replaces the old per-event
+-- form_configs rows with form_key like "activity_register:<sessionId>".
+-- Read by /api/activity-session-appearance-public and
+-- /api/admin/activity-session-appearance; written by the admin Appearance
+-- tab on /admin/activity-registration/[sessionId].
+create table if not exists activity_session_form_appearance (
+  session_id              uuid primary key references activity_sessions(id) on delete cascade,
+  form_title              text,
+  form_subtitle           text,
+  form_cover_photo_url    text,
+  form_cover_aspect_ratio text default 'auto',        -- 'auto' | '16/9' | '4/3' | '1/1' | '21/9'
+  form_bg_theme           text default 'default',
+  form_bg_color           text,
+  form_bg_image_url       text,
+  form_font_family        text default 'default',     -- 'default' | 'orbitron' | 'rajdhani' | 'jakarta' | 'mono'
+  form_auto_pull_title    boolean not null default false,
+  form_auto_pull_description boolean not null default false,
+  form_auto_pull_cover    boolean not null default false,
+  form_contact_persons    jsonb default '[]',
+  updated_at              timestamptz default now()
 );
 
 -- ── surveys / survey_responses (from schema_update_03.sql) ──────────────

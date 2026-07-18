@@ -1,0 +1,9 @@
+{
+  "name": "ndsc-scripts",
+  "private": true,
+  "description": "Standalone maintenance/migration scripts for the NDSC platform. Not part of the Next.js app build — run these directly with node from the project root, e.g. `node scripts/list-admins.js`.",
+  "dependencies": {
+    "dotenv": "^16.4.5"
+  },
+  "notes": "@supabase/supabase-js is not listed here — it's already a root app dependency and resolves fine from node_modules up the tree. Run `npm install` inside this scripts/ folder once to get dotenv, then run scripts from the project root, e.g. `node scripts/list-admins.js`."
+}

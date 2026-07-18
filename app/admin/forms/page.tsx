@@ -1,21 +1,14 @@
 'use client'
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
+import { useSearchParams } from 'next/navigation'
 import { ArrowLeft, Plus, Trash2, Save, ChevronDown, ChevronRight, Check } from 'lucide-react'
+import FormBlocksBuilder from '@/components/admin/FormBlocksBuilder'
+import { FormBlock, normalizeBlocks } from '@/lib/formBlocks'
+import { THEME_PRESETS, FONT_OPTIONS, COVER_RATIO_OPTIONS } from '@/lib/appearancePresets'
 
 const inputCls = 'w-full px-3 py-2 rounded-lg text-sm outline-none border'
 const inputStyle = { background: 'var(--surface)', borderColor: 'var(--border)', color: 'var(--white)' }
-const uid = () => Math.random().toString(36).slice(2, 9)
-
-const PRIMARY_FIELD_KEYS = [
-  { key: 'full_name', defaultLabel: 'Full Name' },
-  { key: 'phone', defaultLabel: 'Phone Number' },
-  { key: 'email', defaultLabel: 'Email Address' },
-  { key: 'college', defaultLabel: 'College' },
-  { key: 'college_roll', defaultLabel: 'College Roll' },
-  { key: 'hsc_session', defaultLabel: 'HSC Session' },
-  { key: 'division', defaultLabel: 'Division' },
-]
 
 const FORM_PRESETS = [
   { key: 'activity_register', label: 'Activity Registration (global default)' },
@@ -23,18 +16,15 @@ const FORM_PRESETS = [
   { key: 'membership', label: 'Membership Form' },
 ]
 
-const THEME_PRESETS = [
-  { value: 'default', label: 'NDSC Blue (default)', swatch: 'var(--blue)' },
-  { value: 'var(--accent2)', label: 'Violet', swatch: 'var(--accent2)' },
-  { value: 'var(--cat-teal)', label: 'Green', swatch: 'var(--cat-teal)' },
-  { value: 'var(--warning)', label: 'Amber', swatch: 'var(--warning)' },
-  { value: 'var(--danger-soft)', label: 'Red', swatch: 'var(--danger-soft)' },
-]
+// Per-event appearance (title, cover, bg, font, contacts, auto-pulls) used
+// to live here as form_key=activity_register:<sessionId>. That's now a
+// separate 1:1 table (activity_session_form_appearance) edited inline from
+// the event's Manage → Appearance tab. This filter hides any stale rows that
+// somehow survived the backfill so they don't reappear on this page.
+const isPerSessionFormKey = (key: string) => /^activity_register:[0-9a-f-]{36}$/.test(key)
 
-type ExtraField = { key: string; label: string; description?: string; type: string; required: boolean; options?: string[] }
 type ContactPerson = { name: string; post: string; phone: string; email: string; whatsapp: string; facebook: string }
 type EcMember = { id: string; full_name: string; position: string; email: string; whatsapp: string; facebook_url: string }
-type PrimaryFieldOverride = { field_key: string; label: string; description: string; visible: boolean; required: boolean }
 
 type FormConfig = {
   form_key: string
@@ -42,14 +32,19 @@ type FormConfig = {
   subtitle: string
   cover_photo_url: string
   bg_theme: string
-  primary_fields: PrimaryFieldOverride[]
-  extra_fields: ExtraField[]
+  extra_fields: FormBlock[]
   contact_persons: ContactPerson[]
   use_ec_page?: boolean
   ec_ids?: string[]
+  bg_color?: string
+  bg_image_url?: string
+  font_family?: string
+  cover_aspect_ratio?: string
+  auto_pull_title?: boolean
+  auto_pull_description?: boolean
+  auto_pull_cover?: boolean
 }
 
-const BLANK_EXTRA = (): ExtraField => ({ key: uid(), label: '', description: '', type: 'text', required: false })
 const BLANK_CONTACT = (): ContactPerson => ({ name: '', post: '', phone: '', email: '', whatsapp: '', facebook: '' })
 
 const blankConfig = (key: string): FormConfig => ({
@@ -58,14 +53,21 @@ const blankConfig = (key: string): FormConfig => ({
   subtitle: '',
   cover_photo_url: '',
   bg_theme: 'default',
-  primary_fields: PRIMARY_FIELD_KEYS.map(f => ({ field_key: f.key, label: f.defaultLabel, description: '', visible: true, required: ['full_name','phone','email','college_roll'].includes(f.key) })),
   extra_fields: [],
   contact_persons: [],
   use_ec_page: false,
   ec_ids: [],
+  bg_color: '',
+  bg_image_url: '',
+  font_family: 'default',
+  cover_aspect_ratio: 'auto',
+  auto_pull_title: false,
+  auto_pull_description: false,
+  auto_pull_cover: false,
 })
 
 export default function AdminFormsPage() {
+  const searchParams = useSearchParams()
   const [configs, setConfigs] = useState<FormConfig[]>([])
   const [loading, setLoading] = useState(true)
   const [selected, setSelected] = useState<string | null>(null)
@@ -83,12 +85,25 @@ export default function AdminFormsPage() {
   useEffect(() => {
     fetch('/api/admin/form-configs')
       .then(r => r.json())
-      .then(d => { setConfigs(d.configs || []) })
+      .then(d => {
+        const loaded: FormConfig[] = (d.configs || [])
+          .filter((c: FormConfig) => !isPerSessionFormKey(c.form_key))
+          .map((c: FormConfig) => ({ ...c, extra_fields: normalizeBlocks(c.extra_fields) }))
+        setConfigs(loaded)
+        const keyParam = searchParams.get('key')
+        if (keyParam && !isPerSessionFormKey(keyParam)) {
+          const existing = loaded.find(c => c.form_key === keyParam)
+          setSelected(keyParam)
+          setEditingConfig(existing ? { ...existing } : blankConfig(keyParam))
+        }
+      })
       .catch(() => {})
       .finally(() => setLoading(false))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   const selectForm = (key: string) => {
+    if (isPerSessionFormKey(key)) return
     setSelected(key)
     setSaved(false)
     setError('')
@@ -98,14 +113,6 @@ export default function AdminFormsPage() {
 
   const patch = (field: keyof FormConfig, value: any) => {
     setEditingConfig(prev => prev ? { ...prev, [field]: value } : null)
-  }
-
-  const patchPrimaryField = (fieldKey: string, changes: Partial<PrimaryFieldOverride>) => {
-    if (!editingConfig) return
-    const updated = editingConfig.primary_fields.map(f =>
-      f.field_key === fieldKey ? { ...f, ...changes } : f
-    )
-    patch('primary_fields', updated)
   }
 
   const saveConfig = async () => {
@@ -146,8 +153,9 @@ export default function AdminFormsPage() {
           Form Configuration
         </h1>
         <p className="text-sm mb-8" style={{ color: 'var(--border-soft)' }}>
-          Customize every form on the website — labels, descriptions, extra fields, contact persons, cover images.
-          Changes apply site-wide or per event (use <code style={{ color: 'var(--blue)' }}>activity_register:SESSION_ID</code> as the key for per-event overrides).
+          Customize the global default forms — labels, cover, theme, contact persons, and extra content blocks.
+          For per-event appearance (title, cover, theme, contacts) use the event's Manage → Appearance tab;
+          for per-segment fields (name, phone, email, etc.) use Manage → Segments.
         </p>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -205,19 +213,44 @@ export default function AdminFormsPage() {
                 {/* Basic info */}
                 <Section title="Form Title & Appearance">
                   <Field label="Title shown at the top of the form">
-                    <input value={editingConfig.title} onChange={e => patch('title', e.target.value)}
-                      placeholder="Leave blank to use event/olympiad title" className={inputCls} style={inputStyle} />
+                    <div className="flex items-center gap-2">
+                      <input value={editingConfig.title} onChange={e => patch('title', e.target.value)}
+                        disabled={!!editingConfig.auto_pull_title}
+                        placeholder="Leave blank to use event/olympiad title" className={`${inputCls} disabled:opacity-40`} style={inputStyle} />
+                    </div>
+                    <label className="flex items-center gap-2 text-xs mt-1.5" style={{ color: 'var(--muted)' }}>
+                      <input type="checkbox" checked={!!editingConfig.auto_pull_title} onChange={e => patch('auto_pull_title', e.target.checked)} />
+                      Auto-pull from the parent event's title instead
+                    </label>
                   </Field>
                   <Field label="Subtitle / description under the title">
                     <input value={editingConfig.subtitle} onChange={e => patch('subtitle', e.target.value)}
-                      className={inputCls} style={inputStyle} />
+                      disabled={!!editingConfig.auto_pull_description}
+                      className={`${inputCls} disabled:opacity-40`} style={inputStyle} />
+                    <label className="flex items-center gap-2 text-xs mt-1.5" style={{ color: 'var(--muted)' }}>
+                      <input type="checkbox" checked={!!editingConfig.auto_pull_description} onChange={e => patch('auto_pull_description', e.target.checked)} />
+                      Auto-pull from the parent event's description instead
+                    </label>
                   </Field>
-                  <Field label="Cover photo URL (shown at top of form, same ratio it was uploaded in)">
+                  <Field label="Cover photo URL (shown at top of form)">
                     <input value={editingConfig.cover_photo_url} onChange={e => patch('cover_photo_url', e.target.value)}
-                      placeholder="https://..." className={inputCls} style={inputStyle} />
-                    {editingConfig.cover_photo_url && (
-                      <img src={editingConfig.cover_photo_url} alt="" className="mt-2 rounded-lg w-full h-24 object-cover" />
+                      disabled={!!editingConfig.auto_pull_cover}
+                      placeholder="https://..." className={`${inputCls} disabled:opacity-40`} style={inputStyle} />
+                    <label className="flex items-center gap-2 text-xs mt-1.5" style={{ color: 'var(--muted)' }}>
+                      <input type="checkbox" checked={!!editingConfig.auto_pull_cover} onChange={e => patch('auto_pull_cover', e.target.checked)} />
+                      Auto-pull from the parent event's cover image instead
+                    </label>
+                    {editingConfig.cover_photo_url && !editingConfig.auto_pull_cover && (
+                      <img src={editingConfig.cover_photo_url} alt="" className="mt-2 rounded-lg w-full h-24"
+                        style={{ objectFit: editingConfig.cover_aspect_ratio === 'auto' ? 'contain' : 'cover' }} />
                     )}
+                    <div className="mt-2">
+                      <label className="text-xs block mb-1" style={{ color: 'var(--border-soft)' }}>Render cover at</label>
+                      <select value={editingConfig.cover_aspect_ratio || 'auto'} onChange={e => patch('cover_aspect_ratio', e.target.value)}
+                        className="px-2 py-1.5 rounded text-xs border outline-none" style={inputStyle}>
+                        {COVER_RATIO_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                      </select>
+                    </div>
                   </Field>
                   <Field label="Accent color / theme">
                     <div className="flex flex-wrap gap-2">
@@ -240,107 +273,37 @@ export default function AdminFormsPage() {
                       Controls the accent color (buttons, highlights, "*") and a subtle background tint on this form.
                     </p>
                   </Field>
-                </Section>
-
-
-                {/* Primary fields */}
-                <Section title="Primary Fields (name, phone, email, etc.)">
-                  <p className="text-xs mb-3" style={{ color: 'var(--border-soft)' }}>
-                    These are always collected. You can rename labels, add descriptions, or hide non-essential ones.
-                    Required fields (name, phone, email, roll) cannot be hidden.
-                  </p>
-                  {editingConfig.primary_fields.map(f => {
-                    const preset = PRIMARY_FIELD_KEYS.find(p => p.key === f.field_key)
-                    const isMandatory = ['full_name', 'phone', 'email', 'college_roll'].includes(f.field_key)
-                    return (
-                      <div key={f.field_key} className="p-3 rounded-lg mb-2" style={{ background: 'var(--bg2)', border: '1px solid var(--border)' }}>
-                        <div className="flex items-center justify-between mb-2">
-                          <span className="text-xs font-semibold" style={{ color: 'var(--muted)' }}>
-                            {preset?.defaultLabel || f.field_key}
-                          </span>
-                          {!isMandatory && (
-                            <label className="flex items-center gap-1 text-xs" style={{ color: 'var(--muted)' }}>
-                              <input type="checkbox" checked={f.visible}
-                                onChange={e => patchPrimaryField(f.field_key, { visible: e.target.checked })} />
-                              Show this field
-                            </label>
-                          )}
-                        </div>
-                        <div className="space-y-2">
-                          <input placeholder={`Label (default: ${preset?.defaultLabel})`} value={f.label}
-                            onChange={e => patchPrimaryField(f.field_key, { label: e.target.value })}
-                            className={inputCls} style={inputStyle} />
-                          <input placeholder="Helper text shown under the field (optional)" value={f.description}
-                            onChange={e => patchPrimaryField(f.field_key, { description: e.target.value })}
-                            className={inputCls} style={inputStyle} />
-                        </div>
-                      </div>
-                    )
-                  })}
-                </Section>
-
-                {/* Extra fields */}
-                <Section title="Extra Custom Fields">
-                  <p className="text-xs mb-3" style={{ color: 'var(--border-soft)' }}>
-                    Add any additional fields beyond the primary info. Like Google Forms — each field has a title, description, type, and required toggle.
-                  </p>
-                  {editingConfig.extra_fields.map((f, idx) => (
-                    <div key={f.key} className="p-3 rounded-lg mb-2 space-y-2" style={{ background: 'var(--bg2)', border: '1px solid var(--border)' }}>
-                      <div className="flex gap-2">
-                        <input placeholder="Field title *" value={f.label}
-                          onChange={e => {
-                            const updated = [...editingConfig.extra_fields]
-                            updated[idx] = { ...updated[idx], label: e.target.value }
-                            patch('extra_fields', updated)
-                          }}
-                          className={inputCls} style={inputStyle} />
-                        <select value={f.type}
-                          onChange={e => {
-                            const updated = [...editingConfig.extra_fields]
-                            updated[idx] = { ...updated[idx], type: e.target.value }
-                            patch('extra_fields', updated)
-                          }}
-                          className="px-2 py-2 rounded-lg text-sm border outline-none" style={inputStyle}>
-                          {[['text','Short text'],['textarea','Long text'],['number','Number'],['dropdown','Dropdown'],['date','Date'],['time','Time'],['photo','Photo upload'],['file','File upload']].map(([v,l]) => (
-                            <option key={v} value={v}>{l}</option>
-                          ))}
-                        </select>
-                        <button onClick={() => patch('extra_fields', editingConfig.extra_fields.filter((_, i) => i !== idx))}
-                          style={{ color: 'var(--danger-soft)' }}><Trash2 size={14} /></button>
-                      </div>
-                      <input placeholder="Description / helper text (optional)" value={f.description || ''}
-                        onChange={e => {
-                          const updated = [...editingConfig.extra_fields]
-                          updated[idx] = { ...updated[idx], description: e.target.value }
-                          patch('extra_fields', updated)
-                        }}
+                  <Field label="Page background">
+                    <div className="flex gap-2 items-center">
+                      <input type="color" value={editingConfig.bg_color || '#0b0f19'}
+                        onChange={e => patch('bg_color', e.target.value)}
+                        className="w-9 h-9 rounded cursor-pointer" style={{ padding: 0, background: 'none', border: '1px solid var(--border)' }}
+                        title="Background color" />
+                      <input value={editingConfig.bg_image_url || ''} onChange={e => patch('bg_image_url', e.target.value)}
+                        placeholder="Optional background image URL (tiled/cover behind the whole form)"
                         className={inputCls} style={inputStyle} />
-                      {f.type === 'dropdown' && (
-                        <input placeholder="Options (comma-separated, e.g. Option A,Option B,Option C)"
-                          value={(f.options || []).join(',')}
-                          onChange={e => {
-                            const updated = [...editingConfig.extra_fields]
-                            updated[idx] = { ...updated[idx], options: e.target.value.split(',').map(s => s.trim()).filter(Boolean) }
-                            patch('extra_fields', updated)
-                          }}
-                          className={inputCls} style={inputStyle} />
-                      )}
-                      <label className="flex items-center gap-2 text-xs" style={{ color: 'var(--muted)' }}>
-                        <input type="checkbox" checked={f.required}
-                          onChange={e => {
-                            const updated = [...editingConfig.extra_fields]
-                            updated[idx] = { ...updated[idx], required: e.target.checked }
-                            patch('extra_fields', updated)
-                          }} />
-                        Required
-                      </label>
                     </div>
-                  ))}
-                  <button onClick={() => patch('extra_fields', [...editingConfig.extra_fields, BLANK_EXTRA()])}
-                    className="text-xs px-3 py-1.5 rounded flex items-center gap-1"
-                    style={{ background: 'rgba(var(--blue-rgb), 0.1)', color: 'var(--blue)' }}>
-                    <Plus size={11} /> Add field
-                  </button>
+                  </Field>
+                  <Field label="Font">
+                    <select value={editingConfig.font_family || 'default'} onChange={e => patch('font_family', e.target.value)}
+                      className={inputCls} style={inputStyle}>
+                      {FONT_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                    </select>
+                  </Field>
+                </Section>
+
+
+                {/* Form builder: content blocks + form fields, in order.
+                    Note: primary info fields (name, phone, email, college, roll, HSC, division)
+                    are no longer edited here. They're now part of each segment's own
+                    form_field_schema, edited per-event in the Manage Activity page. */}
+                <Section title="Form Builder — Extra Content & Fields">
+                  <p className="text-xs mb-3" style={{ color: 'var(--border-soft)' }}>
+                    Add extra content blocks (text, images, links, dividers) and additional fields
+                    to this form, in whatever order you like. The core info fields (name, phone,
+                    email, etc.) are configured per-event in the Manage Activity page under each segment.
+                  </p>
+                  <FormBlocksBuilder blocks={editingConfig.extra_fields} onChange={blocks => patch('extra_fields', blocks)} />
                 </Section>
 
                 {/* Contact persons */}

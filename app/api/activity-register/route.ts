@@ -142,7 +142,9 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  // Validate required custom fields
+  // Validate required custom fields (legacy `custom_fields` shape — the
+  // pre-segment-redesign per-category extras. Still honored for backward
+  // compat with existing rows.)
   for (const field of category.custom_fields || []) {
     const val = custom_answers?.[field.key]
     const isEmpty = val === undefined || val === null || val === '' || (Array.isArray(val) && val.length === 0)
@@ -153,6 +155,41 @@ export async function POST(req: NextRequest) {
       const maxFiles = field.max_files && field.max_files > 1 ? field.max_files : 1
       if (val.length > maxFiles) {
         return apiError(`"${field.label}" allows at most ${maxFiles} file${maxFiles > 1 ? 's' : ''}.`, 400)
+      }
+    }
+  }
+
+  // Validate the new unified form_field_schema. Built-in fields' values
+  // live on the top-level body (full_name, phone, etc.); all other fields
+  // live in custom_answers. We also re-enforce the hard minimum
+  // (full_name, phone, email, college_roll) here as a backstop for the
+  // case where admin deleted a built-in field from the schema and the
+  // client never sent it.
+  const HARD_MIN = ['full_name', 'phone', 'email', 'college_roll']
+  for (const key of HARD_MIN) {
+    if (!body[key]?.toString().trim()) {
+      return apiError(`"${key.replace(/_/g, ' ')}" is required.`, 400)
+    }
+  }
+  if (Array.isArray(category.form_field_schema)) {
+    for (const field of category.form_field_schema) {
+      if (!field || !field.required) continue
+      // For built-in fields the value is on the top-level body, mapped by
+      // the field's is_builtin key.
+      const builtinKey = field.is_builtin as string | undefined
+      const value = builtinKey
+        ? body[builtinKey]
+        : custom_answers?.[field.key ?? field.id]
+      const isEmpty = value === undefined || value === null || value === '' || (Array.isArray(value) && value.length === 0)
+      if (isEmpty) {
+        return apiError(`"${field.label || field.key || field.id}" is required.`, 400)
+      }
+      // Photo / file field max-files cap
+      if ((field.type === 'photo' || field.type === 'file') && Array.isArray(value)) {
+        const maxFiles = field.max_files && field.max_files > 1 ? field.max_files : 1
+        if (value.length > maxFiles) {
+          return apiError(`"${field.label}" allows at most ${maxFiles} file${maxFiles > 1 ? 's' : ''}.`, 400)
+        }
       }
     }
   }
@@ -168,9 +205,9 @@ export async function POST(req: NextRequest) {
     const min = category.team_size_min || 1
     const max = category.team_size_max || 99
     if (members.length < min || members.length > max) {
-      return apiOk(
-        { error: `This category requires between ${min} and ${max} team members (not counting yourself as leader).` },
-        { status: 400 }
+      return apiError(
+        `This category requires between ${min} and ${max} team members (not counting yourself as leader).`,
+        400
       )
     }
     for (const m of members) {
@@ -202,6 +239,59 @@ export async function POST(req: NextRequest) {
   }
 
   const paymentStatus = category.requires_payment ? 'pending' : 'not_required'
+
+  // "Unique field" duplicate check (admin-configurable per custom field).
+  // Scope is the whole activity session, not just this category — e.g. a
+  // school ID marked unique should be caught as a duplicate even if the
+  // second attempt is under a different segment/round of the same event.
+  const uniqueCategoryFields = (category.custom_fields || []).filter((f: any) => f.unique_field)
+  const uniqueTeamFields = (category.team_member_fields || []).filter((f: any) => f.unique_field)
+
+  if (uniqueCategoryFields.length > 0 || uniqueTeamFields.length > 0) {
+    const norm = (v: any) => (v === undefined || v === null ? '' : String(v).trim().toLowerCase())
+
+    const { data: existingRegs } = await supabaseAdmin
+      .from('activity_registrations')
+      .select('custom_answers, team_members')
+      .eq('activity_session_id', category.activity_session_id)
+
+    for (const field of uniqueCategoryFields) {
+      const incoming = norm(custom_answers?.[field.key])
+      if (!incoming) continue
+      const clash = (existingRegs || []).some(
+        (r: any) => norm(r.custom_answers?.[field.key]) === incoming
+      )
+      if (clash) {
+        return apiError(
+          `"${field.label}" is already registered for this event. Duplicate entries aren't allowed for this field.`,
+          409
+        )
+      }
+    }
+
+    for (const field of uniqueTeamFields) {
+      const incomingValues = preparedTeamMembers
+        .map(m => norm(m.custom_answers?.[field.key]))
+        .filter(Boolean)
+
+      // Duplicates within this same submission (two of your own teammates)
+      if (new Set(incomingValues).size !== incomingValues.length) {
+        return apiError(`"${field.label}" must be unique across your own team members.`, 400)
+      }
+
+      for (const v of incomingValues) {
+        const clash = (existingRegs || []).some((r: any) =>
+          (r.team_members || []).some((m: any) => norm(m.custom_answers?.[field.key]) === v)
+        )
+        if (clash) {
+          return apiError(
+            `"${field.label}" is already registered by another team for this event.`,
+            409
+          )
+        }
+      }
+    }
+  }
 
   let editLockedAt: string | null = null
   if (category.edit_window_hours !== null && category.edit_window_hours !== undefined) {
