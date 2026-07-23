@@ -18,25 +18,17 @@ export default function LoginPage() {
     setError('')
 
     try {
-      // API route call করো - supabaseAdmin দিয়ে is_verified check হবে
-      const res = await fetch('/api/auth/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password }),
-      })
-      const data = await res.json()
+      // The local-stack client shim in lib/supabase.ts handles
+      // supabase.auth.signInWithPassword (it posts to /api/auth/login,
+      // stashes the resulting bearer in localStorage, and returns the
+      // session). Using the shim path here means the prod and local
+      // branches share one code path; we don't need to know which
+      // mode we're in.
+      const { data, error: signInError } = await supabase.auth.signInWithPassword({ email, password })
 
-      if (!res.ok) {
+      if (signInError || !data?.session) {
         setLoading(false)
-        return setError(data.error || 'Login failed.')
-      }
-
-      // Session টা client-side Supabase এ set করো
-      if (data.session) {
-        await supabase.auth.setSession({
-          access_token: data.session.access_token,
-          refresh_token: data.session.refresh_token,
-        })
+        return setError(signInError?.message || 'Login failed.')
       }
 
       router.push('/dashboard')

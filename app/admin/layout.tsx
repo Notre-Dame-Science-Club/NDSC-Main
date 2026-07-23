@@ -3,7 +3,7 @@ import Link from 'next/link'
 import { authCookies } from '@/lib/config/site'
 import {
   LayoutDashboard, Users, CalendarDays, BookOpen, UserCog,
-  Megaphone, Trophy, Film, Settings, Power, ClipboardList, Palette,
+  Megaphone, Trophy, Film, Settings, Power, ClipboardList, Palette, Workflow,
 } from 'lucide-react'
 
 const NAV_LINKS = [
@@ -14,6 +14,7 @@ const NAV_LINKS = [
   { href: '/admin/executives', label: 'Executives', icon: UserCog },
   { href: '/admin/announcements', label: 'Announcements', icon: Megaphone },
   { href: '/admin/olympiads', label: 'Olympiads', icon: Trophy },
+  { href: '/admin/form-builder', label: 'Form Builder', icon: Workflow },
   { href: '/admin/surveys', label: 'Surveys', icon: ClipboardList },
   { href: '/admin/science-media', label: 'Science Media', icon: Film },
   { href: '/admin/homepage-settings', label: 'Homepage Settings', icon: Settings },

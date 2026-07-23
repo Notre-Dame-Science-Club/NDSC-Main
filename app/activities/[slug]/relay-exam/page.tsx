@@ -3,6 +3,7 @@ import { useEffect, useState, useRef, useCallback } from 'react'
 import { useParams, useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { Clock, ChevronRight, ChevronLeft, CheckCircle, ArrowLeft, Upload, X } from 'lucide-react'
+import MathInputField from '@/components/olympiad/MathInputField'
 
 type QuestionType = 'mcq' | 'short' | 'photo'
 type McqOption = { id: string; text: string }
@@ -352,8 +353,15 @@ export default function RelayExamPage() {
                   )}
 
                   {q.type === 'short' && (
-                    <textarea rows={4} value={shortAnswers[q.id] || ''} onChange={e => setShortAnswers(p => ({ ...p, [q.id]: e.target.value }))}
-                      className="w-full px-3 py-2.5 rounded-lg text-sm outline-none resize-none mt-2" style={inputStyle} />
+                    <div className="mt-2">
+                      <MathInputField
+                        multiline rows={4}
+                        value={shortAnswers[q.id] || ''}
+                        onChange={v => setShortAnswers(p => ({ ...p, [q.id]: v }))}
+                        className="w-full px-3 py-2.5 rounded-lg text-sm outline-none resize-none"
+                        style={inputStyle}
+                      />
+                    </div>
                   )}
 
                   {q.type === 'photo' && (

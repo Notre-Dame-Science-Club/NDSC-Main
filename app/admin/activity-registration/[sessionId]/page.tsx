@@ -2,7 +2,7 @@
 import { useEffect, useState } from 'react'
 import { useParams } from 'next/navigation'
 import Link from 'next/link'
-import { Plus, Trash2, ChevronRight, ChevronDown, ArrowLeft, Users, CreditCard, Link2, Calendar, X, Zap, Upload, Microscope, FileText, Images, Youtube, ImageIcon, Lock, Check, Sparkles, Save } from 'lucide-react'
+import { Plus, Trash2, ChevronRight, ChevronDown, ArrowLeft, Users, CreditCard, Link2, Calendar, X, Zap, Upload, Microscope, FileText, Images, Youtube, ImageIcon, Lock, Check, Sparkles, Save, Download } from 'lucide-react'
 import MathInputField from '@/components/olympiad/MathInputField'
 import { FormBlock, normalizeBlocks, builtinFieldDefs } from '@/lib/formBlocks'
 import FieldsEditor from '@/components/admin/FieldsEditor'
@@ -451,6 +451,12 @@ function RegistrantsPanel({ sessionId }: { sessionId: string }) {
             style={{ background: 'rgba(var(--accent2-rgb), 0.1)', color: 'var(--accent2)', border: '1px solid rgba(var(--accent2-rgb), 0.25)' }}>
             <Upload size={12} style={{ transform: 'rotate(180deg)' }} /> Export CSV
           </button>
+          <a href={`/api/admin/activity-sessions/${sessionId}/registrations.csv`}
+            className="text-xs px-3 py-1.5 rounded-lg flex-shrink-0 flex items-center gap-1.5"
+            style={{ background: 'rgba(var(--cat-teal-rgb), 0.1)', color: 'var(--cat-teal)', border: '1px solid rgba(var(--cat-teal-rgb), 0.25)' }}
+            title="Server-built CSV with the full registration set, including the v2 form-graph path and team columns.">
+            <Download size={12} /> All rows CSV
+          </a>
         </div>
       </div>
 

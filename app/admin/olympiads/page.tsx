@@ -1,7 +1,7 @@
 'use client'
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
-import { Plus, Trash2, Edit2, ChevronDown, ChevronUp, Eye, EyeOff, X, Megaphone, ArrowRight, Image as ImageIcon, FileText, Clock, AlignLeft, List, Camera, ArrowUp, ArrowDown, Copy, CheckSquare, ClipboardList, Link2, Lightbulb, BookOpen, CheckCircle2 } from 'lucide-react'
+import { Plus, Trash2, Edit2, ChevronDown, ChevronUp, Eye, EyeOff, X, Megaphone, ArrowRight, Image as ImageIcon, FileText, Clock, AlignLeft, List, Camera, ArrowUp, ArrowDown, Copy, CheckSquare, ClipboardList, Link2, Lightbulb, BookOpen, CheckCircle2, Download } from 'lucide-react'
 import AnnotationViewer, { Annotation } from '@/components/olympiad/AnnotationViewer'
 import MathInputField from '@/components/olympiad/MathInputField'
 import MathText from '@/components/olympiad/MathText'
@@ -385,6 +385,12 @@ export default function AdminOlympiadsPage() {
           <button onClick={() => setTab('olympiads')} className="text-sm px-3 py-1 rounded border" style={{ borderColor: 'var(--border)', color: 'var(--muted)' }}>← Back</button>
           <h1 className="text-xl font-bold" style={h}>{olympiad?.name} — Registrations ({regs.length})</h1>
           <button onClick={() => loadRegistrations(selectedOlympiadId!)} className="text-sm px-3 py-1 rounded border ml-auto" style={{ borderColor: 'rgba(var(--blue-rgb), 0.3)', color: 'var(--blue)' }}>↺ Refresh</button>
+          <a href={`/api/admin/olympiads/${selectedOlympiadId}/registrations.csv`}
+            className="text-sm px-3 py-1 rounded border flex items-center gap-1.5"
+            style={{ borderColor: 'rgba(var(--cat-teal-rgb), 0.3)', color: 'var(--cat-teal)' }}
+            title="Server-built CSV with one column per question, score columns, and timing.">
+            <Download size={13} /> CSV
+          </a>
         </div>
         <div className="rounded-xl border overflow-x-auto" style={s}>
           <table className="w-full text-sm">
@@ -1121,6 +1127,12 @@ export default function AdminOlympiadsPage() {
                   className="text-xs px-3 py-1.5 rounded-lg border" style={{ borderColor: 'rgba(var(--blue-rgb), 0.3)', color: 'var(--blue)' }}>
                   Registrations
                 </button>
+                <a href={`/api/admin/olympiads/${o.id}/registrations.csv`}
+                  className="text-xs px-3 py-1.5 rounded-lg border flex items-center gap-1"
+                  style={{ borderColor: 'rgba(var(--cat-teal-rgb), 0.3)', color: 'var(--cat-teal)' }}
+                  title="Download all registrations as CSV">
+                  <Download size={12} /> CSV
+                </a>
                 <button onClick={() => toggleExpand(o.id)} className="p-1.5 rounded" style={{ color: 'var(--border-soft)' }}>
                   {expandedId === o.id ? <ChevronUp size={15} /> : <ChevronDown size={15} />}
                 </button>
