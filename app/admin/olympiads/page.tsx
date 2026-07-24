@@ -1,11 +1,12 @@
 'use client'
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
-import { Plus, Trash2, Edit2, ChevronDown, ChevronUp, Eye, EyeOff, X, Megaphone, ArrowRight, Image as ImageIcon, FileText, Clock, AlignLeft, List, Camera, ArrowUp, ArrowDown, Copy, CheckSquare, ClipboardList, Link2, Lightbulb, BookOpen, CheckCircle2, Download } from 'lucide-react'
+import { Plus, Trash2, Edit2, ChevronDown, ChevronUp, Eye, EyeOff, X, Megaphone, ArrowRight, Image as ImageIcon, FileText, Clock, AlignLeft, List, Camera, ArrowUp, ArrowDown, Copy, CheckSquare, ClipboardList, Link2, Lightbulb, BookOpen, CheckCircle2, Download, Workflow } from 'lucide-react'
 import AnnotationViewer, { Annotation } from '@/components/olympiad/AnnotationViewer'
 import MathInputField from '@/components/olympiad/MathInputField'
 import MathText from '@/components/olympiad/MathText'
 import ResponseDetailModal from '@/components/olympiad/ResponseDetailModal'
+import { FormGraphBuilderForOwner } from '@/components/admin/FormGraphBuilder'
 
 const uid = () => Math.random().toString(36).slice(2, 9)
 
@@ -74,7 +75,7 @@ export default function AdminOlympiadsPage() {
   const [saving, setSaving] = useState(false)
   const [pageError, setPageError] = useState('')
   const [expandedId, setExpandedId] = useState<string | null>(null)
-  const [tab, setTab] = useState<'olympiads' | 'registrations'>('olympiads')
+  const [tab, setTab] = useState<'olympiads' | 'registrations' | 'form-builder'>('olympiads')
   const [selectedOlympiadId, setSelectedOlympiadId] = useState<string | null>(null)
   const [registrations, setRegistrations] = useState<Record<string, any[]>>({})
   const [viewingReg, setViewingReg] = useState<any | null>(null)
@@ -374,6 +375,24 @@ export default function AdminOlympiadsPage() {
   const qTypeLabel = (t: QuestionType) => t === 'mcq' ? 'MCQ' : t === 'checkbox' ? 'Checkboxes' : t === 'short' ? 'Short Answer' : 'Photo Upload'
   const qTypeColor = (t: QuestionType) => t === 'mcq' ? 'var(--blue)' : t === 'checkbox' ? 'var(--accent2)' : t === 'short' ? 'var(--success)' : 'var(--warning)'
   const qTypeIcon = (t: QuestionType) => t === 'mcq' ? <List size={12} /> : t === 'checkbox' ? <CheckSquare size={12} /> : t === 'short' ? <AlignLeft size={12} /> : <Camera size={12} />
+
+  // ── Form builder view ────────────────────────────────────────────────────────
+  if (tab === 'form-builder' && selectedOlympiadId) {
+    const olympiad = olympiads.find(o => o.id === selectedOlympiadId)
+    return (
+      <div>
+        <div className="flex items-center gap-4 mb-6">
+          <button onClick={() => setTab('olympiads')} className="text-sm px-3 py-1 rounded border" style={{ borderColor: 'var(--border)', color: 'var(--muted)' }}>← Back</button>
+          <h1 className="text-xl font-bold" style={h}>{olympiad?.name} — Form Builder</h1>
+        </div>
+        <div className="mb-5 p-4 rounded-xl text-sm" style={{ background: 'rgba(var(--blue-rgb), 0.05)', border: '1px solid rgba(var(--blue-rgb), 0.2)', color: 'var(--muted)' }}>
+          The full flowchart-style builder for this olympiad's registration — a tree of forms
+          with branching, presets, and multi-step flows.
+        </div>
+        <FormGraphBuilderForOwner ownerKind="olympiad" ownerId={selectedOlympiadId} />
+      </div>
+    )
+  }
 
   // ── Registrations view ──────────────────────────────────────────────────────
   if (tab === 'registrations' && selectedOlympiadId) {
@@ -1126,6 +1145,11 @@ export default function AdminOlympiadsPage() {
                 <button onClick={() => { setSelectedOlympiadId(o.id); setTab('registrations'); loadRegistrations(o.id) }}
                   className="text-xs px-3 py-1.5 rounded-lg border" style={{ borderColor: 'rgba(var(--blue-rgb), 0.3)', color: 'var(--blue)' }}>
                   Registrations
+                </button>
+                <button onClick={() => { setSelectedOlympiadId(o.id); setTab('form-builder') }}
+                  title="Full flowchart-style form builder for this olympiad's registration"
+                  className="text-xs px-3 py-1.5 rounded-lg border flex items-center gap-1" style={{ borderColor: 'rgba(var(--accent2-rgb), 0.3)', color: 'var(--accent2)' }}>
+                  <Workflow size={12} /> Form Builder
                 </button>
                 <a href={`/api/admin/olympiads/${o.id}/registrations.csv`}
                   className="text-xs px-3 py-1.5 rounded-lg border flex items-center gap-1"

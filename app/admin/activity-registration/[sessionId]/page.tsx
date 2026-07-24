@@ -2,11 +2,12 @@
 import { useEffect, useState } from 'react'
 import { useParams } from 'next/navigation'
 import Link from 'next/link'
-import { Plus, Trash2, ChevronRight, ChevronDown, ArrowLeft, Users, CreditCard, Link2, Calendar, X, Zap, Upload, Microscope, FileText, Images, Youtube, ImageIcon, Lock, Check, Sparkles, Save, Download } from 'lucide-react'
+import { Plus, Trash2, ChevronRight, ChevronDown, ArrowLeft, Users, CreditCard, Link2, Calendar, X, Zap, Upload, Microscope, FileText, Images, Youtube, ImageIcon, Lock, Check, Sparkles, Save, Download, Workflow } from 'lucide-react'
 import MathInputField from '@/components/olympiad/MathInputField'
 import { FormBlock, normalizeBlocks, builtinFieldDefs } from '@/lib/formBlocks'
 import FieldsEditor from '@/components/admin/FieldsEditor'
 import ContactPersonsEditor from '@/components/admin/ContactPersonsEditor'
+import { FormGraphBuilderForOwner } from '@/components/admin/FormGraphBuilder'
 import { THEME_PRESETS, FONT_OPTIONS, COVER_RATIO_OPTIONS } from '@/lib/appearancePresets'
 import { resolveAccent, resolveFont } from '@/lib/appearance'
 
@@ -80,7 +81,7 @@ export default function ActivityRegistrationBuilder() {
   const [error, setError] = useState('')
   const [editingId, setEditingId] = useState<string | null>(null)
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set())
-  const [tab, setTab] = useState<'builder' | 'registrants' | 'appearance' | 'files' | 'updates'>('appearance')
+  const [tab, setTab] = useState<'builder' | 'flow' | 'registrants' | 'appearance' | 'files' | 'updates'>('appearance')
 
   const load = async () => {
     try {
@@ -299,6 +300,13 @@ export default function ActivityRegistrationBuilder() {
           style={tab === 'builder' ? { background: 'rgba(var(--blue-rgb), 0.15)', color: 'var(--blue)', border: '1px solid rgba(var(--blue-rgb), 0.4)' } : { background: 'var(--surface-deep)', color: 'var(--muted)', border: '1px solid var(--border)' }}>
           <span className="inline-flex items-center gap-1.5">Registration{!session?.registration_enabled && <Lock size={11} />}</span>
         </button>
+        <button onClick={() => session?.registration_enabled && setTab('flow')}
+          disabled={!session?.registration_enabled}
+          title={!session?.registration_enabled ? 'Turn on "Registration" for this session (Activities admin) to unlock this' : 'The full flowchart-style form builder — branching, presets, and multi-step flows'}
+          className="px-4 py-2 rounded-lg text-sm font-semibold disabled:opacity-40 disabled:cursor-not-allowed"
+          style={tab === 'flow' ? { background: 'rgba(var(--blue-rgb), 0.15)', color: 'var(--blue)', border: '1px solid rgba(var(--blue-rgb), 0.4)' } : { background: 'var(--surface-deep)', color: 'var(--muted)', border: '1px solid var(--border)' }}>
+          <span className="inline-flex items-center gap-1.5"><Workflow size={13} /> Form Builder{!session?.registration_enabled && <Lock size={11} />}</span>
+        </button>
         <button onClick={() => session?.registration_enabled && setTab('registrants')}
           disabled={!session?.registration_enabled}
           title={!session?.registration_enabled ? 'Turn on "Registration" for this session (Activities admin) to unlock this' : ''}
@@ -312,7 +320,16 @@ export default function ActivityRegistrationBuilder() {
         </button>
       </div>
 
-      {tab === 'registrants' && session?.registration_enabled ? (
+      {tab === 'flow' && session?.registration_enabled ? (
+        <div>
+          <div className="mb-5 p-4 rounded-xl text-sm" style={{ background: 'rgba(var(--blue-rgb), 0.05)', border: '1px solid rgba(var(--blue-rgb), 0.2)', color: 'var(--muted)' }}>
+            This is the full flowchart-style builder — a tree of forms with branching, presets,
+            and multi-step flows. It's separate from the segment-based <span style={{ color: 'var(--blue)' }}>Registration</span> tab;
+            use whichever fits how this event's sign-up should work.
+          </div>
+          <FormGraphBuilderForOwner ownerKind="activity" ownerId={sessionId} />
+        </div>
+      ) : tab === 'registrants' && session?.registration_enabled ? (
         <RegistrantsPanel sessionId={sessionId} />
       ) : tab === 'appearance' ? (
         <AppearancePanel sessionId={sessionId} session={session} onSaved={setSession} />
