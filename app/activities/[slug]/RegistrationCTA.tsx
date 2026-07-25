@@ -29,15 +29,15 @@ export default function RegistrationCTA({
   slug: string
   registrationNote?: string | null
 }) {
-  const { isMember, loading, isRegisteredForSession } = useMyActivityRegistrations()
-  const [deviceRegistered, setDeviceRegistered] = useState(false)
+  const { isMember, loading, getRegistrationForSession } = useMyActivityRegistrations()
+  const [deviceRegId, setDeviceRegId] = useState<string | null>(null)
   const [checked, setChecked] = useState(false)
 
   useEffect(() => {
     try {
       const fromLocal = localStorage.getItem(`ndsc_reg_${sessionId}`) || localStorage.getItem('ndsc_activity_reg_id')
       const cookieMatch = document.cookie.match(new RegExp(`(?:^|; )ndsc_form_done_activity_${sessionId}=([^;]*)`))
-      setDeviceRegistered(!!(fromLocal || cookieMatch))
+      setDeviceRegId(fromLocal || (cookieMatch ? decodeURIComponent(cookieMatch[1]) : null))
     } catch { /* ignore — storage may be unavailable */ }
     setChecked(true)
   }, [sessionId])
@@ -45,7 +45,20 @@ export default function RegistrationCTA({
   // Avoid a flash of "Register Now" before we know the real status.
   if (loading || !checked) return null
 
-  const alreadyRegistered = isMember ? isRegisteredForSession(sessionId) : deviceRegistered
+  const serverReg = isMember ? getRegistrationForSession(sessionId) : null
+  const alreadyRegistered = isMember ? !!serverReg : !!deviceRegId
+  // The id that actually loads data on /activities/[slug]/dashboard — that
+  // page reads it from ?reg=<id> (or its own localStorage key as a
+  // fallback), it has no idea about member accounts at all. Previously
+  // this linked to the dashboard with no id whatsoever whenever the
+  // status came from server truth, which is exactly the case where the
+  // device marker is often missing (different device, cleared storage) —
+  // so the very information that told us "you ARE registered" wasn't
+  // being passed along, and the page showed its "we couldn't find your
+  // registration on this device" / team-login screen instead. That
+  // screen looks a lot like being logged out, even though it has nothing
+  // to do with the member session.
+  const dashboardRegId = serverReg?.id || deviceRegId
 
   if (alreadyRegistered) {
     return (
@@ -55,7 +68,7 @@ export default function RegistrationCTA({
           <CheckCircle2 size={18} style={{ color: 'var(--cat-teal)' }} />
           <p className="font-bold text-base" style={{ color: 'var(--white)' }}>You're already registered for this event</p>
         </div>
-        <Link href={`/activities/${slug}/dashboard`}
+        <Link href={dashboardRegId ? `/activities/${slug}/dashboard?reg=${dashboardRegId}` : `/activities/${slug}/dashboard`}
           className="px-6 py-3 rounded-xl font-bold text-sm flex-shrink-0 transition-all hover:-translate-y-0.5"
           style={{ background: 'var(--cat-teal)', color: '#000', fontFamily: 'inherit' }}>
           Open My Dashboard →

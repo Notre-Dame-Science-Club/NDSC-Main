@@ -12,9 +12,9 @@
 :root {
   --bg: #020810;
   --bg2: #050d1a;
-  --blue: #3b82f6;
-  --blue2: #2563eb;
-  --glow: #3b82f622;
+  --blue: #00d4ff;
+  --blue2: #0077ff;
+  --glow: #00d4ff55;
   --white: #e8f4ff;
   --muted: #6a8faf;
   --muted-rgb: 106, 143, 175;
@@ -26,8 +26,8 @@
   /* RGB triplets — use with rgba(var(--blue-rgb), .2) so translucent
      overlays adapt correctly between dark/light mode instead of being
      hardcoded to one theme's color. */
-  --blue-rgb: 59, 130, 246;
-  --blue2-rgb: 37, 99, 235;
+  --blue-rgb: 0, 212, 255;
+  --blue2-rgb: 0, 119, 255;
   --white-rgb: 232, 244, 255;
   --accent2-rgb: 167, 139, 250;
 
@@ -83,9 +83,9 @@
 [data-theme="light"] {
   --bg: #f0f6ff;
   --bg2: #e2edf8;
-  --blue: #2563eb;
-  --blue2: #1d4ed8;
-  --glow: #2563eb22;
+  --blue: #0066cc;
+  --blue2: #004499;
+  --glow: #0066cc44;
   --white: #0a1628;
   --muted: #445566;
   --muted-rgb: 68, 85, 102;

@@ -755,7 +755,7 @@ function AppearancePanel({ sessionId, session, onSaved }: { sessionId: string; s
               </button>
             ))}
             <input type="color"
-              value={appearance?.form_bg_theme?.startsWith('#') ? appearance.form_bg_theme : '#3b82f6'}
+              value={appearance?.form_bg_theme?.startsWith('#') ? appearance.form_bg_theme : '#00d4ff'}
               onChange={e => patch('form_bg_theme', e.target.value)}
               className="w-9 h-9 rounded-full border-2 cursor-pointer"
               style={{ borderColor: appearance?.form_bg_theme?.startsWith('#') ? '#fff' : 'transparent', padding: 0, background: 'none' }}

@@ -152,7 +152,7 @@ export default function AppearanceSettingsAdmin() {
               <label className="w-9 h-9 rounded-full border-2 flex items-center justify-center cursor-pointer overflow-hidden relative"
                 style={{ borderColor: 'var(--border)', background: 'conic-gradient(red, yellow, lime, cyan, blue, magenta, red)' }}
                 title="Custom color">
-                <input type="color" value={isValidHex(currentAccent) ? currentAccent : 'var(--blue)'}
+                <input type="color" value={isValidHex(currentAccent) ? currentAccent : '#00d4ff'}
                   onChange={(e) => save('accent_color', e.target.value)}
                   className="absolute inset-0 opacity-0 cursor-pointer" />
               </label>

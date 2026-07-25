@@ -263,7 +263,7 @@ export default function AdminFormsPage() {
                         </button>
                       ))}
                       <input type="color"
-                        value={editingConfig.bg_theme?.startsWith('#') ? editingConfig.bg_theme : 'var(--blue)'}
+                        value={editingConfig.bg_theme?.startsWith('#') ? editingConfig.bg_theme : '#00d4ff'}
                         onChange={e => patch('bg_theme', e.target.value)}
                         className="w-9 h-9 rounded-full border-2 cursor-pointer"
                         style={{ borderColor: editingConfig.bg_theme?.startsWith('#') ? '#fff' : 'transparent', padding: 0, background: 'none' }}

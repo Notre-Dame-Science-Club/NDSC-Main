@@ -774,10 +774,10 @@ export default function AdminOlympiadsPage() {
               <div>
                 <label className="block text-xs mb-1" style={{ color: 'var(--muted)' }}>Accent Color (buttons & highlights)</label>
                 <div className="flex items-center gap-2">
-                  <input type="color" value={editing.theme_accent_color || '#3b82f6'}
+                  <input type="color" value={editing.theme_accent_color || '#00d4ff'}
                     onChange={e => setEditing(p => ({ ...p, theme_accent_color: e.target.value }))}
                     className="w-10 h-9 rounded border cursor-pointer flex-shrink-0" style={{ borderColor: 'var(--border)', background: 'transparent' }} />
-                  <input type="text" className={inputClass} style={inputStyle} placeholder="e.g. #3b82f6 — blank uses the default blue"
+                  <input type="text" className={inputClass} style={inputStyle} placeholder="e.g. #00d4ff — blank uses the default blue"
                     value={editing.theme_accent_color || ''} onChange={e => setEditing(p => ({ ...p, theme_accent_color: e.target.value || null }))} />
                   {editing.theme_accent_color && <button onClick={() => setEditing(p => ({ ...p, theme_accent_color: null }))} title="Clear" style={{ color: 'var(--danger-soft)' }}><X size={14} /></button>}
                 </div>

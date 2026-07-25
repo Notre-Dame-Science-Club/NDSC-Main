@@ -62,40 +62,83 @@ function rewriteAuthUrl(target: string): string | null {
   return null
 }
 
-const localFetch: typeof fetch = async (input, init) => {
-  let urlOut: string | Request | undefined
-  let initOut: RequestInit | undefined = init
-
-  if (typeof input === 'string') {
-    const stripped = stripRestPrefix(input)
-    const authed = !stripped ? rewriteAuthUrl(input) : null
-    urlOut = stripped ?? authed ?? input
-  } else if (input && typeof input === 'object' && 'url' in input) {
-    const req = input as Request
-    const stripped = stripRestPrefix(req.url)
-    const authed = !stripped ? rewriteAuthUrl(req.url) : null
-    const finalUrl = stripped ?? authed
-    if (finalUrl) {
-      // Reconstruct the request with the rewritten URL. We have to
-      // clone the body manually because `new Request()` only accepts
-      // a body from a stream, and the original body may already be
-      // consumed.
-      const headers = new Headers(req.headers)
-      urlOut = finalUrl
-      initOut = {
-        method: req.method,
-        headers,
-        body: ['GET', 'HEAD'].includes(req.method) ? undefined : await req.clone().arrayBuffer(),
-        duplex: 'half',
-      } as RequestInit
-    } else {
-      urlOut = req
-    }
-  } else {
-    urlOut = input as any
+// Builds the fetch used as `global.fetch` for a client. `forcedBearer`
+// lets a specific client pin the Authorization header on every
+// PostgREST (REST) request, ignoring whatever supabase-js's internal
+// `_getAccessToken()` would otherwise send.
+//
+// Why this exists: supabase-js asks `this.auth.getSession()` for a
+// bearer on every `.from()` / `.rpc()` call. For the plain browser
+// client, `this.auth` is reassigned to `buildAuthShim()` below, so
+// that resolves to whatever local session the shim has in `LS_KEY` —
+// the self-signed token from `signLocalToken()` in /api/auth/login.
+// That token is only ever verified by our own /api/auth/local-verify
+// route; it is NOT signed with PGRST_JWT_SECRET, so local PostgREST
+// rejects it outright with 401 — on every table query, not just
+// member-scoped ones, the moment a member is logged in (public
+// queries like `announcements`/`publications`/`olympiads` get swept
+// up too, since they share the same client and the same
+// `_getAccessToken()` path).
+//
+// The local stack doesn't run RLS at all (see db/init_roles.sql —
+// `anon` is granted full table access), so the browser client can
+// safely pin its bearer to the anon JWT for every REST call — that's
+// what `getSupabase()` passes as `forcedBearer` below.
+//
+// The admin client must NOT go through this: it needs its own
+// service_role identity on every request (today that already works
+// correctly by default — `persistSession: false` means its internal
+// session stays null, so `_getAccessToken()` falls back to the
+// service key it was constructed with). Pinning it to anon here would
+// silently swap out that identity — harmless only by accident, since
+// local RLS is currently off, and a real bug the moment it isn't. So
+// `getSupabaseAdmin()` passes `forcedBearer: null` and this function
+// leaves its headers untouched.
+function makeLocalFetch(forcedBearer: string | null): typeof fetch {
+  const forceAuthHeaders = (headersInit: HeadersInit | undefined): Headers => {
+    const h = new Headers(headersInit)
+    if (IS_LOCAL && forcedBearer) h.set('Authorization', `Bearer ${forcedBearer}`)
+    return h
   }
 
-  return fetch(urlOut as any, initOut as any)
+  return async (input, init) => {
+    let urlOut: string | Request | undefined
+    let initOut: RequestInit | undefined = init
+
+    if (typeof input === 'string') {
+      const stripped = stripRestPrefix(input)
+      const authed = !stripped ? rewriteAuthUrl(input) : null
+      urlOut = stripped ?? authed ?? input
+      if (stripped) {
+        initOut = { ...init, headers: forceAuthHeaders(init?.headers) }
+      }
+    } else if (input && typeof input === 'object' && 'url' in input) {
+      const req = input as Request
+      const stripped = stripRestPrefix(req.url)
+      const authed = !stripped ? rewriteAuthUrl(req.url) : null
+      const finalUrl = stripped ?? authed
+      if (finalUrl) {
+        // Reconstruct the request with the rewritten URL. We have to
+        // clone the body manually because `new Request()` only accepts
+        // a body from a stream, and the original body may already be
+        // consumed.
+        const headers = stripped ? forceAuthHeaders(req.headers) : new Headers(req.headers)
+        urlOut = finalUrl
+        initOut = {
+          method: req.method,
+          headers,
+          body: ['GET', 'HEAD'].includes(req.method) ? undefined : await req.clone().arrayBuffer(),
+          duplex: 'half',
+        } as RequestInit
+      } else {
+        urlOut = req
+      }
+    } else {
+      urlOut = input as any
+    }
+
+    return fetch(urlOut as any, initOut as any)
+  }
 }
 
 // Local-stack-only `supabase.auth` shim.
@@ -254,9 +297,27 @@ function getSupabase(): SupabaseClient {
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     const { createClient } = require('@supabase/supabase-js')
     const isBrowser = typeof window !== 'undefined'
+    // IMPORTANT: in local mode there is no real GoTrue, and our
+    // self-signed local token (see /api/auth/login + buildAuthShim
+    // below) is not something the real supabase-js auth manager can
+    // validate or refresh. If persistSession/autoRefreshToken were
+    // left on here, the *real* internal GoTrueClient (not just the
+    // `.auth` property we swap below) would independently read our
+    // local token out of `LS_KEY`, attach it as the bearer on every
+    // `.from()` call (which PostgREST then rejects with 401, since
+    // it's signed with a different secret), attempt a silent
+    // background refresh against a GoTrue endpoint that doesn't
+    // exist, and on that failure wipe the session out of
+    // localStorage — logging the user out from under the shim. So in
+    // local mode the real client must never touch session storage at
+    // all; the shim below owns it exclusively.
     _supabase = createClient(url, anon, {
-      auth: { persistSession: isBrowser, autoRefreshToken: isBrowser, detectSessionInUrl: false },
-      global: { fetch: localFetch },
+      auth: {
+        persistSession: isBrowser && !IS_LOCAL,
+        autoRefreshToken: isBrowser && !IS_LOCAL,
+        detectSessionInUrl: false,
+      },
+      global: { fetch: makeLocalFetch(anon) },
     })
     if (IS_LOCAL && isBrowser) {
       // Replace the auth namespace with our shim. The real GoTrue
@@ -278,11 +339,11 @@ function getSupabaseAdmin(): SupabaseClient {
     const { createClient } = require('@supabase/supabase-js')
     _supabaseAdmin = createClient(url, service || anon, {
       auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
-      global: { fetch: localFetch },
+      global: { fetch: makeLocalFetch(null) },
     })
     // No need to swap auth on the admin client — the server-side
     // routes call `supabaseAdmin.auth.getUser(token)` directly, and
-    // the `localFetch` shim above routes that call to
+    // the fetch wrapper above routes that call to
     // /api/auth/local-verify.
     return _supabaseAdmin!
   } catch {

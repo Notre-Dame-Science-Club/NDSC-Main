@@ -63,6 +63,54 @@ function resolveTimerSeconds(node: FormNode, graph: FormGraph): number | null {
   return Math.max(0, Math.floor(mins * 60))
 }
 
+// Estimates how many steps deep the form goes *from* a given node, following
+// the longest chain of enabled children down to a leaf. The graph can branch
+// (a node may have several next-step options), so this isn't a fixed number
+// until the user actually picks a path — we recompute it fresh every time the
+// active node changes, which means the progress bar's total can shift as the
+// visitor makes choices (e.g. picking a branch that's shorter/longer than a
+// sibling would have been). That's expected and matches how the graph works;
+// it still reads as steady forward progress since `current` always grows by
+// exactly 1 per step.
+function longestChainLength(id: string, allNodes: FormNode[], guard = 0): number {
+  if (guard > 300) return 1
+  const kids = allNodes
+    .filter(n => n.parent_id === id && n.enabled)
+    .sort((a, b) => (a.display_order ?? 0) - (b.display_order ?? 0))
+  if (!kids.length) return 1
+  return 1 + Math.max(...kids.map(k => longestChainLength(k.id, allNodes, guard + 1)))
+}
+
+// A slim "Step X of Y" progress bar shown above the active step. Only
+// rendered when the admin has opted in for the current node (there's a
+// per-node "Show progress bar at the top" toggle in the form builder) and
+// the form actually has depth beyond the current step — a single-page form
+// has nothing to show progress *of*.
+function StepProgressBar({ current, total, accent }: { current: number; total: number; accent: string }) {
+  const pct = Math.max(4, Math.min(100, Math.round((current / total) * 100)))
+  return (
+    <div className="mb-3.5">
+      <div className="flex items-center justify-between mb-1.5">
+        <span className="text-[11px] font-bold tracking-wider" style={{ color: 'var(--muted)' }}>
+          STEP {current} OF {total}
+        </span>
+        <span className="text-[11px] font-bold" style={{ color: accent }}>{pct}%</span>
+      </div>
+      <div className="h-1.5 rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,0.07)' }}>
+        <div
+          className="h-full rounded-full"
+          style={{
+            width: `${pct}%`,
+            background: accent,
+            boxShadow: `0 0 8px ${accentRgba(accent, 0.55)}`,
+            transition: 'width 0.5s cubic-bezier(0.22,1,0.36,1)',
+          }}
+        />
+      </div>
+    </div>
+  )
+}
+
 // Turns an accent color (either `var(--blue)`-style, which has a matching
 // `--blue-rgb` triplet defined in globals.css, or a plain hex string from a
 // per-event theme override) into an rgba() expression at the given alpha.
@@ -267,8 +315,13 @@ export default function FormRunner({
   const hasFields = (activeNode.fields || []).length > 0
   const hasChildren = directChildren.length > 0
 
+  const currentStep = path.length
+  const totalSteps = (path.length - 1) + longestChainLength(activeNode.id, nodes)
+  const showProgress = !done && !!activeNode.behavior?.show_progress_bar && totalSteps > 1
+
   const body = (
     <div className="flex flex-col gap-3">
+      {showProgress && <StepProgressBar current={currentStep} total={totalSteps} accent={accent} />}
       {path.slice(0, -1).map(id => {
         const n = nodesById[id]
         if (!n) return null

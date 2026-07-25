@@ -63,11 +63,11 @@ function ActivitiesSkeleton() {
 }
 
 /* ── Session Card ─────────────────────────────────────────────── */
-function SessionCard({ s, isMember, regsLoading, isRegisteredForSession }: {
+function SessionCard({ s, isMember, regsLoading, getRegistrationForSession }: {
   s: ActivitySession;
   isMember: boolean;
   regsLoading: boolean;
-  isRegisteredForSession: (sessionId: string) => boolean;
+  getRegistrationForSession: (sessionId: string) => { id: string } | null;
 }) {
   const router = useRouter();
   const ytId = getYoutubeId(s.youtube_url);
@@ -93,23 +93,32 @@ function SessionCard({ s, isMember, regsLoading, isRegisteredForSession }: {
   // localStorage/cookie device markers the register flow writes on
   // completion — which go stale across devices, cleared storage, or a
   // member logging in after registering anonymously. For a logged-in
-  // member we use server truth (isRegisteredForSession, passed down
+  // member we use server truth (getRegistrationForSession, passed down
   // from a single useMyActivityRegistrations call in the parent — one
   // fetch for the whole grid, not one per card); anonymous visitors
   // still fall back to the device marker since there's nothing else to
   // check for them.
-  const [deviceReg, setDeviceReg] = useState(false);
+  const [deviceRegId, setDeviceRegId] = useState<string | null>(null);
   const [deviceRegChecked, setDeviceRegChecked] = useState(false);
   useEffect(() => {
     try {
       const fromLocal = localStorage.getItem(`ndsc_reg_${s.id}`) || localStorage.getItem('ndsc_activity_reg_id');
       const cookieMatch = document.cookie.match(new RegExp(`(?:^|; )ndsc_form_done_activity_${s.id}=([^;]*)`));
-      setDeviceReg(!!(fromLocal || cookieMatch));
+      setDeviceRegId(fromLocal || (cookieMatch ? decodeURIComponent(cookieMatch[1]) : null));
     } catch { /* ignore — storage may be unavailable */ }
     setDeviceRegChecked(true);
   }, [s.id]);
   const regChecked = deviceRegChecked && !regsLoading;
-  const hasReg = isMember ? isRegisteredForSession(s.id) : deviceReg;
+  const serverReg = isMember ? getRegistrationForSession(s.id) : null;
+  const hasReg = isMember ? !!serverReg : !!deviceRegId;
+  // The id /activities/[slug]/dashboard actually needs via ?reg=<id> — it
+  // has no concept of member accounts, only a registration id (from the
+  // URL or its own localStorage key). Server truth telling us hasReg=true
+  // doesn't by itself get that id to the dashboard page; without passing
+  // it explicitly, a member registered from a different device than the
+  // one they're browsing on would land on "we couldn't find your
+  // registration on this device" — which looks like being logged out.
+  const dashboardRegId = serverReg?.id || deviceRegId;
   return (
     <div
       role="link" tabIndex={0}
@@ -205,7 +214,7 @@ function SessionCard({ s, isMember, regsLoading, isRegisteredForSession }: {
           {canRegister ? (
             hasReg ? (
               <Link
-                href={`/activities/${s.slug}/dashboard`}
+                href={dashboardRegId ? `/activities/${s.slug}/dashboard?reg=${dashboardRegId}` : `/activities/${s.slug}/dashboard`}
                 onClick={(e) => e.stopPropagation()}
                 className="btn-outline shrink-0 inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-[11px] font-black tracking-widest"
                 style={{ fontFamily: 'inherit' }}>
@@ -238,9 +247,9 @@ function SessionCard({ s, isMember, regsLoading, isRegisteredForSession }: {
 }
 
 /* ── Version Section ──────────────────────────────────────────── */
-function VersionSection({ version, sessions, isMember, regsLoading, isRegisteredForSession }: {
+function VersionSection({ version, sessions, isMember, regsLoading, getRegistrationForSession }: {
   version: ActivityVersion; sessions: ActivitySession[];
-  isMember: boolean; regsLoading: boolean; isRegisteredForSession: (sessionId: string) => boolean;
+  isMember: boolean; regsLoading: boolean; getRegistrationForSession: (sessionId: string) => { id: string } | null;
 }) {
   const [open, setOpen] = useState(true);
   const published = sessions
@@ -273,7 +282,7 @@ function VersionSection({ version, sessions, isMember, regsLoading, isRegistered
       {open && (
         published.length > 0 ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-            {published.map(s => <SessionCard key={s.id} s={s} isMember={isMember} regsLoading={regsLoading} isRegisteredForSession={isRegisteredForSession} />)}
+            {published.map(s => <SessionCard key={s.id} s={s} isMember={isMember} regsLoading={regsLoading} getRegistrationForSession={getRegistrationForSession} />)}
           </div>
         ) : (
           <div className="text-center py-10" style={{ color: "var(--muted)" }}>
@@ -287,9 +296,9 @@ function VersionSection({ version, sessions, isMember, regsLoading, isRegistered
 }
 
 /* ── Dynamic Activity Tab ─────────────────────────────────────── */
-function DynamicActivityTab({ type, isMember, regsLoading, isRegisteredForSession }: {
+function DynamicActivityTab({ type, isMember, regsLoading, getRegistrationForSession }: {
   type: ActivityType;
-  isMember: boolean; regsLoading: boolean; isRegisteredForSession: (sessionId: string) => boolean;
+  isMember: boolean; regsLoading: boolean; getRegistrationForSession: (sessionId: string) => { id: string } | null;
 }) {
   const [versions, setVersions] = useState<ActivityVersion[]>([]);
   const [sessionMap, setSessionMap] = useState<Record<string, ActivitySession[]>>({});
@@ -365,7 +374,7 @@ function DynamicActivityTab({ type, isMember, regsLoading, isRegisteredForSessio
           {versions
             .sort((a, b) => (b.is_pinned ? 1 : 0) - (a.is_pinned ? 1 : 0) || b.version_number - a.version_number)
             .map(v => (
-              <VersionSection key={v.id} version={v} sessions={sessionMap[v.id] || []} isMember={isMember} regsLoading={regsLoading} isRegisteredForSession={isRegisteredForSession} />
+              <VersionSection key={v.id} version={v} sessions={sessionMap[v.id] || []} isMember={isMember} regsLoading={regsLoading} getRegistrationForSession={getRegistrationForSession} />
             ))
           }
 
@@ -379,7 +388,7 @@ function DynamicActivityTab({ type, isMember, regsLoading, isRegisteredForSessio
               )}
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
                 {directSessions.filter(s => s.is_published).map(s => (
-                  <SessionCard key={s.id} s={s} isMember={isMember} regsLoading={regsLoading} isRegisteredForSession={isRegisteredForSession} />
+                  <SessionCard key={s.id} s={s} isMember={isMember} regsLoading={regsLoading} getRegistrationForSession={getRegistrationForSession} />
                 ))}
               </div>
             </div>
@@ -397,7 +406,7 @@ function ActivitiesContent() {
   const [activeTab, setActiveTab] = useState(searchParams.get("tab") || "");
   const [types, setTypes] = useState<ActivityType[]>([]);
   const [loadingTypes, setLoadingTypes] = useState(true);
-  const { isMember, loading: regsLoading, isRegisteredForSession } = useMyActivityRegistrations();
+  const { isMember, loading: regsLoading, getRegistrationForSession } = useMyActivityRegistrations();
 
   useEffect(() => {
     fetch("/api/admin/activity-types")
@@ -454,7 +463,7 @@ function ActivitiesContent() {
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 py-12">
         {activeType ? (
-          <DynamicActivityTab key={activeType.id} type={activeType} isMember={isMember} regsLoading={regsLoading} isRegisteredForSession={isRegisteredForSession} />
+          <DynamicActivityTab key={activeType.id} type={activeType} isMember={isMember} regsLoading={regsLoading} getRegistrationForSession={getRegistrationForSession} />
         ) : !loadingTypes ? (
           <div className="text-center py-24" style={{ color: "var(--muted)" }}>
             <div className="mb-4 flex justify-center"><Microscope size={44} /></div>

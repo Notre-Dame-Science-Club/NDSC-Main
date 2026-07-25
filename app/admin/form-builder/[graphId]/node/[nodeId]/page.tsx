@@ -234,7 +234,7 @@ export default function NodeEditorPage() {
                     {node.appearance.bg_theme === t.value && <Check size={11} style={{ color: '#000' }} strokeWidth={3} />}
                   </button>
                 ))}
-                <input type="color" value={node.appearance.bg_theme?.startsWith('#') ? node.appearance.bg_theme : 'var(--blue)'}
+                <input type="color" value={node.appearance.bg_theme?.startsWith('#') ? node.appearance.bg_theme : '#00d4ff'}
                   onChange={e => patchAppearance({ bg_theme: e.target.value })}
                   className="w-8 h-8 rounded-full cursor-pointer" style={{ padding: 0, background: 'none', border: '1px solid var(--border)' }}
                   title="Custom color" />

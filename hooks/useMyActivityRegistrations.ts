@@ -58,11 +58,15 @@ export function useMyActivityRegistrations() {
   const isRegisteredForSession = (sessionId: string) =>
     registrations.some(r => r.activity_session_id === sessionId || r.session?.id === sessionId)
 
+  const getRegistrationForSession = (sessionId: string) =>
+    registrations.find(r => r.activity_session_id === sessionId || r.session?.id === sessionId) || null
+
   return {
     isMember: !!memberId,
     memberId,
     registrations,
     loading,
     isRegisteredForSession,
+    getRegistrationForSession,
   }
 }
