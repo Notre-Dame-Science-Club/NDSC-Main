@@ -106,16 +106,16 @@ function makeLocalFetch(forcedBearer: string | null): typeof fetch {
     let initOut: RequestInit | undefined = init
 
     if (typeof input === 'string') {
-      const stripped = stripRestPrefix(input)
-      const authed = !stripped ? rewriteAuthUrl(input) : null
+      const stripped = IS_LOCAL ? stripRestPrefix(input) : null
+      const authed = (IS_LOCAL && !stripped) ? rewriteAuthUrl(input) : null
       urlOut = stripped ?? authed ?? input
       if (stripped) {
         initOut = { ...init, headers: forceAuthHeaders(init?.headers) }
       }
     } else if (input && typeof input === 'object' && 'url' in input) {
       const req = input as Request
-      const stripped = stripRestPrefix(req.url)
-      const authed = !stripped ? rewriteAuthUrl(req.url) : null
+      const stripped = IS_LOCAL ? stripRestPrefix(req.url) : null
+      const authed = (IS_LOCAL && !stripped) ? rewriteAuthUrl(req.url) : null
       const finalUrl = stripped ?? authed
       if (finalUrl) {
         // Reconstruct the request with the rewritten URL. We have to
