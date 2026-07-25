@@ -8,6 +8,17 @@ export async function GET(req: NextRequest) {
   const version_id = searchParams.get('version_id')
   const type_id = searchParams.get('type_id')
   const slug = searchParams.get('slug')
+  const id = searchParams.get('id')
+
+  if (id) {
+    const { data, error } = await supabaseAdmin
+      .from('activity_sessions')
+      .select('*')
+      .eq('id', id)
+      .maybeSingle()
+    if (error) return apiError(error, 400)
+    return apiOk(data)
+  }
 
   if (slug) {
     const { data, error } = await supabaseAdmin

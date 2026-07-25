@@ -58,7 +58,7 @@ function GalaxyBg() {
         if(s.y<0)s.y=canvas.height; if(s.y>canvas.height)s.y=0;
         s.a = 0.25+0.65*(0.5+0.5*Math.sin(t*s.ts+s.x));
         const glow=ctx.createRadialGradient(s.x,s.y,0,s.x,s.y,s.r*3.5);
-        glow.addColorStop(0,`rgba(0,212,255,${s.a*0.5})`); glow.addColorStop(1,"transparent");
+        glow.addColorStop(0,`rgba(59,130,246,${s.a*0.5})`); glow.addColorStop(1,"transparent");
         ctx.fillStyle=glow; ctx.beginPath(); ctx.arc(s.x,s.y,s.r*3.5,0,Math.PI*2); ctx.fill();
         ctx.beginPath(); ctx.arc(s.x,s.y,s.r,0,Math.PI*2);
         ctx.fillStyle=`rgba(190,235,255,${s.a*0.88})`; ctx.fill();
@@ -106,7 +106,7 @@ function DetailPopup({ exec, onClose }: { exec: Executive; onClose: () => void }
 
         {/* Session badge */}
         {exec.session_year && (
-          <div style={{ position:"absolute",top:14,left:14,zIndex:10,padding:"3px 12px",borderRadius:20,background:"rgba(var(--blue-rgb), 0.12)",color:"var(--blue)",border:"1px solid rgba(var(--blue-rgb), 0.3)",fontFamily:"'Orbitron',sans-serif",fontSize:10,letterSpacing:"0.07em",fontWeight:700 }}>
+          <div style={{ position:"absolute",top:14,left:14,zIndex:10,padding:"3px 12px",borderRadius:20,background:"rgba(var(--blue-rgb), 0.12)",color:"var(--blue)",border:"1px solid rgba(var(--blue-rgb), 0.3)",fontFamily:'inherit',fontSize:10,letterSpacing:"0.07em",fontWeight:700 }}>
             {exec.session_year}
           </div>
         )}
@@ -146,7 +146,7 @@ function DetailPopup({ exec, onClose }: { exec: Executive; onClose: () => void }
             )}
             {socials.length > 0 && (
               <div style={{ marginTop:10 }}>
-                <p style={{ fontFamily:"'Orbitron',sans-serif",fontSize:9,color:"rgba(90,130,160,0.55)",letterSpacing:"0.1em",textTransform:"uppercase",marginBottom:8 }}>Connect</p>
+                <p style={{ fontFamily:'inherit',fontSize:9,color:"rgba(90,130,160,0.55)",letterSpacing:"0.1em",textTransform:"uppercase",marginBottom:8 }}>Connect</p>
                 <div style={{ display:"flex",flexWrap:"wrap",gap:8 }}>
                   {socials.map((s,i) => (
                     <a key={i} href={s.href} target="_blank" rel="noopener noreferrer" title={s.label}
@@ -423,7 +423,7 @@ export default function ExecutivesPage() {
   return (
     <div className="exec-page-root" style={{ minHeight:"100vh",paddingTop:72,background:"var(--bg)",position:"relative" }}>
       <link rel="preconnect" href="https://fonts.googleapis.com" />
-      <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700;800;900&family=Montserrat:wght@700;800;900&family=Orbitron:wght@700;900&display=swap" rel="stylesheet" />
+      <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700;800;900&family=Montserrat:wght@700;800;900&display=swap" rel="stylesheet" />
       <style>{`
         /* Gilroy hosted on onlinewebfonts is gone (404) and the host also
            sends no CORS headers. Fall back to Montserrat — already in

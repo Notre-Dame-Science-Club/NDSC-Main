@@ -69,7 +69,7 @@ export function GalaxyCanvas() {
           if (a < 0.003) continue;
           ctx.beginPath();
           ctx.arc(x, y, frac < 0.1 ? 1.0 : 0.55, 0, Math.PI * 2);
-          ctx.fillStyle = arm === 0 ? `rgba(0,212,255,${a})` : `rgba(100,180,255,${a})`;
+          ctx.fillStyle = arm === 0 ? `rgba(59,130,246,${a})` : `rgba(100,180,255,${a})`;
           ctx.fill();
         }
       }
@@ -129,7 +129,7 @@ export function GalaxyCanvas() {
         ctx.fill();
         if (s.bright) {
           const sg = ctx.createRadialGradient(s.x, s.y, 0, s.x, s.y, s.r * 6);
-          sg.addColorStop(0, `rgba(0,212,255,${ao * 0.3})`);
+          sg.addColorStop(0, `rgba(59,130,246,${ao * 0.3})`);
           sg.addColorStop(1, "transparent");
           ctx.beginPath(); ctx.arc(s.x, s.y, s.r * 6, 0, Math.PI * 2);
           ctx.fillStyle = sg; ctx.fill();

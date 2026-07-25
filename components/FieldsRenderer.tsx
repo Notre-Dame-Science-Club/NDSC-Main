@@ -377,6 +377,69 @@ function FieldInput({ field, value, onChange, accent, isUploading, onFileSelect,
       </div>
     )
   }
+  // Olympiad question field types. mcq = single answer, checkbox = multi
+  // (multi-correct), short_answer = free text. Value is stored under the
+  // field's `key` (or `id` if no key) in custom_answers — but the runner
+  // is expected to lift these to mcq_answers/short_answers/photo_answers
+  // server-side when the form graph belongs to an olympiad.
+  if (field.type === 'mcq') {
+    const options = (field as any).mcq_options || []
+    return (
+      <div>
+        {labelEl}
+        {field.marks != null && (
+          <span className="text-[10px] ml-1" style={{ color: 'var(--muted)' }}>({field.marks} mark{field.marks === 1 ? '' : 's'})</span>
+        )}
+        {descEl}
+        <div className="space-y-1.5">
+          {options.map((opt: any) => (
+            <label key={opt.id} className="flex items-center gap-2 px-3 py-2 rounded-lg border text-sm cursor-pointer reg-input" style={inputStyle}>
+              <input type="radio" name={`mcq-${field.id}`} checked={value === opt.id} onChange={() => onChange(opt.id)} />
+              {opt.text}
+            </label>
+          ))}
+        </div>
+        {badgeEl}
+      </div>
+    )
+  }
+  if (field.type === 'checkbox') {
+    const options = (field as any).mcq_options || []
+    const selected: string[] = Array.isArray(value) ? value : []
+    return (
+      <div>
+        {labelEl}
+        {field.marks != null && (
+          <span className="text-[10px] ml-1" style={{ color: 'var(--muted)' }}>({field.marks} mark{field.marks === 1 ? '' : 's'})</span>
+        )}
+        {descEl}
+        <div className="space-y-1.5">
+          {options.map((opt: any) => (
+            <label key={opt.id} className="flex items-center gap-2 px-3 py-2 rounded-lg border text-sm cursor-pointer reg-input" style={inputStyle}>
+              <input type="checkbox" checked={selected.includes(opt.id)}
+                onChange={e => onChange(e.target.checked ? [...selected, opt.id] : selected.filter(x => x !== opt.id))} />
+              {opt.text}
+            </label>
+          ))}
+        </div>
+        {badgeEl}
+      </div>
+    )
+  }
+  if (field.type === 'short_answer') {
+    return (
+      <div>
+        {labelEl}
+        {field.marks != null && (
+          <span className="text-[10px] ml-1" style={{ color: 'var(--muted)' }}>({field.marks} mark{field.marks === 1 ? '' : 's'})</span>
+        )}
+        {descEl}
+        <textarea rows={3} value={value || ''} onChange={e => onChange(e.target.value)}
+          className={inputCls + ' resize-none'} style={inputStyle} placeholder="Type your answer here" />
+        {badgeEl}
+      </div>
+    )
+  }
   // Default: text / number / date / time
   const htmlType = field.type === 'number' ? 'number' : field.type === 'date' ? 'date' : field.type === 'time' ? 'time' : 'text'
   return <div>{labelEl}{descEl}<input type={htmlType} value={value || ''} onChange={e => onChange(e.target.value)} className={inputCls} style={inputStyle} placeholder={(field as any).placeholder} />{badgeEl}</div>

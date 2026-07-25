@@ -136,7 +136,7 @@ export default function AnnotationViewer({
       {/* Header */}
       <div className="flex items-center justify-between gap-4 px-4 py-3 border-b flex-wrap"
         style={{ borderColor: '#0f2a4a', background: '#050d1a' }}>
-        <h2 className="font-bold text-sm" style={{ color: '#00d4ff', fontFamily: 'Orbitron, monospace' }}>
+        <h2 className="font-bold text-sm" style={{ color: 'var(--blue)', fontFamily: 'inherit' }}>
           {readOnly ? 'Answer Sheet' : 'Mark Answer Sheet'}
         </h2>
         <button onClick={onClose} className="px-3 py-1.5 rounded-lg text-xs border"
@@ -224,7 +224,7 @@ export default function AnnotationViewer({
                   style={{ background: '#030a12', borderColor: '#0f2a4a', color: '#e0f0ff' }}
                   placeholder="What's wrong / right here?" />
                 <div className="flex gap-2">
-                  <button onClick={saveNoteText} className="flex-1 py-1.5 rounded text-xs font-semibold" style={{ background: '#00d4ff', color: '#000' }}>Save note</button>
+                  <button onClick={saveNoteText} className="flex-1 py-1.5 rounded text-xs font-semibold" style={{ background: 'var(--blue)', color: '#000' }}>Save note</button>
                   <button onClick={() => setEditingNoteId(null)} className="px-3 py-1.5 rounded text-xs" style={{ color: '#6a8faf' }}>Cancel</button>
                 </div>
               </div>
@@ -264,7 +264,7 @@ export default function AnnotationViewer({
             {!readOnly && onSave && (
               <button onClick={handleSave} disabled={saving}
                 className="w-full flex items-center justify-center gap-2 py-3 rounded-lg font-bold text-sm disabled:opacity-50"
-                style={{ background: 'linear-gradient(90deg,#00d4ff,#0070ff)', color: '#fff' }}>
+                style={{ background: 'linear-gradient(90deg,var(--blue),#0070ff)', color: '#fff' }}>
                 <Save size={15} /> {saving ? 'Saving...' : 'Save & Score'}
               </button>
             )}

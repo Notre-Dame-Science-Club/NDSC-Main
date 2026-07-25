@@ -71,14 +71,11 @@ export default function RegisterPage() {
     if (!/^\d{8}$/.test(form.college_roll)) {
       return setError('Notre Dame College roll numbers are exactly 8 digits.')
     }
-    if (!slipFile) {
-      return setError('Please upload a photo of your membership slip.')
-    }
     setLoading(true)
     setError('')
     setUploadProgress(0)
     try {
-      const payment_slip_url = await uploadSlip(slipFile)
+      const payment_slip_url = slipFile ? await uploadSlip(slipFile) : undefined
       const res = await fetch('/api/auth/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -113,16 +110,16 @@ export default function RegisterPage() {
         <div className="relative rounded-2xl p-10 border"
           style={{ background: 'var(--bg2)', borderColor: 'var(--border)' }}>
           <div className="mb-4 flex justify-center" style={{ color: 'var(--success)' }}><CheckCircle size={56} /></div>
-          <h2 className="text-xl font-bold mb-2" style={{ fontFamily: "'Orbitron', sans-serif", color: 'var(--success)' }}>
+          <h2 className="text-xl font-bold mb-2" style={{ fontFamily: 'inherit', color: 'var(--success)' }}>
             Registration Successful!
           </h2>
           <p className="text-sm mb-6" style={{ color: 'var(--muted)' }}>
-            Your account has been created and is pending admin approval. We'll verify your
-            membership slip and approve your account shortly.
+            Your account has been created. Once you've submitted your membership slip — either
+            now or later from your dashboard — an admin will review it and approve your account.
           </p>
           <button onClick={() => router.push('/login')}
             className="px-6 py-2.5 rounded-lg font-semibold text-sm text-black transition-all"
-            style={{ background: 'var(--blue)', fontFamily: "'Orbitron', sans-serif" }}>
+            style={{ background: 'var(--blue)', fontFamily: 'inherit' }}>
             Go to Login
           </button>
         </div>
@@ -156,7 +153,7 @@ export default function RegisterPage() {
               style={{ background: 'rgba(var(--blue-rgb), 0.1)', border: '1px solid rgba(var(--blue-rgb), 0.3)' }}>
               <UserPlus size={22} style={{ color: 'var(--blue)' }} />
             </div>
-            <h1 className="text-xl font-bold mb-1" style={{ fontFamily: "'Orbitron', sans-serif", color: 'var(--blue)' }}>
+            <h1 className="text-xl font-bold mb-1" style={{ fontFamily: 'inherit', color: 'var(--blue)' }}>
               Create Account
             </h1>
             <p className="text-sm" style={{ color: 'var(--muted)' }}>Join NDSC as a member</p>
@@ -190,11 +187,13 @@ export default function RegisterPage() {
 
             <div>
               <label className="block text-xs font-medium mb-1.5 uppercase tracking-wider" style={labelStyle}>
-                Membership Slip <span style={{ color: 'var(--blue)' }}>*</span>
+                Membership Slip <span style={{ color: 'var(--muted)' }}>(optional)</span>
               </label>
               <p className="text-xs mb-2" style={{ color: 'var(--muted)' }}>
-                Upload a photo of the slip you received after submitting your filled membership
-                form and 200 taka fee at the control room.
+                If you've already submitted your filled membership form and 200 taka fee at the
+                control room, upload a photo of the slip here. Not there yet, or joining from
+                another college or school? Skip this for now — you can add it anytime from your
+                dashboard once it's ready.
               </p>
               <label className="flex flex-col items-center justify-center w-full h-28 rounded-lg border-2 border-dashed cursor-pointer"
                 style={{ borderColor: slipFile ? 'var(--blue)' : 'var(--border)', background: 'rgba(255,255,255,0.02)' }}>
@@ -228,7 +227,7 @@ export default function RegisterPage() {
               className="w-full py-2.5 rounded-lg font-semibold text-sm transition-all mt-2 text-black"
               style={{
                 background: loading ? 'rgba(var(--blue-rgb), 0.4)' : 'var(--blue)',
-                fontFamily: "'Orbitron', sans-serif",
+                fontFamily: 'inherit',
                 letterSpacing: '0.05em',
                 opacity: loading ? 0.7 : 1,
               }}>

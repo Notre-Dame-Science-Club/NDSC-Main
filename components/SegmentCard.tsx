@@ -146,10 +146,10 @@ export default function SegmentCard({
             className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-xl text-sm font-bold transition-all hover:-translate-y-0.5"
             style={
               isEnrolledInThis
-                ? { background: 'rgba(var(--blue-rgb), 0.15)', color: 'var(--blue)', border: '1px solid rgba(var(--blue-rgb), 0.4)', fontFamily: "'Orbitron', sans-serif" }
+                ? { background: 'rgba(var(--blue-rgb), 0.15)', color: 'var(--blue)', border: '1px solid rgba(var(--blue-rgb), 0.4)', fontFamily: 'inherit' }
                 : isEnrolledInAnother
-                ? { background: 'rgba(var(--cat-teal-rgb), 0.12)', color: 'var(--cat-teal)', border: '1px solid rgba(var(--cat-teal-rgb), 0.4)', fontFamily: "'Orbitron', sans-serif" }
-                : { background: 'var(--blue)', color: '#000', fontFamily: "'Orbitron', sans-serif" }
+                ? { background: 'rgba(var(--cat-teal-rgb), 0.12)', color: 'var(--cat-teal)', border: '1px solid rgba(var(--cat-teal-rgb), 0.4)', fontFamily: 'inherit' }
+                : { background: 'var(--blue)', color: '#000', fontFamily: 'inherit' }
             }
           >
             {isEnrolledInThis && <CheckCircle2 size={14} />}

@@ -13,7 +13,7 @@ type Member = {
 const DEPARTMENTS = ['Administration', 'Project', 'Publication', 'ICT', 'LWS', 'Quiz', 'R&D']
 
 const s = { background: 'var(--bg2)', borderColor: 'var(--border)' }
-const h = { fontFamily: "'Orbitron', sans-serif", color: 'var(--blue)' }
+const h = { fontFamily: 'inherit', color: 'var(--blue)' }
 
 export default function AdminMembersPage() {
   const [members, setMembers] = useState<Member[]>([])

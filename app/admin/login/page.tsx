@@ -53,7 +53,7 @@ export default function AdminLoginPage() {
               <Lock size={22} style={{ color: 'var(--blue)' }} />
             </div>
             <h1 className="text-xl font-bold mb-1"
-              style={{ fontFamily: "'Orbitron', sans-serif", color: 'var(--blue)' }}>
+              style={{ fontFamily: 'inherit', color: 'var(--blue)' }}>
               Admin Login
             </h1>
             <p className="text-xs" style={{ color: 'var(--muted)' }}>NDSC Admin Panel — Authorized Access Only</p>
@@ -100,7 +100,7 @@ export default function AdminLoginPage() {
               className="w-full py-2.5 rounded-lg font-semibold text-sm text-black mt-2"
               style={{
                 background: loading ? 'rgba(var(--blue-rgb), 0.5)' : 'var(--blue)',
-                fontFamily: "'Orbitron', sans-serif",
+                fontFamily: 'inherit',
                 letterSpacing: '0.05em',
                 cursor: loading ? 'not-allowed' : 'pointer',
               }}>

@@ -12,6 +12,7 @@ node_modules
 .hashmaps
 .atr_keys
 dev
+scripts
 test
 
 # scripts/ — migration tooling output & its own deps, not source
@@ -19,3 +20,6 @@ scripts/node_modules
 scripts/supabase-export
 scripts/storage-export
 scripts/auth_id_mapping.json
+
+# Local dev stack — generated JWTs and Docker artifacts
+.env.local.localstack

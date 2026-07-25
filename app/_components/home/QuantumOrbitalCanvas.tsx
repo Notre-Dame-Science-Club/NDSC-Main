@@ -48,7 +48,7 @@ export function QuantumOrbitalCanvas({ size = 460 }: { size?: number }) {
 
     const R = sz*0.37;
     const orbs:[Pt[],(t:number)=>[number,number,number],number][]=[
-      [sample("s",    "0,212,255",  R*0.30,300), t=>[ t*0.07,   t*0.05,  0],          1.3],
+      [sample("s",    "59,130,246",  R*0.30,300), t=>[ t*0.07,   t*0.05,  0],          1.3],
       [sample("px",   "60,150,255", R*0.78,460), t=>[ t*0.09+.3, t*0.13,  Math.PI/6], 1.6],
       [sample("py",   "130,90,255", R*0.78,460), t=>[ t*0.11+.8,-t*0.08,  Math.PI/3], 1.6],
       [sample("pz",   "0,210,170",  R*0.78,460), t=>[ t*0.06,    t*0.15, -Math.PI/5], 1.6],

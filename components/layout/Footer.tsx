@@ -79,15 +79,15 @@ export default function Footer() {
     <footer
       className="footer-shell"
       style={{
-        background: "linear-gradient(135deg, #08277A 0%, #061A3A 100%)",
+        background: "linear-gradient(180deg, var(--bg2) 0%, var(--bg) 100%)",
       }}
     >
       <style>{`
         .footer-shell {
           position: relative;
           width: 100%;
-          color: #fff;
-          font-family: 'Poppins', 'Plus Jakarta Sans', sans-serif;
+          color: var(--white);
+          font-family: var(--font-body);
           overflow: hidden;
         }
         .footer-shell::before {
@@ -95,13 +95,13 @@ export default function Footer() {
           position: absolute;
           inset: 0;
           background:
-            radial-gradient(ellipse at 0% 0%, rgba(0, 212, 255, 0.10), transparent 55%),
-            radial-gradient(ellipse at 100% 100%, rgba(0, 212, 255, 0.07), transparent 60%);
+            radial-gradient(ellipse at 0% 0%, rgba(var(--blue-rgb), 0.08), transparent 55%),
+            radial-gradient(ellipse at 100% 100%, rgba(var(--blue-rgb), 0.06), transparent 60%);
           pointer-events: none;
         }
         .footer-top-glow {
           height: 1px;
-          background: linear-gradient(90deg, transparent, rgba(0, 212, 255, 0.45), transparent);
+          background: linear-gradient(90deg, transparent, rgba(var(--blue-rgb), 0.45), transparent);
         }
         .footer-inner {
           position: relative;
@@ -117,12 +117,9 @@ export default function Footer() {
           width: 100%;
           min-width: 0;
           padding: 24px;
-          border: 1px solid rgba(255, 255, 255, 0.18);
-          border-radius: 22px;
-          background: rgba(255, 255, 255, 0.08);
-          box-shadow: 0 20px 45px rgba(0, 0, 0, 0.22);
-          backdrop-filter: blur(14px) saturate(140%);
-          -webkit-backdrop-filter: blur(14px) saturate(140%);
+          border: 1px solid var(--border);
+          border-radius: 16px;
+          background: var(--card);
         }
         .footer-row-list {
           display: grid;
@@ -139,17 +136,17 @@ export default function Footer() {
           gap: 12px;
           margin: 0 !important;
           padding: 13px 14px;
-          border: 1px solid rgba(255, 255, 255, 0.14);
-          border-radius: 14px;
-          background: rgba(255, 255, 255, 0.08);
-          color: #ffffff !important;
+          border: 1px solid var(--border);
+          border-radius: 12px;
+          background: var(--bg2);
+          color: var(--white) !important;
           text-decoration: none !important;
           transition: background-color 0.3s ease, border-color 0.3s ease, transform 0.3s ease;
         }
         .footer-row:hover {
-          color: #ffffff !important;
-          background: rgba(255, 255, 255, 0.14);
-          border-color: rgba(255, 255, 255, 0.24);
+          color: var(--white) !important;
+          background: var(--surface-alt);
+          border-color: rgba(var(--blue-rgb), 0.4);
           transform: translateY(-2px);
         }
         .footer-row-icon {
@@ -159,10 +156,10 @@ export default function Footer() {
           display: flex;
           align-items: center;
           justify-content: center;
-          border: 1px solid rgba(0, 212, 255, 0.32);
-          border-radius: 12px;
-          background: rgba(0, 212, 255, 0.14);
-          color: #00d4ff;
+          border: 1px solid rgba(var(--blue-rgb), 0.32);
+          border-radius: 10px;
+          background: rgba(var(--blue-rgb), 0.1);
+          color: var(--blue);
         }
         .footer-row-text {
           min-width: 0;
@@ -171,14 +168,14 @@ export default function Footer() {
         .footer-row-text small {
           display: block;
           margin: 0 0 3px;
-          color: #aebfdb;
+          color: var(--muted);
           font-size: 12px;
           font-weight: 400;
           line-height: 1.3;
         }
         .footer-row-text strong {
           display: block;
-          color: #ffffff;
+          color: var(--white);
           font-size: 14px;
           font-weight: 600;
           line-height: 1.35;
@@ -194,9 +191,9 @@ export default function Footer() {
         }
         .footer-link-group h3 {
           margin: 0 0 17px;
-          color: #ffffff !important;
-          font-family: 'Orbitron', sans-serif;
-          font-size: 16px;
+          color: var(--white) !important;
+          font-family: var(--font-heading);
+          font-size: 14px;
           font-weight: 800;
           letter-spacing: 0.18em;
           text-transform: uppercase;
@@ -214,7 +211,7 @@ export default function Footer() {
           width: fit-content;
           max-width: 100%;
           padding: 6px 0;
-          color: #cbd5e1 !important;
+          color: var(--muted) !important;
           font-size: 14px;
           font-weight: 400;
           line-height: 1.4;
@@ -222,14 +219,14 @@ export default function Footer() {
           transition: color 0.3s ease, transform 0.3s ease;
         }
         .footer-link-list a:hover {
-          color: #00d4ff !important;
+          color: var(--blue) !important;
           transform: translateX(5px);
         }
         .footer-link-list a .li-dot {
           width: 5px;
           height: 5px;
           border-radius: 50%;
-          background: #00d4ff;
+          background: var(--blue);
           opacity: 0.6;
           transition: opacity 0.3s, transform 0.3s;
         }
@@ -243,7 +240,7 @@ export default function Footer() {
           max-width: 1200px;
           margin: 38px auto 0;
           padding: 20px 0 4px;
-          border-top: 1px solid rgba(255, 255, 255, 0.12);
+          border-top: 1px solid var(--border);
           display: flex;
           align-items: center;
           justify-content: space-between;
@@ -252,7 +249,7 @@ export default function Footer() {
         }
         .footer-bottom p {
           margin: 0 !important;
-          color: #cbd5e1 !important;
+          color: var(--muted) !important;
           font-size: 14px;
           font-weight: 400;
           line-height: 1.5;
@@ -272,7 +269,7 @@ export default function Footer() {
           width: 44px;
           height: 44px;
           position: relative;
-          filter: drop-shadow(0 0 10px rgba(0, 212, 255, 0.4));
+          filter: drop-shadow(0 0 10px rgba(var(--blue-rgb), 0.4));
         }
         .footer-brand-text {
           display: flex;
@@ -280,30 +277,30 @@ export default function Footer() {
           line-height: 1.1;
         }
         .footer-brand-text .t1 {
-          font-family: 'Orbitron', sans-serif;
+          font-family: var(--font-heading);
           font-size: 14px;
           font-weight: 900;
           letter-spacing: 0.22em;
-          background: linear-gradient(180deg, #e8f4ff 0%, #00d4ff 100%);
+          background: linear-gradient(180deg, #e8f4ff 0%, var(--blue) 100%);
           -webkit-background-clip: text;
           background-clip: text;
           -webkit-text-fill-color: transparent;
         }
         .footer-brand-text .t2 {
-          font-family: 'Share Tech Mono', monospace;
+          font-family: var(--font-mono);
           font-size: 10px;
           letter-spacing: 0.18em;
-          color: rgba(0, 212, 255, 0.6);
+          color: rgba(var(--blue-rgb), 0.6);
           margin-top: 2px;
         }
         .footer-blurb {
-          color: #cbd5e1;
+          color: var(--muted);
           font-size: 13px;
           line-height: 1.55;
           margin: 0;
         }
         .footer-blurb em {
-          color: rgba(0, 212, 255, 0.85);
+          color: rgba(var(--blue-rgb), 0.85);
           font-style: normal;
         }
 
@@ -374,7 +371,7 @@ export default function Footer() {
               </div>
             </div>
             <p className="footer-blurb" style={{ marginBottom: 16 }}>
-              Founded in <em style={{ color: "rgba(0,212,255,0.95)" }}>1955</em> — the first
+              Founded in <em style={{ color: "rgba(var(--blue-rgb), 0.95)" }}>1955</em> — the first
               college-level science club in the Indian Subcontinent. Upholding
               <em> &quot;Science in Human Welfare.&quot;</em>
             </p>
@@ -447,8 +444,8 @@ export default function Footer() {
             <h3
               style={{
                 margin: "0 0 16px",
-                color: "#fff",
-                fontFamily: "'Orbitron', sans-serif",
+                color: "var(--white)",
+                fontFamily: 'inherit',
                 fontSize: 14,
                 fontWeight: 800,
                 letterSpacing: "0.18em",
@@ -480,10 +477,10 @@ export default function Footer() {
           <div className="footer-bottom-meta">
             <span
               style={{
-                fontFamily: "'Share Tech Mono', monospace",
+                fontFamily: "var(--font-mono)",
                 fontSize: 12,
                 letterSpacing: "0.18em",
-                color: "rgba(0,212,255,0.5)",
+                color: "rgba(var(--blue-rgb), 0.5)",
               }}
             >
               EST. 1955 · DHAKA, BD
@@ -497,8 +494,8 @@ export default function Footer() {
                 fontSize: 12,
                 fontWeight: 700,
                 letterSpacing: "0.15em",
-                color: "rgba(0,212,255,0.7)",
-                fontFamily: "'Share Tech Mono', monospace",
+                color: "rgba(var(--blue-rgb), 0.7)",
+                fontFamily: "var(--font-mono)",
                 textDecoration: "none",
               }}
             >

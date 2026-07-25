@@ -30,7 +30,7 @@ export function LogoOrbit() {
       {/* Arc text */}
       <svg className="absolute inset-0 w-full h-full pointer-events-none" viewBox="0 0 513 513">
         <defs><path id="arcHero" d="M 67,256 A 189,189 0 1,1 446,256" /></defs>
-        <text fontSize="9" letterSpacing="5.5" fill="rgba(var(--blue-rgb), 0.3)" fontFamily="'Share Tech Mono',monospace" textAnchor="middle">
+        <text fontSize="9" letterSpacing="5.5" fill="rgba(var(--blue-rgb), 0.3)" fontFamily="var(--font-mono)" textAnchor="middle">
           <textPath href="#arcHero" startOffset="50%">SCIENCE IN HUMAN WELFARE • 1955–2025 •</textPath>
         </text>
       </svg>

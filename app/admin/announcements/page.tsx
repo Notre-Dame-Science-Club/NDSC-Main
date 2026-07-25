@@ -11,7 +11,7 @@ type Announcement = {
 }
 
 const s = { background: 'var(--bg2)', borderColor: 'var(--border)' }
-const h = { fontFamily: "'Orbitron', sans-serif", color: 'var(--blue)' }
+const h = { fontFamily: 'inherit', color: 'var(--blue)' }
 const inputClass = 'w-full px-3 py-2 rounded-lg text-sm outline-none border'
 const inputStyle = { background: 'var(--bg3)', borderColor: 'var(--border)', color: 'var(--white)' }
 
@@ -78,7 +78,7 @@ export default function AdminAnnouncementsPage() {
           announcements; the Olympiad admin page links here instead of
           duplicating this form. */}
       <div className="rounded-xl border p-6 mb-6" style={s}>
-        <h2 className="font-bold text-sm mb-4 inline-flex items-center gap-2" style={{ color: 'var(--blue)', fontFamily: "'Orbitron', sans-serif" }}>
+        <h2 className="font-bold text-sm mb-4 inline-flex items-center gap-2" style={{ color: 'var(--blue)', fontFamily: 'inherit' }}>
           <Megaphone size={15} /> Compose Announcement
         </h2>
 
@@ -127,7 +127,7 @@ export default function AdminAnnouncementsPage() {
 
         <button onClick={send} disabled={sending}
           className="flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-black disabled:opacity-50"
-          style={{ background: 'var(--blue)', color: '#000', fontFamily: "'Orbitron', sans-serif" }}>
+          style={{ background: 'var(--blue)', color: '#000', fontFamily: 'inherit' }}>
           <Send size={15} /> {sending ? 'SENDING...' : 'SEND ANNOUNCEMENT'}
         </button>
       </div>
@@ -135,7 +135,7 @@ export default function AdminAnnouncementsPage() {
       {/* History */}
       <div className="rounded-xl border" style={s}>
         <div className="p-5 border-b" style={{ borderColor: 'var(--border)' }}>
-          <h2 className="font-bold text-sm" style={{ color: 'var(--blue)', fontFamily: "'Orbitron', sans-serif" }}>
+          <h2 className="font-bold text-sm" style={{ color: 'var(--blue)', fontFamily: 'inherit' }}>
             Past Announcements
           </h2>
         </div>

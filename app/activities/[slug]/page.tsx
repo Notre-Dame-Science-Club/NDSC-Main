@@ -2,11 +2,10 @@ import { supabaseAdmin } from '@/lib/supabase'
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import PdfViewer from './PdfViewer'
+import RegistrationCTA from './RegistrationCTA'
 import { normalizeUploadUrl, normalizeUploadUrls } from '@/lib/uploadUrl'
 import { CalendarDays, MapPin, FileText, Download, Images } from 'lucide-react'
 import { ActivityIcon } from '@/lib/activityIcons'
-import SegmentCard from '@/components/SegmentCard'
-import MyRegistrationStrip from './MyRegistrationStrip'
 
 export const dynamic = 'force-dynamic'
 
@@ -78,39 +77,18 @@ export default async function SessionDetailPage({
     .order('created_at', { ascending: false })
     .limit(10)
 
-  // Load top-level segment rows (is_segment = true) for the new card layout.
-  // Categories are filtered by registration_open and descendants in the
-  // public API; for the event page we read directly with a coarse filter
-  // (only top-level is_segment rows, and only open ones) so we don't need
-  // a network round-trip. We still respect the closed-parent-cascades
-  // rule, but at the top level this only affects orphan categories without
-  // parents — which by definition are all top-level.
-  const { data: segmentRows } = await supabaseAdmin
-    .from('activity_reg_categories')
-    .select('id, name, description, icon, bg_image_url, schedule_date, schedule_time, schedule_room, requires_team, team_optional, requires_payment, payment_amount, payment_label, is_online_submission, registration_open, display_order')
-    .eq('activity_session_id', session.id)
-    .is('parent_id', null)
-    .eq('is_segment', true)
-    .eq('registration_open', true)
-    .order('display_order', { ascending: true })
-
-  const segments = (segmentRows || []).map((r: any) => ({
-    id: r.id,
-    name: r.name,
-    description: r.description,
-    icon: r.icon,
-    bg_image_url: r.bg_image_url ? normalizeUploadUrl(r.bg_image_url) : null,
-    schedule_date: r.schedule_date,
-    schedule_time: r.schedule_time,
-    schedule_room: r.schedule_room,
-    requires_team: r.requires_team,
-    team_optional: r.team_optional,
-    requires_payment: r.requires_payment,
-    payment_amount: r.payment_amount,
-    payment_label: r.payment_label,
-    is_online_submission: r.is_online_submission,
-  }))
-  const hasSegments = segments.length > 0
+  // The canonical registration system going forward is the Form Builder
+  // graph (form_graphs/form_nodes), the same one olympiads already use via
+  // /register/olympiad/<id>. A graph only counts as "usable" once it has a
+  // root node — an empty graph (just created, nothing added yet) shouldn't
+  // make the Register button appear.
+  const { data: graphRow } = await supabaseAdmin
+    .from('form_graphs')
+    .select('id, root_node_id')
+    .eq('owner_kind', 'activity')
+    .eq('owner_id', session.id)
+    .maybeSingle()
+  const hasFormGraph = !!graphRow?.root_node_id
 
   return (
     <div className="min-h-screen" style={{ paddingTop: '72px', background: 'var(--bg)' }}>
@@ -171,7 +149,7 @@ export default async function SessionDetailPage({
         </div>
 
         <h1 className="text-3xl md:text-4xl font-black mb-5"
-          style={{ fontFamily: "'Orbitron',sans-serif", color: 'var(--white)' }}>
+          style={{ fontFamily: 'inherit', color: 'var(--white)' }}>
           {session.title}
         </h1>
 
@@ -191,42 +169,25 @@ export default async function SessionDetailPage({
           {session.location && <span className="inline-flex items-center gap-1.5"><MapPin size={14} /> {session.location}</span>}
         </div>
 
-        {/* ── Segments — new top-level layout. Each segment is a public
-            card with its own Register button. If no segments exist, fall
-            back to the legacy single-form CTA. ── */}
-        {session.is_upcoming && session.registration_enabled && hasSegments && (
-          <div className="mb-8">
-            <h2 className="text-xl font-bold mb-4 flex items-center gap-2"
-              style={{ fontFamily: "'Orbitron',sans-serif", color: 'var(--white)' }}>
-              Segments
-            </h2>
-            <MyRegistrationStrip slug={session.slug} sessionId={session.id} segments={segments} />
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              {segments.map(seg => (
-                <SegmentCard key={seg.id} segment={seg} slug={session.slug} sessionId={session.id} />
-              ))}
-            </div>
-            {session.registration_note && (
-              <p className="text-xs mt-3" style={{ color: 'var(--muted)' }}>{session.registration_note}</p>
-            )}
-          </div>
+        {/* Registration CTA — the Form Builder graph is now the canonical
+            registration system for activities, the same one olympiads use
+            via /register/olympiad/<id>. RegistrationCTA checks real
+            registration status (server-side for logged-in members, device
+            marker as a fallback for anonymous visitors) instead of always
+            offering "Register Now" regardless of whether they already are. */}
+        {session.is_upcoming && session.registration_enabled && hasFormGraph && (
+          <RegistrationCTA sessionId={session.id} slug={session.slug} registrationNote={session.registration_note} />
         )}
 
-        {/* Legacy single-form CTA — only shown when no segments exist */}
-        {session.is_upcoming && session.registration_enabled && !hasSegments && (
-          <div className="rounded-2xl border p-6 mb-8 flex items-center justify-between gap-4 flex-wrap"
-            style={{ background: 'rgba(var(--blue-rgb), 0.06)', borderColor: 'rgba(var(--blue-rgb), 0.3)' }}>
-            <div>
-              <p className="font-bold text-base mb-1" style={{ color: 'var(--white)' }}>Registration is open</p>
-              {session.registration_note && (
-                <p className="text-sm" style={{ color: 'var(--muted)' }}>{session.registration_note}</p>
-              )}
-            </div>
-            <Link href={`/activities/${session.slug}/register`}
-              className="px-6 py-3 rounded-xl font-bold text-sm text-black flex-shrink-0 transition-all hover:-translate-y-0.5"
-              style={{ background: 'var(--blue)', fontFamily: "'Orbitron', sans-serif" }}>
-              Register Now →
-            </Link>
+        {/* Registration is turned on but nobody's built the form graph yet
+            (Admin → Activities → this event → Form Builder tab) — show a
+            calm placeholder instead of a Register button with nowhere to
+            go, rather than falling back to the old category system. */}
+        {session.is_upcoming && session.registration_enabled && !hasFormGraph && (
+          <div className="rounded-2xl border p-6 mb-8"
+            style={{ background: 'var(--surface-deep)', borderColor: 'var(--border)' }}>
+            <p className="font-bold text-base mb-1" style={{ color: 'var(--white)' }}>Registration form is being finalized</p>
+            <p className="text-sm" style={{ color: 'var(--muted)' }}>Check back shortly — this event's sign-up form isn't ready yet.</p>
           </div>
         )}
 
@@ -251,7 +212,7 @@ export default async function SessionDetailPage({
         {updates && updates.length > 0 && (
           <div className="rounded-2xl border p-6 mb-8"
             style={{ background: 'var(--card)', borderColor: 'var(--border)' }}>
-            <h2 className="text-lg font-bold mb-4" style={{ fontFamily: "'Orbitron',sans-serif", color: 'var(--white)' }}>
+            <h2 className="text-lg font-bold mb-4" style={{ fontFamily: 'inherit', color: 'var(--white)' }}>
               Updates
             </h2>
             <div className="flex flex-col gap-4">
@@ -281,7 +242,7 @@ export default async function SessionDetailPage({
             style={{ background: 'var(--card)', borderColor: 'var(--border)' }}>
             <div className="flex items-center justify-between px-6 py-4 border-b" style={{ borderColor: 'var(--border)' }}>
               <span className="font-bold text-sm flex items-center gap-2"
-                style={{ fontFamily: "'Orbitron',sans-serif", color: 'var(--blue)' }}>
+                style={{ fontFamily: 'inherit', color: 'var(--blue)' }}>
                 <FileText size={15} /> Session Notes / PDF
               </span>
               <a href={session.pdf_url} target="_blank" rel="noopener noreferrer"
@@ -297,7 +258,7 @@ export default async function SessionDetailPage({
         {session.gallery_urls && session.gallery_urls.length > 0 && (
           <div className="mb-8">
             <h2 className="text-xl font-bold mb-5 flex items-center gap-2"
-              style={{ fontFamily: "'Orbitron',sans-serif", color: 'var(--white)' }}>
+              style={{ fontFamily: 'inherit', color: 'var(--white)' }}>
               <Images size={18} /> Gallery
             </h2>
             <div className="grid grid-cols-2 md:grid-cols-3 gap-3">

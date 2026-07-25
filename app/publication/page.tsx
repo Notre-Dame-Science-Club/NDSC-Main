@@ -73,7 +73,7 @@ export default function PublicationPage() {
 
   if (loading) return (
     <div className="min-h-screen flex items-center justify-center" style={{ paddingTop: '72px' }}>
-      <p style={{ color: 'var(--muted)', fontFamily: "'Share Tech Mono', monospace" }}>LOADING...</p>
+      <p style={{ color: 'var(--muted)', fontFamily: "var(--font-mono)" }}>LOADING...</p>
     </div>
   )
 
@@ -85,7 +85,7 @@ export default function PublicationPage() {
           <div className="flex items-center justify-between px-6 py-3 border-b shrink-0"
             style={{ borderColor: 'var(--border)', background: 'var(--bg2)' }}>
             <span className="text-sm font-bold truncate"
-              style={{ fontFamily: "'Orbitron',sans-serif", color: 'var(--blue)' }}>
+              style={{ fontFamily: 'inherit', color: 'var(--blue)' }}>
               {selectedPub.title}
             </span>
             <div className="flex items-center gap-3 shrink-0">
@@ -126,7 +126,7 @@ export default function PublicationPage() {
                     <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
                       style={{ background: 'rgba(0,0,0,0.6)' }}>
                       <span className="text-xs font-bold tracking-widest px-4 py-2 rounded border"
-                        style={{ borderColor: 'var(--blue)', color: 'var(--blue)', fontFamily: "'Orbitron',sans-serif" }}>
+                        style={{ borderColor: 'var(--blue)', color: 'var(--blue)', fontFamily: 'inherit' }}>
                         READ
                       </span>
                     </div>
@@ -142,7 +142,7 @@ export default function PublicationPage() {
 
             <div>
               <h1 className="reveal text-4xl md:text-5xl font-black mb-2"
-                style={{ fontFamily: "'Orbitron',sans-serif" }}>
+                style={{ fontFamily: 'inherit' }}>
                 অদ্রি <span style={{ color: 'var(--blue)' }}>(AUDRI)</span>
               </h1>
               {audri ? (
@@ -161,7 +161,7 @@ export default function PublicationPage() {
                         target="_blank"
                         rel="noopener noreferrer"
                         className="flex items-center gap-2 px-6 py-3 font-black text-sm tracking-widest rounded inline-flex"
-                        style={{ background: 'var(--blue)', color: '#000', fontFamily: "'Orbitron',sans-serif" }}
+                        style={{ background: 'var(--blue)', color: '#000', fontFamily: 'inherit' }}
                       >
                         <BookOpen size={16} /> READ ONLINE
                       </a>
@@ -169,7 +169,7 @@ export default function PublicationPage() {
                     {audri.pdf_url && (
                       <a href={audri.pdf_url} download
                         className="flex items-center gap-2 px-6 py-3 font-black text-sm tracking-widest rounded border"
-                        style={{ borderColor: 'var(--blue)', color: 'var(--blue)', fontFamily: "'Orbitron',sans-serif" }}>
+                        style={{ borderColor: 'var(--blue)', color: 'var(--blue)', fontFamily: 'inherit' }}>
                         DOWNLOAD
                       </a>
                     )}
@@ -191,12 +191,12 @@ export default function PublicationPage() {
         <div className="max-w-7xl mx-auto px-6">
           <div className="reveal section-label mb-2">Club Publication</div>
           <div className="reveal flex items-end justify-between mb-10 flex-wrap gap-4">
-            <h2 className="text-3xl font-black" style={{ fontFamily: "'Orbitron',sans-serif" }}>
+            <h2 className="text-3xl font-black" style={{ fontFamily: 'inherit' }}>
               WALL <span style={{ color: 'var(--blue)' }}>MAGAZINE</span>
             </h2>
             <Link href="/publication/wall_magazine"
               className="flex items-center gap-1.5 text-xs font-bold tracking-widest"
-              style={{ color: 'var(--muted)', fontFamily: "'Share Tech Mono',monospace" }}>
+              style={{ color: 'var(--muted)', fontFamily: "var(--font-mono)" }}>
               VIEW PREVIOUS <ChevronRight size={12} />
             </Link>
           </div>
@@ -214,12 +214,12 @@ export default function PublicationPage() {
         <div className="max-w-7xl mx-auto px-6">
           <div className="reveal section-label mb-2">3D Wall Magazine</div>
           <div className="reveal flex items-end justify-between mb-10 flex-wrap gap-4">
-            <h2 className="text-3xl font-black" style={{ fontFamily: "'Orbitron',sans-serif" }}>
+            <h2 className="text-3xl font-black" style={{ fontFamily: 'inherit' }}>
               <span style={{ color: 'var(--accent2)' }}>TRIMATRIK</span>
             </h2>
             <Link href="/publication/trimatrik"
               className="flex items-center gap-1.5 text-xs font-bold tracking-widest"
-              style={{ color: 'var(--muted)', fontFamily: "'Share Tech Mono',monospace" }}>
+              style={{ color: 'var(--muted)', fontFamily: "var(--font-mono)" }}>
               VIEW PREVIOUS <ChevronRight size={12} />
             </Link>
           </div>
@@ -236,12 +236,12 @@ export default function PublicationPage() {
         <div className="max-w-7xl mx-auto px-6">
           <div className="reveal section-label mb-2">Focus Publication</div>
           <div className="reveal flex items-end justify-between mb-10 flex-wrap gap-4">
-            <h2 className="text-3xl font-black" style={{ fontFamily: "'Orbitron',sans-serif" }}>
+            <h2 className="text-3xl font-black" style={{ fontFamily: 'inherit' }}>
               <span style={{ color: 'var(--accent)' }}>ABHISHKAR</span> FOCUS
             </h2>
             <Link href="/publication/abhishkar"
               className="flex items-center gap-1.5 text-xs font-bold tracking-widest"
-              style={{ color: 'var(--muted)', fontFamily: "'Share Tech Mono',monospace" }}>
+              style={{ color: 'var(--muted)', fontFamily: "var(--font-mono)" }}>
               VIEW PREVIOUS <ChevronRight size={12} />
             </Link>
           </div>
@@ -261,12 +261,12 @@ export default function PublicationPage() {
             <div className="max-w-7xl mx-auto px-6">
               <div className="reveal section-label mb-2">{meta.sectionLabel}</div>
               <div className="reveal flex items-end justify-between mb-10 flex-wrap gap-4">
-                <h2 className="text-3xl font-black" style={{ fontFamily: "'Orbitron',sans-serif" }}>
+                <h2 className="text-3xl font-black" style={{ fontFamily: 'inherit' }}>
                   <span style={{ color: meta.accent }}>{meta.title.toUpperCase()}</span>
                 </h2>
                 <Link href={`/publication/${category}`}
                   className="flex items-center gap-1.5 text-xs font-bold tracking-widest"
-                  style={{ color: 'var(--muted)', fontFamily: "'Share Tech Mono',monospace" }}>
+                  style={{ color: 'var(--muted)', fontFamily: "var(--font-mono)" }}>
                   {meta.linkLabel} <ChevronRight size={12} />
                 </Link>
               </div>
@@ -299,7 +299,7 @@ function PreviousEditions({ category, accentColor }: { category: string; accentC
   return (
     <div className="mt-16 pt-10 border-t" style={{ borderColor: 'var(--border)' }}>
       <p className="text-xs font-bold tracking-widest mb-6"
-        style={{ color: 'var(--muted)', fontFamily: "'Share Tech Mono',monospace" }}>
+        style={{ color: 'var(--muted)', fontFamily: "var(--font-mono)" }}>
         READ PREVIOUS EDITIONS
       </p>
       <div className="flex flex-wrap gap-5">
@@ -320,7 +320,7 @@ function PrevCover({ pub, accentColor }: { pub: Publication; accentColor: string
         <div className="fixed inset-0 z-50 flex flex-col" style={{ background: 'rgba(0,0,0,0.97)' }}>
           <div className="flex items-center justify-between px-6 py-3 border-b shrink-0"
             style={{ borderColor: 'var(--border)', background: 'var(--bg2)' }}>
-            <span className="text-sm font-bold" style={{ fontFamily: "'Orbitron',sans-serif", color: accentColor }}>
+            <span className="text-sm font-bold" style={{ fontFamily: 'inherit', color: accentColor }}>
               {pub.title}
             </span>
             <div className="flex items-center gap-3">
@@ -392,10 +392,10 @@ function FeatureCard({
   const textEl = (
     <div className="flex flex-col justify-center flex-1">
       <span className="text-xs font-bold tracking-widest mb-3"
-        style={{ color: accentColor, fontFamily: "'Share Tech Mono',monospace" }}>
+        style={{ color: accentColor, fontFamily: "var(--font-mono)" }}>
         {pub.published_year}
       </span>
-      <h3 className="text-2xl md:text-3xl font-black mb-4" style={{ fontFamily: "'Orbitron',sans-serif" }}>
+      <h3 className="text-2xl md:text-3xl font-black mb-4" style={{ fontFamily: 'inherit' }}>
         {pub.title}
       </h3>
       {pub.description && (

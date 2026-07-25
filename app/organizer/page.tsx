@@ -126,7 +126,7 @@ export default function OrganizerPage() {
   if (step === 'login') return (
     <div className="min-h-screen flex items-center justify-center" style={{ background: 'var(--bg3)', paddingTop: 72 }}>
       <div className="w-full max-w-sm p-8 rounded-2xl border" style={{ background: 'var(--bg2)', borderColor: 'var(--border)' }}>
-        <h1 className="text-2xl font-black mb-2 text-center" style={{ fontFamily: "'Orbitron', sans-serif", color: 'var(--blue)' }}>ORGANIZER</h1>
+        <h1 className="text-2xl font-black mb-2 text-center" style={{ fontFamily: 'inherit', color: 'var(--blue)' }}>ORGANIZER</h1>
         <p className="text-xs text-center mb-6" style={{ color: 'var(--muted)' }}>Review panel for NDSC Olympiad submissions</p>
         <label className="block text-xs mb-1" style={{ color: 'var(--muted)' }}>Organizer Password</label>
         <input type="password" className="w-full px-4 py-3 rounded-lg text-sm border outline-none mb-4"
@@ -135,7 +135,7 @@ export default function OrganizerPage() {
         {error && <p className="text-xs mb-3" style={{ color: 'var(--danger-soft)' }}>{error}</p>}
         <button onClick={() => doLogin(password)} disabled={loading}
           className="w-full py-3 font-black text-sm rounded-lg disabled:opacity-50"
-          style={{ background: 'var(--blue)', color: '#000', fontFamily: "'Orbitron', sans-serif" }}>
+          style={{ background: 'var(--blue)', color: '#000', fontFamily: 'inherit' }}>
           {loading ? 'CHECKING...' : 'LOGIN →'}
         </button>
       </div>
@@ -147,7 +147,7 @@ export default function OrganizerPage() {
     <div className="min-h-screen flex items-center justify-center" style={{ background: 'var(--bg3)', paddingTop: 72 }}>
       <div className="w-full max-w-md p-8 rounded-2xl border" style={{ background: 'var(--bg2)', borderColor: 'var(--border)' }}>
         <div className="flex items-center justify-between mb-6">
-          <h1 className="text-xl font-black" style={{ fontFamily: "'Orbitron', sans-serif", color: 'var(--blue)' }}>Select Olympiad</h1>
+          <h1 className="text-xl font-black" style={{ fontFamily: 'inherit', color: 'var(--blue)' }}>Select Olympiad</h1>
           <button onClick={logout} className="text-xs px-3 py-1 rounded-lg border" style={{ borderColor: 'var(--border)', color: 'var(--muted)' }}>Logout</button>
         </div>
         <div className="space-y-3">
@@ -178,7 +178,7 @@ export default function OrganizerPage() {
               ← Back
             </button>
             <div>
-              <h1 className="text-xl font-black" style={{ fontFamily: "'Orbitron', sans-serif", color: 'var(--blue)' }}>{selected?.name}</h1>
+              <h1 className="text-xl font-black" style={{ fontFamily: 'inherit', color: 'var(--blue)' }}>{selected?.name}</h1>
               <p className="text-xs" style={{ color: 'var(--muted)' }}>{regs.length} total submissions</p>
             </div>
           </div>
@@ -298,7 +298,7 @@ export default function OrganizerPage() {
       {viewingReg && !viewingReg.answer_sheet_url && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(2,8,16,0.85)' }}>
           <div className="w-full max-w-sm rounded-2xl border p-6" style={{ background: 'var(--bg2)', borderColor: 'var(--border)' }}>
-            <h2 className="font-bold text-sm mb-4" style={{ color: 'var(--blue)', fontFamily: "'Orbitron', sans-serif" }}>
+            <h2 className="font-bold text-sm mb-4" style={{ color: 'var(--blue)', fontFamily: 'inherit' }}>
               Score — {viewingReg.full_name}
             </h2>
             <ScoreOnlyForm reg={viewingReg} onClose={() => setViewingReg(null)} onSave={saveAnnotatedScore} />

@@ -33,7 +33,7 @@ export async function GET(req: NextRequest) {
 
   const { data: registrations, error: regError } = await supabaseAdmin
     .from('activity_registrations')
-    .select('id, category_id, full_name, phone, email, college, college_roll, hsc_session, project_name, custom_answers, team_members, payment_status, created_at')
+    .select('id, category_id, form_graph_id, full_name, phone, email, college, college_roll, hsc_session, project_name, custom_answers, team_members, payment_status, created_at')
     .eq('activity_session_id', sessionId)
     .order('created_at', { ascending: false })
 
@@ -41,7 +41,10 @@ export async function GET(req: NextRequest) {
 
   const result = (registrations || []).map(r => ({
     ...r,
-    breadcrumb: breadcrumbFor(r.category_id),
+    // category_id is only set for registrations from the old segment/
+    // category system. Anything through the Form Builder graph has
+    // category_id = null and form_graph_id set instead.
+    breadcrumb: r.category_id ? breadcrumbFor(r.category_id) : (r.form_graph_id ? ['Form Builder'] : []),
     is_online_category: catById.get(r.category_id)?.is_online_submission || false,
     team_size: 1 + ((r.team_members as any[]) || []).length,
   }))

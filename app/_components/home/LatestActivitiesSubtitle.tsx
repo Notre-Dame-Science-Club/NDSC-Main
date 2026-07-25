@@ -21,7 +21,7 @@ export function LatestActivitiesSubtitle() {
   return (
     <p className="mt-2 text-sm font-medium"
       style={{
-        fontFamily: "'Share Tech Mono',monospace",
+        fontFamily: "var(--font-mono)",
         color: "var(--blue)",
         letterSpacing: "0.2em",
         opacity: visible ? 1 : 0,

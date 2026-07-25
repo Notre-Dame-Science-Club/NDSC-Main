@@ -27,8 +27,8 @@ export default function ActivityRegisterButton({ slug, sessionId }: Props) {
   if (hasReg) {
     return (
       <Link href={`/activities/${slug}/dashboard`}
-        className="px-6 py-3 rounded-xl font-bold text-sm flex-shrink-0 transition-all hover:-translate-y-0.5"
-        style={{ background: 'rgba(var(--blue-rgb), 0.15)', color: 'var(--blue)', border: '1px solid rgba(var(--blue-rgb), 0.4)', fontFamily: "'Orbitron', sans-serif" }}>
+        className="btn-outline px-6 py-3 rounded-xl font-bold text-sm flex-shrink-0"
+        style={{ fontFamily: 'inherit' }}>
         My Dashboard →
       </Link>
     )
@@ -36,8 +36,8 @@ export default function ActivityRegisterButton({ slug, sessionId }: Props) {
 
   return (
     <Link href={`/activities/${slug}/register`}
-      className="px-6 py-3 rounded-xl font-bold text-sm text-black flex-shrink-0 transition-all hover:-translate-y-0.5"
-      style={{ background: 'var(--blue)', fontFamily: "'Orbitron', sans-serif" }}>
+      className="btn-primary px-6 py-3 rounded-xl font-bold text-sm flex-shrink-0"
+      style={{ fontFamily: 'inherit' }}>
       Register Now →
     </Link>
   )

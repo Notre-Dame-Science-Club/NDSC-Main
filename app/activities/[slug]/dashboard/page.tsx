@@ -349,7 +349,7 @@ export default function ActivityDashboardPage() {
         )}
 
         <div>
-          <h1 className="text-2xl font-black mb-1" style={{ fontFamily: "'Orbitron', sans-serif", color: 'var(--white)' }}>
+          <h1 className="text-2xl font-black mb-1" style={{ fontFamily: 'inherit', color: 'var(--white)' }}>
             {session?.title}
           </h1>
           <p className="text-sm" style={{ color: 'var(--muted)' }}>{category?.name}</p>
@@ -463,7 +463,7 @@ export default function ActivityDashboardPage() {
         {/* ── Online Submission / Exam Section ─────────────────────────── */}
         {category?.is_online_submission && (
           <div className="rounded-xl p-5 space-y-4" style={{ background: 'rgba(var(--blue-rgb), 0.05)', border: '1px solid rgba(var(--blue-rgb), 0.25)' }}>
-            <p className="text-sm font-bold flex items-center gap-2" style={{ color: 'var(--blue)', fontFamily: "'Orbitron', sans-serif" }}>
+            <p className="text-sm font-bold flex items-center gap-2" style={{ color: 'var(--blue)', fontFamily: 'inherit' }}>
               <ExternalLink size={14} /> Online Round
             </p>
 
@@ -535,7 +535,7 @@ export default function ActivityDashboardPage() {
             {olympiad?.relay_mode && !relayState && mySubmittedBy === 'leader' && !examNotYetStarted && !examEnded && (
               <button onClick={startRelay}
                 className="w-full py-3 rounded-xl font-bold text-sm text-black"
-                style={{ background: 'var(--blue)', fontFamily: "'Orbitron', sans-serif" }}>
+                style={{ background: 'var(--blue)', fontFamily: 'inherit' }}>
                 <Play size={14} className="inline mr-2" />Start Team Relay
               </button>
             )}
@@ -544,7 +544,7 @@ export default function ActivityDashboardPage() {
             {olympiad && !hasSubmissionConfig && !examNotYetStarted && !examEnded && isMyRelayTurn && !mySubmission && (
               <Link href={`/activities/${slug}/relay-exam?reg=${registration.id}&olympiad=${olympiad.id}&member=${mySubmittedBy}`}
                 className="flex items-center justify-center gap-2 w-full py-3 rounded-xl font-bold text-sm text-black"
-                style={{ background: 'var(--blue)', fontFamily: "'Orbitron', sans-serif" }}>
+                style={{ background: 'var(--blue)', fontFamily: 'inherit' }}>
                 <Play size={14} /> Start Exam →
               </Link>
             )}
@@ -615,7 +615,7 @@ export default function ActivityDashboardPage() {
                       </button>
                       <button onClick={() => submitAnswers(true)} disabled={submitting}
                         className="flex-1 py-2.5 rounded-xl text-sm font-bold text-black disabled:opacity-60"
-                        style={{ background: 'var(--blue)', fontFamily: "'Orbitron', sans-serif" }}>
+                        style={{ background: 'var(--blue)', fontFamily: 'inherit' }}>
                         {submitting ? 'Submitting…' : <>Submit Final <CheckCircle size={13} /></>}
                       </button>
                     </div>

@@ -70,18 +70,18 @@ function AuthButton({ mobile = false }: { mobile?: boolean }) {
   if (mobile) {
     return loggedIn ? (
       <>
-        <Link href="/dashboard" className="mt-5 py-4 text-center font-black tracking-widest rounded-xl border text-sm" style={{ borderColor: "var(--blue)", color: "var(--blue)", fontFamily: "'Orbitron',sans-serif" }}>MY DASHBOARD</Link>
+        <Link href="/dashboard" className="mt-5 py-4 text-center font-black tracking-widest rounded-xl border text-sm" style={{ borderColor: "var(--blue)", color: "var(--blue)", fontFamily: 'inherit' }}>MY DASHBOARD</Link>
         <button onClick={handleLogout} className="py-3 text-sm text-center" style={{ color: "var(--muted)" }}>Sign Out</button>
       </>
     ) : (
-      <Link href="/login" className="mt-5 py-4 text-center font-black tracking-widest rounded-xl border text-sm" style={{ borderColor: "var(--blue)", color: "var(--blue)", fontFamily: "'Orbitron',sans-serif" }}>MEMBER LOGIN</Link>
+      <Link href="/login" className="mt-5 py-4 text-center font-black tracking-widest rounded-xl border text-sm" style={{ borderColor: "var(--blue)", color: "var(--blue)", fontFamily: 'inherit' }}>MEMBER LOGIN</Link>
     );
   }
 
   return loggedIn ? (
-    <Link href="/dashboard" className="px-4 py-2 text-xs font-black tracking-widest rounded-lg border transition-all duration-200 hover:bg-[var(--blue)] hover:text-black hover:border-[var(--blue)]" style={{ borderColor: "var(--blue)", color: "var(--blue)", fontFamily: "'Orbitron',sans-serif" }}>Dashboard</Link>
+    <Link href="/dashboard" className="px-4 py-2 text-xs font-black tracking-widest rounded-lg border transition-all duration-200 hover:bg-[var(--blue)] hover:text-black hover:border-[var(--blue)]" style={{ borderColor: "var(--blue)", color: "var(--blue)", fontFamily: 'inherit' }}>Dashboard</Link>
   ) : (
-    <Link href="/login" className="px-4 py-2 text-xs font-black tracking-widest rounded-lg border transition-all duration-200 hover:bg-[var(--blue)] hover:text-black hover:border-[var(--blue)]" style={{ borderColor: "var(--blue)", color: "var(--blue)", fontFamily: "'Orbitron',sans-serif" }}>Login</Link>
+    <Link href="/login" className="px-4 py-2 text-xs font-black tracking-widest rounded-lg border transition-all duration-200 hover:bg-[var(--blue)] hover:text-black hover:border-[var(--blue)]" style={{ borderColor: "var(--blue)", color: "var(--blue)", fontFamily: 'inherit' }}>Login</Link>
   );
 }
 
@@ -93,6 +93,87 @@ export default function Navbar() {
   const [openDesktop, setOpenDesktop] = useState<string | null>(null);
   const pathname = usePathname();
   const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const desktopWheelRef = useRef<HTMLSpanElement | null>(null);
+  const mobileWheelRef = useRef<HTMLSpanElement | null>(null);
+
+  // Drive the wheel from JS. The same animator that moves the wheel
+  // also writes the text visibility directly to the DOM, so motion
+  // and text stay in perfect sync without React re-renders.
+  useEffect(() => {
+    let raf = 0;
+    if (typeof window === "undefined") return;
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+
+    // ── Timing of one cycle, in seconds ──────────────────────────────
+    const CYCLE = 15;
+    const ROLL_DURATION = 2.4;
+    const PARK_DURATION = 1.0;
+    const IDLE_FRACTION = 0.30;
+    // idle = 4.5s, roll-out = 2.4s, park = 1.0s, roll-back = 2.4s, trailing idle = 4.7s
+
+    // Cubic ease-in-out — smooth acceleration, slight settle.
+    const easeInOut = (t: number) =>
+      t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+
+    // Wait one frame so refs are populated after mount.
+    const start = performance.now();
+    let lastMoving: boolean | null = null;
+
+    const setMovingAttr = (el: HTMLElement | null, v: boolean) => {
+      if (!el) return;
+      if (el.dataset.moving !== String(v)) el.dataset.moving = String(v);
+    };
+    const setTransform = (el: HTMLElement | null, tx: number, rot: number) => {
+      if (!el) return;
+      el.style.transform = `translateX(${tx}px) rotate(${rot}deg)`;
+    };
+
+    const tick = (now: number) => {
+      const t = ((now - start) / 1000) % CYCLE;
+      const phase = t / CYCLE;
+
+      let tx = 0;
+      let rot = 0;
+      const rollFrac = ROLL_DURATION / CYCLE;
+      const parkFrac = PARK_DURATION / CYCLE;
+      const rollStart = IDLE_FRACTION;
+      const parkStart = rollStart + rollFrac;
+      const rollBackStart = parkStart + parkFrac;
+      const cycleEnd = rollBackStart + rollFrac;
+
+      if (phase >= rollStart && phase < parkStart) {
+        const k = (phase - rollStart) / rollFrac;
+        const e = easeInOut(k);
+        tx = 210 * e;
+        rot = 360 * e;
+      } else if (phase >= parkStart && phase < rollBackStart) {
+        tx = 210;
+        rot = 360;
+      } else if (phase >= rollBackStart && phase < cycleEnd) {
+        const k = (phase - rollBackStart) / rollFrac;
+        const e = easeInOut(k);
+        tx = 210 * (1 - e);
+        rot = 360 * (1 - e);
+      }
+
+      const moving = tx !== 0 || rot !== 0;
+      setTransform(desktopWheelRef.current, tx, rot);
+      setTransform(mobileWheelRef.current, tx, rot);
+      if (moving !== lastMoving) {
+        lastMoving = moving;
+        // Desktop text wrap is the parent of the desktop wheel's sibling.
+        // Find them via the ref's parentElement structure.
+        const dt = desktopWheelRef.current?.parentElement?.querySelector<HTMLElement>(".ndsc-logo-text-wrap");
+        const mt = mobileWheelRef.current?.parentElement?.querySelector<HTMLElement>(".t1-wrap");
+        setMovingAttr(dt, moving);
+        setMovingAttr(mt, moving);
+      }
+
+      raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, []);
 
   useEffect(() => {
     fetch("/api/activity-types-public")
@@ -137,7 +218,7 @@ export default function Navbar() {
           background: rgba(2, 8, 16, 0.92);
           backdrop-filter: blur(20px) saturate(180%);
           -webkit-backdrop-filter: blur(20px) saturate(180%);
-          border-bottom: 1px solid rgba(0, 212, 255, 0.12);
+          border-bottom: 1px solid rgba(var(--blue-rgb), 0.12);
         }
         .nav-link {
           position: relative;
@@ -173,20 +254,39 @@ export default function Navbar() {
            that read as one deliberate piece, not a moving bar. Hover
            swaps it to a crisp solid color and adds a small scale. */
         .ndsc-logo-text {
-          background: linear-gradient(180deg, #e8f4ff 0%, #00d4ff 100%);
+          background: linear-gradient(180deg, #e8f4ff 0%, var(--blue) 100%);
           -webkit-background-clip: text;
           background-clip: text;
           -webkit-text-fill-color: transparent;
           transition: filter 0.3s ease;
         }
+
+        /* Logo motion is JS-driven (see useEffect in component). */
+        .ndsc-logo-mark {
+          display: inline-block;
+          transform-origin: 50% 50%;
+          will-change: transform;
+        }
+        .ndsc-logo-text-wrap {
+          overflow: hidden;
+          max-width: 220px;
+        }
+        .ndsc-logo-text-inner {
+          display: block;
+          opacity: 1;
+          transition: opacity 0.35s ease;
+        }
+        .ndsc-logo-text-wrap[data-moving="true"] .ndsc-logo-text-inner {
+          opacity: 0;
+        }
         .ndsc-logo-glow {
           transition: transform 0.3s cubic-bezier(0.22, 1, 0.36, 1), filter 0.3s ease;
         }
         .ndsc-logo-glow:hover {
-          transform: scale(1.04);
+          transform: scale(1.03);
           filter:
-            drop-shadow(0 0 10px rgba(0, 212, 255, 0.7))
-            drop-shadow(0 0 22px rgba(0, 212, 255, 0.25));
+            drop-shadow(0 0 10px rgba(var(--blue-rgb), 0.7))
+            drop-shadow(0 0 22px rgba(var(--blue-rgb), 0.25));
         }
         .ndsc-logo-glow:hover .ndsc-logo-text {
           filter: brightness(1.15);
@@ -198,15 +298,17 @@ export default function Navbar() {
 
           {/* LOGO */}
           <Link href="/" className="ndsc-logo-glow flex items-center gap-3 shrink-0 z-10 group">
-            <div className="relative" style={{ width: "var(--navbar-logo, 38px)", height: "var(--navbar-logo, 38px)" }}>
+            <span ref={desktopWheelRef} className="ndsc-logo-mark relative" style={{ width: "var(--navbar-logo, 38px)", height: "var(--navbar-logo, 38px)", display: "inline-block" }}>
               <Image src="/images/cropped-logo.png" alt="NDSC" fill className="object-contain" />
-            </div>
-            <div className="hidden sm:flex flex-col leading-none">
-              <span className="ndsc-logo-text text-sm font-black tracking-[0.2em]" style={{ fontFamily: "'Orbitron',sans-serif" }}>
-                NDSC
-              </span>
-              <span className="text-[9px] tracking-[0.18em] mt-0.5 font-medium" style={{ color: "rgba(0,212,255,0.55)", fontFamily: "'Share Tech Mono',monospace" }}>
-                Notre Dame Science Club
+            </span>
+            <div className="ndsc-logo-text-wrap hidden sm:flex flex-col leading-none">
+              <span className="ndsc-logo-text-inner">
+                <span className="ndsc-logo-text text-sm font-black tracking-[0.2em] block" style={{ fontFamily: 'inherit' }}>
+                  NDSC
+                </span>
+                <span className="text-[9px] tracking-[0.18em] mt-0.5 font-medium block" style={{ color: "rgba(var(--blue-rgb), 0.55)", fontFamily: "var(--font-mono)" }}>
+                  Notre Dame Science Club
+                </span>
               </span>
             </div>
           </Link>
@@ -231,12 +333,12 @@ export default function Navbar() {
                     zIndex: 50, minWidth: "210px",
                   }}>
                     <div className="rounded-xl border py-2" style={{
-                      background: "rgba(3,10,22,0.98)", borderColor: "rgba(0,212,255,0.2)",
-                      backdropFilter: "blur(24px)", boxShadow: "0 8px 32px rgba(0,0,0,0.6), 0 0 0 1px rgba(0,212,255,0.05)",
+                      background: "rgba(3,10,22,0.98)", borderColor: "rgba(var(--blue-rgb), 0.2)",
+                      backdropFilter: "blur(24px)", boxShadow: "0 8px 32px rgba(0,0,0,0.6), 0 0 0 1px rgba(var(--blue-rgb), 0.05)",
                     }}>
                       {item.children.map((c) => (
                         <Link key={c.href} href={c.href}
-                          className="flex items-center gap-2.5 px-4 py-2.5 text-xs font-medium transition-all hover:text-[var(--blue)] hover:pl-5 hover:bg-[rgba(0,212,255,0.04)]"
+                          className="flex items-center gap-2.5 px-4 py-2.5 text-xs font-medium transition-all hover:text-[var(--blue)] hover:pl-5 hover:bg-[rgba(var(--blue-rgb), 0.04)]"
                           style={{ color: "var(--muted)" }}>
                           {c.icon ? (
                             <ActivityIcon icon={c.icon} size={14} className="shrink-0" style={{ color: "var(--blue)" }} />
@@ -289,7 +391,7 @@ export default function Navbar() {
           background: linear-gradient(180deg, rgba(8, 39, 122, 0.96) 0%, rgba(6, 26, 58, 0.97) 100%);
           backdrop-filter: blur(20px) saturate(150%);
           -webkit-backdrop-filter: blur(20px) saturate(150%);
-          border-right: 1px solid rgba(0, 212, 255, 0.18);
+          border-right: 1px solid rgba(var(--blue-rgb), 0.18);
           box-shadow: 18px 0 50px rgba(0, 0, 0, 0.5);
           transform: translateX(-100%);
           transition: transform 0.32s cubic-bezier(0.22, 1, 0.36, 1);
@@ -304,16 +406,33 @@ export default function Navbar() {
         }
         .mnav-brand { display: flex; align-items: center; gap: 10px; }
         .mnav-brand .t1 {
-          font-family: 'Orbitron', sans-serif;
+          font-family: var(--font-heading);
           font-size: 14px; font-weight: 900; letter-spacing: 0.22em;
-          background: linear-gradient(180deg, #e8f4ff 0%, #00d4ff 100%);
+          background: linear-gradient(180deg, #e8f4ff 0%, var(--blue) 100%);
           -webkit-background-clip: text; background-clip: text;
           -webkit-text-fill-color: transparent;
         }
+        .mnav-brand .t1-wrap {
+          display: block; overflow: hidden; vertical-align: middle;
+          max-width: 180px;
+        }
+        .mnav-brand .t1-inner {
+          display: block;
+          opacity: 1;
+          transition: opacity 0.35s ease;
+        }
+        .mnav-brand .t1-wrap[data-moving="true"] .t1-inner {
+          opacity: 0;
+        }
+        .mnav-brand .mark {
+          display: inline-block;
+          transform-origin: 50% 50%;
+          will-change: transform;
+        }
         .mnav-brand .t2 {
-          font-family: 'Share Tech Mono', monospace;
+          font-family: var(--font-mono);
           font-size: 9px; letter-spacing: 0.18em;
-          color: rgba(0, 212, 255, 0.55); margin-top: 2px;
+          color: rgba(var(--blue-rgb), 0.55); margin-top: 2px;
         }
         .mnav-close {
           width: 36px; height: 36px;
@@ -325,7 +444,7 @@ export default function Navbar() {
           transition: background 0.2s, color 0.2s, transform 0.2s;
           cursor: pointer;
         }
-        .mnav-close:hover { background: rgba(0, 212, 255, 0.18); color: #00d4ff; transform: rotate(90deg); }
+        .mnav-close:hover { background: rgba(var(--blue-rgb), 0.18); color: var(--blue); transform: rotate(90deg); }
         .mnav-search {
           padding: 14px 18px 10px;
           flex-shrink: 0;
@@ -364,29 +483,29 @@ export default function Navbar() {
           cursor: pointer;
         }
         .mnav-item:hover {
-          background: rgba(0, 212, 255, 0.08);
-          border-color: rgba(0, 212, 255, 0.18);
+          background: rgba(var(--blue-rgb), 0.08);
+          border-color: rgba(var(--blue-rgb), 0.18);
           color: #ffffff;
         }
         .mnav-item.active {
-          background: rgba(0, 212, 255, 0.12);
-          border-color: rgba(0, 212, 255, 0.32);
-          color: #00d4ff;
+          background: rgba(var(--blue-rgb), 0.12);
+          border-color: rgba(var(--blue-rgb), 0.32);
+          color: var(--blue);
         }
         .mnav-item .ico {
           width: 32px; height: 32px; min-width: 32px;
           display: flex; align-items: center; justify-content: center;
           border-radius: 9px;
-          background: rgba(0, 212, 255, 0.10);
-          border: 1px solid rgba(0, 212, 255, 0.22);
-          color: #00d4ff;
+          background: rgba(var(--blue-rgb), 0.10);
+          border: 1px solid rgba(var(--blue-rgb), 0.22);
+          color: var(--blue);
         }
         .mnav-item.active .ico {
-          background: rgba(0, 212, 255, 0.22);
-          border-color: rgba(0, 212, 255, 0.45);
+          background: rgba(var(--blue-rgb), 0.22);
+          border-color: rgba(var(--blue-rgb), 0.45);
         }
         .mnav-item .arrow { margin-left: auto; color: rgba(203, 213, 225, 0.6); transition: transform 0.2s; }
-        .mnav-item.open .arrow { transform: rotate(180deg); color: #00d4ff; }
+        .mnav-item.open .arrow { transform: rotate(180deg); color: var(--blue); }
         .mnav-sub {
           display: flex; flex-direction: column; gap: 2px;
           padding: 4px 4px 8px 56px;
@@ -400,7 +519,7 @@ export default function Navbar() {
           font-size: 13px; font-weight: 500;
           transition: color 0.2s, background 0.2s;
         }
-        .mnav-sub a:hover { color: #00d4ff; background: rgba(0, 212, 255, 0.05); }
+        .mnav-sub a:hover { color: var(--blue); background: rgba(var(--blue-rgb), 0.05); }
         .mnav-auth {
           padding: 12px 18px 22px;
           flex-shrink: 0;
@@ -424,12 +543,16 @@ export default function Navbar() {
       >
         <div className="mnav-header">
           <Link href="/" className="mnav-brand" onClick={() => setMobileOpen(false)}>
-            <div style={{ width: 32, height: 32, position: "relative" }}>
+            <span ref={mobileWheelRef} className="mark" style={{ width: 32, height: 32, position: "relative", display: "inline-block" }}>
               <Image src="/images/cropped-logo.png" alt="NDSC" fill className="object-contain" />
-            </div>
+            </span>
             <div className="flex flex-col">
-              <span className="t1">NDSC</span>
-              <span className="t2">Notre Dame Science Club</span>
+              <span className="t1-wrap">
+                <span className="t1-inner">
+                  <span className="t1 block">NDSC</span>
+                  <span className="t2 block">Notre Dame Science Club</span>
+                </span>
+              </span>
             </div>
           </Link>
           <button suppressHydrationWarning className="mnav-close" onClick={() => setMobileOpen(false)} aria-label="Close menu">
@@ -439,7 +562,7 @@ export default function Navbar() {
 
         <div className="mnav-search">
           <div className="mnav-search-box">
-            <Search size={15} style={{ color: "rgba(0,212,255,0.7)" }} />
+            <Search size={15} style={{ color: "rgba(var(--blue-rgb), 0.7)" }} />
             <input suppressHydrationWarning type="text" placeholder="Search the site…" disabled />
           </div>
         </div>

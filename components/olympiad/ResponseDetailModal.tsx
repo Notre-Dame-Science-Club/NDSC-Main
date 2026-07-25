@@ -103,7 +103,7 @@ export default function ResponseDetailModal({ reg, questions, onClose, onSave }:
       <div className="w-full max-w-2xl max-h-[85vh] overflow-y-auto rounded-2xl border p-6 space-y-5" style={{ background: 'var(--surface-deep)', borderColor: 'var(--border)' }}>
         <div className="flex items-center justify-between">
           <div>
-            <h2 className="font-bold text-sm" style={{ fontFamily: 'Orbitron, monospace', color: 'var(--blue)' }}>{reg.full_name}'s Response</h2>
+            <h2 className="font-bold text-sm" style={{ fontFamily: 'inherit', color: 'var(--blue)' }}>{reg.full_name}'s Response</h2>
             <p className="text-xs mt-0.5" style={{ color: 'var(--muted)' }}>{reg.email} · {reg.phone}</p>
           </div>
           <button onClick={onClose}><X size={18} style={{ color: 'var(--muted)' }} /></button>

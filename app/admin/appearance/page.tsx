@@ -16,7 +16,7 @@ const HEADER_SIZE_OPTIONS = [
 ]
 
 const ACCENT_PRESETS = [
-  { value: '#00d4ff', label: 'Cyan (default)' },
+  { value: 'var(--blue)', label: 'Cyan (default)' },
   { value: '#a78bfa', label: 'Violet' },
   { value: '#34d399', label: 'Emerald' },
   { value: '#fb923c', label: 'Amber' },
@@ -98,11 +98,11 @@ export default function AppearanceSettingsAdmin() {
 
   const results = fontQuery ? searchGoogleFonts(fontQuery, 8) : []
   const currentFontName = values.font_family?.split("'")[1] || 'Poppins'
-  const currentAccent = values.accent_color || '#00d4ff'
+  const currentAccent = values.accent_color || 'var(--blue)'
 
   return (
     <div className="max-w-2xl">
-      <h1 className="text-2xl font-bold mb-1" style={{ fontFamily: "'Orbitron',sans-serif", color: 'var(--blue)' }}>
+      <h1 className="text-2xl font-bold mb-1" style={{ fontFamily: 'inherit', color: 'var(--blue)' }}>
         Appearance
       </h1>
       <p className="text-sm mb-6" style={{ color: 'var(--muted)' }}>
@@ -127,7 +127,7 @@ export default function AppearanceSettingsAdmin() {
                   style={{
                     borderColor: (values.default_theme || 'dark') === o.value ? 'var(--blue)' : 'var(--border)',
                     color: (values.default_theme || 'dark') === o.value ? 'var(--blue)' : 'var(--muted)',
-                    background: (values.default_theme || 'dark') === o.value ? 'rgba(0,212,255,0.08)' : 'transparent',
+                    background: (values.default_theme || 'dark') === o.value ? 'rgba(var(--blue-rgb), 0.08)' : 'transparent',
                   }}>
                   {o.label}
                 </button>
@@ -162,7 +162,7 @@ export default function AppearanceSettingsAdmin() {
               <input className={inp} style={{ ...inpStyle, maxWidth: 140 }} value={currentAccent}
                 onChange={(e) => setValues((v) => ({ ...v, accent_color: e.target.value }))}
                 onBlur={() => isValidHex(values.accent_color || '') && save('accent_color', values.accent_color!)}
-                placeholder="#00d4ff" />
+                placeholder="var(--blue)" />
               {saved.accent_color && <span className="text-xs font-semibold" style={{ color: 'var(--success)' }}>Saved!</span>}
             </div>
           </div>
@@ -192,7 +192,7 @@ export default function AppearanceSettingsAdmin() {
                 <div className="mt-2 rounded-lg border overflow-hidden" style={{ borderColor: 'var(--border)' }}>
                   {results.map((f) => (
                     <button key={f} onClick={() => pickFont(f)}
-                      className="w-full text-left px-3 py-2 text-sm transition-colors hover:bg-[rgba(0,212,255,0.06)]"
+                      className="w-full text-left px-3 py-2 text-sm transition-colors hover:bg-[rgba(var(--blue-rgb), 0.06)]"
                       style={{ color: 'var(--white)', fontFamily: `'${f}', sans-serif` }}>
                       {f}
                     </button>
@@ -250,7 +250,7 @@ export default function AppearanceSettingsAdmin() {
                   style={{
                     borderColor: (values.header_size || 'default') === o.value ? 'var(--blue)' : 'var(--border)',
                     color: (values.header_size || 'default') === o.value ? 'var(--blue)' : 'var(--muted)',
-                    background: (values.header_size || 'default') === o.value ? 'rgba(0,212,255,0.08)' : 'transparent',
+                    background: (values.header_size || 'default') === o.value ? 'rgba(var(--blue-rgb), 0.08)' : 'transparent',
                   }}>
                   {o.label}
                 </button>

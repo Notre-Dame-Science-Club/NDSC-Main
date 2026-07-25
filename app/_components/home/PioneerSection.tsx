@@ -56,7 +56,7 @@ export function PioneerSection() {
                 <p className="font-bold text-sm" style={{ color: "var(--white)", fontFamily: "'Poppins',sans-serif" }}>
                   {founder?.full_name || "Fr. Richard William Timm, C.S.C."}
                 </p>
-                <p className="text-xs mt-0.5" style={{ color: "var(--blue)", fontFamily: "'Share Tech Mono',monospace", letterSpacing: "0.2em" }}>
+                <p className="text-xs mt-0.5" style={{ color: "var(--blue)", fontFamily: "var(--font-mono)", letterSpacing: "0.2em" }}>
                   FOUNDER
                 </p>
               </div>
@@ -94,7 +94,7 @@ export function PioneerSection() {
             <Link
               href="/about#about-article"
               className="mt-5 self-start flex items-center gap-2 text-xs font-bold tracking-widest group"
-              style={{ color: "var(--blue)", fontFamily: "'Share Tech Mono',monospace", letterSpacing: "0.25em" }}
+              style={{ color: "var(--blue)", fontFamily: "var(--font-mono)", letterSpacing: "0.25em" }}
             >
               READ MORE
               <ChevronRight size={14} className="group-hover:translate-x-1 transition-transform" />

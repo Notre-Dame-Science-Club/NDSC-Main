@@ -307,7 +307,7 @@ const handlePdf = async (e: ChangeEvent<HTMLInputElement>) => {
   return (
     <div>
       <h1 className="text-2xl font-bold mb-6"
-        style={{ fontFamily: "'Orbitron', sans-serif", color: 'var(--blue)' }}>
+        style={{ fontFamily: 'inherit', color: 'var(--blue)' }}>
         Publications
       </h1>
 

@@ -15,6 +15,10 @@
 export type FieldBlockType =
   | 'text' | 'textarea' | 'number' | 'dropdown' | 'multiple_choice' | 'checkboxes'
   | 'date' | 'time' | 'photo' | 'file'
+  // olympiad question types — added for the unified form graph system. The
+  // public FieldsRenderer renders these too; mcq/checkbox carry their
+  // options inline and store the chosen option id(s) under `key` in custom_answers.
+  | 'mcq' | 'checkbox' | 'short_answer'
 
 export type ContentBlockType =
   | 'header' | 'paragraph' | 'image' | 'link_button' | 'video' | 'divider' | 'spacer'
@@ -35,12 +39,23 @@ export type FormBlock = {
   // under in custom_answers on the registration row. Admin-editable, but
   // defaults to a sanitized version of the label.
   key?: string
+  // Olympiad question fields. mcq_options: [{ id, text }]. correct_option_id
+  // / correct_option_ids are stripped by the public renderer (kept in the DB
+  // so the admin doesn't lose them when the same graph is re-rendered).
+  marks?: number
+  mcq_options?: { id: string; text: string }[]
+  correct_option_id?: string
+  correct_option_ids?: string[]
   // content-only
   text?: string                 // header / paragraph body text
   heading_size?: 'lg' | 'md'    // header only
   image_url?: string
   image_alt?: string
   link_url?: string
+  // link_button only: when set, clicking the button navigates the
+  // public runner to this form_node within the same graph. Takes
+  // precedence over link_url. Used for "go to sub-segment" flows.
+  target_node_id?: string
   link_label?: string
   video_url?: string
   height_px?: number             // spacer only
@@ -74,6 +89,9 @@ export const FIELD_BLOCK_TYPES: { type: FieldBlockType; label: string }[] = [
   { type: 'time', label: 'Time' },
   { type: 'photo', label: 'Photo upload' },
   { type: 'file', label: 'File upload' },
+  { type: 'mcq', label: 'MCQ (single answer)' },
+  { type: 'checkbox', label: 'Multi-select MCQ' },
+  { type: 'short_answer', label: 'Short answer' },
 ]
 
 export const CONTENT_BLOCK_TYPES: { type: ContentBlockType; label: string }[] = [
@@ -92,6 +110,18 @@ export const isFieldBlockType = (t: string): t is FieldBlockType => FIELD_TYPE_S
 export function blankBlock(type: FieldBlockType | ContentBlockType): FormBlock {
   const base = { id: uid() }
   if (isFieldBlockType(type)) {
+    if (type === 'mcq' || type === 'checkbox') {
+      return {
+        ...base, kind: 'field', type,
+        label: '', description: '', required: true, marks: 1,
+        mcq_options: [], key: '',
+        correct_option_id: type === 'mcq' ? undefined : undefined,
+        correct_option_ids: type === 'checkbox' ? [] : undefined,
+      }
+    }
+    if (type === 'short_answer') {
+      return { ...base, kind: 'field', type, label: '', description: '', required: true, marks: 1, key: '' }
+    }
     return {
       ...base, kind: 'field', type,
       label: '', description: '', required: false,
@@ -145,11 +175,33 @@ export function builtinFieldDefs(): FormBlock[] {
 // doesn't include them. This is the backstop for accidental admin deletion.
 export const HARD_MINIMUM_KEYS: BuiltinFieldKey[] = ['full_name', 'phone', 'email', 'college_roll']
 
-/** Upgrades stored data (old flat field-only shape, or already-new blocks) into FormBlock[]. */
+/** Upgrades stored data (old flat field-only shape, olympiad-question shape, or already-new blocks) into FormBlock[]. */
 export function normalizeBlocks(raw: any): FormBlock[] {
   if (!Array.isArray(raw)) return []
   return raw.map((item: any): FormBlock => {
     if (item && item.kind) return { ...item, id: item.id || item.key || uid() }
+    // Legacy olympiad question shape: { id, type: 'mcq'|'checkbox'|'short'|'photo', text, options: [{id,text}], correct_option_id(s), marks }
+    if (item && (item.type === 'mcq' || item.type === 'checkbox' || item.type === 'short' || item.type === 'photo')) {
+      const mappedType: FieldBlockType =
+        item.type === 'mcq' ? 'mcq' :
+        item.type === 'checkbox' ? 'checkbox' :
+        item.type === 'short' ? 'short_answer' :
+        'photo'
+      return {
+        id: item.id || uid(),
+        kind: 'field',
+        type: mappedType,
+        label: item.text || '',
+        description: item.description || '',
+        required: item.required !== false,
+        marks: item.marks || 1,
+        key: item.id || '',
+        mcq_options: (item.options || []).map((o: any) => typeof o === 'string' ? { id: o, text: o } : o),
+        correct_option_id: item.correct_option_id,
+        correct_option_ids: item.correct_option_ids,
+        max_files: mappedType === 'photo' ? (item.max_files || 1) : undefined,
+      }
+    }
     return {
       id: item?.key || uid(),
       kind: 'field',

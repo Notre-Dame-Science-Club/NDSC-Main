@@ -107,7 +107,7 @@ export default function SurveyNotification() {
         >
           <div
             className="rounded-2xl border p-4 shadow-2xl backdrop-blur-xl"
-            style={{ background: 'rgba(10, 22, 40, 0.92)', borderColor: 'var(--border)', boxShadow: '0 8px 32px rgba(0,0,0,0.45), 0 0 0 1px rgba(0,212,255,0.08)' }}
+            style={{ background: 'rgba(10, 22, 40, 0.92)', borderColor: 'var(--border)', boxShadow: '0 8px 32px rgba(0,0,0,0.45), 0 0 0 1px rgba(var(--blue-rgb), 0.08)' }}
           >
             <div className="flex items-start gap-3">
               <div className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0"
@@ -115,7 +115,7 @@ export default function SurveyNotification() {
                 <Megaphone size={16} />
               </div>
               <div className="flex-1 min-w-0">
-                <p className="font-bold text-sm" style={{ color: 'var(--white)', fontFamily: "'Orbitron', sans-serif" }}>
+                <p className="font-bold text-sm" style={{ color: 'var(--white)', fontFamily: 'inherit' }}>
                   {survey.notification_title || survey.title}
                 </p>
                 <p className="text-xs mt-1 line-clamp-2" style={{ color: 'var(--muted)' }}>
@@ -128,7 +128,7 @@ export default function SurveyNotification() {
             </div>
             <button onClick={() => setExpanded(true)}
               className="mt-3 w-full py-2 rounded-lg text-xs font-bold flex items-center justify-center gap-1.5"
-              style={{ background: 'var(--blue)', color: '#000', fontFamily: "'Orbitron', sans-serif" }}>
+              style={{ background: 'var(--blue)', color: '#000', fontFamily: 'inherit' }}>
               ANSWER NOW <ArrowRight size={13} />
             </button>
           </div>

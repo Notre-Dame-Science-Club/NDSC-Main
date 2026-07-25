@@ -64,11 +64,11 @@
   --cat-orange: #fb923c;
   --cat-orange-rgb: 251, 146, 60;
 
-  --font-body: 'Poppins', 'Plus Jakarta Sans', sans-serif;
-  --font-heading: 'Poppins', 'Montserrat', sans-serif;
-  --font-display: 'Montserrat', 'Poppins', sans-serif;
-  --font-mono: 'Share Tech Mono', monospace;
-  --font-exec: 'Montserrat', 'Poppins', sans-serif;
+  --font-body: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-heading: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-display: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-mono: ui-monospace, 'SFMono-Regular', Menlo, Consolas, monospace;
+  --font-exec: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
   color-scheme: dark;
 
   /* Header size — overridden at runtime by AppearanceProvider from the
@@ -233,7 +233,7 @@ button:active:not(:disabled), a[role="button"]:active {
    UTILITIES
 ═══════════════════════════════════════════ */
 .glow-text {
-  filter: drop-shadow(0 0 20px var(--glow));
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.3));
 }
 .gradient-text {
   background: linear-gradient(135deg, var(--blue) 0%, var(--blue2) 100%);
@@ -243,8 +243,8 @@ button:active:not(:disabled), a[role="button"]:active {
 }
 .grid-bg {
   background-image:
-    linear-gradient(rgba(0,212,255,0.04) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(0,212,255,0.04) 1px, transparent 1px);
+    linear-gradient(rgba(var(--blue-rgb),0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(var(--blue-rgb),0.03) 1px, transparent 1px);
   background-size: 60px 60px;
 }
 .card-hover {
@@ -253,7 +253,7 @@ button:active:not(:disabled), a[role="button"]:active {
 .card-hover:hover {
   border-color: var(--blue);
   transform: translateY(-4px);
-  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.35), 0 0 24px rgba(var(--blue-rgb), 0.12);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.35);
 }
 
 /* ═══════════════════════════════════════════
@@ -279,9 +279,8 @@ button:active:not(:disabled), a[role="button"]:active {
 .card-lift:hover {
   transform: translateY(-8px);
   box-shadow:
-    inset 0 0 0 1px rgba(var(--blue-rgb), 0.55),
-    0 20px 48px rgba(0, 0, 0, 0.45),
-    0 0 40px rgba(var(--blue-rgb), 0.12);
+    inset 0 0 0 1px var(--border-soft),
+    0 20px 48px rgba(0, 0, 0, 0.45);
 }
 .card-lift:active {
   transform: translateY(-4px);
@@ -374,7 +373,7 @@ button:active:not(:disabled), a[role="button"]:active {
 .ndsc-input:focus-visible {
   border-color: var(--blue);
   background: rgba(255, 255, 255, 0.06);
-  box-shadow: 0 0 0 3px rgba(var(--blue-rgb), 0.15);
+  box-shadow: 0 0 0 3px rgba(var(--blue-rgb), 0.12);
   outline: none;
 }
 .ndsc-input:disabled {
@@ -450,17 +449,17 @@ button:active:not(:disabled), a[role="button"]:active {
   color: #000;
   border: none;
   font-weight: 700;
-  box-shadow: 0 0 24px rgba(var(--blue-rgb), 0.35);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
   transition: transform 0.2s ease, box-shadow 0.2s ease, filter 0.2s ease;
 }
 .btn-primary:hover {
   transform: translateY(-2px);
-  box-shadow: 0 0 40px rgba(var(--blue-rgb), 0.6);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3);
   filter: brightness(1.05);
 }
 .btn-primary:active {
   transform: translateY(0) scale(0.98);
-  box-shadow: 0 0 18px rgba(var(--blue-rgb), 0.4);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
 }
 .btn-outline {
   background: transparent;
@@ -473,7 +472,7 @@ button:active:not(:disabled), a[role="button"]:active {
   background: var(--blue);
   color: #000;
   transform: translateY(-2px);
-  box-shadow: 0 0 28px rgba(var(--blue-rgb), 0.35);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.25);
 }
 .btn-outline:active {
   transform: translateY(0) scale(0.98);
@@ -547,16 +546,16 @@ button:active:not(:disabled), a[role="button"]:active {
   to   { transform: rotate(-360deg); }
 }
 @keyframes borderCycle {
-  0%,100% { border-color: rgba(0,212,255,0.4); box-shadow: 0 0 30px rgba(0,212,255,0.15); }
-  50%      { border-color: rgba(0,119,255,0.7); box-shadow: 0 0 60px rgba(0,119,255,0.3); }
+  0%,100% { border-color: rgba(var(--blue-rgb),0.4); }
+  50%      { border-color: rgba(var(--blue2-rgb),0.7); }
 }
 @keyframes scanV {
   0%   { transform: translateY(-100%); }
   100% { transform: translateY(400%); }
 }
 @keyframes pulse {
-  0%,100% { box-shadow: 0 0 24px rgba(0,212,255,0.45); }
-  50%      { box-shadow: 0 0 48px rgba(0,212,255,0.8); }
+  0%,100% { opacity: 0.7; }
+  50%      { opacity: 1; }
 }
 @keyframes floatY {
   0%,100% { transform: translateY(0px); }
@@ -613,14 +612,14 @@ button:active:not(:disabled), a[role="button"]:active {
   align-items: center;
   justify-content: center;
   transition: transform 0.25s ease, box-shadow 0.25s ease, background 0.25s ease, color 0.25s ease;
-  box-shadow: 0 0 20px rgba(var(--blue-rgb), 0.15);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
   backdrop-filter: blur(12px);
 }
 .theme-toggle:hover {
   background: var(--blue);
   color: #000;
   transform: scale(1.08);
-  box-shadow: 0 0 28px rgba(var(--blue-rgb), 0.4);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.3);
 }
 .theme-toggle:active {
   transform: scale(0.95);
@@ -743,13 +742,16 @@ button:active:not(:disabled), a[role="button"]:active {
    - On press: sinks 1px for tactile feel
 ═══════════════════════════════════════════ */
 .register-cta {
-  color: #001218;
-  background: linear-gradient(180deg, #6df3ff 0%, var(--blue) 55%, #00a8cc 100%);
-  border: 1px solid rgba(255, 255, 255, 0.25);
+  /* Reuses the site's actual primary-CTA language (same recipe as
+     .btn-primary: var(--blue) → var(--blue2), pure black text, plain
+     elevation shadow — no neon glow) instead of the one-off pale-cyan/
+     dark-teal gradient this used to have. */
+  color: #000;
+  background: linear-gradient(135deg, var(--blue) 0%, var(--blue2) 100%);
+  border: 1px solid rgba(var(--blue-rgb), 0.4);
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.45),
-    0 4px 14px rgba(var(--blue-rgb), 0.35),
-    0 0 0 1px rgba(var(--blue-rgb), 0.1);
+    inset 0 1px 0 rgba(255, 255, 255, 0.35),
+    0 4px 12px rgba(0, 0, 0, 0.25);
   transition:
     transform 0.18s cubic-bezier(0.22, 1, 0.36, 1),
     box-shadow 0.25s ease,
@@ -772,12 +774,11 @@ button:active:not(:disabled), a[role="button"]:active {
   z-index: -1;
 }
 .register-cta:hover {
-  transform: translateY(-1px);
+  transform: translateY(-2px);
   filter: brightness(1.08);
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.55),
-    0 8px 20px rgba(var(--blue-rgb), 0.5),
-    0 0 0 1px rgba(var(--blue-rgb), 0.2);
+    inset 0 1px 0 rgba(255, 255, 255, 0.45),
+    0 8px 20px rgba(0, 0, 0, 0.3);
 }
 .register-cta:hover::before { opacity: 1; }
 .register-cta:active {
@@ -785,7 +786,7 @@ button:active:not(:disabled), a[role="button"]:active {
   filter: brightness(0.95);
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.3),
-    0 2px 8px rgba(var(--blue-rgb), 0.3);
+    0 2px 8px rgba(0, 0, 0, 0.25);
 }
 .register-cta:focus-visible {
   outline: 2px solid var(--blue);
