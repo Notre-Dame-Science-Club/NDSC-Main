@@ -562,7 +562,7 @@ function ActivityRegisterPageInner() {
         </Link>
 
         {/* Form header from config or session title */}
-        <h1 className="text-2xl font-black mb-1" style={{ fontFamily: fontFamily !== 'inherit' ? fontFamily : "'Orbitron', sans-serif", color: 'var(--white)' }}>
+        <h1 className="text-2xl font-black mb-1" style={{ fontFamily: fontFamily !== 'inherit' ? fontFamily : 'inherit', color: 'var(--white)' }}>
           {displayTitle}
         </h1>
         {!appearance?.form_auto_pull_description && appearance?.form_subtitle && <p className="text-sm mb-2" style={{ color: 'var(--muted)' }}>{appearance.form_subtitle}</p>}
@@ -790,7 +790,7 @@ function ActivityRegisterPageInner() {
 
             <button onClick={submit} disabled={submitting || uniqueBlocked}
               className="w-full py-3 rounded-xl font-bold text-sm text-black disabled:opacity-60"
-              style={{ background: accent, fontFamily: "'Orbitron', sans-serif" }}>
+              style={{ background: accent, fontFamily: 'inherit' }}>
               {submitting ? 'Submitting...' : uniqueBlocked ? 'Fix the unique-field warning above to continue' : 'Submit Registration →'}
             </button>
 

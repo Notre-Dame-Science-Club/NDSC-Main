@@ -38,7 +38,7 @@ export default function MembershipPage() {
       <section className="relative pt-32 pb-16 px-4 sm:px-6">
         <div className="max-w-4xl mx-auto text-center">
           <div className="section-label mb-3 inline-block">Membership</div>
-          <h1 className="text-3xl sm:text-5xl font-black mb-5" style={{ fontFamily: "'Orbitron', sans-serif" }}>
+          <h1 className="text-3xl sm:text-5xl font-black mb-5" style={{ fontFamily: 'inherit' }}>
             BECOME AN <span style={{ color: "var(--blue)" }}>NDSC MEMBER</span>
           </h1>
           <p className="text-sm sm:text-base max-w-2xl mx-auto" style={{ color: "var(--muted)" }}>
@@ -50,12 +50,12 @@ export default function MembershipPage() {
           <div className="flex flex-col sm:flex-row gap-3 justify-center mt-8">
             <Link href="/register"
               className="px-7 py-3 rounded-xl font-bold text-sm text-black transition-all hover:-translate-y-0.5"
-              style={{ background: "var(--blue)", fontFamily: "'Orbitron', sans-serif" }}>
+              style={{ background: "var(--blue)", fontFamily: 'inherit' }}>
               Sign Up as Member
             </Link>
             <Link href="/login"
               className="px-7 py-3 rounded-xl font-bold text-sm border transition-all hover:-translate-y-0.5"
-              style={{ borderColor: "var(--blue)", color: "var(--blue)", fontFamily: "'Orbitron', sans-serif" }}>
+              style={{ borderColor: "var(--blue)", color: "var(--blue)", fontFamily: 'inherit' }}>
               Login as Member
             </Link>
           </div>
@@ -66,7 +66,7 @@ export default function MembershipPage() {
       <section className="relative py-14 px-4 sm:px-6">
         <div className="max-w-6xl mx-auto">
           <div className="section-label mb-2">Why Join</div>
-          <h2 className="text-2xl sm:text-3xl font-black mb-10" style={{ fontFamily: "'Orbitron', sans-serif" }}>
+          <h2 className="text-2xl sm:text-3xl font-black mb-10" style={{ fontFamily: 'inherit' }}>
             WHY BECOME A <span style={{ color: "var(--blue)" }}>MEMBER?</span>
           </h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -90,7 +90,7 @@ export default function MembershipPage() {
       <section className="relative py-14 px-4 sm:px-6">
         <div className="max-w-5xl mx-auto">
           <div className="section-label mb-2">Process</div>
-          <h2 className="text-2xl sm:text-3xl font-black mb-3" style={{ fontFamily: "'Orbitron', sans-serif" }}>
+          <h2 className="text-2xl sm:text-3xl font-black mb-3" style={{ fontFamily: 'inherit' }}>
             HOW TO BECOME A <span style={{ color: "var(--blue)" }}>MEMBER</span>
           </h2>
           <p className="text-sm mb-10 max-w-xl" style={{ color: "var(--muted)" }}>
@@ -101,7 +101,7 @@ export default function MembershipPage() {
             {STEPS.map((s, i) => (
               <div key={s.title} className="relative rounded-2xl p-5 border" style={{ background: "var(--bg2)", borderColor: "var(--border)" }}>
                 <div className="absolute -top-3 -left-3 w-8 h-8 rounded-full flex items-center justify-center text-xs font-black"
-                  style={{ background: "var(--blue)", color: "#000", fontFamily: "'Orbitron', sans-serif" }}>
+                  style={{ background: "var(--blue)", color: "#000", fontFamily: 'inherit' }}>
                   {i + 1}
                 </div>
                 <s.icon size={20} style={{ color: "var(--blue)" }} className="mb-3" />
@@ -129,7 +129,7 @@ export default function MembershipPage() {
       <section className="relative py-14 px-4 sm:px-6">
         <div className="max-w-6xl mx-auto">
           <div className="section-label mb-2">Structure</div>
-          <h2 className="text-2xl sm:text-3xl font-black mb-3" style={{ fontFamily: "'Orbitron', sans-serif" }}>
+          <h2 className="text-2xl sm:text-3xl font-black mb-3" style={{ fontFamily: 'inherit' }}>
             7 <span style={{ color: "var(--blue)" }}>DEPARTMENTS</span> TO JOIN
           </h2>
           <p className="text-sm mb-10 max-w-xl" style={{ color: "var(--muted)" }}>
@@ -160,7 +160,7 @@ export default function MembershipPage() {
       <section className="relative py-16 px-4 sm:px-6">
         <div className="max-w-3xl mx-auto text-center rounded-3xl p-10 border"
           style={{ background: "linear-gradient(135deg, rgba(var(--blue-rgb), 0.06), rgba(var(--blue-rgb), 0.01))", borderColor: "rgba(var(--blue-rgb), 0.25)" }}>
-          <h2 className="text-xl sm:text-2xl font-black mb-3" style={{ fontFamily: "'Orbitron', sans-serif" }}>
+          <h2 className="text-xl sm:text-2xl font-black mb-3" style={{ fontFamily: 'inherit' }}>
             Already got your slip? <span style={{ color: "var(--blue)" }}>Sign up now.</span>
           </h2>
           <p className="text-sm mb-7" style={{ color: "var(--muted)" }}>
@@ -169,12 +169,12 @@ export default function MembershipPage() {
           <div className="flex flex-col sm:flex-row gap-3 justify-center">
             <Link href="/register"
               className="px-7 py-3 rounded-xl font-bold text-sm text-black transition-all hover:-translate-y-0.5"
-              style={{ background: "var(--blue)", fontFamily: "'Orbitron', sans-serif" }}>
+              style={{ background: "var(--blue)", fontFamily: 'inherit' }}>
               Sign Up as Member
             </Link>
             <Link href="/login"
               className="px-7 py-3 rounded-xl font-bold text-sm border transition-all hover:-translate-y-0.5"
-              style={{ borderColor: "var(--blue)", color: "var(--blue)", fontFamily: "'Orbitron', sans-serif" }}>
+              style={{ borderColor: "var(--blue)", color: "var(--blue)", fontFamily: 'inherit' }}>
               Login as Member
             </Link>
           </div>

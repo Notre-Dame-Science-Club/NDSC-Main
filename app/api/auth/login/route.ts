@@ -70,12 +70,14 @@ export async function POST(req: NextRequest) {
         return apiOk({ error: 'Incorrect email or password.' }, { status: 401 })
       }
 
-      if (!member.is_verified) {
-        return apiOk(
-          { error: 'Your account has not been approved yet. Please wait for admin approval.' },
-          { status: 403 }
-        )
-      }
+      // Note: this used to reject login here when !member.is_verified.
+      // That made sense when a membership slip was mandatory at
+      // registration (unverified == "admin hasn't approved the slip
+      // yet"). Now the slip is optional at sign-up, so plenty of
+      // legitimate members are unverified simply because they haven't
+      // submitted one — they still need to log in to reach the
+      // dashboard's Membership card and submit it. `is_verified` is
+      // returned below so the client can show the right status instead.
 
       // Mint a local token. The verify route reads the same `mid` and
       // echoes the email back so `supabase.auth.getUser(token).then(u =>
@@ -152,13 +154,9 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    // Verified কিনা check
-    if (!member.is_verified) {
-      return apiOk(
-        { error: 'Your account has not been approved yet. Please wait for admin approval.' },
-        { status: 403 }
-      )
-    }
+    // Verification no longer gates login — see the note in the local-dev
+    // branch above. `is_verified` is available on `member` for anything
+    // downstream that wants to check it.
 
     return apiOk({
       success: true,

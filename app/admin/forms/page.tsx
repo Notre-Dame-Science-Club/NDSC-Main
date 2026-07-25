@@ -149,7 +149,7 @@ export default function AdminFormsPage() {
           <ArrowLeft size={14} /> Admin Panel
         </Link>
 
-        <h1 className="text-2xl font-black mb-1" style={{ fontFamily: "'Orbitron', sans-serif", color: 'var(--blue)' }}>
+        <h1 className="text-2xl font-black mb-1" style={{ fontFamily: 'inherit', color: 'var(--blue)' }}>
           Form Configuration
         </h1>
         <p className="text-sm mb-8" style={{ color: 'var(--border-soft)' }}>
@@ -162,7 +162,7 @@ export default function AdminFormsPage() {
 
           {/* Left: form list */}
           <div className="space-y-2">
-            <p className="text-xs font-bold mb-3" style={{ color: 'var(--border-soft)', fontFamily: "'Orbitron', sans-serif" }}>FORMS</p>
+            <p className="text-xs font-bold mb-3" style={{ color: 'var(--border-soft)', fontFamily: 'inherit' }}>FORMS</p>
 
             {FORM_PRESETS.map(p => (
               <button key={p.key} onClick={() => selectForm(p.key)}
@@ -391,7 +391,7 @@ function Section({ title, children }: { title: string; children: React.ReactNode
     <div className="rounded-xl overflow-hidden border" style={{ borderColor: 'var(--border)' }}>
       <button onClick={() => setOpen(v => !v)}
         className="w-full flex items-center justify-between px-4 py-3 text-sm font-bold"
-        style={{ background: 'var(--surface)', color: 'var(--muted)', fontFamily: "'Orbitron', sans-serif" }}>
+        style={{ background: 'var(--surface)', color: 'var(--muted)', fontFamily: 'inherit' }}>
         {title}
         {open ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
       </button>

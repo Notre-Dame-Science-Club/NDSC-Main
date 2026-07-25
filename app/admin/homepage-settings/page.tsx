@@ -31,7 +31,7 @@ export default function HomepageSettingsAdmin() {
 
   return (
     <div>
-      <h1 className="text-2xl font-bold mb-6" style={{ fontFamily: "'Orbitron',sans-serif", color: 'var(--blue)' }}>
+      <h1 className="text-2xl font-bold mb-6" style={{ fontFamily: 'inherit', color: 'var(--blue)' }}>
         Homepage Settings
       </h1>
       <div className="rounded-xl border p-6 space-y-6" style={{ background: 'var(--bg2)', borderColor: 'var(--border)' }}>

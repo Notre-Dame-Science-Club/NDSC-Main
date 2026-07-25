@@ -41,7 +41,7 @@ export default function FixUrlsPage() {
 
   return (
     <div className="p-6 max-w-3xl mx-auto" style={{ color: S.text, fontFamily: "'Poppins',sans-serif" }}>
-      <h1 className="text-2xl font-black mb-2 flex items-center gap-2" style={{ fontFamily: "'Orbitron',sans-serif", color: S.accent }}>
+      <h1 className="text-2xl font-black mb-2 flex items-center gap-2" style={{ fontFamily: 'inherit', color: S.accent }}>
         <Wrench size={22} /> Fix Upload URLs
       </h1>
       <p className="text-sm mb-6" style={{ color: S.muted }}>
@@ -128,7 +128,7 @@ export default function FixUrlsPage() {
             {Object.entries(result.report).map(([table, r]) => (
               <div key={table} className="rounded-lg p-4" style={{ background: "var(--bg)", border: `1px solid ${S.border}` }}>
                 <div className="flex items-center justify-between mb-1">
-                  <span className="font-bold text-xs tracking-widest" style={{ fontFamily: "'Share Tech Mono',monospace", color: S.accent }}>
+                  <span className="font-bold text-xs tracking-widest" style={{ fontFamily: "var(--font-mono)", color: S.accent }}>
                     {table}
                   </span>
                   <div className="flex gap-3 text-xs">

@@ -11,7 +11,7 @@ const toneStyle: Record<BadgeTone, React.CSSProperties> = {
   success: { background: 'rgba(46,204,113,0.12)', color: '#2ecc71', border: '1px solid rgba(46,204,113,0.3)' },
   warning: { background: 'rgba(255,193,7,0.12)', color: '#ffc107', border: '1px solid rgba(255,193,7,0.3)' },
   danger: { background: 'rgba(255,71,87,0.12)', color: '#ff4757', border: '1px solid rgba(255,71,87,0.3)' },
-  info: { background: 'rgba(0,212,255,0.12)', color: 'var(--blue)', border: '1px solid rgba(0,212,255,0.3)' },
+  info: { background: 'rgba(var(--blue-rgb), 0.12)', color: 'var(--blue)', border: '1px solid rgba(var(--blue-rgb), 0.3)' },
   neutral: { background: 'rgba(255,255,255,0.06)', color: 'var(--muted)', border: '1px solid var(--border)' },
 }
 

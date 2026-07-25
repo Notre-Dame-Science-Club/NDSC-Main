@@ -87,7 +87,7 @@ export default function HomePage() {
 
               <div className="hero-sub flex items-center gap-4">
                 <div style={{ height: 1, width: 36, background: "linear-gradient(to right, var(--blue), transparent)" }} />
-                <span style={{ fontFamily: "'Share Tech Mono',monospace", fontSize: "0.67rem", letterSpacing: "0.3em", color: "var(--muted)", textTransform: "uppercase" }}>
+                <span style={{ fontFamily: "var(--font-mono)", fontSize: "0.67rem", letterSpacing: "0.3em", color: "var(--muted)", textTransform: "uppercase" }}>
                   Science in Human Welfare
                 </span>
               </div>
@@ -122,7 +122,7 @@ export default function HomePage() {
 
         {/* Scroll indicator */}
         <div className="absolute bottom-8 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2 z-[2]">
-          <span style={{ fontFamily: "'Share Tech Mono',monospace", fontSize: "0.56rem", letterSpacing: "0.45em", color: "rgba(var(--blue-rgb), 0.4)", textTransform: "uppercase" }}>SCROLL</span>
+          <span style={{ fontFamily: "var(--font-mono)", fontSize: "0.56rem", letterSpacing: "0.45em", color: "rgba(var(--blue-rgb), 0.4)", textTransform: "uppercase" }}>SCROLL</span>
           <div style={{ width: 1, height: 40, position: "relative", background: "rgba(var(--blue-rgb), 0.12)", overflow: "hidden" }}>
             <div style={{ position: "absolute", width: "100%", height: "45%", background: "linear-gradient(to bottom,transparent,var(--blue))", animation: "scanV 1.8s ease infinite" }} />
           </div>
@@ -183,7 +183,7 @@ export default function HomePage() {
                 />
                 <p
                   className="text-xs tracking-wider uppercase"
-                  style={{ color: "var(--muted)", fontFamily: "'Share Tech Mono',monospace" }}
+                  style={{ color: "var(--muted)", fontFamily: "var(--font-mono)" }}
                 >
                   {s.label}
                 </p>
@@ -257,7 +257,7 @@ export default function HomePage() {
                 {/* Number badge */}
                 <div
                   className="absolute top-4 right-4 font-black opacity-20 pointer-events-none"
-                  style={{ fontFamily: "'Orbitron',sans-serif", color: d.color, fontSize: "2rem", lineHeight: 1 }}
+                  style={{ fontFamily: 'inherit', color: d.color, fontSize: "2rem", lineHeight: 1 }}
                 >
                   {String(i + 1).padStart(2, "0")}
                 </div>

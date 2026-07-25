@@ -262,7 +262,7 @@ export default function AdminExecutivesPage() {
 
   return (
     <div className="p-6" style={{ maxWidth: 1100, margin: '0 auto' }}>
-      <h1 className="text-2xl font-bold mb-6" style={{ fontFamily: "'Orbitron',sans-serif", color: 'var(--blue)' }}>
+      <h1 className="text-2xl font-bold mb-6" style={{ fontFamily: 'inherit', color: 'var(--blue)' }}>
         Executives Manager
       </h1>
 

@@ -29,7 +29,7 @@ export default function Table<T>({ columns, rows, rowKey, emptyMessage = 'No res
   return (
     <table className="w-full text-sm">
       <thead>
-        <tr style={{ borderBottom: '1px solid var(--border)', background: 'rgba(0,212,255,0.05)' }}>
+        <tr style={{ borderBottom: '1px solid var(--border)', background: 'rgba(var(--blue-rgb), 0.05)' }}>
           {columns.map((col) => (
             <th key={col.key} className={`text-left px-4 py-3 font-medium ${col.className ?? ''}`} style={{ color: 'var(--muted)' }}>
               {col.header}

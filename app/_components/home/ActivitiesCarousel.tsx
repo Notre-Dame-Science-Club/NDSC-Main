@@ -69,7 +69,7 @@ export function ActivitiesCarousel() {
           <div className="flex justify-center"><SectionLabel>Recent</SectionLabel></div>
           <LetterAnim text="Latest Activities" tag="h2" className="font-black reveal" style={{ fontSize: "clamp(1.8rem,4vw,2.8rem)", fontFamily: "'Poppins',sans-serif", fontWeight: 800, color: "var(--white)" }} slideDir="up" />
           <LatestActivitiesSubtitle />
-          <p className="text-xs mt-3 reveal" style={{ color: "var(--muted)", fontFamily: "'Share Tech Mono',monospace", letterSpacing: "0.2em" }}>
+          <p className="text-xs mt-3 reveal" style={{ color: "var(--muted)", fontFamily: "var(--font-mono)", letterSpacing: "0.2em" }}>
             SWIPE · DRAG · USE ARROWS · AUTO-ADVANCES
           </p>
         </div>
@@ -107,14 +107,14 @@ export function ActivitiesCarousel() {
                     <Image src={cover} alt={s.title} fill className="object-cover" />
                   ) : (
                     <div className="absolute inset-0 flex items-center justify-center" style={{ background: "linear-gradient(135deg,rgba(var(--blue-rgb), 0.1),rgba(0,40,80,0.8))" }}>
-                      <span style={{ fontFamily: "'Orbitron',sans-serif", color: "var(--blue)", fontSize: 40 }}>NDSC</span>
+                      <span style={{ fontFamily: 'inherit', color: "var(--blue)", fontSize: 40 }}>NDSC</span>
                     </div>
                   )}
                   <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/15 to-transparent" />
                   {isCurrent && (
                     <div className="absolute bottom-0 left-0 right-0 p-6">
                       {s.activity_types && (
-                        <span className="text-xs tracking-widest px-2 py-1 rounded mb-2 inline-block" style={{ background: "rgba(var(--blue-rgb), 0.15)", color: "var(--blue)", fontFamily: "'Share Tech Mono',monospace" }}>
+                        <span className="text-xs tracking-widest px-2 py-1 rounded mb-2 inline-block" style={{ background: "rgba(var(--blue-rgb), 0.15)", color: "var(--blue)", fontFamily: "var(--font-mono)" }}>
                           {s.activity_types.name}
                         </span>
                       )}
@@ -164,13 +164,13 @@ export function ActivitiesCarousel() {
             {activityTypes.map(t => (
               <a key={t.id} href={`/activities?type=${t.slug}`}
                 className="px-5 py-2 rounded-full border text-xs font-bold tracking-widest transition-all hover:bg-[var(--blue)] hover:text-black hover:border-[var(--blue)]"
-                style={{ borderColor: "var(--border)", color: "var(--muted)", fontFamily: "'Share Tech Mono',monospace" }}>
+                style={{ borderColor: "var(--border)", color: "var(--muted)", fontFamily: "var(--font-mono)" }}>
                 {t.name}
               </a>
             ))}
             <a href="/activities"
               className="px-5 py-2 rounded-full border text-xs font-bold tracking-widest transition-all hover:border-[var(--blue)]"
-              style={{ borderColor: "var(--blue)", color: "var(--blue)", fontFamily: "'Share Tech Mono',monospace" }}>
+              style={{ borderColor: "var(--blue)", color: "var(--blue)", fontFamily: "var(--font-mono)" }}>
               ALL ACTIVITIES →
             </a>
           </div>

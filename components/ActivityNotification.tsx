@@ -105,7 +105,7 @@ export default function ActivityNotification() {
     >
       <div
         className="rounded-2xl border overflow-hidden shadow-2xl backdrop-blur-xl"
-        style={{ background: 'rgba(10, 22, 40, 0.92)', borderColor: 'var(--border)', boxShadow: '0 8px 32px rgba(0,0,0,0.45), 0 0 0 1px rgba(0,212,255,0.08)' }}
+        style={{ background: 'rgba(10, 22, 40, 0.92)', borderColor: 'var(--border)', boxShadow: '0 8px 32px rgba(0,0,0,0.45), 0 0 0 1px rgba(var(--blue-rgb), 0.08)' }}
       >
         {activity.cover_image_url && (
           <div className="relative">
@@ -123,7 +123,7 @@ export default function ActivityNotification() {
               {activity.type_name && (
                 <p className="text-[10px] font-bold uppercase tracking-wide mb-0.5" style={{ color: 'var(--blue)' }}>{activity.type_name}</p>
               )}
-              <p className="font-bold text-sm" style={{ color: 'var(--white)', fontFamily: "'Orbitron', sans-serif" }}>
+              <p className="font-bold text-sm" style={{ color: 'var(--white)', fontFamily: 'inherit' }}>
                 {activity.title}
               </p>
               {activity.description && (
@@ -156,7 +156,7 @@ export default function ActivityNotification() {
 
           <Link href={`/activities/${activity.slug}`} onClick={dismiss}
             className="mt-3 w-full py-2 rounded-lg text-xs font-bold flex items-center justify-center gap-1.5"
-            style={{ background: 'var(--blue)', color: '#000', fontFamily: "'Orbitron', sans-serif" }}>
+            style={{ background: 'var(--blue)', color: '#000', fontFamily: 'inherit' }}>
             {activity.registration_enabled ? 'VIEW & REGISTER' : 'VIEW EVENT'} <ArrowRight size={13} />
           </Link>
         </div>

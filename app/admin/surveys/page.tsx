@@ -57,7 +57,7 @@ const QUESTION_ICON: Record<SurveyQuestionType, any> = {
   dropdown: ChevronDown, linear_scale: SlidersHorizontal, date: Calendar, time: Clock,
 }
 
-const h = { fontFamily: "'Orbitron', sans-serif", color: 'var(--blue)' }
+const h = { fontFamily: 'inherit', color: 'var(--blue)' }
 const s = { background: 'var(--bg2)', borderColor: 'var(--border)' }
 const inputClass = 'w-full px-3 py-2 rounded-lg text-sm outline-none border'
 const inputStyle = { background: 'var(--surface-alt)', borderColor: 'var(--border)', color: 'var(--white-soft)' }
@@ -332,7 +332,7 @@ export default function AdminSurveysPage() {
                 { label: 'Busiest day', value: timingStats.peakDowLabel },
               ].map(c => (
                 <div key={c.label} className="rounded-xl border p-3.5" style={s}>
-                  <p className="text-xl font-black" style={{ color: 'var(--blue)', fontFamily: "'Orbitron', sans-serif" }}>{c.value}</p>
+                  <p className="text-xl font-black" style={{ color: 'var(--blue)', fontFamily: 'inherit' }}>{c.value}</p>
                   <p className="text-xs mt-0.5" style={{ color: 'var(--muted)' }}>{c.label}</p>
                 </div>
               ))}
@@ -757,7 +757,7 @@ export default function AdminSurveysPage() {
 
         <div className="flex gap-2 pb-8">
           <button onClick={save} disabled={saving}
-            className="px-6 py-2.5 rounded-lg text-sm font-black disabled:opacity-50" style={{ background: 'var(--blue)', color: '#000', fontFamily: "'Orbitron', sans-serif" }}>
+            className="px-6 py-2.5 rounded-lg text-sm font-black disabled:opacity-50" style={{ background: 'var(--blue)', color: '#000', fontFamily: 'inherit' }}>
             {saving ? 'SAVING...' : 'SAVE SURVEY'}
           </button>
           <button onClick={closeEditor} className="px-6 py-2.5 rounded-lg text-sm" style={{ color: 'var(--muted)' }}>Cancel</button>

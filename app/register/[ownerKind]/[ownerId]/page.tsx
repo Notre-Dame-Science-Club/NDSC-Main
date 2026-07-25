@@ -2,7 +2,7 @@
 import { useEffect, useState, useCallback } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { ArrowLeft, Loader2, AlertTriangle } from 'lucide-react'
+import { ArrowLeft, Loader2, AlertTriangle, CheckCircle2 } from 'lucide-react'
 import FormRunner from '@/components/public/FormRunner'
 import type { FormGraph, FormNode } from '@/lib/formGraph'
 
@@ -13,9 +13,30 @@ import type { FormGraph, FormNode } from '@/lib/formGraph'
 //
 // We also stash the current node id in the URL (`?node=<id>`) so the
 // user can bookmark a deep-link back to wherever they were.
+//
+// Once a registration actually finishes, we used to WIPE these keys —
+// which meant nothing on this device remembered the person had already
+// registered, and they could reopen this same URL and fill out the whole
+// form again from scratch. Now we write a durable "done" marker (both a
+// cookie and localStorage, so it survives whichever one a browser/privacy
+// mode happens to clear) and check it before ever loading the form.
 
 const regIdKey = (kind: string, id: string) => `ndsc_form_reg_${kind}_${id}`
 const curNodeKey = (kind: string, id: string) => `ndsc_form_node_${kind}_${id}`
+const doneKey = (kind: string, id: string) => `ndsc_form_done_${kind}_${id}`
+
+function setCookie(name: string, value: string, days: number) {
+  try {
+    const maxAge = days * 24 * 60 * 60
+    document.cookie = `${name}=${encodeURIComponent(value)}; path=/; max-age=${maxAge}; SameSite=Lax`
+  } catch { /* ignore — cookies may be blocked */ }
+}
+function getCookie(name: string): string | null {
+  try {
+    const match = document.cookie.match(new RegExp(`(?:^|; )${name}=([^;]*)`))
+    return match ? decodeURIComponent(match[1]) : null
+  } catch { return null }
+}
 
 export default function PublicRegisterPage() {
   const params = useParams()
@@ -29,6 +50,9 @@ export default function PublicRegisterPage() {
   const [error, setError] = useState('')
   const [registrationId, setRegistrationId] = useState<string | null>(null)
   const [currentNodeId, setCurrentNodeId] = useState<string | null>(null)
+  const [eventSlug, setEventSlug] = useState<string | undefined>(undefined)
+  const [alreadyDone, setAlreadyDone] = useState<{ registrationId: string } | null>(null)
+  const [proceedAnyway, setProceedAnyway] = useState(false)
 
   // Load the graph.
   useEffect(() => {
@@ -36,6 +60,14 @@ export default function PublicRegisterPage() {
     let cancelled = false
     setLoading(true)
     setError('')
+
+    // Check for a durable "already completed this" marker before doing
+    // anything else — cookie first, localStorage as a fallback.
+    const existingDoneId = getCookie(doneKey(ownerKind, ownerId)) || (() => {
+      try { return localStorage.getItem(doneKey(ownerKind, ownerId)) } catch { return null }
+    })()
+    if (existingDoneId) setAlreadyDone({ registrationId: existingDoneId })
+
     fetch(`/api/public/form-graph?owner_kind=${ownerKind}&owner_id=${ownerId}`)
       .then(r => r.json().then(j => ({ ok: r.ok, j })))
       .then(({ ok, j }) => {
@@ -56,6 +88,18 @@ export default function PublicRegisterPage() {
     return () => { cancelled = true }
   }, [ownerKind, ownerId])
 
+  // Resolve the activity's slug (for a working "open my dashboard" link
+  // in the duplicate-registration warning) — only relevant for activities.
+  useEffect(() => {
+    if (ownerKind !== 'activity' || !ownerId) return
+    let cancelled = false
+    fetch(`/api/admin/activity-sessions?id=${ownerId}`)
+      .then(r => r.json())
+      .then(d => { if (!cancelled && d?.slug) setEventSlug(d.slug) })
+      .catch(() => { /* non-critical */ })
+    return () => { cancelled = true }
+  }, [ownerKind, ownerId])
+
   // Persist registration / current-node id whenever they change so a
   // page refresh resumes cleanly.
   useEffect(() => {
@@ -66,17 +110,19 @@ export default function PublicRegisterPage() {
     } catch { /* ignore */ }
   }, [registrationId, currentNodeId, ownerKind, ownerId])
 
-  // When the runner reports a node change, mirror it to the URL so
-  // refresh keeps the same step.
   const handleDone = useCallback((result: { registration_id: string; is_olympiad: boolean }) => {
-    // Clear the resume keys — the registration is final.
+    // Clear the in-flight resume keys — the registration is final — but
+    // write a durable "done" marker so this browser remembers it finished
+    // and won't offer to start a brand new one for the same event.
     try {
       localStorage.removeItem(regIdKey(ownerKind, ownerId))
       localStorage.removeItem(curNodeKey(ownerKind, ownerId))
+      localStorage.setItem(doneKey(ownerKind, ownerId), result.registration_id)
+      // Mirror into the legacy key the activity page's "you're registered"
+      // strip already reads, so it shows up there too without extra work.
+      if (ownerKind === 'activity') localStorage.setItem(`ndsc_reg_${ownerId}`, result.registration_id)
     } catch { /* ignore */ }
-    // Stay on the page; the runner renders the "done" view. (We could
-    // route to a thank-you page in v2.)
-    void result
+    setCookie(doneKey(ownerKind, ownerId), result.registration_id, 365)
   }, [ownerKind, ownerId])
 
   if (loading) {
@@ -99,6 +145,42 @@ export default function PublicRegisterPage() {
             <AlertTriangle size={28} className="mx-auto mb-2" style={{ color: 'var(--danger-soft)' }} />
             <p className="font-semibold" style={{ color: 'var(--white)' }}>{error}</p>
             <p className="text-sm mt-2" style={{ color: 'var(--muted)' }}>If you think this is a mistake, contact the organizer.</p>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  // Already registered on this device, per the durable marker — show a
+  // stop screen instead of the form, with a small escape hatch in case
+  // they deliberately need to submit a second one (e.g. a different team).
+  if (alreadyDone && !proceedAnyway) {
+    return (
+      <div className="min-h-screen p-6 flex items-center justify-center" style={{ background: 'var(--bg)' }}>
+        <div className="max-w-md w-full">
+          <Link href="/" className="text-xs flex items-center gap-1 mb-3" style={{ color: 'var(--muted)' }}>
+            <ArrowLeft size={12} /> Home
+          </Link>
+          <div className="rounded-xl p-6 text-center" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+            <CheckCircle2 size={28} className="mx-auto mb-2" style={{ color: 'var(--cat-teal)' }} />
+            <p className="font-semibold" style={{ color: 'var(--white)' }}>You've already registered from this device.</p>
+            <p className="text-sm mt-2" style={{ color: 'var(--muted)' }}>
+              We remembered this so you don't accidentally submit twice.
+            </p>
+            {eventSlug && (
+              <Link href={`/activities/${eventSlug}/dashboard?reg=${alreadyDone.registrationId}`}
+                className="inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-lg text-sm font-bold mt-4"
+                style={{ background: 'var(--cat-teal)', color: '#000' }}>
+                Open my dashboard
+              </Link>
+            )}
+            <p className="text-xs mt-4" style={{ color: 'var(--muted)' }}>
+              Need to submit a different registration anyway?{' '}
+              <button type="button" onClick={() => setProceedAnyway(true)}
+                className="underline font-semibold" style={{ color: 'var(--muted)' }}>
+                Continue anyway
+              </button>
+            </p>
           </div>
         </div>
       </div>
@@ -131,7 +213,7 @@ export default function PublicRegisterPage() {
           initialCurrentNodeId={currentNodeId || undefined}
           accent={accent}
           sessionId={sessionId}
-          eventSlug={undefined}
+          eventSlug={eventSlug}
           onDone={handleDone}
         />
       </div>

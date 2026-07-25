@@ -282,7 +282,7 @@ export default function RelayExamPage() {
           <ArrowLeft size={14} /> Back to dashboard
         </Link>
 
-        <h1 className="text-2xl font-black" style={{ fontFamily: "'Orbitron', sans-serif", color: 'var(--white)' }}>{olympiad?.name}</h1>
+        <h1 className="text-2xl font-black" style={{ fontFamily: 'inherit', color: 'var(--white)' }}>{olympiad?.name}</h1>
 
         {phase === 'waiting_turn' && (
           <div className="rounded-2xl p-6 border text-center" style={{ background: 'var(--bg2)', borderColor: 'var(--border)' }}>

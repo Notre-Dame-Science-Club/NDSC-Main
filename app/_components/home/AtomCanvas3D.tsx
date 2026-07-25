@@ -25,7 +25,7 @@ export function AtomCanvas3D({ size = 340 }: { size?: number }) {
 
     // 3D orbit definition: rotX, rotY, rotZ tilt angles + color
     const orbitals = [
-      { rx: 0,              ry: 0,              rz: 0,            speed: 0.55,  color: "0,212,255",   r: R,        eDot: 4.5  },
+      { rx: 0,              ry: 0,              rz: 0,            speed: 0.55,  color: "59,130,246",   r: R,        eDot: 4.5  },
       { rx: Math.PI * 0.3,  ry: Math.PI * 0.1,  rz: Math.PI * 0.15, speed: 0.38,  color: "80,160,255",  r: R,        eDot: 4.0  },
       { rx: -Math.PI * 0.55,ry: Math.PI * 0.2,  rz: -Math.PI*0.1, speed: 0.70,  color: "160,100,255", r: R * 0.85, eDot: 3.5  },
       { rx: Math.PI * 0.5,  ry: -Math.PI * 0.25,rz: Math.PI * 0.3,speed: 0.44,  color: "0,230,180",   r: R * 0.92, eDot: 4.0  },
@@ -88,17 +88,17 @@ export function AtomCanvas3D({ size = 340 }: { size?: number }) {
       // ── Nucleus ──────────────────────────────────────
       // Outer soft glow
       const ng2 = ctx.createRadialGradient(cx, cy, 0, cx, cy, R * 0.28);
-      ng2.addColorStop(0, "rgba(0,212,255,0.08)");
-      ng2.addColorStop(1, "transparent");
+      ng2.addColorStop(0, "rgba(59,130,246,0.08)");
+      ng2.addColorStop(1, "rgba(59,130,246,0)");
       ctx.beginPath(); ctx.arc(cx, cy, R * 0.28, 0, Math.PI * 2);
       ctx.fillStyle = ng2; ctx.fill();
 
       // Core glow
       const ng = ctx.createRadialGradient(cx, cy, 0, cx, cy, R * 0.13);
       ng.addColorStop(0, "rgba(255,255,255,0.95)");
-      ng.addColorStop(0.25, "rgba(0,212,255,0.9)");
+      ng.addColorStop(0.25, "rgba(59,130,246,0.9)");
       ng.addColorStop(0.65, "rgba(0,80,200,0.55)");
-      ng.addColorStop(1, "rgba(0,212,255,0)");
+      ng.addColorStop(1, "rgba(59,130,246,0)");
       ctx.beginPath(); ctx.arc(cx, cy, R * 0.13, 0, Math.PI * 2);
       ctx.fillStyle = ng; ctx.fill();
 
@@ -115,7 +115,7 @@ export function AtomCanvas3D({ size = 340 }: { size?: number }) {
         );
         const nAlpha = 0.5 + nps * 0.4;
         ctx.beginPath(); ctx.arc(npx, npy, even ? 2.8 : 2.2, 0, Math.PI * 2);
-        ctx.fillStyle = even ? `rgba(0,212,255,${nAlpha})` : `rgba(255,160,60,${nAlpha})`;
+        ctx.fillStyle = even ? `rgba(59,130,246,${nAlpha})` : `rgba(255,160,60,${nAlpha})`;
         ctx.fill();
       }
 

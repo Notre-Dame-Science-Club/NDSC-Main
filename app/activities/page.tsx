@@ -3,6 +3,7 @@ import { useState, useEffect, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { Play, FileText, Mic, ChevronDown, ChevronUp, Search, X, Image as ImageIcon, Images, CalendarDays, MapPin, Clock, Microscope, ArrowRight } from "lucide-react";
 import { ActivityIcon } from "@/lib/activityIcons";
+import { useMyActivityRegistrations } from "@/hooks/useMyActivityRegistrations";
 import Link from "next/link";
 
 type ActivityType = {
@@ -62,11 +63,53 @@ function ActivitiesSkeleton() {
 }
 
 /* ── Session Card ─────────────────────────────────────────────── */
-function SessionCard({ s }: { s: ActivitySession }) {
+function SessionCard({ s, isMember, regsLoading, isRegisteredForSession }: {
+  s: ActivitySession;
+  isMember: boolean;
+  regsLoading: boolean;
+  isRegisteredForSession: (sessionId: string) => boolean;
+}) {
   const router = useRouter();
   const ytId = getYoutubeId(s.youtube_url);
   const thumb = ytId ? `https://img.youtube.com/vi/${ytId}/hqdefault.jpg` : s.cover_image_url;
-  const canRegister = s.is_upcoming && s.registration_enabled;
+  const registrationTurnedOn = s.is_upcoming && s.registration_enabled;
+  // The Form Builder graph is the only registration system now (same one
+  // the event detail page checks). A session can have registration
+  // "turned on" before its form is actually built, so we confirm a graph
+  // exists before showing a REGISTER button that would otherwise dead-end.
+  const [hasFormGraph, setHasFormGraph] = useState<boolean | null>(null);
+  useEffect(() => {
+    if (!registrationTurnedOn) return;
+    let cancelled = false;
+    fetch(`/api/public/form-graph?owner_kind=activity&owner_id=${s.id}`)
+      .then(r => setHasFormGraph(cancelled ? false : r.ok))
+      .catch(() => { if (!cancelled) setHasFormGraph(false); });
+    return () => { cancelled = true; };
+  }, [registrationTurnedOn, s.id]);
+  const canRegister = registrationTurnedOn && hasFormGraph === true;
+  const formPending = registrationTurnedOn && hasFormGraph === false;
+
+  // Already-registered check. Previously this only ever looked at the
+  // localStorage/cookie device markers the register flow writes on
+  // completion — which go stale across devices, cleared storage, or a
+  // member logging in after registering anonymously. For a logged-in
+  // member we use server truth (isRegisteredForSession, passed down
+  // from a single useMyActivityRegistrations call in the parent — one
+  // fetch for the whole grid, not one per card); anonymous visitors
+  // still fall back to the device marker since there's nothing else to
+  // check for them.
+  const [deviceReg, setDeviceReg] = useState(false);
+  const [deviceRegChecked, setDeviceRegChecked] = useState(false);
+  useEffect(() => {
+    try {
+      const fromLocal = localStorage.getItem(`ndsc_reg_${s.id}`) || localStorage.getItem('ndsc_activity_reg_id');
+      const cookieMatch = document.cookie.match(new RegExp(`(?:^|; )ndsc_form_done_activity_${s.id}=([^;]*)`));
+      setDeviceReg(!!(fromLocal || cookieMatch));
+    } catch { /* ignore — storage may be unavailable */ }
+    setDeviceRegChecked(true);
+  }, [s.id]);
+  const regChecked = deviceRegChecked && !regsLoading;
+  const hasReg = isMember ? isRegisteredForSession(s.id) : deviceReg;
   return (
     <div
       role="link" tabIndex={0}
@@ -121,7 +164,13 @@ function SessionCard({ s }: { s: ActivitySession }) {
               <Images size={10} /> {s.gallery_urls.length}
             </span>
           )}
-          {canRegister && (
+          {canRegister && regChecked && hasReg && (
+            <span className="px-2 py-1 rounded-md text-[10px] font-black tracking-wider flex items-center gap-1 backdrop-blur-sm ml-auto"
+              style={{ background: "rgba(0,0,0,.6)", color: "var(--cat-teal)", border: "1px solid rgba(52,211,153,.45)" }}>
+              REGISTERED
+            </span>
+          )}
+          {canRegister && (!regChecked || !hasReg) && (
             <span className="px-2 py-1 rounded-md text-[10px] font-black tracking-wider flex items-center gap-1 backdrop-blur-sm ml-auto"
               style={{ background: "rgba(0,0,0,.6)", color: "var(--blue)", border: "1px solid rgba(var(--blue-rgb),.45)" }}>
               <span className="relative flex h-1.5 w-1.5">
@@ -135,7 +184,7 @@ function SessionCard({ s }: { s: ActivitySession }) {
       </div>
       <div className="p-5 flex-1 flex flex-col">
         <h3 className="font-bold text-sm mb-2 group-hover:text-[var(--blue)] transition-colors line-clamp-2"
-          style={{ fontFamily: "'Orbitron',sans-serif" }}>{s.title}</h3>
+          style={{ fontFamily: 'inherit' }}>{s.title}</h3>
         {s.description && (
           <p className="text-xs leading-relaxed mb-3 line-clamp-2" style={{ color: "var(--muted)" }}>
             {s.description}
@@ -154,13 +203,28 @@ function SessionCard({ s }: { s: ActivitySession }) {
             )}
           </div>
           {canRegister ? (
-            <Link
-              href={`/activities/${s.slug}/register`}
-              onClick={(e) => e.stopPropagation()}
-              className="register-cta shrink-0 inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-[11px] font-black tracking-widest"
-              style={{ fontFamily: "'Orbitron',sans-serif" }}>
-              REGISTER <ArrowRight size={12} className="cta-arrow" />
-            </Link>
+            hasReg ? (
+              <Link
+                href={`/activities/${s.slug}/dashboard`}
+                onClick={(e) => e.stopPropagation()}
+                className="btn-outline shrink-0 inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-[11px] font-black tracking-widest"
+                style={{ fontFamily: 'inherit' }}>
+                MY DASHBOARD <ArrowRight size={12} className="cta-arrow" />
+              </Link>
+            ) : (
+              <Link
+                href={`/register/activity/${s.id}`}
+                onClick={(e) => e.stopPropagation()}
+                className="register-cta shrink-0 inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-[11px] font-black tracking-widest"
+                style={{ fontFamily: 'inherit' }}>
+                REGISTER <ArrowRight size={12} className="cta-arrow" />
+              </Link>
+            )
+          ) : formPending ? (
+            <span className="shrink-0 inline-flex items-center gap-1 text-[10px] font-bold tracking-widest px-3 py-1.5 rounded-lg"
+              style={{ color: "var(--muted)", border: "1px solid var(--border)" }}>
+              FORM COMING SOON
+            </span>
           ) : (
             <span className="shrink-0 inline-flex items-center gap-1 text-[10px] font-bold tracking-widest px-3 py-1.5 rounded-lg"
               style={{ color: "var(--muted)", border: "1px solid var(--border)" }}>
@@ -174,7 +238,10 @@ function SessionCard({ s }: { s: ActivitySession }) {
 }
 
 /* ── Version Section ──────────────────────────────────────────── */
-function VersionSection({ version, sessions }: { version: ActivityVersion; sessions: ActivitySession[] }) {
+function VersionSection({ version, sessions, isMember, regsLoading, isRegisteredForSession }: {
+  version: ActivityVersion; sessions: ActivitySession[];
+  isMember: boolean; regsLoading: boolean; isRegisteredForSession: (sessionId: string) => boolean;
+}) {
   const [open, setOpen] = useState(true);
   const published = sessions
     .filter(s => s.is_published)
@@ -187,8 +254,8 @@ function VersionSection({ version, sessions }: { version: ActivityVersion; sessi
         <div className="flex items-center gap-3 flex-1">
           <div className="px-3 py-1 rounded-lg text-sm font-black"
             style={version.is_highlighted
-              ? { background: "rgba(255, 176, 32, .18)", color: "#ffb020", border: "1px solid rgba(255, 176, 32, .45)", fontFamily: "'Orbitron',sans-serif" }
-              : { background: "rgba(var(--blue-rgb), .15)", color: "var(--blue)", border: "1px solid rgba(var(--blue-rgb), .3)", fontFamily: "'Orbitron',sans-serif" }}>
+              ? { background: "rgba(255, 176, 32, .18)", color: "#ffb020", border: "1px solid rgba(255, 176, 32, .45)", fontFamily: 'inherit' }
+              : { background: "rgba(var(--blue-rgb), .15)", color: "var(--blue)", border: "1px solid rgba(var(--blue-rgb), .3)", fontFamily: 'inherit' }}>
             {version.version_label || `v${version.version_number}`}
           </div>
           <div className="text-left">
@@ -206,7 +273,7 @@ function VersionSection({ version, sessions }: { version: ActivityVersion; sessi
       {open && (
         published.length > 0 ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-            {published.map(s => <SessionCard key={s.id} s={s} />)}
+            {published.map(s => <SessionCard key={s.id} s={s} isMember={isMember} regsLoading={regsLoading} isRegisteredForSession={isRegisteredForSession} />)}
           </div>
         ) : (
           <div className="text-center py-10" style={{ color: "var(--muted)" }}>
@@ -220,7 +287,10 @@ function VersionSection({ version, sessions }: { version: ActivityVersion; sessi
 }
 
 /* ── Dynamic Activity Tab ─────────────────────────────────────── */
-function DynamicActivityTab({ type }: { type: ActivityType }) {
+function DynamicActivityTab({ type, isMember, regsLoading, isRegisteredForSession }: {
+  type: ActivityType;
+  isMember: boolean; regsLoading: boolean; isRegisteredForSession: (sessionId: string) => boolean;
+}) {
   const [versions, setVersions] = useState<ActivityVersion[]>([]);
   const [sessionMap, setSessionMap] = useState<Record<string, ActivitySession[]>>({});
   const [directSessions, setDirectSessions] = useState<ActivitySession[]>([]);
@@ -274,7 +344,7 @@ function DynamicActivityTab({ type }: { type: ActivityType }) {
       {/* Header */}
       <div className="mb-12">
         <div className="reveal section-label mb-2 inline-flex items-center gap-1.5"><ActivityIcon icon={type.icon} size={13} /> Activity</div>
-        <h2 className="reveal text-3xl font-black mb-2" style={{ fontFamily: "'Orbitron',sans-serif" }}>
+        <h2 className="reveal text-3xl font-black mb-2" style={{ fontFamily: 'inherit' }}>
           <span style={{ color: "var(--blue)" }}>{type.name.toUpperCase()}</span>
         </h2>
         {type.description && (
@@ -295,7 +365,7 @@ function DynamicActivityTab({ type }: { type: ActivityType }) {
           {versions
             .sort((a, b) => (b.is_pinned ? 1 : 0) - (a.is_pinned ? 1 : 0) || b.version_number - a.version_number)
             .map(v => (
-              <VersionSection key={v.id} version={v} sessions={sessionMap[v.id] || []} />
+              <VersionSection key={v.id} version={v} sessions={sessionMap[v.id] || []} isMember={isMember} regsLoading={regsLoading} isRegisteredForSession={isRegisteredForSession} />
             ))
           }
 
@@ -303,13 +373,13 @@ function DynamicActivityTab({ type }: { type: ActivityType }) {
           {directSessions.filter(s => s.is_published).length > 0 && (
             <div>
               {versions.length > 0 && (
-                <h3 className="reveal text-lg font-bold mb-6" style={{ fontFamily: "'Orbitron',sans-serif", color: "var(--muted)" }}>
+                <h3 className="reveal text-lg font-bold mb-6" style={{ fontFamily: 'inherit', color: "var(--muted)" }}>
                   Other Sessions
                 </h3>
               )}
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
                 {directSessions.filter(s => s.is_published).map(s => (
-                  <SessionCard key={s.id} s={s} />
+                  <SessionCard key={s.id} s={s} isMember={isMember} regsLoading={regsLoading} isRegisteredForSession={isRegisteredForSession} />
                 ))}
               </div>
             </div>
@@ -327,6 +397,7 @@ function ActivitiesContent() {
   const [activeTab, setActiveTab] = useState(searchParams.get("tab") || "");
   const [types, setTypes] = useState<ActivityType[]>([]);
   const [loadingTypes, setLoadingTypes] = useState(true);
+  const { isMember, loading: regsLoading, isRegisteredForSession } = useMyActivityRegistrations();
 
   useEffect(() => {
     fetch("/api/admin/activity-types")
@@ -369,7 +440,7 @@ function ActivitiesContent() {
               <button key={t.id} onClick={() => switchTab(t.slug)}
                 className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-black tracking-wider rounded-lg border transition-all whitespace-nowrap"
                 style={{
-                  fontFamily: "'Orbitron',sans-serif",
+                  fontFamily: 'inherit',
                   background: activeTab === t.slug ? "var(--blue)" : "transparent",
                   color: activeTab === t.slug ? "#000" : "var(--muted)",
                   borderColor: activeTab === t.slug ? "var(--blue)" : "var(--border)",
@@ -383,7 +454,7 @@ function ActivitiesContent() {
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 py-12">
         {activeType ? (
-          <DynamicActivityTab key={activeType.id} type={activeType} />
+          <DynamicActivityTab key={activeType.id} type={activeType} isMember={isMember} regsLoading={regsLoading} isRegisteredForSession={isRegisteredForSession} />
         ) : !loadingTypes ? (
           <div className="text-center py-24" style={{ color: "var(--muted)" }}>
             <div className="mb-4 flex justify-center"><Microscope size={44} /></div>
@@ -477,7 +548,7 @@ export default function ActivitiesPage() {
       <div className="py-16 text-center border-b"
         style={{ background: "linear-gradient(180deg,var(--bg2),var(--bg))", borderColor: "var(--border)" }}>
         <div className="reveal section-label justify-center mb-2">Explore</div>
-        <h1 className="reveal text-4xl md:text-5xl font-black mb-6" style={{ fontFamily: "'Orbitron',sans-serif" }}>
+        <h1 className="reveal text-4xl md:text-5xl font-black mb-6" style={{ fontFamily: 'inherit' }}>
           ALL <span style={{ color: "var(--blue)" }}>ACTIVITIES</span>
         </h1>
         <div className="reveal max-w-md mx-auto px-4">

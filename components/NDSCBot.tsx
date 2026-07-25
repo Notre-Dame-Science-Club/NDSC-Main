@@ -56,7 +56,7 @@ function StreamCursor() {
     <span style={{
       display: "inline-block",
       width: 2, height: "1em",
-      background: "var(--blue, #00d4ff)",
+      background: "var(--blue, var(--blue))",
       marginLeft: 2,
       verticalAlign: "text-bottom",
       animation: "ndscCursorBlink 0.7s step-end infinite",
@@ -76,21 +76,21 @@ function Bubble({ msg, streaming }: { msg: Msg; streaming?: boolean }) {
       {!isUser && (
         <div style={{
           width: 26, height: 26, borderRadius: "50%", flexShrink: 0,
-          background: "rgba(0,212,255,0.15)",
-          border: "1px solid rgba(0,212,255,0.4)",
+          background: "rgba(var(--blue-rgb), 0.15)",
+          border: "1px solid rgba(var(--blue-rgb), 0.4)",
           display: "flex", alignItems: "center", justifyContent: "center",
           marginRight: 8, marginTop: 2,
           fontSize: 11, color: "var(--blue)",
-          fontFamily: "'Share Tech Mono',monospace",
+          fontFamily: "var(--font-mono)",
         }}>{BOT_ICON}</div>
       )}
       <div style={{
         maxWidth: "78%",
         padding: "9px 13px",
         borderRadius: isUser ? "14px 14px 4px 14px" : "4px 14px 14px 14px",
-        background: isUser ? "rgba(0,212,255,0.18)" : "rgba(255,255,255,0.04)",
+        background: isUser ? "rgba(var(--blue-rgb), 0.18)" : "rgba(255,255,255,0.04)",
         border: isUser
-          ? "1px solid rgba(0,212,255,0.4)"
+          ? "1px solid rgba(var(--blue-rgb), 0.4)"
           : "1px solid rgba(255,255,255,0.08)",
         fontSize: 13,
         lineHeight: 1.65,
@@ -244,7 +244,7 @@ export default function NDSCBot() {
           <div style={{
             position: "absolute", bottom: 0, right: 0,
             width: 56, height: 56, borderRadius: "50%",
-            border: "2px solid rgba(0,212,255,0.6)",
+            border: "2px solid rgba(var(--blue-rgb), 0.6)",
             animation: "ndscBotPulseRing 1.8s ease-out infinite",
             pointerEvents: "none",
           }} />
@@ -254,13 +254,13 @@ export default function NDSCBot() {
           aria-label={open ? "Close AI assistant" : "Open AI assistant"}
           style={{
             width: 56, height: 56, borderRadius: "50%",
-            background: open ? "rgba(0,212,255,0.15)" : "rgba(0,212,255,0.9)",
-            border: "2px solid rgba(0,212,255,0.8)",
-            boxShadow: "0 0 28px rgba(0,212,255,0.45)",
+            background: open ? "rgba(var(--blue-rgb), 0.15)" : "rgba(var(--blue-rgb), 0.9)",
+            border: "2px solid rgba(var(--blue-rgb), 0.8)",
+            boxShadow: "0 0 28px rgba(var(--blue-rgb), 0.45)",
             cursor: "pointer",
             display: "flex", alignItems: "center", justifyContent: "center",
             fontSize: open ? 20 : 22,
-            color: open ? "var(--blue, #00d4ff)" : "#000",
+            color: open ? "var(--blue, var(--blue))" : "#000",
             transition: "all .3s cubic-bezier(0.22,1,0.36,1)",
             flexShrink: 0,
           }}
@@ -276,9 +276,9 @@ export default function NDSCBot() {
           width: "min(420px, calc(100vw - 32px))",
           height: "min(560px, calc(100vh - 120px))",
           borderRadius: 20,
-          border: "1.5px solid rgba(0,212,255,0.3)",
+          border: "1.5px solid rgba(var(--blue-rgb), 0.3)",
           background: "rgba(1,8,20,0.97)",
-          boxShadow: "0 0 60px rgba(0,212,255,0.12), 0 24px 60px rgba(0,0,0,0.7)",
+          boxShadow: "0 0 60px rgba(var(--blue-rgb), 0.12), 0 24px 60px rgba(0,0,0,0.7)",
           display: "flex", flexDirection: "column",
           overflow: "hidden",
           animation: "ndscBotFadeIn .3s cubic-bezier(0.22,1,0.36,1)",
@@ -288,16 +288,16 @@ export default function NDSCBot() {
           {/* Header */}
           <div style={{
             padding: "14px 16px 12px",
-            borderBottom: "1px solid rgba(0,212,255,0.12)",
-            background: "rgba(0,212,255,0.04)",
+            borderBottom: "1px solid rgba(var(--blue-rgb), 0.12)",
+            background: "rgba(var(--blue-rgb), 0.04)",
             display: "flex", alignItems: "center", gap: 10, flexShrink: 0,
           }}>
             <div style={{
               width: 36, height: 36, borderRadius: "50%", flexShrink: 0,
-              background: "rgba(0,212,255,0.12)",
-              border: "1.5px solid rgba(0,212,255,0.45)",
+              background: "rgba(var(--blue-rgb), 0.12)",
+              border: "1.5px solid rgba(var(--blue-rgb), 0.45)",
               display: "flex", alignItems: "center", justifyContent: "center",
-              fontSize: 18, color: "var(--blue, #00d4ff)",
+              fontSize: 18, color: "var(--blue, var(--blue))",
             }}>{BOT_ICON}</div>
             <div style={{ flex: 1, minWidth: 0 }}>
               <p style={{
@@ -307,8 +307,8 @@ export default function NDSCBot() {
               }}>NDSC AI Assistant</p>
               <p style={{
                 margin: 0, fontSize: 10, letterSpacing: "0.2em",
-                color: "var(--blue, #00d4ff)",
-                fontFamily: "'Share Tech Mono',monospace",
+                color: "var(--blue, var(--blue))",
+                fontFamily: "var(--font-mono)",
               }}>
                 <span style={{
                   display: "inline-block", width: 6, height: 6,
@@ -322,7 +322,7 @@ export default function NDSCBot() {
               onClick={() => setOpen(false)}
               style={{
                 background: "none", border: "none", cursor: "pointer",
-                color: "rgba(0,212,255,0.5)", fontSize: 16, padding: 4,
+                color: "rgba(var(--blue-rgb), 0.5)", fontSize: 16, padding: 4,
                 lineHeight: 1, flexShrink: 0,
               }}
               aria-label="Close"
@@ -333,7 +333,7 @@ export default function NDSCBot() {
           <div style={{
             flex: 1, overflowY: "auto", padding: "14px 14px 4px",
             scrollbarWidth: "thin",
-            scrollbarColor: "rgba(0,212,255,0.25) transparent",
+            scrollbarColor: "rgba(var(--blue-rgb), 0.25) transparent",
           }}>
             {msgs.map((m, i) => (
               <Bubble
@@ -346,10 +346,10 @@ export default function NDSCBot() {
               <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
                 <div style={{
                   width: 26, height: 26, borderRadius: "50%", flexShrink: 0,
-                  background: "rgba(0,212,255,0.12)",
-                  border: "1px solid rgba(0,212,255,0.35)",
+                  background: "rgba(var(--blue-rgb), 0.12)",
+                  border: "1px solid rgba(var(--blue-rgb), 0.35)",
                   display: "flex", alignItems: "center", justifyContent: "center",
-                  fontSize: 11, color: "var(--blue, #00d4ff)",
+                  fontSize: 11, color: "var(--blue, var(--blue))",
                 }}>{BOT_ICON}</div>
                 <div style={{
                   padding: "9px 14px",
@@ -373,15 +373,15 @@ export default function NDSCBot() {
                   onClick={() => send(s)}
                   style={{
                     padding: "5px 11px", borderRadius: 20,
-                    border: "1px solid rgba(0,212,255,0.3)",
-                    background: "rgba(0,212,255,0.06)",
-                    color: "rgba(0,212,255,0.9)", fontSize: 11,
-                    fontFamily: "'Share Tech Mono',monospace",
+                    border: "1px solid rgba(var(--blue-rgb), 0.3)",
+                    background: "rgba(var(--blue-rgb), 0.06)",
+                    color: "rgba(var(--blue-rgb), 0.9)", fontSize: 11,
+                    fontFamily: "var(--font-mono)",
                     letterSpacing: "0.05em", cursor: "pointer",
                     transition: "all .2s",
                   }}
-                  onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = "rgba(0,212,255,0.15)"; }}
-                  onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = "rgba(0,212,255,0.06)"; }}
+                  onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = "rgba(var(--blue-rgb), 0.15)"; }}
+                  onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = "rgba(var(--blue-rgb), 0.06)"; }}
                 >{s}</button>
               ))}
             </div>
@@ -390,18 +390,18 @@ export default function NDSCBot() {
           {/* Input */}
           <div style={{
             padding: "10px 12px 14px",
-            borderTop: "1px solid rgba(0,212,255,0.1)",
-            background: "rgba(0,212,255,0.02)", flexShrink: 0,
+            borderTop: "1px solid rgba(var(--blue-rgb), 0.1)",
+            background: "rgba(var(--blue-rgb), 0.02)", flexShrink: 0,
           }}>
             <div
               style={{
                 display: "flex", gap: 8, alignItems: "flex-end",
-                border: "1px solid rgba(0,212,255,0.25)",
+                border: "1px solid rgba(var(--blue-rgb), 0.25)",
                 borderRadius: 14, padding: "8px 10px 8px 14px",
-                background: "rgba(0,212,255,0.04)", transition: "border-color .2s",
+                background: "rgba(var(--blue-rgb), 0.04)", transition: "border-color .2s",
               }}
-              onFocusCapture={(e) => (e.currentTarget.style.borderColor = "rgba(0,212,255,0.55)")}
-              onBlurCapture={(e) => (e.currentTarget.style.borderColor = "rgba(0,212,255,0.25)")}
+              onFocusCapture={(e) => (e.currentTarget.style.borderColor = "rgba(var(--blue-rgb), 0.55)")}
+              onBlurCapture={(e) => (e.currentTarget.style.borderColor = "rgba(var(--blue-rgb), 0.25)")}
             >
               <textarea
                 ref={inputRef}
@@ -430,20 +430,20 @@ export default function NDSCBot() {
                 style={{
                   width: 32, height: 32, borderRadius: "50%", flexShrink: 0,
                   background: input.trim() && !loading && !streaming
-                    ? "rgba(0,212,255,0.9)"
-                    : "rgba(0,212,255,0.12)",
+                    ? "rgba(var(--blue-rgb), 0.9)"
+                    : "rgba(var(--blue-rgb), 0.12)",
                   border: "none",
                   cursor: input.trim() && !loading && !streaming ? "pointer" : "default",
                   display: "flex", alignItems: "center", justifyContent: "center",
-                  color: input.trim() && !loading && !streaming ? "#000" : "rgba(0,212,255,0.4)",
+                  color: input.trim() && !loading && !streaming ? "#000" : "rgba(var(--blue-rgb), 0.4)",
                   fontSize: 14, transition: "all .25s",
                 }}
               ><FontAwesomeIcon icon={faPaperPlane} /></button>
             </div>
             <p style={{
               margin: "6px 0 0", fontSize: 10,
-              color: "rgba(0,212,255,0.3)",
-              fontFamily: "'Share Tech Mono',monospace",
+              color: "rgba(var(--blue-rgb), 0.3)",
+              fontFamily: "var(--font-mono)",
               letterSpacing: "0.18em", textAlign: "center",
             }}>NDSC AI · ENTER TO SEND · SHIFT+ENTER FOR NEW LINE</p>
           </div>

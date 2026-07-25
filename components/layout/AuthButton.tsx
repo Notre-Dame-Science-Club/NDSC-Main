@@ -36,7 +36,7 @@ export default function AuthButton({ mobile = false }: { mobile?: boolean }) {
       <>
         <Link href="/dashboard"
           className="mt-5 py-4 text-center font-black tracking-widest rounded-xl border text-sm"
-          style={{ borderColor: 'var(--blue)', color: 'var(--blue)', fontFamily: "'Orbitron',sans-serif" }}>
+          style={{ borderColor: 'var(--blue)', color: 'var(--blue)', fontFamily: 'inherit' }}>
           MY DASHBOARD
         </Link>
         <button onClick={handleLogout} className="py-3 text-sm text-center"
@@ -47,7 +47,7 @@ export default function AuthButton({ mobile = false }: { mobile?: boolean }) {
     ) : (
       <Link href="/login"
         className="mt-5 py-4 text-center font-black tracking-widest rounded-xl border text-sm"
-        style={{ borderColor: 'var(--blue)', color: 'var(--blue)', fontFamily: "'Orbitron',sans-serif" }}>
+        style={{ borderColor: 'var(--blue)', color: 'var(--blue)', fontFamily: 'inherit' }}>
         MEMBER LOGIN
       </Link>
     )
@@ -56,13 +56,13 @@ export default function AuthButton({ mobile = false }: { mobile?: boolean }) {
   return loggedIn ? (
     <Link href="/dashboard"
       className="px-4 py-2 text-xs font-black tracking-widest rounded-lg border transition-all duration-200 hover:bg-[var(--blue)] hover:text-black hover:border-[var(--blue)]"
-      style={{ borderColor: 'var(--blue)', color: 'var(--blue)', fontFamily: "'Orbitron',sans-serif" }}>
+      style={{ borderColor: 'var(--blue)', color: 'var(--blue)', fontFamily: 'inherit' }}>
       Dashboard
     </Link>
   ) : (
     <Link href="/login"
       className="px-4 py-2 text-xs font-black tracking-widest rounded-lg border transition-all duration-200 hover:bg-[var(--blue)] hover:text-black hover:border-[var(--blue)]"
-      style={{ borderColor: 'var(--blue)', color: 'var(--blue)', fontFamily: "'Orbitron',sans-serif" }}>
+      style={{ borderColor: 'var(--blue)', color: 'var(--blue)', fontFamily: 'inherit' }}>
       Login
     </Link>
   )

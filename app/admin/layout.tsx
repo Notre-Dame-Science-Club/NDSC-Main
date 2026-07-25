@@ -37,7 +37,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
         style={{ background: 'var(--bg2)', borderRight: '1px solid var(--border)' }}
       >
         <div className="p-5 pb-4" style={{ borderBottom: '1px solid var(--border)' }}>
-          <h2 className="font-bold text-base" style={{ fontFamily: "'Orbitron', sans-serif", color: 'var(--blue)' }}>
+          <h2 className="font-bold text-base" style={{ fontFamily: 'inherit', color: 'var(--blue)' }}>
             NDSC Admin
           </h2>
           <p className="text-xs mt-0.5" style={{ color: 'var(--muted)' }}>Management Panel</p>

@@ -51,7 +51,7 @@ export default function PublicationArchivePage() {
         <div className="fixed inset-0 z-50 flex flex-col" style={{ background: 'rgba(0,0,0,0.97)' }}>
           <div className="flex items-center justify-between px-6 py-3 border-b shrink-0"
             style={{ borderColor: 'var(--border)', background: 'var(--bg2)' }}>
-            <span className="text-sm font-bold" style={{ fontFamily: "'Orbitron',sans-serif", color: meta.color }}>
+            <span className="text-sm font-bold" style={{ fontFamily: 'inherit', color: meta.color }}>
               {selectedPub.title} — {selectedPub.published_year}
             </span>
             <div className="flex items-center gap-3">
@@ -75,11 +75,11 @@ export default function PublicationArchivePage() {
         <div className="max-w-6xl mx-auto px-6">
           <button onClick={() => router.push('/publication')}
             className="flex items-center gap-2 text-sm mb-6 transition-colors hover:text-[var(--blue)]"
-            style={{ color: 'var(--muted)', fontFamily: "'Share Tech Mono',monospace" }}>
+            style={{ color: 'var(--muted)', fontFamily: "var(--font-mono)" }}>
             <ArrowLeft size={14} /> BACK TO PUBLICATIONS
           </button>
           <div className="section-label mb-2">Archive</div>
-          <h1 className="text-3xl md:text-4xl font-black inline-flex items-center gap-3" style={{ fontFamily: "'Orbitron',sans-serif" }}>
+          <h1 className="text-3xl md:text-4xl font-black inline-flex items-center gap-3" style={{ fontFamily: 'inherit' }}>
             <meta.icon size={30} style={{ color: meta.color }} /> <span style={{ color: meta.color }}>{meta.label}</span>
           </h1>
           <p className="mt-2 text-sm" style={{ color: 'var(--muted)' }}>
@@ -118,7 +118,7 @@ export default function PublicationArchivePage() {
                     style={{ background: 'linear-gradient(0deg,rgba(2,8,16,.75) 0%,transparent 60%)' }} />
                   <div className="absolute bottom-2 left-2 text-xs font-bold px-2 py-0.5 rounded"
                     style={{ background: 'rgba(0,0,0,0.6)', color: meta.color,
-                      fontFamily: "'Orbitron',sans-serif", border: `1px solid ${meta.color}33` }}>
+                      fontFamily: 'inherit', border: `1px solid ${meta.color}33` }}>
                     {pub.published_year}
                   </div>
                 </div>

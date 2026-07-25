@@ -64,7 +64,7 @@ const deriveOnlineType = (o?: Category['linked_olympiad']): string => {
 }
 
 const s = { background: 'var(--bg2)', borderColor: 'var(--border)' }
-const h = { fontFamily: "'Orbitron', sans-serif", color: 'var(--blue)' }
+const h = { fontFamily: 'inherit', color: 'var(--blue)' }
 const inputCls = 'w-full px-3 py-2 rounded-lg text-sm outline-none border'
 const inputStyle = { background: 'var(--surface)', borderColor: 'var(--border)', color: 'var(--white)' }
 
@@ -107,7 +107,7 @@ export default function ActivityRegistrationBuilder() {
   // Registration is the main workflow once it's on; otherwise start on
   // Appearance since Builder/Registrants have nothing to show yet.
   useEffect(() => {
-    if (session) setTab(session.registration_enabled ? 'builder' : 'appearance')
+    if (session) setTab(session.registration_enabled ? 'flow' : 'appearance')
   }, [session?.id, session?.registration_enabled])
 
   const toggleExpand = (id: string) => {
@@ -293,19 +293,19 @@ export default function ActivityRegistrationBuilder() {
           style={tab === 'files' ? { background: 'rgba(var(--blue-rgb), 0.15)', color: 'var(--blue)', border: '1px solid rgba(var(--blue-rgb), 0.4)' } : { background: 'var(--surface-deep)', color: 'var(--muted)', border: '1px solid var(--border)' }}>
           Files
         </button>
-        <button onClick={() => session?.registration_enabled && setTab('builder')}
-          disabled={!session?.registration_enabled}
-          title={!session?.registration_enabled ? 'Turn on "Registration" for this session (Activities admin) to unlock this' : ''}
-          className="px-4 py-2 rounded-lg text-sm font-semibold disabled:opacity-40 disabled:cursor-not-allowed"
-          style={tab === 'builder' ? { background: 'rgba(var(--blue-rgb), 0.15)', color: 'var(--blue)', border: '1px solid rgba(var(--blue-rgb), 0.4)' } : { background: 'var(--surface-deep)', color: 'var(--muted)', border: '1px solid var(--border)' }}>
-          <span className="inline-flex items-center gap-1.5">Registration{!session?.registration_enabled && <Lock size={11} />}</span>
-        </button>
         <button onClick={() => session?.registration_enabled && setTab('flow')}
           disabled={!session?.registration_enabled}
-          title={!session?.registration_enabled ? 'Turn on "Registration" for this session (Activities admin) to unlock this' : 'The full flowchart-style form builder — branching, presets, and multi-step flows'}
+          title={!session?.registration_enabled ? 'Turn on "Registration" for this session (Activities admin) to unlock this' : 'The public registration form — branching, presets, and multi-step flows'}
           className="px-4 py-2 rounded-lg text-sm font-semibold disabled:opacity-40 disabled:cursor-not-allowed"
           style={tab === 'flow' ? { background: 'rgba(var(--blue-rgb), 0.15)', color: 'var(--blue)', border: '1px solid rgba(var(--blue-rgb), 0.4)' } : { background: 'var(--surface-deep)', color: 'var(--muted)', border: '1px solid var(--border)' }}>
           <span className="inline-flex items-center gap-1.5"><Workflow size={13} /> Form Builder{!session?.registration_enabled && <Lock size={11} />}</span>
+        </button>
+        <button onClick={() => session?.registration_enabled && setTab('builder')}
+          disabled={!session?.registration_enabled}
+          title={!session?.registration_enabled ? 'Turn on "Registration" for this session (Activities admin) to unlock this' : "Old category system — no longer shown on the public event page. Kept for viewing/editing past setups."}
+          className="px-4 py-2 rounded-lg text-sm font-semibold disabled:opacity-40 disabled:cursor-not-allowed"
+          style={tab === 'builder' ? { background: 'rgba(var(--blue-rgb), 0.15)', color: 'var(--blue)', border: '1px solid rgba(var(--blue-rgb), 0.4)' } : { background: 'var(--surface-deep)', color: 'var(--muted)', border: '1px solid var(--border)' }}>
+          <span className="inline-flex items-center gap-1.5">Registration (legacy){!session?.registration_enabled && <Lock size={11} />}</span>
         </button>
         <button onClick={() => session?.registration_enabled && setTab('registrants')}
           disabled={!session?.registration_enabled}
@@ -323,9 +323,9 @@ export default function ActivityRegistrationBuilder() {
       {tab === 'flow' && session?.registration_enabled ? (
         <div>
           <div className="mb-5 p-4 rounded-xl text-sm" style={{ background: 'rgba(var(--blue-rgb), 0.05)', border: '1px solid rgba(var(--blue-rgb), 0.2)', color: 'var(--muted)' }}>
-            This is the full flowchart-style builder — a tree of forms with branching, presets,
-            and multi-step flows. It's separate from the segment-based <span style={{ color: 'var(--blue)' }}>Registration</span> tab;
-            use whichever fits how this event's sign-up should work.
+            This is the public registration form for this event — a tree of forms with
+            branching, presets, and multi-step flows. It's what visitors see when they hit
+            "Register Now" on the event page. Add the first form below if you haven't yet.
           </div>
           <FormGraphBuilderForOwner ownerKind="activity" ownerId={sessionId} />
         </div>
@@ -339,6 +339,11 @@ export default function ActivityRegistrationBuilder() {
         <UpdatesPanel sessionId={sessionId} />
       ) : tab === 'builder' && session?.registration_enabled ? (
       <>
+      <div className="mb-5 p-4 rounded-xl text-sm" style={{ background: 'rgba(var(--warning-rgb), 0.08)', border: '1px solid rgba(var(--warning-rgb), 0.3)', color: 'var(--muted)' }}>
+        <span style={{ color: 'var(--warning)', fontWeight: 700 }}>Legacy — no longer shown on the public event page.</span> The
+        {' '}<span style={{ color: 'var(--blue)' }}>Form Builder</span> tab is what visitors actually see now. This tab is kept
+        so you can view and edit past segment/category setups; changes here won't affect the live Register button.
+      </div>
       <div className="mb-5 p-4 rounded-xl text-sm" style={{ background: 'rgba(var(--blue-rgb), 0.05)', border: '1px solid rgba(var(--blue-rgb), 0.2)', color: 'var(--muted)' }}>
         Each <span style={{ color: 'var(--blue)' }}>segment</span> below is a top-level
         registration option for this event. They appear as cards on the public
@@ -667,7 +672,7 @@ function AppearancePanel({ sessionId, session, onSaved }: { sessionId: string; s
       <div className="rounded-xl p-4" style={{ background: 'var(--surface-deep)', border: '1px solid var(--border)' }}>
         <p className="text-xs font-bold mb-2" style={{ color: 'var(--muted)' }}>PREVIEW (what the public form will look like)</p>
         <div className="rounded-lg p-4" style={{ background: 'var(--bg2)', border: '1px solid var(--border)' }}>
-          <h3 className="text-lg font-black mb-1" style={{ fontFamily: previewFont !== 'inherit' ? previewFont : "'Orbitron', sans-serif", color: 'var(--white)' }}>{previewTitle || '(no title)'}</h3>
+          <h3 className="text-lg font-black mb-1" style={{ fontFamily: previewFont !== 'inherit' ? previewFont : 'inherit', color: 'var(--white)' }}>{previewTitle || '(no title)'}</h3>
           {previewCover && (
             <div className="rounded overflow-hidden mb-2" style={{ border: '1px solid var(--border)' }}>
               <img src={previewCover} alt="cover preview" className="w-full max-h-32 object-cover" />

@@ -120,7 +120,7 @@ export default function FormBuilderListPage() {
 
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-black flex items-center gap-2" style={{ fontFamily: "'Orbitron', sans-serif", color: 'var(--blue)' }}>
+          <h1 className="text-2xl font-black flex items-center gap-2" style={{ fontFamily: 'inherit', color: 'var(--blue)' }}>
             <Workflow size={22} /> Form Builder
           </h1>
           <p className="text-sm mt-1" style={{ color: 'var(--muted)' }}>
@@ -202,7 +202,7 @@ export default function FormBuilderListPage() {
           <div className="w-full max-w-lg rounded-2xl p-6 max-h-[80vh] overflow-y-auto"
             style={{ background: 'var(--surface-deep)', border: '1px solid var(--border)' }}
             onClick={e => e.stopPropagation()}>
-            <h3 className="text-base font-bold mb-1" style={{ fontFamily: "'Orbitron', sans-serif", color: 'var(--blue)' }}>
+            <h3 className="text-base font-bold mb-1" style={{ fontFamily: 'inherit', color: 'var(--blue)' }}>
               New form graph
             </h3>
             <p className="text-xs mb-4" style={{ color: 'var(--muted)' }}>

@@ -2,7 +2,7 @@ import { supabaseAdmin } from '@/lib/supabase'
 import { NextRequest } from 'next/server'
 import { validateCollegeRoll } from '@/lib/validation'
 import { apiError, apiOk } from '@/lib/api/response'
-import { createHash, randomBytes } from 'crypto'
+import { createHash, randomBytes, randomUUID } from 'crypto'
 
 // Member registration.
 //
@@ -54,26 +54,26 @@ export async function POST(req: NextRequest) {
       return apiError(rollError, 400)
     }
 
-    if (!payment_slip_url) {
-      return apiError('Please upload a photo of your membership slip.', 400)
-    }
-
     if (IS_LOCAL) {
       // Local dev: no GoTrue, write straight to members with a hashed
       // password. The id is a random uuid; we don't try to keep it
-      // matching any auth.users id (there are none).
+      // matching any auth.users id (there are none). members.id has no
+      // default (schema.sql: "== auth.users.id, no default"), so it must
+      // be generated here explicitly or the insert violates the not-null
+      // constraint.
       const salt = randomBytes(8).toString('hex')
       const password_hash = hashPasswordLocal(password, salt)
       const { data: created, error: dbError } = await supabaseAdmin
         .from('members')
         .insert({
+          id: randomUUID(),
           email,
           full_name,
           phone: phone || null,
           ndsc_id: ndsc_id || null,
           college_roll: String(college_roll),
           batch: batch || null,
-          payment_slip_url,
+          payment_slip_url: payment_slip_url || null,
           is_verified: false,
           password_hash: `${salt}$${password_hash}`,
         })
@@ -109,7 +109,7 @@ export async function POST(req: NextRequest) {
         ndsc_id: ndsc_id || null,
         college_roll: String(college_roll),
         batch: batch || null,
-        payment_slip_url,
+        payment_slip_url: payment_slip_url || null,
         is_verified: false,
       })
 

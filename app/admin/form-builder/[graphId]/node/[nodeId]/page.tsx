@@ -146,7 +146,7 @@ export default function NodeEditorPage() {
           </p>
           <input value={node.label} onChange={e => patch({ label: e.target.value })}
             className="text-2xl font-black bg-transparent outline-none w-full mt-0.5"
-            style={{ fontFamily: "'Orbitron', sans-serif", color: 'var(--blue)' }} />
+            style={{ fontFamily: 'inherit', color: 'var(--blue)' }} />
         </div>
         <div className="flex items-center gap-2 flex-shrink-0">
           <label className="flex items-center gap-1.5 text-xs cursor-pointer" style={{ color: 'var(--muted)' }}>
@@ -383,7 +383,7 @@ function Section({ title, children, defaultOpen = false }: { title: string; chil
     <div className="rounded-xl overflow-hidden border" style={{ borderColor: 'var(--border)' }}>
       <button onClick={() => setOpen(v => !v)}
         className="w-full flex items-center justify-between px-4 py-3 text-sm font-bold"
-        style={{ background: 'var(--surface)', color: 'var(--muted)', fontFamily: "'Orbitron', sans-serif" }}>
+        style={{ background: 'var(--surface)', color: 'var(--muted)', fontFamily: 'inherit' }}>
         {title}
         {open ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
       </button>

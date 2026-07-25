@@ -68,7 +68,7 @@ export default function PdfViewer({ url, height = '80vh', labels }: PdfViewerPro
           target="_blank"
           rel="noopener noreferrer"
           className="flex items-center gap-2 px-6 py-3 rounded font-bold text-sm"
-          style={{ background: 'var(--blue)', color: '#000', fontFamily: "'Orbitron',sans-serif" }}
+          style={{ background: 'var(--blue)', color: '#000', fontFamily: 'inherit' }}
         >
           {t.openInNewTab} ↗
         </a>
@@ -76,7 +76,7 @@ export default function PdfViewer({ url, height = '80vh', labels }: PdfViewerPro
           href={url}
           download
           className="flex items-center gap-2 px-6 py-3 rounded font-bold text-sm border"
-          style={{ borderColor: 'var(--blue)', color: 'var(--blue)', fontFamily: "'Orbitron',sans-serif" }}
+          style={{ borderColor: 'var(--blue)', color: 'var(--blue)', fontFamily: 'inherit' }}
         >
           ↓ {t.download}
         </a>
@@ -105,9 +105,9 @@ export default function PdfViewer({ url, height = '80vh', labels }: PdfViewerPro
           rel="noopener noreferrer"
           className="px-3 py-1.5 rounded text-xs font-bold"
           style={{
-            background: 'rgba(0,212,255,0.15)',
+            background: 'rgba(var(--blue-rgb), 0.15)',
             color: 'var(--blue)',
-            border: '1px solid rgba(0,212,255,0.3)',
+            border: '1px solid rgba(var(--blue-rgb), 0.3)',
             backdropFilter: 'blur(4px)',
           }}
         >

@@ -56,7 +56,7 @@ export default function LoginPage() {
               <Microscope size={22} style={{ color: 'var(--blue)' }} />
             </div>
             <h1 className="text-xl font-bold mb-1"
-              style={{ fontFamily: "'Orbitron', sans-serif", color: 'var(--blue)' }}>
+              style={{ fontFamily: 'inherit', color: 'var(--blue)' }}>
               Member Login
             </h1>
             <p className="text-sm" style={{ color: 'var(--muted)' }}>Sign in to your NDSC account</p>
@@ -104,7 +104,7 @@ export default function LoginPage() {
               style={{
                 background: 'var(--blue)',
                 opacity: loading ? 0.6 : 1,
-                fontFamily: "'Orbitron', sans-serif",
+                fontFamily: 'inherit',
                 letterSpacing: '0.05em',
               }}>
               {loading ? 'Signing in...' : 'Login'}

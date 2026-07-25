@@ -97,14 +97,32 @@ export async function POST(req: NextRequest) {
   }
 
   const packed = packFormGraphBody({ ...body, title: ownerTitle, settings: body.settings || {} })
-  const { data, error } = await supabaseAdmin
+
+  // Atomic get-or-create: ON CONFLICT DO NOTHING means two concurrent
+  // requests for the same (owner_kind, owner_id) — e.g. React's dev-mode
+  // double-invoked effects, or two admins opening the builder at once —
+  // can never race each other into the unique-constraint violation the
+  // old check-then-insert version above was vulnerable to. Whichever
+  // request the database processes second simply inserts nothing and
+  // falls through to the plain select below, which is guaranteed to find
+  // a row by then (ours or the other request's).
+  const { data: inserted, error: insertErr } = await supabaseAdmin
     .from('form_graphs')
-    .insert(packed)
+    .upsert(packed, { onConflict: 'owner_kind,owner_id', ignoreDuplicates: true })
     .select()
+
+  if (insertErr) return apiError(insertErr, 400)
+  if (inserted && inserted.length > 0) return apiOk({ graph: inserted[0], created: true })
+
+  const { data: winner, error: winnerErr } = await supabaseAdmin
+    .from('form_graphs')
+    .select('*')
+    .eq('owner_kind', body.owner_kind)
+    .eq('owner_id', body.owner_id)
     .single()
 
-  if (error) return apiError(error, 400)
-  return apiOk({ graph: data, created: true })
+  if (winnerErr) return apiError(winnerErr, 400)
+  return apiOk({ graph: winner, created: false })
 }
 
 export async function DELETE(req: NextRequest) {

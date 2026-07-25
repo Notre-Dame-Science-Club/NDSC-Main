@@ -320,7 +320,7 @@ function DiagramInner({ graphId, showBackLink = true }: { graphId: string; showB
               const kind = n.data?.node?.kind
               const c = KIND_COLOR[kind]
               if (!c) return 'var(--muted)'
-              return c.fg === 'var(--blue)' ? '#00d4ff'
+              return c.fg === 'var(--blue)' ? 'var(--blue)'
                 : c.fg === 'var(--cat-teal)' ? '#00ff80'
                 : c.fg === 'var(--accent2)' ? '#a78bfa'
                 : c.fg === 'var(--warning)' ? '#ffb347'
@@ -377,7 +377,7 @@ function Header({ graph, savingLayout, showBackLink }: { graph: FormGraph; savin
             <ArrowLeft size={12} /> All form graphs
           </Link>
         )}
-        <h1 className="text-xl font-black flex items-center gap-2" style={{ fontFamily: "'Orbitron', sans-serif", color: 'var(--blue)' }}>
+        <h1 className="text-xl font-black flex items-center gap-2" style={{ fontFamily: 'inherit', color: 'var(--blue)' }}>
           {graph.title}
         </h1>
         <p className="text-xs mt-0.5" style={{ color: 'var(--muted)' }}>

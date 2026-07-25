@@ -34,12 +34,12 @@ export function ScienceMediaSection() {
           <div className="flex flex-col rounded-xl border overflow-hidden" style={{ borderColor: "var(--border)", background: "var(--card)" }}>
             {/* Header */}
             <div className="px-4 py-3 border-b flex items-center justify-between shrink-0" style={{ borderColor: "var(--border)" }}>
-              <p className="text-xs font-black tracking-widest" style={{ fontFamily: "'Share Tech Mono',monospace", color: "var(--blue)" }}>
+              <p className="text-xs font-black tracking-widest" style={{ fontFamily: "var(--font-mono)", color: "var(--blue)" }}>
                 ALL VIDEOS ({videos.length})
               </p>
               <a href="https://www.youtube.com/@NDSCOfficial" target="_blank" rel="noopener noreferrer"
                 className="text-xs font-bold transition-colors hover:text-[var(--blue)]"
-                style={{ color: "var(--muted)", fontFamily: "'Share Tech Mono',monospace" }}>
+                style={{ color: "var(--muted)", fontFamily: "var(--font-mono)" }}>
                 YT →
               </a>
             </div>
@@ -73,7 +73,7 @@ export function ScienceMediaSection() {
                       <p className="text-xs font-semibold line-clamp-2 leading-tight" style={{ color: active === i ? "var(--blue)" : "var(--white)", fontFamily: "'Poppins',sans-serif" }}>
                         {v.title}
                       </p>
-                      <p className="text-xs mt-0.5" style={{ color: "var(--muted)", fontFamily: "'Share Tech Mono',monospace" }}>
+                      <p className="text-xs mt-0.5" style={{ color: "var(--muted)", fontFamily: "var(--font-mono)" }}>
                         #{i + 1}
                       </p>
                     </div>

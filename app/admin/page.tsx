@@ -27,7 +27,7 @@ export default async function AdminDashboard() {
   return (
     <div>
       <div className="mb-8">
-        <h1 className="text-2xl font-bold mb-1" style={{ fontFamily: "'Orbitron', sans-serif", color: 'var(--blue)' }}>
+        <h1 className="text-2xl font-bold mb-1" style={{ fontFamily: 'inherit', color: 'var(--blue)' }}>
           Dashboard
         </h1>
         <p className="text-sm" style={{ color: 'var(--muted)' }}>Welcome back, {adminEmail}</p>
@@ -42,7 +42,7 @@ export default async function AdminDashboard() {
             style={{ background: 'var(--bg2)', borderColor: 'var(--border)' }}
           >
             <div className="mb-3" style={{ color: 'var(--blue)' }}><card.icon size={28} /></div>
-            <h3 className="font-bold text-sm mb-1" style={{ fontFamily: "'Orbitron', sans-serif", color: 'var(--white)' }}>
+            <h3 className="font-bold text-sm mb-1" style={{ fontFamily: 'inherit', color: 'var(--white)' }}>
               {card.label}
             </h3>
             <p className="text-xs" style={{ color: 'var(--muted)' }}>{card.desc}</p>

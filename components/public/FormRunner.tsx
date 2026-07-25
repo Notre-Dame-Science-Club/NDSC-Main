@@ -1,23 +1,34 @@
 'use client'
-import { useCallback, useEffect, useMemo, useState } from 'react'
-import Link from 'next/link'
-import { CheckCircle, Loader2, Workflow, AlertTriangle, ChevronRight } from 'lucide-react'
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react'
+import { CheckCircle, Loader2, AlertTriangle, ChevronRight, Circle } from 'lucide-react'
 import FieldsRenderer from '@/components/FieldsRenderer'
 import AntiCheatProvider from '@/components/olympiad/AntiCheatProvider'
+import { supabase } from '@/lib/supabase'
 import type { FormGraph, FormNode, FormNodeAppearance } from '@/lib/formGraph'
 
-// The public form runner. One screen at a time: shows the current node's
-// fields + a Submit button. On submit:
+// The public form runner. Renders the user's path down the graph as a
+// single growing column:
+//
+//   [ Starter ]  <- collapsed, done
+//   [ Common details ]  <- collapsed, done
+//   [ For NDC ]  <- active: fields + next-step cards, expanding in
+//
+// There is NO separate "submit -> full screen picker" step. If the active
+// node has children, its next-step cards render directly underneath its
+// own fields; clicking one submits the active node's answers and grows
+// the chosen child in below (CSS grid-rows accordion, no extra libs).
+// Only a true leaf node (no enabled children) gets a real "Submit" button
+// that finalizes the registration.
+//
+// On submit:
 //   - If we're on the root node, the API creates a registration row and
 //     returns the next_node_id (or marks done).
 //   - Otherwise, the API updates the existing registration with the new
 //     answers and returns the next_node_id.
-// If the current node has more than one enabled child, we show a small
-// "Choose your next step" card with one link per child. (For v1 most
-// graphs are linear, so this rarely fires.)
 //
 // Anti-cheat (timer + no-copy) is mounted automatically when the current
-// node is an olympiad question node and the graph has anti_cheat enabled.
+// (active) node is an olympiad question node and the graph has anti_cheat
+// enabled.
 
 export type FormRunnerProps = {
   graph: FormGraph
@@ -38,16 +49,6 @@ export type FormRunnerProps = {
   onDone?: (result: { registration_id: string; is_olympiad: boolean }) => void
 }
 
-type FormState = {
-  // Built-in field values (full_name, phone, etc.). These are the ones
-  // that map to top-level columns on the registration row.
-  builtins: Record<string, any>
-  // Non-built-in field values, keyed by the field's `key` (or `id`).
-  custom: Record<string, any>
-  // Team members for activity-team nodes.
-  teamMembers: any[]
-}
-
 const BLANK_BUILTINS = { full_name: '', phone: '', email: '', college: 'Notre Dame College', college_roll: '', hsc_session: '', division: '' }
 
 function resolveAppearance(node: FormNode, graph: FormGraph): FormNodeAppearance {
@@ -58,47 +59,151 @@ function resolveAppearance(node: FormNode, graph: FormGraph): FormNodeAppearance
 function resolveTimerSeconds(node: FormNode, graph: FormGraph): number | null {
   if (graph.settings?.anti_cheat !== 'timer_no_copy') return null
   if (node.kind !== 'preset_olympiad_questions' && node.kind !== 'starter') return null
-  // For starter nodes we still respect timer_override_minutes on the
-  // node (some graphs put the timer at the root), but typically the
-  // timer is on the questions node.
   const mins = (node.behavior as any)?.timer_override_minutes ?? graph.settings?.timer_minutes ?? 60
   return Math.max(0, Math.floor(mins * 60))
+}
+
+// Turns an accent color (either `var(--blue)`-style, which has a matching
+// `--blue-rgb` triplet defined in globals.css, or a plain hex string from a
+// per-event theme override) into an rgba() expression at the given alpha.
+// Avoids relying on color-mix(), which doesn't render consistently
+// everywhere and silently drops the whole declaration when it fails to
+// parse — that was the cause of the flat/broken button look last time.
+function accentRgba(accent: string, alpha: number): string {
+  const v = (accent || '').trim()
+  const varMatch = v.match(/^var\((--[\w-]+)\)$/)
+  if (varMatch) return `rgba(var(${varMatch[1]}-rgb), ${alpha})`
+  const hexMatch = v.match(/^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/)
+  if (hexMatch) {
+    let hex = hexMatch[1]
+    if (hex.length === 3) hex = hex.split('').map(c => c + c).join('')
+    const r = parseInt(hex.slice(0, 2), 16), g = parseInt(hex.slice(2, 4), 16), b = parseInt(hex.slice(4, 6), 16)
+    return `rgba(${r}, ${g}, ${b}, ${alpha})`
+  }
+  return `rgba(0, 212, 255, ${alpha})` // fallback — matches the site default blue
+}
+
+// CSS-only "grow in" accordion — a grid row animated from 0fr to 1fr plus
+// a fade, so newly-appended steps expand into place instead of just
+// popping in. No animation library needed.
+function GrowIn({ children, className = '' }: { children: ReactNode; className?: string }) {
+  const [shown, setShown] = useState(false)
+  useEffect(() => {
+    const raf = requestAnimationFrame(() => setShown(true))
+    return () => cancelAnimationFrame(raf)
+  }, [])
+  return (
+    <div
+      className={className}
+      style={{
+        display: 'grid',
+        gridTemplateRows: shown ? '1fr' : '0fr',
+        opacity: shown ? 1 : 0,
+        transform: shown ? 'translateY(0)' : 'translateY(-6px)',
+        transition: 'grid-template-rows 0.5s cubic-bezier(0.22,1,0.36,1), opacity 0.4s ease, transform 0.4s ease',
+      }}
+    >
+      <div style={{ overflow: 'hidden', minWidth: 0 }}>{children}</div>
+    </div>
+  )
 }
 
 export default function FormRunner({
   graph, nodes, initialRegistrationId, initialCurrentNodeId, accent = 'var(--blue)',
   sessionId, eventSlug, onDone,
 }: FormRunnerProps) {
-  const [registrationId, setRegistrationId] = useState<string | null>(initialRegistrationId || null)
-  // The current node the user is filling. Defaults to the graph's root
-  // (or `initialCurrentNodeId` if resuming).
-  const [currentNodeId, setCurrentNodeId] = useState<string>(
-    initialCurrentNodeId || graph.root_node_id || (nodes.find(n => n.parent_id === null)?.id ?? nodes[0]?.id ?? '')
-  )
-  const [form, setForm] = useState<FormState>({ builtins: { ...BLANK_BUILTINS }, custom: {}, teamMembers: [] })
-  const [submitting, setSubmitting] = useState(false)
-  const [error, setError] = useState('')
-  const [done, setDone] = useState(false)
-  // Picker: shown after a non-terminal submit when the parent has more
-  // than one enabled child. Each child is a clickable link.
-  const [pendingChildren, setPendingChildren] = useState<FormNode[] | null>(null)
-
   const nodesById = useMemo(() => {
     const m: Record<string, FormNode> = {}
     for (const n of nodes) m[n.id] = n
     return m
   }, [nodes])
 
-  const currentNode = nodesById[currentNodeId] || null
+  const rootId = graph.root_node_id || (nodes.find(n => n.parent_id === null)?.id ?? nodes[0]?.id ?? '')
+
+  // Walk parent_id up to the root so we can reconstruct the full ancestor
+  // chain — used both for the initial path and (defensively) anywhere we
+  // need "everything above this node".
+  const ancestorChain = useCallback((id: string): string[] => {
+    const chain: string[] = []
+    let cur: string | undefined = id
+    let guard = 0
+    while (cur && guard++ < 200) {
+      chain.unshift(cur)
+      cur = nodesById[cur]?.parent_id || undefined
+    }
+    return chain
+  }, [nodesById])
+
+  const [path, setPath] = useState<string[]>(() => {
+    const start = initialCurrentNodeId || rootId
+    return start ? ancestorChain(start) : []
+  })
+  const [submittedIds, setSubmittedIds] = useState<Set<string>>(new Set())
+  const [registrationId, setRegistrationId] = useState<string | null>(initialRegistrationId || null)
+  const [form, setForm] = useState<Record<string, any>>({ ...BLANK_BUILTINS })
+  const [custom, setCustom] = useState<Record<string, any>>({})
+  const [teamMembers, setTeamMembers] = useState<any[]>([])
+  const [submitting, setSubmitting] = useState(false)
+  const [error, setError] = useState('')
+  const [duplicateRegId, setDuplicateRegId] = useState<string | null>(null)
+  const [done, setDone] = useState(false)
+
+  // If the person filling this out is a logged-in member, tie the
+  // registration to their account (member_id column on
+  // activity_registrations) so it actually shows up in their dashboard's
+  // "My Registrations" and the server-truth already-registered checks
+  // elsewhere in the app. Previously nothing here ever looked this up,
+  // so every registration submitted through the form-graph flow had
+  // member_id = null regardless of who was logged in — the dashboard's
+  // registration list (and anything built on top of it) silently never
+  // matched activities registered this way.
+  const [memberId, setMemberId] = useState<string | null>(null)
+  useEffect(() => {
+    let cancelled = false
+    supabase.auth.getUser().then(({ data }) => {
+      if (!cancelled) setMemberId(data.user?.id || null)
+    }).catch(() => { /* not logged in / session hiccup — submit as anonymous */ })
+    return () => { cancelled = true }
+  }, [])
+
   const childrenOf = useCallback((id: string) => {
     return nodes
       .filter(n => n.parent_id === id && n.enabled)
       .sort((a, b) => (a.display_order ?? 0) - (b.display_order ?? 0))
   }, [nodes])
 
-  const handleSubmit = useCallback(async () => {
-    if (!currentNode) return
+  const activeId = path[path.length - 1] || null
+  const activeNode = activeId ? nodesById[activeId] : null
+
+  // Advance from the active node toward `childId` (or, for a leaf node,
+  // finalize). Submits the active node's answers first (unless it was
+  // already submitted, e.g. a jump via a content-block link button), then
+  // — on success — either shows the "done" state or grows the next node
+  // in below.
+  const advance = useCallback(async (childId: string | null) => {
+    if (!activeNode) return
     setError('')
+    setDuplicateRegId(null)
+
+    const finish = (data: any) => {
+      setRegistrationId(data.registration_id || registrationId)
+      if (data.done || !data.next_node_id) {
+        setDone(true)
+        onDone?.({ registration_id: data.registration_id, is_olympiad: !!data.is_olympiad })
+        return
+      }
+      const next = childId || data.next_node_id
+      setPath(p => [...p, next])
+      setCustom({})
+      setTeamMembers([])
+    }
+
+    if (submittedIds.has(activeNode.id)) {
+      // Already persisted (e.g. a link-button jump) — just move on.
+      if (childId) { setPath(p => [...p, childId]); setCustom({}); setTeamMembers([]) }
+      return
+    }
+
     setSubmitting(true)
     try {
       const res = await fetch('/api/public/form-graph/submit', {
@@ -106,54 +211,47 @@ export default function FormRunner({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           graph_id: graph.id,
-          node_id: currentNode.id,
+          node_id: activeNode.id,
           registration_id: registrationId,
-          form: form.builtins,
-          custom_answers: form.custom,
-          team_members: form.teamMembers,
+          form,
+          custom_answers: custom,
+          team_members: teamMembers,
+          member_id: memberId,
         }),
       })
       const data = await res.json().catch(() => ({}))
-      if (!res.ok) throw new Error(data.error || 'Submit failed.')
-      setRegistrationId(data.registration_id || registrationId)
-      if (data.done || !data.next_node_id) {
-        setDone(true)
-        onDone?.({ registration_id: data.registration_id, is_olympiad: !!data.is_olympiad })
-        return
+      if (!res.ok) {
+        if (data.existing_registration_id) setDuplicateRegId(data.existing_registration_id)
+        throw new Error(data.error || 'Submit failed.')
       }
-      // Look ahead: if the next node has siblings (i.e. more than one
-      // child of currentNode), show a picker. Otherwise jump straight in.
-      const nextSiblings = childrenOf(currentNode.id)
-      if (nextSiblings.length > 1) {
-        setPendingChildren(nextSiblings)
-      } else {
-        setCurrentNodeId(nextSiblings[0].id)
-      }
-      // Reset the form for the next node (built-ins stay in case the
-      // runner re-renders the same node somehow, but custom_answers reset).
-      setForm(f => ({ ...f, custom: {}, teamMembers: [] }))
+      setSubmittedIds(s => new Set(s).add(activeNode.id))
+      finish(data)
     } catch (e: any) {
       setError(e.message || 'Submit failed.')
     } finally {
       setSubmitting(false)
     }
-  }, [currentNode, graph.id, form, registrationId, childrenOf, onDone])
+  }, [activeNode, graph.id, form, custom, teamMembers, registrationId, submittedIds, onDone, memberId])
 
   // Anti-cheat timer auto-submit. When the timer hits 0, the provider
-  // calls onExpire, which we wire to the same submit handler — but
-  // bypass the picker so it just finalizes.
+  // calls onExpire, which we wire to the same advance handler — it acts
+  // like a leaf-node submit.
   const handleAutoExpire = useCallback(() => {
     if (submitting || done) return
     setError('Time is up — submitting your answers automatically.')
-    handleSubmit()
-  }, [handleSubmit, submitting, done])
+    advance(null)
+  }, [advance, submitting, done])
 
-  const navigateToNode = useCallback((id: string) => {
-    setCurrentNodeId(id)
-    setForm(f => ({ ...f, custom: {}, teamMembers: [] }))
+  // A content-block link_button with a target_node_id jumps straight to
+  // that node without submitting the active node first (matches the old
+  // behavior — used for "skip ahead" style buttons).
+  const jumpTo = useCallback((id: string) => {
+    setPath(p => [...p, id])
+    setCustom({})
+    setTeamMembers([])
   }, [])
 
-  if (!currentNode) {
+  if (!activeNode) {
     return (
       <div className="rounded-xl p-6 text-center" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
         <AlertTriangle size={24} className="mx-auto mb-2" style={{ color: 'var(--warning)' }} />
@@ -163,132 +261,143 @@ export default function FormRunner({
     )
   }
 
-  if (done) {
-    return (
-      <div className="rounded-xl p-8 text-center" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
-        <CheckCircle size={36} className="mx-auto mb-3" style={{ color: 'var(--cat-teal)' }} />
-        <h1 className="text-2xl font-black mb-2" style={{ color: 'var(--white)' }}>You're all set!</h1>
-        <p className="text-sm" style={{ color: 'var(--muted)' }}>
-          Your registration has been submitted. Your id is{' '}
-          <code className="px-1.5 py-0.5 rounded text-xs" style={{ background: 'var(--bg2)', color: 'var(--blue)' }}>{registrationId}</code>.
-        </p>
-        {onDone && (
-          <p className="text-xs mt-3" style={{ color: 'var(--muted)' }}>You can close this tab now.</p>
-        )}
-      </div>
-    )
-  }
-
-  // Picker screen: when the just-submitted node has multiple children,
-  // show one link per child. The user picks which one to fill next.
-  if (pendingChildren) {
-    return (
-      <div className="space-y-3">
-        <div className="rounded-xl p-4" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
-          <h2 className="text-lg font-bold flex items-center gap-2 mb-1" style={{ color: 'var(--white)' }}>
-            <Workflow size={16} style={{ color: accent }} /> Choose the next step
-          </h2>
-          <p className="text-xs" style={{ color: 'var(--muted)' }}>Your previous answer was saved. Pick one of the forms below to continue.</p>
-        </div>
-        <div className="grid sm:grid-cols-2 gap-3">
-          {pendingChildren.map(c => (
-            <button key={c.id} onClick={() => { setCurrentNodeId(c.id); setPendingChildren(null) }}
-              className="text-left rounded-xl p-4 transition-all hover:scale-[1.01]"
-              style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
-              <p className="font-semibold" style={{ color: 'var(--white)' }}>{c.appearance?.title || c.label}</p>
-              {c.appearance?.subtitle && <p className="text-xs mt-1" style={{ color: 'var(--muted)' }}>{c.appearance.subtitle}</p>}
-              <p className="text-xs mt-2 flex items-center gap-1" style={{ color: accent }}>Continue <ChevronRight size={12} /></p>
-            </button>
-          ))}
-        </div>
-      </div>
-    )
-  }
-
-  const appearance = resolveAppearance(currentNode, graph)
-  const timerSeconds = resolveTimerSeconds(currentNode, graph)
-  const directChildren = childrenOf(currentNode.id)
-  const hasFields = (currentNode.fields || []).length > 0
-  // Picker mode: empty fields + has children. Render the children as
-  // cards directly, no submit button. This is how intermediate
-  // "choose a sub-segment" categories from the old system show up.
-  const isPicker = !hasFields && directChildren.length > 0
+  const appearance = resolveAppearance(activeNode, graph)
+  const timerSeconds = resolveTimerSeconds(activeNode, graph)
+  const directChildren = childrenOf(activeNode.id)
+  const hasFields = (activeNode.fields || []).length > 0
+  const hasChildren = directChildren.length > 0
 
   const body = (
-    <div className="rounded-xl overflow-hidden" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
-      {(appearance.cover_photo_url || appearance.bg_image_url) && (
-        <div className="w-full aspect-[3/1] bg-cover bg-center"
-          style={{ backgroundImage: `url('${appearance.cover_photo_url || appearance.bg_image_url}')` }} />
-      )}
-      <div className="p-5 sm:p-6">
-        {appearance.title && (
-          <h1 className="text-2xl font-black mb-1" style={{ color: 'var(--white)' }}>{appearance.title}</h1>
-        )}
-        {appearance.subtitle && (
-          <p className="text-sm mb-4" style={{ color: 'var(--muted)' }}>{appearance.subtitle}</p>
-        )}
-
-        {error && (
-          <p className="text-sm p-2.5 rounded-lg mb-3"
-            style={{ background: 'rgba(var(--danger-rgb), 0.1)', color: 'var(--danger-soft)', border: '1px solid rgba(var(--danger-rgb), 0.3)' }}>
-            {error}
-          </p>
-        )}
-
-        {/* Content blocks within the node. They render alongside
-            fields and don't collect input. link_button blocks with a
-            target_node_id turn into "continue" buttons that navigate
-            to the target without submitting. */}
-        {renderContentBlocks(currentNode, navigateToNode)}
-
-        {isPicker ? (
-          <div className="mt-3">
-            <p className="text-xs font-bold tracking-wider mb-2" style={{ color: 'var(--muted)' }}>CHOOSE ONE</p>
-            <div className="grid sm:grid-cols-2 gap-2.5">
-              {directChildren.map(c => (
-                <button key={c.id} onClick={() => navigateToNode(c.id)}
-                  className="text-left rounded-xl p-4 transition-all hover:scale-[1.01]"
-                  style={{ background: 'var(--bg2)', border: '1px solid var(--border)' }}>
-                  <p className="font-semibold" style={{ color: 'var(--white)' }}>{c.appearance?.title || c.label}</p>
-                  {c.appearance?.subtitle && <p className="text-xs mt-1" style={{ color: 'var(--muted)' }}>{c.appearance.subtitle}</p>}
-                  <p className="text-xs mt-2 flex items-center gap-1" style={{ color: accent }}>Continue <ChevronRight size={12} /></p>
-                </button>
-              ))}
+    <div className="flex flex-col gap-3">
+      {path.slice(0, -1).map(id => {
+        const n = nodesById[id]
+        if (!n) return null
+        const a = resolveAppearance(n, graph)
+        return (
+          <GrowIn key={id}>
+            <div className="rounded-xl px-4 py-3 flex items-center gap-2.5"
+              style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid var(--border)' }}>
+              <CheckCircle size={15} style={{ color: 'var(--cat-teal)' }} className="shrink-0" />
+              <span className="text-sm font-semibold truncate" style={{ color: 'var(--muted)' }}>
+                {a.title || n.label}
+              </span>
             </div>
-          </div>
-        ) : (
-          <>
-            <FieldsRenderer
-              schema={currentNode.fields || []}
-              form={form.builtins}
-              onFormChange={b => setForm(f => ({ ...f, builtins: b }))}
-              customAnswers={form.custom}
-              onCustomAnswersChange={c => setForm(f => ({ ...f, custom: c }))}
-              accent={accent}
-              sessionId={sessionId}
-              eventSlug={eventSlug}
-            />
-            {hasFields && (
-              <div className="flex items-center gap-2 mt-5">
-                <button type="button" onClick={handleSubmit} disabled={submitting}
-                  className="px-4 py-2.5 rounded-lg text-sm font-bold flex items-center gap-2 disabled:opacity-50"
-                  style={{ background: accent, color: '#000' }}>
-                  {submitting ? <><Loader2 size={14} className="animate-spin" /> Submitting…</> : <>Submit <ChevronRight size={14} /></>}
-                </button>
-                {currentNode.is_terminal && (
-                  <span className="text-[10px] font-bold tracking-wider px-2 py-1 rounded" style={{ background: 'rgba(var(--cat-teal-rgb), 0.12)', color: 'var(--cat-teal)' }}>
-                    FINAL STEP
-                  </span>
-                )}
+          </GrowIn>
+        )
+      })}
+
+      <GrowIn key={activeNode.id}>
+        <div className="rounded-xl overflow-hidden" style={{ background: 'var(--surface)', border: `1px solid ${done ? 'rgba(var(--cat-teal-rgb), 0.4)' : 'var(--border)'}` }}>
+          {(appearance.cover_photo_url || appearance.bg_image_url) && (
+            <div className="w-full aspect-[3/1] bg-cover bg-center"
+              style={{ backgroundImage: `url('${appearance.cover_photo_url || appearance.bg_image_url}')` }} />
+          )}
+          <div className="p-5 sm:p-6">
+            {done ? (
+              <div className="text-center py-4">
+                <CheckCircle size={40} className="mx-auto mb-3" style={{ color: 'var(--cat-teal)' }} />
+                <h2 className="text-xl font-black mb-1" style={{ color: 'var(--white)' }}>You're all set!</h2>
+                <p className="text-sm" style={{ color: 'var(--muted)' }}>Your registration has been submitted.</p>
               </div>
+            ) : (
+              <>
+                {appearance.title && (
+                  <h1 className="text-2xl font-black mb-1" style={{ color: 'var(--white)' }}>{appearance.title}</h1>
+                )}
+                {appearance.subtitle && (
+                  <p className="text-sm mb-4" style={{ color: 'var(--muted)' }}>{appearance.subtitle}</p>
+                )}
+
+                {error && (
+                  <div className="text-sm p-2.5 rounded-lg mb-3"
+                    style={{ background: 'rgba(var(--danger-rgb), 0.1)', color: 'var(--danger-soft)', border: '1px solid rgba(var(--danger-rgb), 0.3)' }}>
+                    <p>{error}</p>
+                    {duplicateRegId && eventSlug && (
+                      <a href={`/activities/${eventSlug}/dashboard?reg=${duplicateRegId}`}
+                        className="inline-flex items-center gap-1 mt-1.5 font-semibold underline">
+                        Open my existing registration
+                      </a>
+                    )}
+                  </div>
+                )}
+
+                {renderContentBlocks(activeNode, jumpTo)}
+
+                {hasFields && (
+                  <div className={hasChildren ? 'mt-3' : ''}>
+                    <FieldsRenderer
+                      schema={activeNode.fields || []}
+                      form={form}
+                      onFormChange={setForm}
+                      customAnswers={custom}
+                      onCustomAnswersChange={setCustom}
+                      accent={accent}
+                      sessionId={sessionId}
+                      eventSlug={eventSlug}
+                    />
+                  </div>
+                )}
+
+                {hasChildren ? (
+                  <div className="mt-5">
+                    <p className="text-xs font-bold tracking-wider mb-2" style={{ color: 'var(--muted)' }}>
+                      {hasFields ? 'CONTINUE TO' : 'CHOOSE ONE'}
+                    </p>
+                    <div className="grid sm:grid-cols-2 gap-2.5">
+                      {directChildren.map(c => {
+                        const ca = resolveAppearance(c, graph)
+                        return (
+                          <button key={c.id} type="button" disabled={submitting} onClick={() => advance(c.id)}
+                            className="group text-left rounded-lg p-4 transition-all duration-200 disabled:opacity-50 hover:-translate-y-0.5"
+                            style={{
+                              background: 'var(--bg2)',
+                              border: '1px solid var(--border)',
+                              boxShadow: '0 1px 2px rgba(0,0,0,0.15)',
+                            }}
+                            onMouseEnter={e => { e.currentTarget.style.borderColor = accentRgba(accent, 0.5) }}
+                            onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border)' }}>
+                            <p className="font-semibold flex items-center gap-1.5" style={{ color: 'var(--white)' }}>
+                              <Circle size={6} fill={accent} style={{ color: accent }} className="shrink-0" />
+                              {ca.title || c.label}
+                            </p>
+                            {ca.subtitle && <p className="text-xs mt-1 ml-3" style={{ color: 'var(--muted)' }}>{ca.subtitle}</p>}
+                            <p className="text-xs mt-2 ml-3 flex items-center gap-1 font-semibold" style={{ color: accent }}>
+                              {submitting ? 'Saving…' : 'Continue'} <ChevronRight size={12} className="transition-transform group-hover:translate-x-0.5" />
+                            </p>
+                          </button>
+                        )
+                      })}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-2 mt-5">
+                    <button type="button" onClick={() => advance(null)} disabled={submitting}
+                      className="px-6 py-3 rounded-lg text-sm font-bold flex items-center gap-2 disabled:opacity-50 transition-all duration-200 hover:brightness-110 hover:-translate-y-0.5 active:translate-y-0 active:brightness-95"
+                      style={{
+                        background: accent,
+                        color: '#08131f',
+                        border: `1px solid ${accentRgba(accent, 0.5)}`,
+                        boxShadow: `0 1px 2px rgba(0,0,0,0.25), 0 8px 20px -6px ${accentRgba(accent, 0.55)}, inset 0 1px 0 rgba(255,255,255,0.35)`,
+                        letterSpacing: '0.01em',
+                      }}>
+                      {submitting ? <><Loader2 size={14} className="animate-spin" /> Submitting…</> : <>Submit <ChevronRight size={14} /></>}
+                    </button>
+                    {activeNode.is_terminal && (
+                      <span className="text-[10px] font-bold tracking-wider px-2 py-1 rounded" style={{ background: 'rgba(var(--cat-teal-rgb), 0.12)', color: 'var(--cat-teal)' }}>
+                        FINAL STEP
+                      </span>
+                    )}
+                  </div>
+                )}
+              </>
             )}
-          </>
-        )}
-      </div>
+          </div>
+        </div>
+      </GrowIn>
     </div>
   )
 
-  if (timerSeconds != null) {
+  if (timerSeconds != null && !done) {
     return (
       <AntiCheatProvider initialSeconds={timerSeconds} onExpire={handleAutoExpire}>
         {body}
@@ -308,7 +417,7 @@ function renderContentBlocks(node: FormNode, navigate: (id: string) => void) {
   const blocks = (node.fields || []).filter(f => f.kind === 'content' || !f.kind)
   if (!blocks.length) return null
   return (
-    <div className="space-y-3">
+    <div className="space-y-3 mb-3">
       {blocks.map((b, i) => {
         if (b.type === 'header') {
           const cls = b.heading_size === 'lg' ? 'text-xl font-black' : 'text-base font-bold'
@@ -325,7 +434,7 @@ function renderContentBlocks(node: FormNode, navigate: (id: string) => void) {
           if ((b as any).target_node_id) {
             return (
               <button key={i} type="button" onClick={() => navigate((b as any).target_node_id)}
-                className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-bold"
+                className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-bold transition-all hover:-translate-y-0.5"
                 style={{ background: 'var(--blue)', color: '#000' }}>
                 {label} <ChevronRight size={14} />
               </button>

@@ -36,7 +36,7 @@ function Modal({ title, onClose, children }: { title: string; onClose: () => voi
         style={{ background: S.card, border: `1px solid ${S.border}` }}
         onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-5">
-          <h3 style={{ fontFamily: "'Orbitron',sans-serif", color: S.accent, fontSize: 16 }}>{title}</h3>
+          <h3 style={{ fontFamily: 'inherit', color: S.accent, fontSize: 16 }}>{title}</h3>
           <button onClick={onClose} style={{ color: S.muted }} className="hover:text-white"><X size={20} /></button>
         </div>
         {children}
@@ -590,7 +590,7 @@ export default function ActivitiesAdminPage() {
     <div style={{ color: S.text }}>
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 style={{ fontFamily: "'Orbitron',sans-serif", color: S.accent, fontSize: 20 }}>Activities</h1>
+          <h1 style={{ fontFamily: 'inherit', color: S.accent, fontSize: 20 }}>Activities</h1>
           <p className="text-xs mt-0.5" style={{ color: S.muted }}>Type → Version (optional) → Session</p>
         </div>
       </div>

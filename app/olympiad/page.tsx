@@ -169,7 +169,7 @@ export default function OlympiadListPage() {
     <div className="min-h-screen py-16 px-4" style={{ background: bg }}>
       <div className="max-w-4xl mx-auto">
         <div className="text-center mb-12">
-          <h1 className="text-3xl font-bold mb-3" style={{ fontFamily: 'Orbitron, monospace', color: accent }}>
+          <h1 className="text-3xl font-bold mb-3" style={{ fontFamily: 'inherit', color: accent }}>
             NDSC Olympiads
           </h1>
           <p className="text-sm" style={{ color: 'var(--muted)' }}>

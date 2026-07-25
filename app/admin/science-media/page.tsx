@@ -34,7 +34,7 @@ export default function ScienceMediaAdmin() {
 
   return (
     <div>
-      <h1 className="text-2xl font-bold mb-6" style={{ fontFamily: "'Orbitron',sans-serif", color: 'var(--blue)' }}>
+      <h1 className="text-2xl font-bold mb-6" style={{ fontFamily: 'inherit', color: 'var(--blue)' }}>
         Science Media
       </h1>
 

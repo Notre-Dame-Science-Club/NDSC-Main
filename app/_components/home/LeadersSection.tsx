@@ -59,7 +59,7 @@ export function LeadersSection() {
                     &ldquo;{q.full}&rdquo;
                   </p>
                 </div>
-                <Link href={q.link} className="mt-5 text-xs font-bold tracking-widest self-start flex items-center gap-1.5 group" style={{ color: "var(--blue)", fontFamily: "'Share Tech Mono',monospace", letterSpacing: "0.2em" }}>
+                <Link href={q.link} className="mt-5 text-xs font-bold tracking-widest self-start flex items-center gap-1.5 group" style={{ color: "var(--blue)", fontFamily: "var(--font-mono)", letterSpacing: "0.2em" }}>
                   READ MORE <ChevronRight size={12} className="group-hover:translate-x-0.5 transition-transform" />
                 </Link>
               </div>

@@ -87,7 +87,7 @@ export default function AdminOlympiadsPage() {
   // legacy freestanding ones created directly here. Keyed by olympiad id.
   const [linkInfo, setLinkInfo] = useState<Record<string, any>>({})
 
-  const h = { fontFamily: 'Orbitron, monospace', color: 'var(--blue)' }
+  const h = { fontFamily: 'inherit', color: 'var(--blue)' }
   const s = { background: 'var(--surface-deep)', border: '1px solid var(--border)' }
   const inputStyle = { background: 'var(--surface-alt)', borderColor: 'var(--border)', color: 'var(--white-soft)' }
   const inputClass = 'w-full px-3 py-2 rounded-lg text-sm outline-none border'
@@ -840,7 +840,7 @@ export default function AdminOlympiadsPage() {
               }}>
                 {editing.theme_header_logo_url && <img src={editing.theme_header_logo_url} alt="" className="h-9 object-contain flex-shrink-0" />}
                 <div className="flex-1 min-w-0">
-                  <p className="font-bold text-sm truncate" style={{ color: editing.theme_accent_color || 'var(--blue)', fontFamily: 'Orbitron, monospace' }}>
+                  <p className="font-bold text-sm truncate" style={{ color: editing.theme_accent_color || 'var(--blue)', fontFamily: 'inherit' }}>
                     {editing.theme_header_title || editing.name || 'Olympiad Name'}
                   </p>
                   {editing.theme_header_subtitle && <p className="text-xs truncate" style={{ color: 'var(--muted)' }}>{editing.theme_header_subtitle}</p>}

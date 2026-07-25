@@ -46,14 +46,14 @@ export function OlympiadPulse() {
               style={{ background: "rgba(var(--blue-rgb), 0.06)", border: "1px solid rgba(var(--blue-rgb), 0.25)" }}>
               <div className="absolute top-0 right-0 w-32 h-32 rounded-full pointer-events-none"
                 style={{ background: "radial-gradient(circle at top right, rgba(var(--blue-rgb), 0.18), transparent 70%)" }} />
-              <p className="text-xs font-bold tracking-widest mb-2" style={{ color: "var(--blue)", fontFamily: "'Share Tech Mono',monospace" }}>
+              <p className="text-xs font-bold tracking-widest mb-2" style={{ color: "var(--blue)", fontFamily: "var(--font-mono)" }}>
                 NEXT UP
               </p>
               <h3 className="text-lg sm:text-xl font-bold mb-5" style={{ color: "var(--white)", fontFamily: "'Poppins',sans-serif" }}>{next.name}</h3>
               <div className="grid grid-cols-4 gap-2 sm:gap-3">
                 {[{ v: left.d, l: "Days" }, { v: left.h, l: "Hrs" }, { v: left.m, l: "Min" }, { v: left.s, l: "Sec" }].map(u => (
                   <div key={u.l} className="text-center rounded-xl py-3" style={{ background: "rgba(var(--blue-rgb), 0.08)", border: "1px solid rgba(var(--blue-rgb), 0.2)" }}>
-                    <p className="text-2xl sm:text-3xl font-black tabular-nums" style={{ color: "var(--blue)", fontFamily: "'Orbitron',sans-serif" }}>
+                    <p className="text-2xl sm:text-3xl font-black tabular-nums" style={{ color: "var(--blue)", fontFamily: 'inherit' }}>
                       {String(u.v).padStart(2, "0")}
                     </p>
                     <p className="text-[10px] mt-1 tracking-wider" style={{ color: "var(--muted)" }}>{u.l}</p>
@@ -69,7 +69,7 @@ export function OlympiadPulse() {
           {/* Leaderboard */}
           {leaderboards[0] && (
             <div className="reveal rounded-3xl p-7 sm:p-8" style={{ background: "rgba(var(--warning-rgb), 0.05)", border: "1px solid rgba(var(--warning-rgb), 0.25)" }}>
-              <p className="text-xs font-bold tracking-widest mb-2" style={{ color: "var(--warning)", fontFamily: "'Share Tech Mono',monospace" }}>
+              <p className="text-xs font-bold tracking-widest mb-2" style={{ color: "var(--warning)", fontFamily: "var(--font-mono)" }}>
                 LEADERBOARD
               </p>
               <h3 className="text-lg sm:text-xl font-bold mb-5" style={{ color: "var(--white)", fontFamily: "'Poppins',sans-serif" }}>
@@ -78,7 +78,7 @@ export function OlympiadPulse() {
               <div className="space-y-2">
                 {leaderboards[0].entries.map((e, i) => (
                   <div key={i} className="flex items-center gap-3 rounded-xl px-4 py-2.5" style={{ background: i === 0 ? "rgba(var(--warning-rgb), 0.1)" : "rgba(255,255,255,0.02)" }}>
-                    <span className="w-6 text-center font-black text-sm inline-flex items-center justify-center" style={{ color: i === 0 ? "var(--warning)" : "var(--muted)", fontFamily: "'Orbitron',sans-serif" }}>
+                    <span className="w-6 text-center font-black text-sm inline-flex items-center justify-center" style={{ color: i === 0 ? "var(--warning)" : "var(--muted)", fontFamily: 'inherit' }}>
                       {i === 0 ? <Trophy size={15} /> : `#${i + 1}`}
                     </span>
                     <span className="flex-1 text-sm font-medium truncate" style={{ color: "var(--white)" }}>{e.name}</span>

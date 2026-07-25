@@ -14,12 +14,12 @@ export default function PdfViewer({ url }: { url: string }) {
         </p>
         <a href={url} target="_blank" rel="noopener noreferrer"
           className="flex items-center gap-2 px-6 py-3 rounded font-bold text-sm"
-          style={{ background: 'var(--blue)', color: '#000', fontFamily: "'Orbitron',sans-serif" }}>
+          style={{ background: 'var(--blue)', color: '#000', fontFamily: 'inherit' }}>
           নতুন Tab এ খুলুন ↗
         </a>
         <a href={url} download
           className="flex items-center gap-2 px-6 py-3 rounded font-bold text-sm border"
-          style={{ borderColor: 'var(--blue)', color: 'var(--blue)', fontFamily: "'Orbitron',sans-serif" }}>
+          style={{ borderColor: 'var(--blue)', color: 'var(--blue)', fontFamily: 'inherit' }}>
           ↓ Download PDF
         </a>
       </div>

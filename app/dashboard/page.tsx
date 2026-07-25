@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { MessageCircle, Award, Plus, Upload, X, Home, CalendarDays, BookOpen, Trophy, User, Megaphone, Ticket, Link2, CheckCircle, FileText, CalendarCheck, CreditCard, ClipboardList, ArrowRight } from 'lucide-react'
+import { MessageCircle, Award, Plus, Upload, X, Home, CalendarDays, BookOpen, Trophy, User, Megaphone, Ticket, Link2, CheckCircle, FileText, CalendarCheck, CreditCard, ClipboardList, ArrowRight, IdCard, Clock } from 'lucide-react'
 import SurveyForm from '@/components/SurveyForm'
 
 type Tab = 'home' | 'activities' | 'publications' | 'olympiads' | 'surveys' | 'profile'
@@ -51,6 +51,15 @@ export default function DashboardPage() {
         .eq('id', user.id)
         .single()
 
+      // Previously this signed out and blocked anyone with is_verified
+      // === false, since a slip was mandatory at registration and
+      // "unverified" only meant "admin hasn't clicked approve yet". Now
+      // that the slip is optional at sign-up (people from other colleges
+      // or schools can register too, and NDC students may not have
+      // collected/submitted their slip yet), unverified is a normal,
+      // expected state — those members still need dashboard access so
+      // they can submit a slip via the Membership card below. Full
+      // sign-out is no longer appropriate here.
       setMember(m || { email: user.email, full_name: user.email })
 
       // Load member's event registrations
@@ -153,6 +162,57 @@ export default function DashboardPage() {
   const [achSubmitting, setAchSubmitting] = useState(false)
   const [achError, setAchError] = useState('')
 
+  // Membership slip upload state (dashboard-side; for members who signed
+  // up without a slip, or whose slip hasn't been submitted/approved yet)
+  const [showMembershipModal, setShowMembershipModal] = useState(false)
+  const [slipFile, setSlipFile] = useState<File | null>(null)
+  const [slipSubmitting, setSlipSubmitting] = useState(false)
+  const [slipError, setSlipError] = useState('')
+
+  const uploadMembershipSlipFile = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const fd = new FormData()
+      fd.append('file', file)
+      fd.append('folder', 'membership-slips')
+      const xhr = new XMLHttpRequest()
+      xhr.addEventListener('load', () => {
+        try {
+          const data = JSON.parse(xhr.responseText)
+          if (xhr.status >= 200 && xhr.status < 300 && data.url) resolve(data.url)
+          else reject(new Error(data.error || 'Upload failed'))
+        } catch { reject(new Error('Upload failed. Please try again.')) }
+      })
+      xhr.addEventListener('error', () => reject(new Error('Network error during upload.')))
+      xhr.open('POST', '/api/member-upload')
+      xhr.send(fd)
+    })
+  }
+
+  const submitMembershipSlip = async () => {
+    if (!slipFile) { setSlipError('Please choose a photo of your slip first.'); return }
+    setSlipSubmitting(true)
+    setSlipError('')
+    try {
+      const payment_slip_url = await uploadMembershipSlipFile(slipFile)
+      const { data: { session } } = await supabase.auth.getSession()
+      if (!session) throw new Error('Your session has expired. Please log in again.')
+      const res = await fetch('/api/member-membership-slip', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
+        body: JSON.stringify({ payment_slip_url }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Could not save your slip.')
+      setMember((prev: any) => ({ ...prev, payment_slip_url }))
+      setSlipFile(null)
+      setShowMembershipModal(false)
+    } catch (e: any) {
+      setSlipError(e.message || 'Something went wrong.')
+    } finally {
+      setSlipSubmitting(false)
+    }
+  }
+
   // Profile self-edit state
   const [editingProfile, setEditingProfile] = useState(false)
   const [profileForm, setProfileForm] = useState<any>({})
@@ -251,7 +311,7 @@ export default function DashboardPage() {
       <div className="text-white px-6 py-4 flex justify-between items-center sticky top-0 z-10"
         style={{ background: 'var(--surface)', borderBottom: '1px solid var(--border)' }}>
         <div>
-          <h1 className="text-base font-bold" style={{ fontFamily: "'Orbitron', sans-serif", color: 'var(--blue)' }}>
+          <h1 className="text-base font-bold" style={{ fontFamily: 'inherit', color: 'var(--blue)' }}>
             NDSC Member Portal
           </h1>
           <p className="text-xs mt-0.5" style={{ color: 'var(--muted)' }}>{member?.full_name || member?.email}</p>
@@ -311,6 +371,28 @@ export default function DashboardPage() {
               </div>
             </div>
 
+            {!member?.is_verified && (
+              <button onClick={() => setShowMembershipModal(true)}
+                className="w-full text-left flex items-center gap-3 rounded-xl p-4 transition-all hover:-translate-y-0.5"
+                style={{ background: 'rgba(255,165,0,0.08)', border: '1px solid rgba(255,165,0,0.3)' }}>
+                <div className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0"
+                  style={{ background: 'rgba(255,165,0,0.15)' }}>
+                  <IdCard size={18} style={{ color: 'var(--warning)' }} />
+                </div>
+                <div className="flex-1">
+                  <p className="text-sm font-semibold" style={{ color: 'var(--white)' }}>
+                    {member?.payment_slip_url ? 'Membership slip pending review' : 'Complete your membership'}
+                  </p>
+                  <p className="text-xs" style={{ color: 'var(--muted)' }}>
+                    {member?.payment_slip_url
+                      ? "We've got your slip — an admin will review and approve it soon."
+                      : 'Upload a photo of your membership slip so an admin can approve your account.'}
+                  </p>
+                </div>
+                <ArrowRight size={16} style={{ color: 'var(--warning)' }} className="flex-shrink-0" />
+              </button>
+            )}
+
             {messengerLink && (
               <a href={messengerLink} target="_blank" rel="noopener noreferrer"
                 className="flex items-center gap-3 rounded-xl p-4 transition-all hover:-translate-y-0.5"
@@ -326,10 +408,11 @@ export default function DashboardPage() {
               </a>
             )}
 
-            <h3 className="font-semibold text-sm mt-2 flex items-center gap-2" style={{ color: 'var(--muted)', fontFamily: "'Orbitron', sans-serif" }}>
+            <h3 className="font-semibold text-sm mt-2 flex items-center gap-2" style={{ color: 'var(--muted)', fontFamily: 'inherit' }}>
               <Megaphone size={14} /> Updates
             </h3>
-            {announcements.length === 0 && olympiads.length === 0 && activities.filter(a => a.registration_enabled).length === 0
+            {announcements.length === 0 && olympiads.length === 0 &&
+              activities.filter(a => a.registration_enabled && !myRegistrations.some(r => r.session?.id === a.id || r.activity_session_id === a.id)).length === 0
               ? <p className="text-sm" style={{ color: 'var(--muted)' }}>No updates yet — check back soon.</p>
               : (
                 <>
@@ -354,7 +437,10 @@ export default function DashboardPage() {
                       </p>
                     </Link>
                   ))}
-                  {activities.filter(a => a.registration_enabled).slice(0, 3).map(a => (
+                  {activities
+                    .filter(a => a.registration_enabled)
+                    .filter(a => !myRegistrations.some(r => r.session?.id === a.id || r.activity_session_id === a.id))
+                    .slice(0, 3).map(a => (
                     <Link key={`act-${a.id}`} href={`/activities/${a.slug}`} className="block rounded-xl p-4 transition-transform hover:-translate-y-0.5"
                       style={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderLeftWidth: '3px', borderLeftColor: 'var(--cat-teal)' }}>
                       <p className="font-semibold text-sm flex items-center gap-1.5" style={{ color: 'var(--white)' }}><CalendarDays size={14} /> {a.title} — registration open</p>
@@ -366,7 +452,7 @@ export default function DashboardPage() {
             }
 
             {/* SHOUTBOX */}
-            <h3 className="font-semibold text-sm mt-6 flex items-center gap-2" style={{ color: 'var(--muted)', fontFamily: "'Orbitron', sans-serif" }}>
+            <h3 className="font-semibold text-sm mt-6 flex items-center gap-2" style={{ color: 'var(--muted)', fontFamily: 'inherit' }}>
               <MessageCircle size={14} /> Members' Shoutbox
             </h3>
             <div className="rounded-xl p-4" style={{ background: 'var(--bg2)', border: '1px solid var(--border)' }}>
@@ -406,7 +492,7 @@ export default function DashboardPage() {
 
             {/* ── My Registrations ─────────────────────────────────── */}
             <div>
-              <h3 className="font-semibold text-sm mb-3 flex items-center gap-2" style={{ color: 'var(--muted)', fontFamily: "'Orbitron', sans-serif" }}>
+              <h3 className="font-semibold text-sm mb-3 flex items-center gap-2" style={{ color: 'var(--muted)', fontFamily: 'inherit' }}>
                 <Ticket size={14} /> My Registrations
               </h3>
               {regsLoading ? (
@@ -514,7 +600,7 @@ export default function DashboardPage() {
 
             {/* ── All Activities ────────────────────────────────────── */}
             <div>
-              <h3 className="font-semibold text-sm mb-3 flex items-center gap-2" style={{ color: 'var(--muted)', fontFamily: "'Orbitron', sans-serif" }}>
+              <h3 className="font-semibold text-sm mb-3 flex items-center gap-2" style={{ color: 'var(--muted)', fontFamily: 'inherit' }}>
                 <CalendarDays size={14} /> All Activities
               </h3>
               {activities.length === 0
@@ -556,7 +642,7 @@ export default function DashboardPage() {
         {/* PUBLICATIONS */}
         {tab === 'publications' && (
           <div className="space-y-4">
-            <h3 className="font-semibold text-sm" style={{ color: 'var(--muted)', fontFamily: "'Orbitron', sans-serif" }}>Publications</h3>
+            <h3 className="font-semibold text-sm" style={{ color: 'var(--muted)', fontFamily: 'inherit' }}>Publications</h3>
             {publications.length === 0
               ? <p className="text-sm" style={{ color: 'var(--muted)' }}>No publications available yet.</p>
               : publications.map(p => (
@@ -591,7 +677,7 @@ export default function DashboardPage() {
         {/* OLYMPIADS */}
         {tab === 'olympiads' && (
           <div className="space-y-4">
-            <h3 className="font-semibold text-sm" style={{ color: 'var(--muted)', fontFamily: "'Orbitron', sans-serif" }}>Active Olympiads</h3>
+            <h3 className="font-semibold text-sm" style={{ color: 'var(--muted)', fontFamily: 'inherit' }}>Active Olympiads</h3>
             {olympiads.length === 0
               ? <p className="text-sm" style={{ color: 'var(--muted)' }}>No active olympiads at the moment.</p>
               : olympiads.map(o => (
@@ -628,7 +714,7 @@ export default function DashboardPage() {
         {/* SURVEYS */}
         {tab === 'surveys' && (
           <div className="space-y-4">
-            <h3 className="font-semibold text-sm" style={{ color: 'var(--muted)', fontFamily: "'Orbitron', sans-serif" }}>Open Surveys</h3>
+            <h3 className="font-semibold text-sm" style={{ color: 'var(--muted)', fontFamily: 'inherit' }}>Open Surveys</h3>
             {surveysLoading ? (
               <p className="text-sm" style={{ color: 'var(--muted)' }}>Loading...</p>
             ) : surveys.length === 0 ? (
@@ -721,10 +807,44 @@ export default function DashboardPage() {
               </button>
             </div>
 
+            {/* MEMBERSHIP */}
+            <div className="rounded-xl p-6" style={{ background: 'var(--bg2)', border: '1px solid var(--border)' }}>
+              <h3 className="font-semibold text-sm mb-4 flex items-center gap-2" style={{ color: 'var(--muted)', fontFamily: 'inherit' }}>
+                <IdCard size={15} /> Membership
+              </h3>
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0"
+                  style={{
+                    background: member?.is_verified ? 'rgba(var(--success-rgb), 0.1)' : 'rgba(255,165,0,0.1)',
+                  }}>
+                  {member?.is_verified
+                    ? <CheckCircle size={18} style={{ color: 'var(--success)' }} />
+                    : <Clock size={18} style={{ color: 'var(--warning)' }} />}
+                </div>
+                <div className="flex-1">
+                  <p className="text-sm font-medium" style={{ color: 'var(--white)' }}>
+                    {member?.is_verified ? 'Verified member' : member?.payment_slip_url ? 'Slip submitted — pending review' : 'No slip submitted yet'}
+                  </p>
+                  <p className="text-xs mt-0.5" style={{ color: 'var(--muted)' }}>
+                    {member?.is_verified
+                      ? 'Your membership has been approved by an admin.'
+                      : 'Upload a photo of your membership slip and an admin will review it.'}
+                  </p>
+                </div>
+                {!member?.is_verified && (
+                  <button onClick={() => setShowMembershipModal(true)}
+                    className="text-xs px-3 py-1.5 rounded-lg flex-shrink-0"
+                    style={{ background: 'rgba(var(--blue-rgb), 0.1)', color: 'var(--blue)' }}>
+                    {member?.payment_slip_url ? 'Replace' : 'Upload'}
+                  </button>
+                )}
+              </div>
+            </div>
+
             {/* ACHIEVEMENTS */}
             <div className="rounded-xl p-6" style={{ background: 'var(--bg2)', border: '1px solid var(--border)' }}>
               <div className="flex items-center justify-between mb-4">
-                <h3 className="font-semibold text-sm flex items-center gap-2" style={{ color: 'var(--muted)', fontFamily: "'Orbitron', sans-serif" }}>
+                <h3 className="font-semibold text-sm flex items-center gap-2" style={{ color: 'var(--muted)', fontFamily: 'inherit' }}>
                   <Award size={15} /> Achievements
                 </h3>
                 <button onClick={() => setShowAchievementForm(v => !v)}
@@ -791,6 +911,50 @@ export default function DashboardPage() {
         )}
 
       </div>
+
+      {showMembershipModal && (
+        <div className="fixed inset-0 z-[80] flex items-end sm:items-center justify-center p-0 sm:p-4"
+          style={{ background: 'rgba(2,8,16,0.85)' }}
+          onClick={() => { if (!slipSubmitting) { setShowMembershipModal(false); setSlipError('') } }}>
+          <div className="w-full sm:max-w-md max-h-[90vh] overflow-y-auto rounded-t-2xl sm:rounded-2xl border p-6"
+            style={{ background: 'var(--bg2)', borderColor: 'var(--border)' }} onClick={e => e.stopPropagation()}>
+            <div className="flex justify-between items-center mb-1">
+              <h3 className="font-bold text-sm flex items-center gap-2" style={{ color: 'var(--white)', fontFamily: 'inherit' }}>
+                <IdCard size={16} style={{ color: 'var(--blue)' }} /> Membership Slip
+              </h3>
+              <button onClick={() => { setShowMembershipModal(false); setSlipError('') }} style={{ color: 'var(--muted)' }} aria-label="Close"><X size={18} /></button>
+            </div>
+            <p className="text-xs mt-2 mb-4" style={{ color: 'var(--muted)' }}>
+              Upload a photo of the slip you received after submitting your filled membership
+              form and 200 taka fee at the control room. An admin will review it and approve your
+              account.
+            </p>
+            <label className="flex flex-col items-center justify-center w-full h-28 rounded-lg border-2 border-dashed cursor-pointer"
+              style={{ borderColor: slipFile ? 'var(--blue)' : 'var(--border)', background: 'rgba(255,255,255,0.02)' }}>
+              <input type="file" accept="image/jpeg,image/png,image/webp,image/heic,image/heif" className="hidden"
+                disabled={slipSubmitting} onChange={e => setSlipFile(e.target.files?.[0] || null)} />
+              {slipFile ? (
+                <div className="text-center">
+                  <CheckCircle size={22} style={{ color: 'var(--blue)' }} className="mx-auto mb-1" />
+                  <p className="text-xs font-medium" style={{ color: 'var(--blue)' }}>{slipFile.name}</p>
+                  <p className="text-xs mt-0.5" style={{ color: 'var(--muted)' }}>Tap to change</p>
+                </div>
+              ) : (
+                <div className="text-center">
+                  <Upload size={20} className="mx-auto mb-1.5" style={{ color: 'var(--muted)' }} />
+                  <p className="text-xs" style={{ color: 'var(--muted)' }}>Upload slip photo — max 10MB</p>
+                </div>
+              )}
+            </label>
+            {slipError && <p className="text-xs mt-2" style={{ color: 'var(--danger-soft)' }}>{slipError}</p>}
+            <button onClick={submitMembershipSlip} disabled={slipSubmitting || !slipFile}
+              className="w-full mt-4 py-2.5 rounded-lg text-sm font-bold text-black disabled:opacity-50"
+              style={{ background: 'var(--blue)' }}>
+              {slipSubmitting ? 'Submitting...' : 'Submit for review'}
+            </button>
+          </div>
+        </div>
+      )}
 
       {openSurveyId && (
         <div className="fixed inset-0 z-[80] flex items-end sm:items-center justify-center p-0 sm:p-4"

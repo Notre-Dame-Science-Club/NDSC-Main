@@ -139,7 +139,7 @@ export default function SurveyForm({ surveyId, onSubmitted, compact = false }: {
       {survey.cover_image_url && (
         <img src={survey.cover_image_url} alt="" className="w-full rounded-xl mb-4 object-cover" style={{ maxHeight: 220 }} />
       )}
-      <h2 className="font-bold text-lg mb-1" style={{ color: 'var(--white)', fontFamily: "'Orbitron', sans-serif" }}>{survey.title}</h2>
+      <h2 className="font-bold text-lg mb-1" style={{ color: 'var(--white)', fontFamily: 'inherit' }}>{survey.title}</h2>
       {survey.description && <p className="text-sm mb-5" style={{ color: 'var(--muted)' }}>{survey.description}</p>}
 
       <div className="space-y-5">
@@ -274,7 +274,7 @@ export default function SurveyForm({ surveyId, onSubmitted, compact = false }: {
 
       <button onClick={submit} disabled={submitting}
         className="mt-6 w-full py-2.5 rounded-lg text-sm font-black disabled:opacity-50 flex items-center justify-center gap-2"
-        style={{ background: 'var(--blue)', color: '#000', fontFamily: "'Orbitron', sans-serif" }}>
+        style={{ background: 'var(--blue)', color: '#000', fontFamily: 'inherit' }}>
         {submitting ? <><Loader2 size={15} className="animate-spin" /> SUBMITTING...</> : 'SUBMIT RESPONSE'}
       </button>
     </div>

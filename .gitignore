@@ -12,6 +12,7 @@ node_modules
 .hashmaps
 .atr_keys
 dev
+scripts
 test
 
 # scripts/ — migration tooling output & its own deps, not source
