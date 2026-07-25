@@ -127,15 +127,39 @@ async function findDuplicateLeader(
     return v !== undefined && v !== null && !(typeof v === 'string' && !v.trim())
   })
   if (!checkKeys.length && !memberId) return null
-  let query = supabaseAdmin
-    .from(table)
-    .select(table === 'activity_registrations' ? 'id, full_name, email, phone, college_roll, member_id' : 'id, full_name, email, phone, college_roll')
-    .eq(ownerCol, ownerId)
-  if (excludeId) query = query.neq('id', excludeId)
-  const { data } = await query
+
+  // NOTE: we branch fully on `table` here (rather than calling `.from(table)`
+  // once and picking a select string with a ternary) so each query gets a
+  // concrete literal table name. Supabase's generated types parse the
+  // `.select()` string against whichever table `.from()` resolves to; when
+  // `table` is a union type, a conditional select string (e.g. one branch
+  // including the activity-only `member_id` column) can't be resolved
+  // against both schemas at once and the type parser bails out to a
+  // ParserError instead of a real row type. Two separate, literally-typed
+  // branches sidestep that entirely.
+  type DupRow = { id: string; full_name: string | null; member_id?: string | null }
+  let data: DupRow[] | null = null
+  if (table === 'activity_registrations') {
+    let query = supabaseAdmin
+      .from('activity_registrations')
+      .select('id, full_name, email, phone, college_roll, member_id')
+      .eq(ownerCol, ownerId)
+    if (excludeId) query = query.neq('id', excludeId)
+    const res = await query
+    data = res.data
+  } else {
+    let query = supabaseAdmin
+      .from('olympiad_registrations')
+      .select('id, full_name, email, phone, college_roll')
+      .eq(ownerCol, ownerId)
+    if (excludeId) query = query.neq('id', excludeId)
+    const res = await query
+    data = res.data
+  }
+
   const norm = (v: any) => (v === null || v === undefined ? '' : String(v).trim().toLowerCase())
   for (const r of data || []) {
-    if (memberId && table === 'activity_registrations' && (r as any).member_id === memberId) {
+    if (memberId && table === 'activity_registrations' && r.member_id === memberId) {
       return { id: r.id, full_name: r.full_name }
     }
     for (const k of checkKeys) {
