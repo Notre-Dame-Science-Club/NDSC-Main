@@ -290,20 +290,60 @@ export default function NodeEditorPage() {
               This is a team event
             </label>
             {node.behavior.require_team && (
-              <div className="mt-3 grid grid-cols-3 gap-2">
-                <Field label="Min team size"><input type="number" min={0} value={node.behavior.require_team.min ?? 0} onChange={e => patchBehavior({ require_team: { ...(node.behavior.require_team || {}), min: Number(e.target.value) } })} className={inputCls} style={inputStyle} /></Field>
-                <Field label="Max team size"><input type="number" min={1} value={node.behavior.require_team.max ?? 5} onChange={e => patchBehavior({ require_team: { ...(node.behavior.require_team || {}), max: Number(e.target.value) } })} className={inputCls} style={inputStyle} /></Field>
-                <Field label="Password required">
-                  <select value={node.behavior.require_team.password_required ? 'yes' : 'no'} onChange={e => patchBehavior({ require_team: { ...(node.behavior.require_team || {}), password_required: e.target.value === 'yes' } })}
-                    className={inputCls} style={inputStyle}>
-                    <option value="yes">Yes</option>
-                    <option value="no">No</option>
-                  </select>
-                </Field>
-                <label className="col-span-3 flex items-center gap-2 text-xs" style={{ color: 'var(--muted)' }}>
-                  <input type="checkbox" checked={!!node.behavior.require_team.optional} onChange={e => patchBehavior({ require_team: { ...(node.behavior.require_team || {}), optional: e.target.checked } })} />
-                  Allow registering alone (team optional)
-                </label>
+              <div className="mt-3 space-y-3">
+                <div className="grid grid-cols-3 gap-2">
+                  <Field label="Min team size"><input type="number" min={0} value={node.behavior.require_team.min ?? 0} onChange={e => patchBehavior({ require_team: { ...(node.behavior.require_team || {}), min: Number(e.target.value) } })} className={inputCls} style={inputStyle} /></Field>
+                  <Field label="Max team size"><input type="number" min={1} value={node.behavior.require_team.max ?? 5} onChange={e => patchBehavior({ require_team: { ...(node.behavior.require_team || {}), max: Number(e.target.value) } })} className={inputCls} style={inputStyle} /></Field>
+                  <Field label="Password required">
+                    <select value={node.behavior.require_team.password_required ? 'yes' : 'no'} onChange={e => patchBehavior({ require_team: { ...(node.behavior.require_team || {}), password_required: e.target.value === 'yes' } })}
+                      className={inputCls} style={inputStyle}>
+                      <option value="yes">Yes</option>
+                      <option value="no">No</option>
+                    </select>
+                  </Field>
+                  <label className="col-span-3 flex items-center gap-2 text-xs" style={{ color: 'var(--muted)' }}>
+                    <input type="checkbox" checked={!!node.behavior.require_team.optional} onChange={e => patchBehavior({ require_team: { ...(node.behavior.require_team || {}), optional: e.target.checked } })} />
+                    Allow registering alone (team optional)
+                  </label>
+                </div>
+                {/* Task 2: per-member fields editor. Reuses the same
+                    FormBlocksBuilder the main form uses, so admins get
+                    identical type pickers (text/textarea/number/date/
+                    dropdown/multiple_choice/checkboxes/...) and option
+                    editors. The blocks are flattened on save to the
+                    v2 storage shape {key, label, type, required,
+                    options?}. The `custom_answers` payload the public
+                    TeamMembersEditor writes matches these keys. */}
+                <div>
+                  <p className="text-xs font-semibold mb-1.5" style={{ color: 'var(--accent2)' }}>INFO COLLECTED PER TEAM MEMBER</p>
+                  <FormBlocksBuilder
+                    blocks={normalizeBlocks((node.behavior.require_team as any).fields || [])}
+                    onChange={blocks => {
+                      // Map the FormBlock[] the builder gives us into the
+                      // slim shape v1/v2 wire together (key/label/type/
+                      // required/options). Drop blocks that have no key
+                      // (content blocks) and any builtins — there are no
+                      // builtins for per-member fields.
+                      const slim = blocks
+                        .map((b: any) => {
+                          if (b.kind !== 'field') return null
+                          if (b.is_builtin) return null
+                          const out: any = {
+                            key: b.key || b.id,
+                            label: b.label || b.key || b.id,
+                            type: b.type,
+                            required: !!b.required,
+                          }
+                          if (Array.isArray(b.options) && b.options.length) out.options = b.options
+                          if (b.description) out.description = b.description
+                          return out
+                        })
+                        .filter(Boolean)
+                      patchBehavior({ require_team: { ...(node.behavior.require_team || {}), fields: slim } })
+                    }}
+                    otherNodes={otherNodes}
+                  />
+                </div>
               </div>
             )}
           </div>
@@ -343,6 +383,27 @@ export default function NodeEditorPage() {
             <input type="checkbox" checked={!!node.behavior.is_online_submission} onChange={e => patchBehavior({ is_online_submission: e.target.checked })} />
             This form includes an online round (link shown in user dashboard)
           </label>
+
+          {/* Phase 4: pick the olympiad this leaf links to. When
+              is_online_submission is checked, this is what the
+              dashboard uses to fetch /api/olympiad and surface the
+              Start Exam / Take Relay Turn button. Mirrors v1's
+              activity_reg_categories.linked_olympiad_id — we just moved
+              it onto the form node so the form-graph is the source of
+              truth. */}
+          {node.behavior.is_online_submission ? (
+            <Field label="Linked olympiad (ID) — shows after 'Online round' is checked">
+              <input
+                value={node.behavior.linked_olympiad_id || ''}
+                onChange={e => patchBehavior({ linked_olympiad_id: e.target.value || null })}
+                placeholder="e.g. uuid of the olympiad to link to"
+                className={inputCls} style={inputStyle}
+              />
+              <p className="text-xs mt-1" style={{ color: 'var(--muted)' }}>
+                Paste the olympiad's UUID. The dashboard will fetch its questions + relay state from this id.
+              </p>
+            </Field>
+          ) : null}
 
           <div className="rounded-lg p-3 my-2" style={{ background: 'rgba(var(--accent2-rgb), 0.05)', border: '1px solid rgba(var(--accent2-rgb), 0.2)' }}>
             <p className="text-xs font-bold mb-2" style={{ color: 'var(--accent2)' }}>Olympiad / exam options</p>

@@ -69,6 +69,13 @@ export type FormNodeBehavior = {
     label?: string
   }
   is_online_submission?: boolean
+  // Phase 4: when is_online_submission is true, this points at the
+  // olympiad the registration should expose (exam / relay link in
+  // dashboard). Free-form, but typed here so admins get autocomplete /
+  // future validation. Originally lived on activity_reg_categories
+  // (v1); the migration moved it into the leaf node's behavior jsonb
+  // so form-graph is the single source of truth.
+  linked_olympiad_id?: string | null
   schedule?: { date?: string; time?: string; room?: string }
   project_name?: { enabled: boolean; label?: string }
   submission_config?: any[]      // activity_submissions.answers shape

@@ -32,19 +32,16 @@ export async function GET(req: NextRequest) {
   }
 
   if (listing) {
-    const { data: linkedRows, error: linkError } = await supabaseAdmin
-      .from('activity_reg_categories')
-      .select('linked_olympiad_id')
-      .not('linked_olympiad_id', 'is', null)
-    if (linkError) return apiError(linkError, 400)
-    const linkedIds = new Set((linkedRows || []).map((r: any) => r.linked_olympiad_id))
-
+    // Phase 6: olympiads can no longer be "linked to an activity"
+    // (activity_reg_categories is gone). The listing page returns every
+    // active olympiad; the old "exclude linked" filter is dead, so the
+    // branch now reads the same shape as the unfiltered GET.
     const { data, error } = await supabaseAdmin
       .from('olympiads')
       .select('id, name, description, cover_image_url, is_active, mode, exam_type, registration_deadline, exam_date, scheduled_start_at, scheduled_end_at, eligibility, external_only, created_at, theme_bg_color, theme_accent_color, theme_header_logo_url')
       .order('created_at', { ascending: false })
     if (error) return apiError(error, 400)
-    return apiOk((data || []).filter((o: any) => !linkedIds.has(o.id)))
+    return apiOk(data || [])
   }
 
   const { data, error } = await supabaseAdmin
