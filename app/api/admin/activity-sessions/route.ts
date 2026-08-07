@@ -86,13 +86,13 @@ export async function POST(req: NextRequest) {
     location: body.location || '',
     session_date: body.session_date || null,
     is_upcoming: body.is_upcoming ?? false,
-    registration_enabled: body.is_upcoming ? (body.registration_enabled ?? false) : false,
+    registration_enabled: body.registration_enabled ?? false,
     registration_note: body.registration_note || '',
     event_dates: body.event_dates || [],
     image_display_mode: body.image_display_mode || 'cover',
     reg_status: body.reg_status || null,
     reg_deadline: body.reg_deadline || null,
-    notify_publicly: body.is_published ? (body.notify_publicly ?? false) : false,
+    notify_publicly: body.notify_publicly ?? false,
   }
 
   // activity_type_id — সবসময় required

@@ -50,6 +50,11 @@ export type FormNodeAppearance = {
   font_family?: string
   cover_aspect_ratio?: string
   contact_persons?: any
+  // Heading shown above the list of child-form cards when this node has
+  // children. Falls back to "CONTINUE TO" / "CHOOSE ONE" in the runner
+  // when empty. Set per parent node so each form can use its own wording
+  // (e.g. "CHOOSE SEGMENT", "PICK YOUR TRACK", "আপনার সেগমেন্ট বাছাই করুন").
+  children_heading?: string
 }
 
 /** Per-node behavior — encapsulates the things that used to live as

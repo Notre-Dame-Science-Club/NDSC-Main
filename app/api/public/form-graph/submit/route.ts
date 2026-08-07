@@ -773,10 +773,15 @@ export async function POST(req: NextRequest) {
     }
 
     // Merge into the appropriate column shape.
+    // Filter builtins to only include columns that exist on the target table.
+    // olympiad_registrations has no 'division' column, so we exclude it for olympiads.
+    const filteredBuiltins = isOlympiad
+      ? (({ division, ...rest }) => rest)(newBuiltins)
+      : newBuiltins
     const patch: Record<string, any> = {
       form_node_id: node.id,
       submitted_node_ids: [...(existing.submitted_node_ids || []), node.id],
-      ...newBuiltins,
+      ...filteredBuiltins,
     }
     if (isOlympiad) {
       // Lift olympiad question fields into the dedicated columns.

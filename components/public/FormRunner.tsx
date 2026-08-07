@@ -478,7 +478,8 @@ export default function FormRunner({
                 {hasChildren ? (
                   <div className="mt-5">
                     <p className="text-xs font-bold tracking-wider mb-2" style={{ color: 'var(--muted)' }}>
-                      {hasFields ? 'CONTINUE TO' : 'CHOOSE ONE'}
+                      {activeNode.appearance?.children_heading?.trim()
+                        || (hasFields ? 'CONTINUE TO' : 'CHOOSE ONE')}
                     </p>
                     <div className="grid sm:grid-cols-2 gap-2.5">
                       {directChildren.map(c => {

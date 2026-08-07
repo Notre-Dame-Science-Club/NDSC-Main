@@ -214,7 +214,7 @@ export default function HomePage() {
               />
             </div>
             <p className="text-sm max-w-sm reveal" style={{ color: "var(--muted)", fontFamily: "'Poppins',sans-serif" }}>
-              Seven teams, one mission — each department runs independently and reports to the Executive Committee.
+              Six teams, one mission — each department runs independently and reports to the Executive Committee.
             </p>
           </div>
           {/* Bento-style asymmetric grid: first card spans 2 columns on lg,

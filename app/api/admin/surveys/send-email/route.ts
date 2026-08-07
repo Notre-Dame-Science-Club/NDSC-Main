@@ -56,11 +56,6 @@ export async function POST(req: NextRequest) {
 
   const result = await sendSurveyEmail(recipients, subject, html)
 
-  await supabaseAdmin
-    .from('surveys')
-    .update({ email_sent_at: new Date().toISOString() })
-    .eq('id', survey_id)
-
   if (!result.configured) {
     // Not a hard failure — the survey/notification is still fully saved.
     return apiOk({ success: false, configured: false, totalRecipients: recipients.length, message: result.error })
@@ -68,5 +63,10 @@ export async function POST(req: NextRequest) {
   if (result.sent === 0) {
     return apiError(result.error || 'Could not send the survey email.', 502)
   }
+  // Only stamp email_sent_at when emails were actually sent
+  await supabaseAdmin
+    .from('surveys')
+    .update({ email_sent_at: new Date().toISOString() })
+    .eq('id', survey_id)
   return apiOk({ success: true, configured: true, sentCount: result.sent, totalRecipients: recipients.length })
 }

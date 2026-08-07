@@ -265,6 +265,20 @@ export default function NodeEditorPage() {
               />
             </Field>
           </div>
+          <div className="mt-4">
+            <Field label='Children-picker heading (e.g. "Choose segment", "Pick your track")'>
+              <input
+                value={node.appearance.children_heading || ''}
+                onChange={e => patchAppearance({ children_heading: e.target.value || undefined })}
+                placeholder='Leave blank to use the default ("CONTINUE TO" / "CHOOSE ONE")'
+                className={inputCls}
+                style={inputStyle}
+              />
+              <p className="text-[11px] mt-1" style={{ color: 'var(--muted)' }}>
+                Shown above the list of child-form cards under this form. Leave blank to fall back to the default.
+              </p>
+            </Field>
+          </div>
         </Section>
 
         <Section title="Behavior" defaultOpen>

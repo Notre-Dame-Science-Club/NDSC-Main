@@ -50,6 +50,18 @@ export async function DELETE(req: NextRequest) {
   if (!id) return apiError('Missing id', 400)
   // Delete registrations first (foreign key constraint)
   await supabaseAdmin.from('olympiad_registrations').delete().eq('olympiad_id', id)
+  // Delete the form_graph and its nodes (orphan graph would keep serving the public form)
+  const { data: graphs } = await supabaseAdmin
+    .from('form_graphs')
+    .select('id')
+    .eq('owner_kind', 'olympiad')
+    .eq('owner_id', id)
+  if (graphs && graphs.length > 0) {
+    for (const g of graphs) {
+      await supabaseAdmin.from('form_nodes').delete().eq('graph_id', g.id)
+    }
+    await supabaseAdmin.from('form_graphs').delete().eq('owner_kind', 'olympiad').eq('owner_id', id)
+  }
   const { error } = await supabaseAdmin.from('olympiads').delete().eq('id', id)
   if (error) return apiError(error, 400)
   return apiOk({ success: true })

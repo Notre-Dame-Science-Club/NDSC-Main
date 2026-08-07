@@ -47,7 +47,7 @@ export async function GET(_req: NextRequest, ctx: Ctx) {
     supabaseAdmin.from('form_graphs').select('id').eq('owner_kind', 'activity').eq('owner_id', sessionId).maybeSingle(),
     supabaseAdmin.from('activity_reg_categories').select('id, name, parent_id, form_field_schema, team_member_fields').eq('activity_session_id', sessionId),
     supabaseAdmin.from('activity_registrations')
-      .select('id, category_id, form_node_id, form_graph_id, full_name, phone, email, college, college_roll, hsc_session, division, project_name, custom_answers, team_members, team_name, payment_status, created_at')
+      .select('id, category_id, form_node_id, form_graph_id, submitted_node_ids, full_name, phone, email, college, college_roll, hsc_session, division, project_name, custom_answers, team_members, team_name, payment_status, created_at')
       .eq('activity_session_id', sessionId)
       .order('created_at', { ascending: false }),
   ])
