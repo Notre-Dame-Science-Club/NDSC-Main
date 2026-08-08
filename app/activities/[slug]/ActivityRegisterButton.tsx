@@ -35,7 +35,7 @@ export default function ActivityRegisterButton({ slug, sessionId }: Props) {
   }
 
   return (
-    <Link href={`/activities/${slug}/register`}
+    <Link href={`/register/activity/${sessionId}`}
       className="btn-primary px-6 py-3 rounded-xl font-bold text-sm flex-shrink-0"
       style={{ fontFamily: 'inherit' }}>
       Register Now →

@@ -271,6 +271,7 @@ export interface ActivityRegistrationRow {
   college_roll: string
   hsc_session: string
   custom_answers: Record<string, unknown>
+  team_name: string | null
   team_members: ActivityTeamMember[]
   member_id: UUID | null
   payment_status: ActivityPaymentStatus

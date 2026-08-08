@@ -45,9 +45,9 @@ export async function GET(_req: NextRequest, ctx: Ctx) {
   // v1 and v2 registrations in the same file.
   const [{ data: graph }, { data: categories }, { data: regs, error: rErr }] = await Promise.all([
     supabaseAdmin.from('form_graphs').select('id').eq('owner_kind', 'activity').eq('owner_id', sessionId).maybeSingle(),
-    supabaseAdmin.from('activity_reg_categories').select('id, name, parent_id, form_field_schema').eq('activity_session_id', sessionId),
+    supabaseAdmin.from('activity_reg_categories').select('id, name, parent_id, form_field_schema, team_member_fields').eq('activity_session_id', sessionId),
     supabaseAdmin.from('activity_registrations')
-      .select('id, category_id, form_node_id, form_graph_id, full_name, phone, email, college, college_roll, hsc_session, division, project_name, custom_answers, team_members, payment_status, created_at')
+      .select('id, category_id, form_node_id, form_graph_id, submitted_node_ids, full_name, phone, email, college, college_roll, hsc_session, division, project_name, custom_answers, team_members, team_name, payment_status, created_at')
       .eq('activity_session_id', sessionId)
       .order('created_at', { ascending: false }),
   ])
@@ -93,18 +93,48 @@ export async function GET(_req: NextRequest, ctx: Ctx) {
 
   // Build the header row: builtins + breadcrumb + project + payment +
   // custom + team + form path.
+  // Per-member custom answers are derived from each category's
+  // team_member_fields (v1) and each form_node's behavior.require_team.fields
+  // (v2). The result is a single union of per-member column headers
+  // shared across every row in the file — teams that don't have a value
+  // for a given key just leave the cell blank.
+  const teamMemberHeaderToKey = new Map<string, string>()
+  const teamMemberHeaders: string[] = []
+  const seenTeamMemberKeys = new Set<string>()
+  function collectTeamMemberFields(fields: any[]) {
+    for (const f of fields || []) {
+      if (!f || !f.key) continue
+      if (seenTeamMemberKeys.has(f.key)) continue
+      seenTeamMemberKeys.add(f.key)
+      const h = `Member: ${f.label || f.key}`
+      teamMemberHeaders.push(h)
+      teamMemberHeaderToKey.set(h, f.key)
+    }
+  }
+  for (const c of categories || []) collectTeamMemberFields(c.team_member_fields || [])
+  if (graph) {
+    const { data: v2Nodes } = await supabaseAdmin
+      .from('form_nodes').select('behavior').eq('graph_id', graph.id)
+    for (const n of v2Nodes || []) {
+      const requireTeam = n?.behavior?.require_team
+      if (requireTeam?.fields) collectTeamMemberFields(requireTeam.fields)
+    }
+  }
   const headers = dedupHeaders([
     'Registration ID',
     'Created At',
     'Form Path',     // v2: node label; v1: category breadcrumb
     'Is Terminal',   // v2 only
+    'Team Name',     // Task 1: top-level team identity (nullable for solo/individual events)
     ...BUILTIN_HEADERS.map(b => b.header),
     'Project Name',
     'Payment Status',
     ...customHeaders,
     ...Array.from({ length: MAX_TEAM_COLUMNS }, (_, i) => `Team ${i + 1} Name`),
     ...Array.from({ length: MAX_TEAM_COLUMNS }, (_, i) => `Team ${i + 1} Email`),
+    ...Array.from({ length: MAX_TEAM_COLUMNS }, (_, i) => `Team ${i + 1} Phone`),
     ...Array.from({ length: MAX_TEAM_COLUMNS }, (_, i) => `Team ${i + 1} Roll`),
+    ...teamMemberHeaders.flatMap(h => Array.from({ length: MAX_TEAM_COLUMNS }, (_, i) => `Team ${i + 1} ${h}`)),
   ])
 
   // Build a category-breadcrumb helper (v1 only).
@@ -142,18 +172,38 @@ export async function GET(_req: NextRequest, ctx: Ctx) {
     const custom: Record<string, any> = r.custom_answers || {}
     const team: any[] = Array.isArray(r.team_members) ? r.team_members : []
 
+    // Defense-in-depth: scrub password_hash (and any plausible variant)
+    // from each team-member row before it ever reaches the CSV writer.
+    // The DB never returns the leader's password, but the team_members
+    // jsonb does carry password_hash for each member. Stripping here
+    // means even an accidental future refactor of the select can't leak
+    // hashes into the admin's download.
+    const safeTeam = team.map((m: any) => {
+      if (!m || typeof m !== 'object') return m
+      const { password_hash, passwordHash, ...rest } = m
+      return rest
+    })
+
     const row: any[] = [
       r.id,
       r.created_at,
       formPath,
       isTerminal,
+      r.team_name || '',  // Task 1: nullable for non-team events
       ...BUILTIN_HEADERS.map(b => builtins[b.key] ?? ''),
       r.project_name || '',
       r.payment_status || '',
       ...customHeaders.map(h => custom[customHeaderToKey.get(h) || ''] ?? ''),
-      ...Array.from({ length: MAX_TEAM_COLUMNS }, (_, i) => team[i]?.full_name || ''),
-      ...Array.from({ length: MAX_TEAM_COLUMNS }, (_, i) => team[i]?.email || ''),
-      ...Array.from({ length: MAX_TEAM_COLUMNS }, (_, i) => team[i]?.college_roll || ''),
+      ...Array.from({ length: MAX_TEAM_COLUMNS }, (_, i) => safeTeam[i]?.full_name || ''),
+      ...Array.from({ length: MAX_TEAM_COLUMNS }, (_, i) => safeTeam[i]?.email || ''),
+      ...Array.from({ length: MAX_TEAM_COLUMNS }, (_, i) => safeTeam[i]?.phone || ''),
+      ...Array.from({ length: MAX_TEAM_COLUMNS }, (_, i) => safeTeam[i]?.college_roll || ''),
+      ...teamMemberHeaders.flatMap(h => Array.from({ length: MAX_TEAM_COLUMNS }, (_, i) => {
+        const m = safeTeam[i]
+        if (!m) return ''
+        const v = m.custom_answers?.[teamMemberHeaderToKey.get(h) || '']
+        return Array.isArray(v) ? v.join('; ') : (v ?? '')
+      })),
     ]
     return row
   })

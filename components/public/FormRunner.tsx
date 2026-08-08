@@ -1,8 +1,9 @@
 'use client'
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react'
-import { CheckCircle, Loader2, AlertTriangle, ChevronRight, Circle } from 'lucide-react'
+import { CheckCircle, Loader2, AlertTriangle, ChevronRight, Circle, CreditCard } from 'lucide-react'
 import FieldsRenderer from '@/components/FieldsRenderer'
 import AntiCheatProvider from '@/components/olympiad/AntiCheatProvider'
+import TeamMembersEditor, { defaultTeamMembers, type TeamMemberDraft } from '@/components/public/TeamMembersEditor'
 import { supabase } from '@/lib/supabase'
 import type { FormGraph, FormNode, FormNodeAppearance } from '@/lib/formGraph'
 
@@ -190,7 +191,14 @@ export default function FormRunner({
   const [registrationId, setRegistrationId] = useState<string | null>(initialRegistrationId || null)
   const [form, setForm] = useState<Record<string, any>>({ ...BLANK_BUILTINS })
   const [custom, setCustom] = useState<Record<string, any>>({})
-  const [teamMembers, setTeamMembers] = useState<any[]>([])
+  const [teamMembers, setTeamMembers] = useState<TeamMemberDraft[]>([])
+  // Task 1: top-level team name. Only meaningful when the active node
+  // has require_team set, but we keep it in state across nodes so a
+  // leader who's already typed a team name doesn't lose it if the flow
+  // (e.g. admin review screen) bounces them. The TeamMembersEditor
+  // decides whether to actually render the input based on whether the
+  // parent supplied an onTeamNameChange callback.
+  const [teamName, setTeamName] = useState<string>('')
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState('')
   const [duplicateRegId, setDuplicateRegId] = useState<string | null>(null)
@@ -223,6 +231,30 @@ export default function FormRunner({
   const activeId = path[path.length - 1] || null
   const activeNode = activeId ? nodesById[activeId] : null
 
+  // When the active node changes and that node requires a team, ensure
+  // the teamMembers state has at least `min` rows pre-filled. Mirrors
+  // v1's "open with min slots pre-rendered" UX so a user landing on a
+  // required-team event doesn't see an empty editor that they have to
+  // click "Add" on repeatedly. Re-runs only when activeId shifts.
+  useEffect(() => {
+    if (!activeNode) return
+    const cfg = activeNode.behavior?.require_team
+    if (!cfg) return
+    const pwReq = cfg.password_required !== false
+    const min = cfg.optional ? 0 : (cfg.min ?? 1)
+    setTeamMembers(prev => {
+      if (prev.length >= min) return prev
+      const need = min - prev.length
+      const extra: TeamMemberDraft[] = Array.from({ length: need }, () => ({
+        id: Math.random().toString(36).slice(2, 9),
+        full_name: '', email: '', phone: '', college_roll: '',
+        password: pwReq ? '' : undefined,
+        custom_answers: {},
+      }))
+      return [...prev, ...extra]
+    })
+  }, [activeNode?.id]) // eslint-disable-line react-hooks/exhaustive-deps
+
   // Advance from the active node toward `childId` (or, for a leaf node,
   // finalize). Submits the active node's answers first (unless it was
   // already submitted, e.g. a jump via a content-block link button), then
@@ -233,8 +265,32 @@ export default function FormRunner({
     setError('')
     setDuplicateRegId(null)
 
-    const finish = (data: any) => {
+    const finish = async (data: any) => {
       setRegistrationId(data.registration_id || registrationId)
+      // Phase 3: payment redirect. When the submit just stamped
+      // payment_status='pending' on a new registration, we have to send
+      // the user to SSLCommerz before we can call onDone. Mirrors v1's
+      // /activities/[slug]/register flow at
+      // app/activities/[slug]/register/page.tsx:497-506. A failed init
+      // falls through to the normal "done" state — the row is still
+      // registered, just unpaid, and the dashboard's pay button will
+      // surface it again.
+      if (data.requires_payment_init && data.registration_id && data.done) {
+        try {
+          const payRes = await fetch('/api/payment/init', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ registration_id: data.registration_id }),
+          })
+          const payData = await payRes.json().catch(() => ({}))
+          if (payRes.ok && payData.gatewayUrl) {
+            window.location.href = payData.gatewayUrl
+            return
+          }
+        } catch {
+          /* fall through to dashboard — registration is still valid */
+        }
+      }
       if (data.done || !data.next_node_id) {
         setDone(true)
         onDone?.({ registration_id: data.registration_id, is_olympiad: !!data.is_olympiad })
@@ -244,11 +300,12 @@ export default function FormRunner({
       setPath(p => [...p, next])
       setCustom({})
       setTeamMembers([])
+      setTeamName('')
     }
 
     if (submittedIds.has(activeNode.id)) {
       // Already persisted (e.g. a link-button jump) — just move on.
-      if (childId) { setPath(p => [...p, childId]); setCustom({}); setTeamMembers([]) }
+      if (childId) { setPath(p => [...p, childId]); setCustom({}); setTeamMembers([]); setTeamName('') }
       return
     }
 
@@ -261,7 +318,7 @@ export default function FormRunner({
           graph_id: graph.id,
           node_id: activeNode.id,
           registration_id: registrationId,
-          form,
+          form: { ...form, team_name: teamName },
           custom_answers: custom,
           team_members: teamMembers,
           member_id: memberId,
@@ -273,13 +330,13 @@ export default function FormRunner({
         throw new Error(data.error || 'Submit failed.')
       }
       setSubmittedIds(s => new Set(s).add(activeNode.id))
-      finish(data)
+      await finish(data)
     } catch (e: any) {
       setError(e.message || 'Submit failed.')
     } finally {
       setSubmitting(false)
     }
-  }, [activeNode, graph.id, form, custom, teamMembers, registrationId, submittedIds, onDone, memberId])
+  }, [activeNode, graph.id, form, custom, teamMembers, teamName, registrationId, submittedIds, onDone, memberId])
 
   // Anti-cheat timer auto-submit. When the timer hits 0, the provider
   // calls onExpire, which we wire to the same advance handler — it acts
@@ -391,10 +448,38 @@ export default function FormRunner({
                   </div>
                 )}
 
+                {/* Team-member editor — only when the active node's
+                    behavior.require_team is set. Phase 2 wired this up
+                    so a v2 form-graph flow has the same team-data
+                    contract v1 had (per-member name/email/college_roll/
+                    password, optional per-member fields, min/max bounds).
+                    The wire shape is identical to v1's
+                    team_members array, so the v2 submit API can call
+                    the same validateAndPrepareTeam helper that v1 uses
+                    — see /api/public/form-graph/submit/route.ts. */}
+                {activeNode.behavior?.require_team && graph.owner_kind !== 'olympiad' && (
+                  <TeamMembersEditor
+                    value={teamMembers}
+                    onChange={setTeamMembers}
+                    accent={accent}
+                    teamName={teamName}
+                    onTeamNameChange={setTeamName}
+                    config={{
+                      require_team: true,
+                      optional: activeNode.behavior.require_team.optional,
+                      min: activeNode.behavior.require_team.min,
+                      max: activeNode.behavior.require_team.max,
+                      password_required: activeNode.behavior.require_team.password_required !== false,
+                      fields: activeNode.behavior.require_team.fields,
+                    }}
+                  />
+                )}
+
                 {hasChildren ? (
                   <div className="mt-5">
                     <p className="text-xs font-bold tracking-wider mb-2" style={{ color: 'var(--muted)' }}>
-                      {hasFields ? 'CONTINUE TO' : 'CHOOSE ONE'}
+                      {activeNode.appearance?.children_heading?.trim()
+                        || (hasFields ? 'CONTINUE TO' : 'CHOOSE ONE')}
                     </p>
                     <div className="grid sm:grid-cols-2 gap-2.5">
                       {directChildren.map(c => {
@@ -423,7 +508,21 @@ export default function FormRunner({
                     </div>
                   </div>
                 ) : (
-                  <div className="flex items-center gap-2 mt-5">
+                  <div>
+                    {/* Phase 3: payment hint. Mirror v1's fee banner at
+                        app/activities/[slug]/register/page.tsx:779-783
+                        — show the amount only when the active node
+                        declares one, so the registrant knows they're
+                        about to be redirected to the gateway. */}
+                    {(activeNode.behavior as any)?.requires_payment?.amount ? (
+                      <div className="mb-3 p-3 rounded-lg text-sm flex items-center gap-1.5"
+                        style={{ background: 'rgba(var(--warning-rgb), 0.08)', color: 'var(--warning)' }}>
+                        <CreditCard size={14} />
+                        {(activeNode.behavior as any).requires_payment.label || 'Registration fee'}: ৳{(activeNode.behavior as any).requires_payment.amount}
+                        {' '}— you'll be redirected to pay after submitting.
+                      </div>
+                    ) : null}
+                    <div className="flex items-center gap-2 mt-5">
                     <button type="button" onClick={() => advance(null)} disabled={submitting}
                       className="px-6 py-3 rounded-lg text-sm font-bold flex items-center gap-2 disabled:opacity-50 transition-all duration-200 hover:brightness-110 hover:-translate-y-0.5 active:translate-y-0 active:brightness-95"
                       style={{
@@ -440,6 +539,7 @@ export default function FormRunner({
                         FINAL STEP
                       </span>
                     )}
+                    </div>
                   </div>
                 )}
               </>

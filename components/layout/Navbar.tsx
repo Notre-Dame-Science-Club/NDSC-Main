@@ -3,7 +3,7 @@ import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
-import { Menu, X, ChevronDown, Search, Home, Info, Microscope, Newspaper, Users, Trophy, UserPlus } from "lucide-react";
+import { Menu, X, ChevronDown } from "lucide-react";
 import { ActivityIcon } from "@/lib/activityIcons";
 
 type NavChild = { href: string; label: string; icon?: string };
@@ -24,17 +24,6 @@ const STATIC_NAV: NavItem[] = [
   { href: "/olympiad", label: "Olympiad" },
   { href: "/membership", label: "Membership" },
 ];
-
-/* Map each top-level nav item to a lucide icon used in the mobile drawer. */
-const NAV_ICON: Record<string, React.ReactNode> = {
-  "/": <Home size={16} />,
-  "/about": <Info size={16} />,
-  "Activities": <Microscope size={16} />,
-  "/publication": <Newspaper size={16} />,
-  "Executives": <Users size={16} />,
-  "/olympiad": <Trophy size={16} />,
-  "/membership": <UserPlus size={16} />,
-};
 
 const HIDE_NAVBAR_ON = ["/login", "/register", "/dashboard", "/admin"];
 
@@ -132,7 +121,6 @@ export default function Navbar() {
       const t = ((now - start) / 1000) % CYCLE;
       const phase = t / CYCLE;
 
-      let tx = 0;
       let rot = 0;
       const rollFrac = ROLL_DURATION / CYCLE;
       const parkFrac = PARK_DURATION / CYCLE;
@@ -144,25 +132,24 @@ export default function Navbar() {
       if (phase >= rollStart && phase < parkStart) {
         const k = (phase - rollStart) / rollFrac;
         const e = easeInOut(k);
-        tx = 210 * e;
+        // Pure in-place rotation — no horizontal translate, so the icon
+        // never leaves its flex slot on mobile. The outer span has
+        // `overflow: hidden` so any minor pixel-rounding stays inside
+        // the icon's footprint.
         rot = 360 * e;
       } else if (phase >= parkStart && phase < rollBackStart) {
-        tx = 210;
         rot = 360;
       } else if (phase >= rollBackStart && phase < cycleEnd) {
         const k = (phase - rollBackStart) / rollFrac;
         const e = easeInOut(k);
-        tx = 210 * (1 - e);
         rot = 360 * (1 - e);
       }
 
-      const moving = tx !== 0 || rot !== 0;
-      setTransform(desktopWheelRef.current, tx, rot);
-      setTransform(mobileWheelRef.current, tx, rot);
+      const moving = rot !== 0;
+      setTransform(desktopWheelRef.current?.firstElementChild as HTMLElement | null, 0, rot);
+      setTransform(mobileWheelRef.current?.firstElementChild as HTMLElement | null, 0, rot);
       if (moving !== lastMoving) {
         lastMoving = moving;
-        // Desktop text wrap is the parent of the desktop wheel's sibling.
-        // Find them via the ref's parentElement structure.
         const dt = desktopWheelRef.current?.parentElement?.querySelector<HTMLElement>(".ndsc-logo-text-wrap");
         const mt = mobileWheelRef.current?.parentElement?.querySelector<HTMLElement>(".t1-wrap");
         setMovingAttr(dt, moving);
@@ -266,6 +253,19 @@ export default function Navbar() {
           display: inline-block;
           transform-origin: 50% 50%;
           will-change: transform;
+          overflow: hidden;
+          border-radius: 6px;
+        }
+        /* Inner element the JS animator translates/rotates. We animate the
+           INNER, not the .ndsc-logo-mark itself — translating the outer
+           span would push the icon away from the brand text and create a
+           200+px gap on the top bar. */
+        .ndsc-logo-mark-inner {
+          display: block;
+          width: 100%;
+          height: 100%;
+          position: relative;
+          will-change: transform;
         }
         .ndsc-logo-text-wrap {
           overflow: hidden;
@@ -297,16 +297,18 @@ export default function Navbar() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 flex items-center justify-between" style={{ height: "var(--navbar-height, 64px)" }}>
 
           {/* LOGO */}
-          <Link href="/" className="ndsc-logo-glow flex items-center gap-3 shrink-0 z-10 group">
-            <span ref={desktopWheelRef} className="ndsc-logo-mark relative" style={{ width: "var(--navbar-logo, 38px)", height: "var(--navbar-logo, 38px)", display: "inline-block" }}>
-              <Image src="/images/cropped-logo.png" alt="NDSC" fill className="object-contain" />
+          <Link href="/" className="ndsc-logo-glow flex items-center gap-2.5 sm:gap-3 shrink-0 z-10 group">
+            <span ref={desktopWheelRef} className="ndsc-logo-mark relative shrink-0" style={{ width: "var(--navbar-logo, 38px)", height: "var(--navbar-logo, 38px)", display: "inline-block" }}>
+              <span className="ndsc-logo-mark-inner">
+                <Image src="/images/cropped-logo.png" alt="NDSC" fill className="object-contain" />
+              </span>
             </span>
-            <div className="ndsc-logo-text-wrap hidden sm:flex flex-col leading-none">
+            <div className="ndsc-logo-text-wrap flex flex-col leading-none min-w-0">
               <span className="ndsc-logo-text-inner">
-                <span className="ndsc-logo-text text-sm font-black tracking-[0.2em] block" style={{ fontFamily: 'inherit' }}>
+                <span className="ndsc-logo-text text-[12px] sm:text-sm font-black tracking-[0.2em] block truncate" style={{ fontFamily: 'inherit' }}>
                   NDSC
                 </span>
-                <span className="text-[9px] tracking-[0.18em] mt-0.5 font-medium block" style={{ color: "rgba(var(--blue-rgb), 0.55)", fontFamily: "var(--font-mono)" }}>
+                <span className="hidden sm:block text-[9px] tracking-[0.18em] mt-0.5 font-medium truncate" style={{ color: "rgba(var(--blue-rgb), 0.55)", fontFamily: "var(--font-mono)" }}>
                   Notre Dame Science Club
                 </span>
               </span>
@@ -375,7 +377,9 @@ export default function Navbar() {
         </div>
       </header>
 
-      {/* MOBILE DRAWER (slides in from the left, like the reference) */}
+      {/* MOBILE DRAWER — same dark-glass language as the header (no navy
+         gradient, no heavy "apps" tile icons). The drawer should feel like
+         a vertical extension of the navbar, not a separate material. */}
       <style>{`
         .mnav-backdrop {
           position: fixed; inset: 0; z-index: 39; background: rgba(0, 0, 0, 0.55);
@@ -388,10 +392,10 @@ export default function Navbar() {
           position: fixed; top: 0; left: 0; bottom: 0; z-index: 40;
           width: min(86vw, 360px);
           display: flex; flex-direction: column;
-          background: linear-gradient(180deg, rgba(8, 39, 122, 0.96) 0%, rgba(6, 26, 58, 0.97) 100%);
+          background: rgba(2, 8, 16, 0.94);
           backdrop-filter: blur(20px) saturate(150%);
           -webkit-backdrop-filter: blur(20px) saturate(150%);
-          border-right: 1px solid rgba(var(--blue-rgb), 0.18);
+          border-right: 1px solid rgba(var(--blue-rgb), 0.14);
           box-shadow: 18px 0 50px rgba(0, 0, 0, 0.5);
           transform: translateX(-100%);
           transition: transform 0.32s cubic-bezier(0.22, 1, 0.36, 1);
@@ -400,11 +404,15 @@ export default function Navbar() {
         .mnav-drawer.open { transform: translateX(0); }
         .mnav-header {
           display: flex; align-items: center; justify-content: space-between;
-          padding: 18px 18px 14px;
-          border-bottom: 1px solid rgba(255, 255, 255, 0.10);
+          padding: 16px 18px;
+          border-bottom: 1px solid rgba(var(--blue-rgb), 0.10);
           flex-shrink: 0;
+          min-height: var(--navbar-height, 64px);
         }
-        .mnav-brand { display: flex; align-items: center; gap: 10px; }
+        .mnav-brand {
+          display: flex; align-items: center; gap: 12px;
+          text-decoration: none; color: inherit; min-width: 0;
+        }
         .mnav-brand .t1 {
           font-family: var(--font-heading);
           font-size: 14px; font-weight: 900; letter-spacing: 0.22em;
@@ -414,7 +422,7 @@ export default function Navbar() {
         }
         .mnav-brand .t1-wrap {
           display: block; overflow: hidden; vertical-align: middle;
-          max-width: 180px;
+          max-width: 200px;
         }
         .mnav-brand .t1-inner {
           display: block;
@@ -428,6 +436,7 @@ export default function Navbar() {
           display: inline-block;
           transform-origin: 50% 50%;
           will-change: transform;
+          flex-shrink: 0;
         }
         .mnav-brand .t2 {
           font-family: var(--font-mono);
@@ -438,92 +447,116 @@ export default function Navbar() {
           width: 36px; height: 36px;
           display: flex; align-items: center; justify-content: center;
           border-radius: 10px;
-          background: rgba(255, 255, 255, 0.06);
-          border: 1px solid rgba(255, 255, 255, 0.12);
-          color: #cbd5e1;
-          transition: background 0.2s, color 0.2s, transform 0.2s;
+          background: transparent;
+          border: 1px solid var(--border);
+          color: var(--muted);
+          transition: background 0.2s, color 0.2s, border-color 0.2s;
           cursor: pointer;
-        }
-        .mnav-close:hover { background: rgba(var(--blue-rgb), 0.18); color: var(--blue); transform: rotate(90deg); }
-        .mnav-search {
-          padding: 14px 18px 10px;
           flex-shrink: 0;
         }
-        .mnav-search-box {
-          display: flex; align-items: center; gap: 8px;
-          padding: 10px 12px;
-          border-radius: 12px;
-          background: rgba(255, 255, 255, 0.06);
-          border: 1px solid rgba(255, 255, 255, 0.10);
-          color: #cbd5e1;
+        .mnav-close:hover {
+          background: rgba(var(--blue-rgb), 0.10);
+          color: var(--blue);
+          border-color: rgba(var(--blue-rgb), 0.35);
         }
-        .mnav-search input {
-          flex: 1; min-width: 0; background: transparent; border: 0; outline: 0;
-          color: #fff; font-size: 13px; font-family: 'Poppins', sans-serif;
-        }
-        .mnav-search input::placeholder { color: rgba(203, 213, 225, 0.55); }
         .mnav-list {
           flex: 1; overflow-y: auto;
-          padding: 8px 12px 16px;
-          display: flex; flex-direction: column; gap: 4px;
+          padding: 12px 14px 20px;
+          display: flex; flex-direction: column; gap: 2px;
+        }
+        .mnav-section-label {
+          font-family: var(--font-mono);
+          font-size: 10px;
+          letter-spacing: 0.32em;
+          text-transform: uppercase;
+          color: rgba(var(--blue-rgb), 0.45);
+          padding: 14px 12px 8px;
+          display: flex; align-items: center; gap: 8px;
+        }
+        .mnav-section-label::before {
+          content: '';
+          display: inline-block;
+          width: 18px; height: 1px;
+          background: rgba(var(--blue-rgb), 0.45);
         }
         .mnav-item {
           position: relative;
-          display: flex; align-items: center; gap: 12px;
-          padding: 12px 14px;
-          border-radius: 12px;
-          color: #e2e8f0;
+          display: flex; align-items: center; gap: 10px;
+          padding: 11px 12px;
+          border-radius: 8px;
+          color: var(--white);
           text-decoration: none;
-          font-size: 14px; font-weight: 600;
+          font-size: 13px; font-weight: 600;
+          letter-spacing: 0.04em;
           font-family: 'Poppins', sans-serif;
           background: transparent;
           border: 1px solid transparent;
-          transition: background 0.2s, color 0.2s, border-color 0.2s, transform 0.2s;
+          transition: background 0.18s, color 0.18s, border-color 0.18s;
           width: 100%; text-align: left;
           cursor: pointer;
         }
         .mnav-item:hover {
-          background: rgba(var(--blue-rgb), 0.08);
-          border-color: rgba(var(--blue-rgb), 0.18);
-          color: #ffffff;
+          background: rgba(var(--blue-rgb), 0.06);
+          color: var(--blue);
         }
         .mnav-item.active {
-          background: rgba(var(--blue-rgb), 0.12);
-          border-color: rgba(var(--blue-rgb), 0.32);
+          background: rgba(var(--blue-rgb), 0.08);
+          border-color: rgba(var(--blue-rgb), 0.20);
           color: var(--blue);
         }
-        .mnav-item .ico {
-          width: 32px; height: 32px; min-width: 32px;
-          display: flex; align-items: center; justify-content: center;
-          border-radius: 9px;
-          background: rgba(var(--blue-rgb), 0.10);
-          border: 1px solid rgba(var(--blue-rgb), 0.22);
+        /* Underline accent on the active item — matches the desktop nav
+           link's animated underline treatment, so the mobile drawer and
+           desktop nav feel like one coherent system. */
+        .mnav-item.active::before {
+          content: '';
+          position: absolute;
+          left: 0; top: 50%;
+          transform: translateY(-50%);
+          width: 2px; height: 18px;
+          background: var(--blue);
+          border-radius: 2px;
+        }
+        .mnav-item .arrow {
+          margin-left: auto;
+          color: rgba(var(--blue-rgb), 0.4);
+          transition: transform 0.2s, color 0.2s;
+        }
+        .mnav-item.open .arrow {
+          transform: rotate(180deg);
           color: var(--blue);
         }
-        .mnav-item.active .ico {
-          background: rgba(var(--blue-rgb), 0.22);
-          border-color: rgba(var(--blue-rgb), 0.45);
-        }
-        .mnav-item .arrow { margin-left: auto; color: rgba(203, 213, 225, 0.6); transition: transform 0.2s; }
-        .mnav-item.open .arrow { transform: rotate(180deg); color: var(--blue); }
         .mnav-sub {
-          display: flex; flex-direction: column; gap: 2px;
-          padding: 4px 4px 8px 56px;
+          display: flex; flex-direction: column; gap: 1px;
+          padding: 4px 0 6px 12px;
+          margin-left: 8px;
+          border-left: 1px solid rgba(var(--blue-rgb), 0.12);
         }
         .mnav-sub a {
           display: flex; align-items: center; gap: 8px;
-          padding: 8px 10px;
-          border-radius: 8px;
-          color: #94a3b8;
+          padding: 9px 12px;
+          border-radius: 6px;
+          color: var(--muted);
           text-decoration: none;
-          font-size: 13px; font-weight: 500;
-          transition: color 0.2s, background 0.2s;
+          font-size: 12.5px; font-weight: 500;
+          letter-spacing: 0.02em;
+          transition: color 0.18s, background 0.18s;
         }
         .mnav-sub a:hover { color: var(--blue); background: rgba(var(--blue-rgb), 0.05); }
+        .mnav-sub a.active-sub { color: var(--blue); }
         .mnav-auth {
-          padding: 12px 18px 22px;
+          padding: 14px 18px max(env(safe-area-inset-bottom), 18px);
           flex-shrink: 0;
-          border-top: 1px solid rgba(255, 255, 255, 0.10);
+          border-top: 1px solid rgba(var(--blue-rgb), 0.10);
+          display: flex; flex-direction: column; gap: 6px;
+        }
+        .mnav-foot {
+          padding: 10px 18px 14px;
+          font-family: var(--font-mono);
+          font-size: 9px;
+          letter-spacing: 0.28em;
+          text-transform: uppercase;
+          color: rgba(var(--blue-rgb), 0.35);
+          text-align: center;
         }
       `}</style>
 
@@ -543,10 +576,12 @@ export default function Navbar() {
       >
         <div className="mnav-header">
           <Link href="/" className="mnav-brand" onClick={() => setMobileOpen(false)}>
-            <span ref={mobileWheelRef} className="mark" style={{ width: 32, height: 32, position: "relative", display: "inline-block" }}>
-              <Image src="/images/cropped-logo.png" alt="NDSC" fill className="object-contain" />
+            <span ref={mobileWheelRef} className="mark" style={{ width: 36, height: 36, position: "relative", display: "inline-block", overflow: "hidden", borderRadius: 6 }}>
+              <span style={{ display: "block", width: "100%", height: "100%", position: "relative" }}>
+                <Image src="/images/cropped-logo.png" alt="NDSC" fill className="object-contain" />
+              </span>
             </span>
-            <div className="flex flex-col">
+            <div className="flex flex-col leading-none min-w-0">
               <span className="t1-wrap">
                 <span className="t1-inner">
                   <span className="t1 block">NDSC</span>
@@ -560,18 +595,11 @@ export default function Navbar() {
           </button>
         </div>
 
-        <div className="mnav-search">
-          <div className="mnav-search-box">
-            <Search size={15} style={{ color: "rgba(var(--blue-rgb), 0.7)" }} />
-            <input suppressHydrationWarning type="text" placeholder="Search the site…" disabled />
-          </div>
-        </div>
-
         <nav className="mnav-list">
+          <div className="mnav-section-label">Navigate</div>
           {nav.map((item) => {
             if (item.children && item.children.length > 0) {
               const isOpen = (item.label === "Activities" && actOpen) || (item.label === "Executives" && execOpen);
-              const icon = NAV_ICON[item.label] ?? <ChevronDown size={16} />;
               return (
                 <div key={item.label}>
                   <button
@@ -582,22 +610,29 @@ export default function Navbar() {
                       if (item.label === "Executives") setExecOpen(!execOpen);
                     }}
                   >
-                    <span className="ico">{icon}</span>
                     <span>{item.label}</span>
                     <ChevronDown size={14} className="arrow" />
                   </button>
                   {isOpen && (
                     <div className="mnav-sub">
-                      {item.children.map((c) => (
-                        <Link key={c.href} href={c.href} onClick={() => setMobileOpen(false)}>
-                          {c.icon ? (
-                            <ActivityIcon icon={c.icon} size={14} className="shrink-0" style={{ color: "var(--blue)" }} />
-                          ) : (
-                            <span style={{ width: 6, height: 6, borderRadius: 3, background: "var(--blue)", display: "inline-block" }} />
-                          )}
-                          {c.label}
-                        </Link>
-                      ))}
+                      {item.children.map((c) => {
+                        const subActive = pathname === c.href;
+                        return (
+                          <Link
+                            key={c.href}
+                            href={c.href}
+                            onClick={() => setMobileOpen(false)}
+                            className={subActive ? "active-sub" : ""}
+                          >
+                            {c.icon ? (
+                              <ActivityIcon icon={c.icon} size={13} className="shrink-0" style={{ color: "var(--blue)" }} />
+                            ) : (
+                              <span style={{ width: 5, height: 5, borderRadius: 3, background: "var(--blue)", display: "inline-block", flexShrink: 0 }} />
+                            )}
+                            {c.label}
+                          </Link>
+                        );
+                      })}
                     </div>
                   )}
                 </div>
@@ -605,7 +640,6 @@ export default function Navbar() {
             }
             if (item.href) {
               const active = pathname === item.href;
-              const icon = NAV_ICON[item.href] ?? <ChevronDown size={16} />;
               return (
                 <Link
                   key={item.href}
@@ -613,7 +647,6 @@ export default function Navbar() {
                   onClick={() => setMobileOpen(false)}
                   className={`mnav-item ${active ? "active" : ""}`}
                 >
-                  <span className="ico">{icon}</span>
                   <span>{item.label}</span>
                 </Link>
               );
@@ -624,6 +657,7 @@ export default function Navbar() {
 
         <div className="mnav-auth">
           <AuthButton mobile />
+          <div className="mnav-foot">NDSC · Est. 1955</div>
         </div>
       </aside>
     </>

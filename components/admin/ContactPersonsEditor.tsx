@@ -90,7 +90,7 @@ export default function ContactPersonsEditor({
                 <span className="text-xs font-semibold" style={{ color: 'var(--muted)' }}>Contact {idx + 1}</span>
                 <button type="button" onClick={() => removeManual(idx)} style={{ color: 'var(--danger-soft)' }}><Trash2 size={13} /></button>
               </div>
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                 {(['name','post','phone','email','whatsapp','facebook'] as const).map(field => (
                   <input key={field} id={`${idPrefix}-${idx}-${field}`}
                     placeholder={field.charAt(0).toUpperCase() + field.slice(1)}

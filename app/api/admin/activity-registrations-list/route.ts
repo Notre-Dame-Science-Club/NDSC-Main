@@ -18,7 +18,7 @@ export async function GET(req: NextRequest) {
 
   const { data: categories, error: catError } = await supabaseAdmin
     .from('activity_reg_categories')
-    .select('id, name, parent_id, is_online_submission, is_segment, form_field_schema')
+    .select('id, name, parent_id, is_online_submission, is_segment, form_field_schema, team_member_fields')
     .eq('activity_session_id', sessionId)
 
   if (catError) return apiError(catError, 400)
@@ -33,7 +33,7 @@ export async function GET(req: NextRequest) {
 
   const { data: registrations, error: regError } = await supabaseAdmin
     .from('activity_registrations')
-    .select('id, category_id, form_graph_id, full_name, phone, email, college, college_roll, hsc_session, project_name, custom_answers, team_members, payment_status, created_at')
+    .select('id, category_id, form_graph_id, form_node_id, full_name, phone, email, college, college_roll, hsc_session, project_name, custom_answers, team_members, team_name, payment_status, created_at')
     .eq('activity_session_id', sessionId)
     .order('created_at', { ascending: false })
 
@@ -51,10 +51,12 @@ export async function GET(req: NextRequest) {
 
   // Top-level is_segment rows, used to build the segment-filter chip row in
   // the admin Registrants view. Includes form_field_schema so the detail
-  // modal can render answers in the order the user actually filled them in.
+  // modal can render answers in the order the user actually filled them in,
+  // and team_member_fields so per-member custom_answers can be rendered in
+  // the modal's TEAM MEMBERS section.
   const segments = (categories || [])
     .filter((c: any) => c.is_segment && !c.parent_id)
-    .map((c: any) => ({ id: c.id, name: c.name, form_field_schema: c.form_field_schema || [] }))
+    .map((c: any) => ({ id: c.id, name: c.name, form_field_schema: c.form_field_schema || [], team_member_fields: c.team_member_fields || [] }))
 
   return apiOk({ registrations: result, segments })
 }

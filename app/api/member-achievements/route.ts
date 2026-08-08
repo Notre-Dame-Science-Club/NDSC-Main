@@ -32,18 +32,8 @@ export async function POST(req: NextRequest) {
     return apiError('Title is required.', 400)
   }
 
-  const { data: member, error: memberError } = await supabaseAdmin
-    .from('members')
-    .select('id, achievements')
-    .eq('id', user.id)
-    .single()
-
-  if (memberError || !member) {
-    return apiError('Member record not found.', 404)
-  }
-
   const newAchievement = {
-    id: Math.random().toString(36).slice(2, 9),
+    id: crypto.randomUUID(),
     title: String(body.title).trim(),
     description: body.description ? String(body.description).trim() : undefined,
     image_url: body.image_url || undefined,
@@ -51,16 +41,36 @@ export async function POST(req: NextRequest) {
     created_at: new Date().toISOString(),
   }
 
-  const achievements = [...(member.achievements || []), newAchievement]
+  // Use atomic JSONB append via Supabase RPC to avoid read-modify-write race
+  const { data, error } = await supabaseAdmin.rpc('append_achievement', {
+    member_id: user.id,
+    achievement: newAchievement,
+  })
 
-  const { error: updateError } = await supabaseAdmin
-    .from('members')
-    .update({ achievements })
-    .eq('id', user.id)
+  if (error) {
+    // Fallback: if RPC doesn't exist, do a direct update
+    const { data: member, error: memberError } = await supabaseAdmin
+      .from('members')
+      .select('id, achievements')
+      .eq('id', user.id)
+      .single()
 
-  if (updateError) {
-    return apiError(updateError, 400)
+    if (memberError || !member) {
+      return apiError('Member record not found.', 404)
+    }
+
+    const achievements = [...(member.achievements || []), newAchievement]
+    const { error: updateError } = await supabaseAdmin
+      .from('members')
+      .update({ achievements })
+      .eq('id', user.id)
+
+    if (updateError) {
+      return apiError(updateError, 400)
+    }
+
+    return apiOk({ achievements })
   }
 
-  return apiOk({ achievements })
+  return apiOk({ achievements: data })
 }

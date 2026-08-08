@@ -57,18 +57,8 @@ export async function POST(req: NextRequest) {
     return apiError('member_id and title are required.', 400)
   }
 
-  const { data: member, error: memberError } = await supabaseAdmin
-    .from('members')
-    .select('achievements')
-    .eq('id', body.member_id)
-    .single()
-
-  if (memberError || !member) {
-    return apiError('Member not found.', 404)
-  }
-
   const newAchievement = {
-    id: Math.random().toString(36).slice(2, 9),
+    id: crypto.randomUUID(),
     title: body.title.trim(),
     description: body.description?.trim() || undefined,
     image_url: body.image_url || undefined,
@@ -76,15 +66,35 @@ export async function POST(req: NextRequest) {
     created_at: new Date().toISOString(),
   }
 
-  const achievements = [...(member.achievements || []), newAchievement]
+  // Use atomic JSONB append via Supabase RPC to avoid read-modify-write race
+  const { data, error } = await supabaseAdmin.rpc('append_achievement', {
+    member_id: body.member_id,
+    achievement: newAchievement,
+  })
 
-  const { error: updateError } = await supabaseAdmin
-    .from('members')
-    .update({ achievements })
-    .eq('id', body.member_id)
+  if (error) {
+    // Fallback: if RPC doesn't exist, do a direct update with COALESCE
+    const { data: member, error: memberError } = await supabaseAdmin
+      .from('members')
+      .select('achievements')
+      .eq('id', body.member_id)
+      .single()
 
-  if (updateError) return apiError(updateError, 400)
-  return apiOk({ achievements })
+    if (memberError || !member) {
+      return apiError('Member not found.', 404)
+    }
+
+    const achievements = [...(member.achievements || []), newAchievement]
+    const { error: updateError } = await supabaseAdmin
+      .from('members')
+      .update({ achievements })
+      .eq('id', body.member_id)
+
+    if (updateError) return apiError(updateError, 400)
+    return apiOk({ achievements })
+  }
+
+  return apiOk({ achievements: data })
 }
 
 // "Cancel membership" — distinct from the existing Revoke (is_verified =
@@ -102,22 +112,19 @@ export async function DELETE(req: NextRequest) {
     return apiError('A member id is required.', 400)
   }
 
+  // Delete auth user first — if this fails, abort. Otherwise we'd orphan
+  // the login account (members row gone but user can still log in).
+  const { error: authError } = await supabaseAdmin.auth.admin.deleteUser(body.id)
+  if (authError) {
+    return apiError(`Could not delete login account: ${authError.message}`, 400)
+  }
+
   const { error: dbError } = await supabaseAdmin
     .from('members')
     .delete()
     .eq('id', body.id)
 
   if (dbError) return apiError(dbError, 400)
-
-  // Best-effort — if the auth user is already gone for some reason, don't
-  // fail the whole cancellation just because of that.
-  const { error: authError } = await supabaseAdmin.auth.admin.deleteUser(body.id)
-  if (authError) {
-    return apiOk({
-      success: true,
-      warning: `Member record deleted, but the login account could not be removed: ${authError.message}`,
-    })
-  }
 
   return apiOk({ success: true })
 }

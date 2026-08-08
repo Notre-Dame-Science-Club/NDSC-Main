@@ -435,20 +435,39 @@ function RegistrantsPanel({ sessionId }: { sessionId: string }) {
     }
     if (!search.trim()) return true
     const q = search.toLowerCase()
-    return r.full_name?.toLowerCase().includes(q) || r.phone?.includes(q) || r.email?.toLowerCase().includes(q) || r.breadcrumb.join(' ').toLowerCase().includes(q)
+    return r.full_name?.toLowerCase().includes(q) || r.phone?.includes(q) || r.email?.toLowerCase().includes(q) || r.breadcrumb.join(' ').toLowerCase().includes(q) || (r.team_name || '').toLowerCase().includes(q)
   })
 
   const exportCsv = () => {
     const customKeys = [...new Set(filtered.flatMap(r => Object.keys(r.custom_answers || {})))]
-    const headers = ['Name', 'Phone', 'Email', 'College', 'Roll', 'HSC Session', 'Project Name', 'Category', 'Team Size', 'Payment Status', 'Registered At', ...customKeys, 'Team Members']
+    // Build the union of per-member custom answer keys so the team columns
+    // can show every possible member answer, even if a category was edited
+    // mid-stream and not every team has values for every key.
+    const teamMemberCustomKeys = [...new Set(
+      filtered.flatMap(r => (r.team_members || []).flatMap((m: any) => Object.keys(m?.custom_answers || {})))
+    )]
+    const memberHeaders = ['Member Name', 'Member Email', 'Member Phone', 'Member College Roll', ...teamMemberCustomKeys.map(k => `Member: ${k}`)]
+    const headers = ['Name', 'Team Name', 'Phone', 'Email', 'College', 'Roll', 'HSC Session', 'Project Name', 'Category', 'Team Size', 'Payment Status', 'Registered At', ...customKeys, 'Team Members', ...memberHeaders]
     const escape = (v: any) => `"${String(v ?? '').replace(/"/g, '""')}"`
-    const rows = filtered.map(r => [
-      r.full_name, r.phone, r.email, r.college, r.college_roll, r.hsc_session, r.project_name,
-      r.breadcrumb.join(' > '), r.team_size, r.payment_status, new Date(r.created_at).toISOString(),
-      ...customKeys.map(k => Array.isArray(r.custom_answers?.[k]) ? r.custom_answers[k].join('; ') : (r.custom_answers?.[k] ?? '')),
-      (r.team_members || []).map((m: any) => `${m.full_name} <${m.email || m.college_roll}>`).join('; '),
-    ].map(escape).join(','))
-    const csv = [headers.map(escape).join(','), ...rows].join('\n')
+    const rows = filtered.flatMap(r => {
+      const base = [
+        r.full_name, r.team_name || '', r.phone, r.email, r.college, r.college_roll, r.hsc_session, r.project_name,
+        r.breadcrumb.join(' > '), r.team_size, r.payment_status, new Date(r.created_at).toISOString(),
+        ...customKeys.map(k => Array.isArray(r.custom_answers?.[k]) ? r.custom_answers[k].join('; ') : (r.custom_answers?.[k] ?? '')),
+        (r.team_members || []).map((m: any) => `${m.full_name} <${m.email || m.college_roll}>`).join('; '),
+      ]
+      // One row per team member so the per-member phone + custom_answers
+      // land in their own columns. A registration with 0 team members
+      // still gets a base row so the row count matches `filtered.length`.
+      const members = (r.team_members || [])
+      if (!members.length) return [base]
+      return members.map((m: any) => [
+        ...base,
+        m.full_name, m.email, m.phone, m.college_roll,
+        ...teamMemberCustomKeys.map(k => Array.isArray(m?.custom_answers?.[k]) ? m.custom_answers[k].join('; ') : (m?.custom_answers?.[k] ?? '')),
+      ])
+    })
+    const csv = [headers.map(escape).join(','), ...rows.map(row => row.map(escape).join(','))].join('\n')
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
@@ -523,6 +542,15 @@ function RegistrantsPanel({ sessionId }: { sessionId: string }) {
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2 flex-wrap">
                 <span className="text-sm font-semibold" style={{ color: 'var(--white)' }}>{r.full_name}</span>
+                {/* Task 1: surface the team_name as a separate chip next to
+                    the leader's name when this is a team event. Falls
+                    back gracefully (no chip) for solo / non-team events
+                    where team_name is null. */}
+                {r.team_name && (
+                  <span className="text-xs px-1.5 py-0.5 rounded" style={{ background: 'rgba(var(--accent2-rgb), 0.18)', color: 'var(--accent2)' }}>
+                    “{r.team_name}”
+                  </span>
+                )}
                 {r.team_size > 1 && <span className="text-xs px-1.5 py-0.5 rounded" style={{ background: 'rgba(var(--accent2-rgb), 0.13)', color: 'var(--accent2)' }}>Team of {r.team_size}</span>}
                 {r.is_online_category && <span className="text-xs px-1.5 py-0.5 rounded" style={{ background: 'rgba(var(--blue-rgb), 0.13)', color: 'var(--blue)' }}>Online</span>}
                 {r.payment_status && r.payment_status !== 'not_required' && (
@@ -569,6 +597,11 @@ function RegistrantsPanel({ sessionId }: { sessionId: string }) {
             </div>
             <p className="text-xs" style={{ color: 'var(--muted)' }}>{viewing.breadcrumb.join(' → ')}</p>
             <div className="text-sm pt-2 space-y-1" style={{ color: 'var(--white-soft)' }}>
+              {/* Task 1: team_name is the leader-given team identity.
+                  Render only when present — solo / non-team events leave
+                  it null, and we don't want a "Team name: " line for
+                  those. */}
+              {viewing.team_name && <p>Team: <span style={{ color: 'var(--accent2)' }}>“{viewing.team_name}”</span></p>}
               <p>Phone: {viewing.phone}</p>
               <p>Email: {viewing.email}</p>
               <p>College: {viewing.college} {viewing.college_roll && `(Roll ${viewing.college_roll})`}</p>
@@ -594,14 +627,68 @@ function RegistrantsPanel({ sessionId }: { sessionId: string }) {
                 })}
               </div>
             )}
-            {(viewing.team_members || []).length > 0 && (
-              <div className="pt-2 border-t" style={{ borderColor: 'var(--border)' }}>
-                <p className="text-xs font-bold mb-1" style={{ color: 'var(--accent2)' }}>TEAM MEMBERS</p>
-                {viewing.team_members.map((m: any, i: number) => (
-                  <p key={i} className="text-xs" style={{ color: 'var(--muted)' }}>{m.full_name} — {m.email || m.college_roll}</p>
-                ))}
-              </div>
-            )}
+            {(viewing.team_members || []).length > 0 && (() => {
+              // Task 8: per-member rich display. For v1 categories we have
+              // team_member_fields (the schema) so we render custom_answers
+              // in the order the admin configured. For v2 form-graph
+              // registrations viewingSegment is undefined, so we fall back
+              // to insertion order — still readable, just not in field
+              // order. password_hash is never rendered, even when present
+              // (defense-in-depth: the API doesn't return it but we strip
+              // it again here in case someone adds a future path that
+              // leaks it).
+              const teamFieldSchema: any[] = viewingSegment?.team_member_fields || []
+              const safeMembers = (viewing.team_members || []).map((m: any) => {
+                if (!m || typeof m !== 'object') return m
+                const { password_hash, passwordHash, ...rest } = m
+                return rest
+              })
+              return (
+                <div className="pt-2 border-t" style={{ borderColor: 'var(--border)' }}>
+                  <p className="text-xs font-bold mb-1" style={{ color: 'var(--accent2)' }}>TEAM MEMBERS</p>
+                  {safeMembers.map((m: any, i: number) => {
+                    const orderedKeys: string[] = []
+                    if (teamFieldSchema.length && m.custom_answers) {
+                      for (const f of teamFieldSchema) {
+                        const k = f.key || f.id
+                        if (k && k in m.custom_answers) orderedKeys.push(k)
+                      }
+                      for (const k of Object.keys(m.custom_answers)) {
+                        if (!orderedKeys.includes(k)) orderedKeys.push(k)
+                      }
+                    } else if (m.custom_answers) {
+                      orderedKeys.push(...Object.keys(m.custom_answers))
+                    }
+                    return (
+                      <div key={i} className="mb-2 pb-2" style={{ borderBottom: i < safeMembers.length - 1 ? '1px solid var(--border)' : 'none' }}>
+                        <p className="text-xs font-semibold" style={{ color: 'var(--white-soft)' }}>
+                          {i + 1}. {m.full_name || '(no name)'}
+                        </p>
+                        <p className="text-xs" style={{ color: 'var(--muted)' }}>
+                          {m.email || m.college_roll}
+                          {m.phone ? ` · ${m.phone}` : ''}
+                          {m.college_roll ? ` · Roll ${m.college_roll}` : ''}
+                        </p>
+                        {orderedKeys.length > 0 && (
+                          <div className="mt-1 pl-2 space-y-0.5">
+                            {orderedKeys.map((k: string) => {
+                              const f = teamFieldSchema.find((sf: any) => (sf.key || sf.id) === k)
+                              const label = f?.label || k
+                              const v = m.custom_answers?.[k]
+                              return (
+                                <p key={k} className="text-xs" style={{ color: 'var(--border-soft)' }}>
+                                  {label}: {Array.isArray(v) ? v.join(', ') : (v === null || v === undefined || v === '' ? '—' : String(v))}
+                                </p>
+                              )
+                            })}
+                          </div>
+                        )}
+                      </div>
+                    )
+                  })}
+                </div>
+              )
+            })()}
             {viewing.is_online_category && (
               <p className="text-xs pt-2" style={{ color: 'var(--border-soft)' }}>
                 Submission/exam content for this registrant is on the Olympiad admin page, not here.

@@ -27,7 +27,12 @@ export async function POST(req: NextRequest) {
     return apiError('registration_id is required.', 400)
   }
 
-  // Load registration + category to verify permission
+  // Load registration. We resolve submission_config / submission_who
+  // from either the v1 category row (via activity_reg_categories FK)
+  // OR the v2 leaf form_node (when the registration was created
+  // through /api/public/form-graph/submit and has no category_id).
+  // Same field names, same semantics — the v2 path just stores them on
+  // form_nodes.behavior jsonb.
   const { data: reg, error: regErr } = await supabaseAdmin
     .from('activity_registrations')
     .select('*, activity_reg_categories(submission_config, submission_who, activity_session_id)')
@@ -36,17 +41,34 @@ export async function POST(req: NextRequest) {
 
   if (regErr || !reg) return apiError('Registration not found.', 404)
 
-  const category = reg.activity_reg_categories as any
+  const v1Category = reg.activity_reg_categories as any
+  let submissionConfig: any[] = v1Category?.submission_config || []
+  let submissionWho: 'leader' | 'any_member' | undefined = v1Category?.submission_who || undefined
+
+  if (!submissionConfig.length && (reg as any).form_node_id) {
+    // Phase 4: v2 leaf. The leaf node's behavior holds submission_config
+    // (the per-field list) and submission_who (leader-only or anyone).
+    const { data: fn } = await supabaseAdmin
+      .from('form_nodes')
+      .select('behavior')
+      .eq('id', (reg as any).form_node_id)
+      .maybeSingle()
+    if (fn) {
+      const b: any = (fn as any).behavior || {}
+      submissionConfig = Array.isArray(b.submission_config) ? b.submission_config : []
+      submissionWho = b.submission_who || submissionWho
+    }
+  }
+
   const submittedBy = body.submitted_by || 'leader'
 
   // Permission check: submission_who
-  if (category?.submission_who === 'leader' && submittedBy !== 'leader') {
+  if (submissionWho === 'leader' && submittedBy !== 'leader') {
     return apiError('Only the team leader can submit for this category.', 403)
   }
 
   // Validate required submission fields
-  const config: any[] = category?.submission_config || []
-  for (const field of config) {
+  for (const field of submissionConfig) {
     if (field.required) {
       const val = body.answers?.[field.id]
       if (!val || (Array.isArray(val) && val.length === 0)) {

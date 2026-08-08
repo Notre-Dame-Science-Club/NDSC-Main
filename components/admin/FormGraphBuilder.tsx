@@ -298,7 +298,7 @@ function DiagramInner({ graphId, showBackLink = true }: { graphId: string; showB
 
       <Toolbar onAdd={addNode} hasRoot={!!graph.root_node_id} />
 
-      <div className="mt-4 rounded-xl overflow-hidden border" style={{ borderColor: 'var(--border)', height: 'calc(100vh - 280px)', minHeight: 500 }}>
+      <div className="mt-4 rounded-xl overflow-hidden border" style={{ borderColor: 'var(--border)', height: 'max(420px, calc(100vh - 300px))' }}>
         <ReactFlow
           nodes={rfNodes}
           edges={rfEdges}
@@ -331,7 +331,7 @@ function DiagramInner({ graphId, showBackLink = true }: { graphId: string; showB
       </div>
 
       {selectedNode && (
-        <div className="mt-3 rounded-xl p-4 flex items-center gap-3" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+        <div className="mt-3 rounded-xl p-4 flex flex-wrap items-center gap-3" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
           <div className="flex-1 min-w-0">
             <p className="text-[10px] font-bold tracking-wider mb-0.5" style={{ color: 'var(--muted)' }}>
               {FORM_NODE_KIND_LABEL[selectedNode.kind]}
@@ -370,7 +370,7 @@ function DiagramInner({ graphId, showBackLink = true }: { graphId: string; showB
 
 function Header({ graph, savingLayout, showBackLink }: { graph: FormGraph; savingLayout: boolean; showBackLink: boolean }) {
   return (
-    <div className="flex items-center justify-between mb-4">
+    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-4">
       <div>
         {showBackLink && (
           <Link href="/admin/form-builder" className="inline-flex items-center gap-2 text-xs mb-2" style={{ color: 'var(--muted)' }}>

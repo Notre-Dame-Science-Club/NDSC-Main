@@ -214,7 +214,7 @@ export default function HomePage() {
               />
             </div>
             <p className="text-sm max-w-sm reveal" style={{ color: "var(--muted)", fontFamily: "'Poppins',sans-serif" }}>
-              Seven teams, one mission — each department runs independently and reports to the Executive Committee.
+              Six teams, one mission — each department runs independently and reports to the Executive Committee.
             </p>
           </div>
           {/* Bento-style asymmetric grid: first card spans 2 columns on lg,
@@ -234,7 +234,7 @@ export default function HomePage() {
                   el.style.boxShadow = `0 8px 32px ${d.color}33, 0 0 0 1px ${d.color}66`;
                 }}
                 className={`reveal dept-card group relative flex flex-col items-center gap-4 p-6 sm:p-8 rounded-3xl overflow-hidden text-left ${
-                  i === 0 ? "col-span-2 md:col-span-2 lg:col-span-2" : ""
+                  d.wide ? "col-span-2 md:col-span-2 lg:col-span-2" : ""
                 }`}
                 style={{
                   background: d.bg,

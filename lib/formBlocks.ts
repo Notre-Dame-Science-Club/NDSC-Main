@@ -214,6 +214,19 @@ export function normalizeBlocks(raw: any): FormBlock[] {
       max_file_size_mb: item?.max_file_size_mb,
       max_files: item?.max_files,
       unique_field: !!item?.unique_field,
+      // Preserved from the legacy flat shape. Without these, a leaf node
+      // whose `fields` came verbatim from activity_reg_categories.form_field_schema
+      // would silently lose is_builtin on every read — FieldsRenderer would
+      // then write the user's typed answer into customAnswers instead of the
+      // matching top-level column on activity_registrations, and the submit
+      // handler's missingHardMinimum() check would falsely report
+      // "Missing required field(s): full_name, phone, email, college_roll".
+      is_builtin: item?.is_builtin,
+      db_column: item?.db_column,
+      // Plain text fields can carry a placeholder, mirroring the in-app
+      // FormBlock type. Older rows set it inline; this final branch was
+      // dropping it.
+      placeholder: item?.placeholder,
     }
   })
 }

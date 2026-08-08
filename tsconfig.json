@@ -17,6 +17,7 @@
     "strict": false,
     "noEmit": true,
     "allowJs": true,
+    "allowImportingTsExtensions": true,
     "skipLibCheck": true,
     "incremental": true,
     "module": "esnext",
