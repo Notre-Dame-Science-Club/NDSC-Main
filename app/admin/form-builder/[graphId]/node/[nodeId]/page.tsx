@@ -139,7 +139,7 @@ export default function NodeEditorPage() {
         <ArrowLeft size={12} /> Back to diagram
       </Link>
 
-      <div className="flex items-center justify-between gap-3 mb-1">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-1">
         <div className="min-w-0">
           <p className="text-[10px] font-bold tracking-wider" style={{ color: 'var(--muted)' }}>
             {FORM_NODE_KIND_LABEL[node.kind]} · {graph?.title}
@@ -148,7 +148,7 @@ export default function NodeEditorPage() {
             className="text-2xl font-black bg-transparent outline-none w-full mt-0.5"
             style={{ fontFamily: 'inherit', color: 'var(--blue)' }} />
         </div>
-        <div className="flex items-center gap-2 flex-shrink-0">
+        <div className="flex items-center gap-2 flex-shrink-0 flex-wrap">
           <label className="flex items-center gap-1.5 text-xs cursor-pointer" style={{ color: 'var(--muted)' }}>
             <input type="checkbox" checked={node.enabled} onChange={e => patch({ enabled: e.target.checked })} />
             Enabled
@@ -287,7 +287,7 @@ export default function NodeEditorPage() {
           </p>
 
           <Field label="Schedule (date / time / room) — shown above the form">
-            <div className="grid grid-cols-3 gap-2">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
               <input type="date" value={node.behavior.schedule?.date || ''} onChange={e => patchBehavior({ schedule: { ...(node.behavior.schedule || {}), date: e.target.value } })}
                 className={inputCls} style={inputStyle} />
               <input placeholder="Time" value={node.behavior.schedule?.time || ''} onChange={e => patchBehavior({ schedule: { ...(node.behavior.schedule || {}), time: e.target.value } })}
@@ -305,7 +305,7 @@ export default function NodeEditorPage() {
             </label>
             {node.behavior.require_team && (
               <div className="mt-3 space-y-3">
-                <div className="grid grid-cols-3 gap-2">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                   <Field label="Min team size"><input type="number" min={0} value={node.behavior.require_team.min ?? 0} onChange={e => patchBehavior({ require_team: { ...(node.behavior.require_team || {}), min: Number(e.target.value) } })} className={inputCls} style={inputStyle} /></Field>
                   <Field label="Max team size"><input type="number" min={1} value={node.behavior.require_team.max ?? 5} onChange={e => patchBehavior({ require_team: { ...(node.behavior.require_team || {}), max: Number(e.target.value) } })} className={inputCls} style={inputStyle} /></Field>
                   <Field label="Password required">
@@ -315,7 +315,7 @@ export default function NodeEditorPage() {
                       <option value="no">No</option>
                     </select>
                   </Field>
-                  <label className="col-span-3 flex items-center gap-2 text-xs" style={{ color: 'var(--muted)' }}>
+                  <label className="col-span-1 sm:col-span-3 flex items-center gap-2 text-xs" style={{ color: 'var(--muted)' }}>
                     <input type="checkbox" checked={!!node.behavior.require_team.optional} onChange={e => patchBehavior({ require_team: { ...(node.behavior.require_team || {}), optional: e.target.checked } })} />
                     Allow registering alone (team optional)
                   </label>
@@ -369,7 +369,7 @@ export default function NodeEditorPage() {
               Requires payment
             </label>
             {node.behavior.requires_payment && (
-              <div className="mt-3 grid grid-cols-2 gap-2">
+              <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-2">
                 <Field label="Amount (BDT)"><input type="number" min={0} value={node.behavior.requires_payment.amount || 0} onChange={e => patchBehavior({ requires_payment: { ...(node.behavior.requires_payment || {}), amount: Number(e.target.value) } })} className={inputCls} style={inputStyle} /></Field>
                 <Field label="Label"><input value={node.behavior.requires_payment.label || ''} onChange={e => patchBehavior({ requires_payment: { ...(node.behavior.requires_payment || {}), label: e.target.value } })} className={inputCls} style={inputStyle} /></Field>
               </div>

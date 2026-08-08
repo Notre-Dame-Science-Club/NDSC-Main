@@ -1,17 +1,37 @@
 'use client'
-import { useState } from 'react'
+// app/register/complete/page.tsx
+//
+// Final step of the OAuth sign-up flow. A provider (Google) authenticates
+// the person and supplies email + name, but NDSC membership also requires
+// an 8-digit college roll, batch, etc. — so first-time OAuth users land
+// here to fill those in, then get a `members` row created.
+//
+// Guards:
+//   - No session        → /login
+//   - Already a member  → /dashboard
+
+import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
+import { supabase } from '@/lib/supabase'
 import { Upload, CheckCircle, UserPlus } from 'lucide-react'
-import OAuthButton from '@/components/auth/OAuthButton'
-import { isOAuthEnabled } from '@/lib/authConfig'
 
-export default function RegisterPage() {
+const MAX_SLIP_MB = 10
+const ALLOWED_TYPES = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/heic', 'image/heif']
+const ROLL_RE = /^\d{8}$/
+
+export default function CompleteRegistrationPage() {
   const router = useRouter()
+  const [checking, setChecking] = useState(true)
+
   const [form, setForm] = useState({
-    full_name: '', email: '', password: '',
-    phone: '', ndsc_id: '', college_roll: '', batch: ''
+    full_name: '',
+    college_roll: '',
+    batch: '',
+    phone: '',
+    ndsc_id: '',
   })
+
   const [slipFile, setSlipFile] = useState<File | null>(null)
   const [slipError, setSlipError] = useState('')
   const [uploadProgress, setUploadProgress] = useState(0)
@@ -19,8 +39,35 @@ export default function RegisterPage() {
   const [error, setError] = useState('')
   const [success, setSuccess] = useState(false)
 
-  const MAX_SLIP_MB = 10
-  const ALLOWED_TYPES = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/heic', 'image/heif']
+  // Resolve the session and decide: dashboard vs. form.
+  useEffect(() => {
+    let cancelled = false
+    const load = async () => {
+      const { data: { user }, error: userError } = await supabase.auth.getUser()
+      if (userError || !user) {
+        router.replace('/login')
+        return
+      }
+      const { data: member } = await supabase
+        .from('members')
+        .select('id')
+        .eq('id', user.id)
+        .maybeSingle()
+      if (cancelled) return
+      if (member) {
+        // Already a member — nothing to complete.
+        router.replace('/dashboard')
+        return
+      }
+      // Pre-fill the name from the provider's user_metadata.
+      const providedName =
+        user.user_metadata?.full_name || user.user_metadata?.name || user.user_metadata?.given_name || ''
+      setForm(f => ({ ...f, full_name: providedName }))
+      setChecking(false)
+    }
+    load()
+    return () => { cancelled = true }
+  }, [router])
 
   const handle = (e: React.ChangeEvent<HTMLInputElement>) =>
     setForm({ ...form, [e.target.name]: e.target.value })
@@ -41,8 +88,8 @@ export default function RegisterPage() {
     setSlipFile(f)
   }
 
-  const uploadSlip = (file: File): Promise<string> => {
-    return new Promise((resolve, reject) => {
+  const uploadSlip = (file: File): Promise<string> =>
+    new Promise((resolve, reject) => {
       const fd = new FormData()
       fd.append('file', file)
       fd.append('folder', 'membership-slips')
@@ -61,16 +108,10 @@ export default function RegisterPage() {
       xhr.open('POST', '/api/member-upload')
       xhr.send(fd)
     })
-  }
 
   const submit = async () => {
-    if (!form.full_name || !form.email || !form.password) {
-      return setError('Name, email and password are required.')
-    }
-    if (form.password.length < 6) {
-      return setError('Password must be at least 6 characters.')
-    }
-    if (!/^\d{8}$/.test(form.college_roll)) {
+    if (!form.full_name.trim()) return setError('Full name is required.')
+    if (!ROLL_RE.test(form.college_roll)) {
       return setError('Notre Dame College roll numbers are exactly 8 digits.')
     }
     setLoading(true)
@@ -78,9 +119,11 @@ export default function RegisterPage() {
     setUploadProgress(0)
     try {
       const payment_slip_url = slipFile ? await uploadSlip(slipFile) : undefined
-      const res = await fetch('/api/auth/register', {
+      const { data: { session } } = await supabase.auth.getSession()
+      if (!session) throw new Error('Your session has expired. Please sign in again.')
+      const res = await fetch('/api/auth/oauth/complete', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
         body: JSON.stringify({ ...form, payment_slip_url }),
       })
       const data = await res.json()
@@ -88,55 +131,58 @@ export default function RegisterPage() {
       setSuccess(true)
     } catch (e: any) {
       setError(e.message || 'Something went wrong. Please try again.')
-    } finally {
       setLoading(false)
     }
   }
 
-  const inputStyle = {
-    background: 'rgba(255,255,255,0.04)',
-    border: '1px solid var(--border)',
-    color: 'var(--white)',
-  }
+  const fullName = form.full_name
+  const inputStyle = { background: 'rgba(255,255,255,0.04)', border: '1px solid var(--border)', color: 'var(--white)' }
 
-  const labelStyle = {
-    color: 'var(--muted)',
-  }
-
-  if (success) return (
-    <div className="min-h-screen flex items-center justify-center" style={{ background: 'var(--bg)' }}>
-      <div className="fixed inset-0 grid-bg opacity-30 pointer-events-none" />
-      <div className="relative text-center max-w-md w-full mx-4">
-        <div className="absolute -inset-1 rounded-2xl opacity-20 blur-xl"
-          style={{ background: 'radial-gradient(circle, var(--success) 0%, transparent 70%)' }} />
-        <div className="relative rounded-2xl p-10 border"
-          style={{ background: 'var(--bg2)', borderColor: 'var(--border)' }}>
-          <div className="mb-4 flex justify-center" style={{ color: 'var(--success)' }}><CheckCircle size={56} /></div>
-          <h2 className="text-xl font-bold mb-2" style={{ fontFamily: 'inherit', color: 'var(--success)' }}>
-            Registration Successful!
-          </h2>
-          <p className="text-sm mb-6" style={{ color: 'var(--muted)' }}>
-            Your account has been created. Once you've submitted your membership slip — either
-            now or later from your dashboard — an admin will review it and approve your account.
-          </p>
-          <button onClick={() => router.push('/login')}
-            className="px-6 py-2.5 rounded-lg font-semibold text-sm text-black transition-all"
-            style={{ background: 'var(--blue)', fontFamily: 'inherit' }}>
-            Go to Login
-          </button>
+  if (checking) {
+    return (
+      <div className="min-h-screen flex items-center justify-center" style={{ background: 'var(--bg)' }}>
+        <div className="fixed inset-0 grid-bg opacity-30 pointer-events-none" />
+        <div className="text-center">
+          <div className="inline-block w-8 h-8 rounded-full border-2 border-t-transparent animate-spin mb-3"
+            style={{ borderColor: 'var(--blue)', borderTopColor: 'transparent' }} />
+          <p className="text-sm" style={{ color: 'var(--muted)' }}>Checking your account…</p>
         </div>
       </div>
-    </div>
-  )
+    )
+  }
+
+  if (success) {
+    return (
+      <div className="min-h-screen flex items-center justify-center" style={{ background: 'var(--bg)' }}>
+        <div className="fixed inset-0 grid-bg opacity-30 pointer-events-none" />
+        <div className="relative text-center max-w-md w-full mx-4">
+          <div className="absolute -inset-1 rounded-2xl opacity-20 blur-xl"
+            style={{ background: 'radial-gradient(circle, var(--success) 0%, transparent 70%)' }} />
+          <div className="relative rounded-2xl p-10 border" style={{ background: 'var(--bg2)', borderColor: 'var(--border)' }}>
+            <div className="mb-4 flex justify-center" style={{ color: 'var(--success)' }}><CheckCircle size={56} /></div>
+            <h2 className="text-xl font-bold mb-2" style={{ fontFamily: 'inherit', color: 'var(--success)' }}>
+              All set!
+            </h2>
+            <p className="text-sm mb-6" style={{ color: 'var(--muted)' }}>
+              Your membership has been saved. You can upload your membership slip from the dashboard —
+              an admin will review it and approve your account.
+            </p>
+            <button onClick={() => router.push('/dashboard')}
+              className="px-6 py-2.5 rounded-lg font-semibold text-sm text-black transition-all"
+              style={{ background: 'var(--blue)', fontFamily: 'inherit' }}>
+              Go to Dashboard
+            </button>
+          </div>
+        </div>
+      </div>
+    )
+  }
 
   const fields = [
-    { name: 'full_name', label: 'Full Name', placeholder: 'Your full name', type: 'text', required: true },
-    { name: 'email', label: 'Email Address', placeholder: 'email@example.com', type: 'email', required: true },
-    { name: 'password', label: 'Password', placeholder: 'Min. 6 characters', type: 'password', required: true },
-    { name: 'phone', label: 'Phone Number', placeholder: '01XXXXXXXXX', type: 'text' },
-    { name: 'ndsc_id', label: 'NDSC ID (if known)', placeholder: 'NDSC-XXXX', type: 'text' },
     { name: 'college_roll', label: 'College Roll Number (8 digits)', placeholder: 'e.g. 24010123', type: 'text', required: true },
     { name: 'batch', label: 'Batch', placeholder: 'e.g. 2024', type: 'text' },
+    { name: 'phone', label: 'Phone Number', placeholder: '01XXXXXXXXX', type: 'text' },
+    { name: 'ndsc_id', label: 'NDSC ID (if known)', placeholder: 'NDSC-XXXX', type: 'text' },
   ]
 
   return (
@@ -147,8 +193,7 @@ export default function RegisterPage() {
         <div className="absolute -inset-1 rounded-2xl opacity-25 blur-xl"
           style={{ background: 'radial-gradient(circle, var(--blue) 0%, transparent 70%)' }} />
 
-        <div className="relative rounded-2xl p-8 border"
-          style={{ background: 'var(--bg2)', borderColor: 'var(--border)' }}>
+        <div className="relative rounded-2xl p-8 border" style={{ background: 'var(--bg2)', borderColor: 'var(--border)' }}>
 
           <div className="text-center mb-8">
             <div className="inline-flex items-center justify-center w-14 h-14 rounded-full mb-4"
@@ -156,9 +201,11 @@ export default function RegisterPage() {
               <UserPlus size={22} style={{ color: 'var(--blue)' }} />
             </div>
             <h1 className="text-xl font-bold mb-1" style={{ fontFamily: 'inherit', color: 'var(--blue)' }}>
-              Create Account
+              Complete Your Membership
             </h1>
-            <p className="text-sm" style={{ color: 'var(--muted)' }}>Join NDSC as a member</p>
+            <p className="text-sm" style={{ color: 'var(--muted)' }}>
+              Your Google account is verified. Just a few more details to join NDSC.
+            </p>
           </div>
 
           {error && (
@@ -168,27 +215,28 @@ export default function RegisterPage() {
             </div>
           )}
 
-          {isOAuthEnabled() && (
-            <div className="mb-5 space-y-3">
-              <OAuthButton label="Sign up with" />
-              <div className="flex items-center gap-3 text-xs" style={{ color: 'var(--muted)' }}>
-                <div className="flex-1" style={{ borderTop: '1px solid var(--border)' }} />
-                or sign up with email
-                <div className="flex-1" style={{ borderTop: '1px solid var(--border)' }} />
-              </div>
-            </div>
-          )}
-
           <div className="space-y-4">
+            <div>
+              <label className="block text-xs font-medium mb-1.5 uppercase tracking-wider" style={{ color: 'var(--muted)' }}>
+                Full Name <span style={{ color: 'var(--blue)' }}>*</span>
+              </label>
+              <input
+                name="full_name" type="text" value={form.full_name} onChange={handle}
+                placeholder="Your full name"
+                className="w-full rounded-lg px-3 py-2.5 text-sm outline-none transition-all"
+                style={inputStyle}
+                onFocus={e => e.target.style.borderColor = 'var(--blue)'}
+                onBlur={e => e.target.style.borderColor = 'var(--border)'}
+              />
+            </div>
+
             {fields.map(f => (
               <div key={f.name}>
-                <label className="block text-xs font-medium mb-1.5 uppercase tracking-wider" style={labelStyle}>
+                <label className="block text-xs font-medium mb-1.5 uppercase tracking-wider" style={{ color: 'var(--muted)' }}>
                   {f.label} {f.required && <span style={{ color: 'var(--blue)' }}>*</span>}
                 </label>
                 <input
-                  name={f.name} type={f.type}
-                  value={(form as any)[f.name]}
-                  onChange={handle}
+                  name={f.name} type={f.type} value={(form as any)[f.name]} onChange={handle}
                   placeholder={f.placeholder}
                   className="w-full rounded-lg px-3 py-2.5 text-sm outline-none transition-all"
                   style={inputStyle}
@@ -199,15 +247,9 @@ export default function RegisterPage() {
             ))}
 
             <div>
-              <label className="block text-xs font-medium mb-1.5 uppercase tracking-wider" style={labelStyle}>
+              <label className="block text-xs font-medium mb-1.5 uppercase tracking-wider" style={{ color: 'var(--muted)' }}>
                 Membership Slip <span style={{ color: 'var(--muted)' }}>(optional)</span>
               </label>
-              <p className="text-xs mb-2" style={{ color: 'var(--muted)' }}>
-                If you've already submitted your filled membership form and 200 taka fee at the
-                control room, upload a photo of the slip here. Not there yet, or joining from
-                another college or school? Skip this for now — you can add it anytime from your
-                dashboard once it's ready.
-              </p>
               <label className="flex flex-col items-center justify-center w-full h-28 rounded-lg border-2 border-dashed cursor-pointer"
                 style={{ borderColor: slipFile ? 'var(--blue)' : 'var(--border)', background: 'rgba(255,255,255,0.02)' }}>
                 <input type="file" accept="image/jpeg,image/png,image/webp,image/heic,image/heif" className="hidden"
@@ -244,13 +286,13 @@ export default function RegisterPage() {
                 letterSpacing: '0.05em',
                 opacity: loading ? 0.7 : 1,
               }}>
-              {loading ? 'Please wait...' : 'Register'}
+              {loading ? 'Please wait...' : 'Finish Registration'}
             </button>
 
             <p className="text-center text-sm" style={{ color: 'var(--muted)' }}>
-              Already have an account?{' '}
-              <Link href="/login" className="font-medium transition-colors hover:underline" style={{ color: 'var(--blue)' }}>
-                Login
+              Already a member?{' '}
+              <Link href="/dashboard" className="font-medium transition-colors hover:underline" style={{ color: 'var(--blue)' }}>
+                Go to Dashboard
               </Link>
             </p>
           </div>

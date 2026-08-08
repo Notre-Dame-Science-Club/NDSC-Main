@@ -118,7 +118,7 @@ export default function FormBuilderListPage() {
         <ArrowLeft size={14} /> Admin Panel
       </Link>
 
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-6">
         <div>
           <h1 className="text-2xl font-black flex items-center gap-2" style={{ fontFamily: 'inherit', color: 'var(--blue)' }}>
             <Workflow size={22} /> Form Builder
@@ -166,7 +166,7 @@ export default function FormBuilderListPage() {
       ) : (
         <div className="space-y-2">
           {graphs.map(g => (
-            <div key={g.id} className="rounded-xl p-4 flex items-center gap-4" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+            <div key={g.id} className="rounded-xl p-4 flex flex-wrap items-center gap-3 sm:gap-4" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
               <div className="flex-shrink-0 w-10 h-10 rounded-lg flex items-center justify-center"
                 style={{
                   background: g.owner_kind === 'activity' ? 'rgba(var(--blue-rgb), 0.12)' : 'rgba(var(--accent2-rgb), 0.12)',

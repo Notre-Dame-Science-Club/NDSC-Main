@@ -4,6 +4,8 @@ import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import Link from 'next/link'
 import { Microscope } from 'lucide-react'
+import OAuthButton from '@/components/auth/OAuthButton'
+import { isOAuthEnabled } from '@/lib/authConfig'
 
 export default function LoginPage() {
   const router = useRouter()
@@ -66,6 +68,17 @@ export default function LoginPage() {
             <div className="px-4 py-3 rounded-lg mb-5 text-sm border"
               style={{ background: 'rgba(255,50,50,0.08)', borderColor: 'rgba(var(--danger-rgb), 0.3)', color: 'var(--danger-soft)' }}>
               {error}
+            </div>
+          )}
+
+          {isOAuthEnabled() && (
+            <div className="mb-5 space-y-3">
+              <OAuthButton />
+              <div className="flex items-center gap-3 text-xs" style={{ color: 'var(--muted)' }}>
+                <div className="flex-1" style={{ borderTop: '1px solid var(--border)' }} />
+                or continue with email
+                <div className="flex-1" style={{ borderTop: '1px solid var(--border)' }} />
+              </div>
             </div>
           )}
 

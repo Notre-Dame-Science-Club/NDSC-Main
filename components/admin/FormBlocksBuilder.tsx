@@ -88,15 +88,17 @@ export default function FormBlocksBuilder({ blocks, onChange, otherNodes }: { bl
           const Icon = iconFor(block)
           return (
             <div key={block.id} className="rounded-lg border" style={{ background: 'var(--bg2)', borderColor: 'var(--border)' }}>
-              <div className="flex items-center gap-2 px-3 py-2 border-b" style={{ borderColor: 'var(--border)' }}>
-                <span className="flex items-center gap-1.5 text-xs font-semibold px-2 py-1 rounded"
+              <div className="flex items-center gap-2 px-3 py-2 border-b flex-wrap" style={{ borderColor: 'var(--border)' }}>
+                <span className="flex items-center gap-1.5 text-xs font-semibold px-2 py-1 rounded min-w-0 truncate"
                   style={{ background: block.kind === 'field' ? 'rgba(var(--blue-rgb), 0.12)' : 'rgba(var(--cat-teal-rgb), 0.12)', color: block.kind === 'field' ? 'var(--blue)' : 'var(--cat-teal)' }}>
-                  {Icon && <Icon size={12} />} {labelFor(block)}
+                  {Icon && <Icon size={12} className="shrink-0" />} <span className="truncate">{labelFor(block)}</span>
                 </span>
                 <div className="flex-1" />
-                <button type="button" onClick={() => move(idx, -1)} disabled={idx === 0} className="disabled:opacity-30" style={{ color: 'var(--muted)' }}><ChevronUp size={15} /></button>
-                <button type="button" onClick={() => move(idx, 1)} disabled={idx === blocks.length - 1} className="disabled:opacity-30" style={{ color: 'var(--muted)' }}><ChevronDown size={15} /></button>
-                <button type="button" onClick={() => removeBlock(block.id)} style={{ color: 'var(--danger-soft)' }}><Trash2 size={14} /></button>
+                <div className="flex items-center gap-2 shrink-0">
+                  <button type="button" onClick={() => move(idx, -1)} disabled={idx === 0} className="disabled:opacity-30" style={{ color: 'var(--muted)' }}><ChevronUp size={15} /></button>
+                  <button type="button" onClick={() => move(idx, 1)} disabled={idx === blocks.length - 1} className="disabled:opacity-30" style={{ color: 'var(--muted)' }}><ChevronDown size={15} /></button>
+                  <button type="button" onClick={() => removeBlock(block.id)} style={{ color: 'var(--danger-soft)' }}><Trash2 size={14} /></button>
+                </div>
               </div>
               <div className="p-3 space-y-2">
                 <BlockSettings block={block} onPatch={patch => patchBlock(block.id, patch)} otherNodes={otherNodes} />
@@ -152,31 +154,31 @@ function BlockSettings({ block, onPatch, otherNodes }: { block: FormBlock; onPat
         )}
 
         {(block.type === 'mcq' || block.type === 'checkbox' || block.type === 'short_answer') && (
-          <div className="flex items-center gap-3 flex-wrap">
-            <div className="flex items-center gap-2">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3">
+            <div className="flex items-center gap-2 shrink-0">
               <label className="text-xs whitespace-nowrap" style={{ color: 'var(--muted)' }}>Marks</label>
               <input type="number" min={0} step={0.5} value={block.marks ?? 1}
                 onChange={e => onPatch({ marks: e.target.value ? Number(e.target.value) : undefined })}
                 className={inputCls} style={{ ...inputStyle, maxWidth: 80 }} />
             </div>
-            <Field label="" labelStyle={{ display: 'none' }}>
+            <div className="flex-1 min-w-0">
               <input placeholder="Answer storage key (optional — auto from id)"
                 value={block.key || ''} onChange={e => onPatch({ key: e.target.value })}
-                className={inputCls} style={{ ...inputStyle, maxWidth: 280 }} />
-            </Field>
+                className={inputCls} style={inputStyle} />
+            </div>
           </div>
         )}
 
         {(block.type === 'photo' || block.type === 'file') && (
-          <div className="flex items-center gap-3">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3">
             <div className="flex items-center gap-2">
-              <label className="text-xs whitespace-nowrap" style={{ color: 'var(--muted)' }}>Max size (MB)</label>
+              <label className="text-xs whitespace-nowrap shrink-0" style={{ color: 'var(--muted)' }}>Max size (MB)</label>
               <input type="number" min={1} placeholder="5" value={block.max_file_size_mb ?? ''}
                 onChange={e => onPatch({ max_file_size_mb: e.target.value ? Number(e.target.value) : undefined })}
                 className={inputCls} style={{ ...inputStyle, maxWidth: 90 }} />
             </div>
             <div className="flex items-center gap-2">
-              <label className="text-xs whitespace-nowrap" style={{ color: 'var(--muted)' }}>Max files</label>
+              <label className="text-xs whitespace-nowrap shrink-0" style={{ color: 'var(--muted)' }}>Max files</label>
               <input type="number" min={1} placeholder="1" value={block.max_files ?? ''}
                 onChange={e => onPatch({ max_files: e.target.value ? Number(e.target.value) : undefined })}
                 className={inputCls} style={{ ...inputStyle, maxWidth: 90 }} />
@@ -223,7 +225,7 @@ function BlockSettings({ block, onPatch, otherNodes }: { block: FormBlock; onPat
     case 'link_button':
       return (
         <div className="space-y-1.5">
-          <div className="flex gap-2">
+          <div className="flex flex-col sm:flex-row gap-2">
             <input placeholder="Button label" value={block.link_label || ''} onChange={e => onPatch({ link_label: e.target.value })} className={inputCls} style={inputStyle} />
             <input placeholder="https://..." value={block.link_url || ''} onChange={e => onPatch({ link_url: e.target.value })} className={inputCls} style={inputStyle} />
           </div>
