@@ -28,3 +28,14 @@ export interface MemberIdentity {
   id: string
   email: string | undefined
 }
+
+/**
+ * A user identity resolved from a Supabase Bearer token. Users are event
+ * participants (non-members) who register for olympiads/activities. Same
+ * shape as MemberIdentity — for the full user profile row, query the `users`
+ * table with `.id`.
+ */
+export interface UserIdentity {
+  id: string
+  email: string | undefined
+}

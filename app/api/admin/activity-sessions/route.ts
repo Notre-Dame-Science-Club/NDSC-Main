@@ -4,6 +4,9 @@ import { requireAdmin } from '@/lib/api/admin-auth'
 import { apiError, apiOk } from '@/lib/api/response'
 
 export async function GET(req: NextRequest) {
+  const unauthorized = await requireAdmin()
+  if (unauthorized) return unauthorized
+
   const { searchParams } = new URL(req.url)
   const version_id = searchParams.get('version_id')
   const type_id = searchParams.get('type_id')
@@ -102,15 +105,21 @@ export async function POST(req: NextRequest) {
 
   // version optional
   if (body.activity_version_id || body.version_id) {
-    insertData.activity_version_id = body.activity_version_id || body.version_id
+    const versionId = body.activity_version_id || body.version_id
+    const { data: ver, error: verError } = await supabaseAdmin
+      .from('activity_versions')
+      .select('activity_type_id')
+      .eq('id', versionId)
+      .single()
+
+    if (verError || !ver) {
+      return apiError('Invalid activity_version_id: version does not exist', 400)
+    }
+
+    insertData.activity_version_id = versionId
     // version থেকেও type_id নাও যদি না থাকে
     if (!insertData.activity_type_id) {
-      const { data: ver } = await supabaseAdmin
-        .from('activity_versions')
-        .select('activity_type_id')
-        .eq('id', insertData.activity_version_id)
-        .single()
-      if (ver) insertData.activity_type_id = ver.activity_type_id
+      insertData.activity_type_id = ver.activity_type_id
     }
   }
   
@@ -134,9 +143,25 @@ export async function PUT(req: NextRequest) {
   const body = await req.json()
   const { id, ...rest } = body
 
+  if (!id) return apiError('Missing id', 400)
+
   const updateData: any = { ...rest }
   if (rest.version_id) { updateData.activity_version_id = rest.version_id; delete updateData.version_id }
   if (rest.type_id) { updateData.activity_type_id = rest.type_id; delete updateData.type_id }
+
+  // Validate activity_version_id if being updated
+  if (updateData.activity_version_id) {
+    const { data: ver, error: verError } = await supabaseAdmin
+      .from('activity_versions')
+      .select('id')
+      .eq('id', updateData.activity_version_id)
+      .maybeSingle()
+
+    if (verError || !ver) {
+      return apiError('Invalid activity_version_id: version does not exist', 400)
+    }
+  }
+
   // NOTE: previously this also did `updateData.event_date = rest.session_date`, writing to a
   // column called `event_date` that does not exist anywhere else in this schema (POST uses
   // `session_date` directly, and that's the only date column on this table). That stray line
@@ -158,6 +183,9 @@ export async function DELETE(req: NextRequest) {
   const unauthorized = await requireAdmin()
   if (unauthorized) return unauthorized
   const { id } = await req.json()
+
+  if (!id) return apiError('Missing id', 400)
+
   const { error } = await supabaseAdmin
     .from('activity_sessions')
     .delete()

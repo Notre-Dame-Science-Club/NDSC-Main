@@ -46,9 +46,22 @@ export async function POST(req: NextRequest) {
   const rollError = validateCollegeRoll(body.college, body.college_roll)
   if (rollError) return apiError(rollError, 400)
 
+  // Whitelist allowed fields for registration creation
+  const allowedFields = [
+    'olympiad_id', 'full_name', 'phone', 'email', 'college',
+    'college_roll', 'hsc_session', 'batch', 'group_name', 'custom_answers'
+  ]
+
+  const registration: Record<string, any> = {}
+  for (const key of allowedFields) {
+    if (body[key] !== undefined) {
+      registration[key] = body[key]
+    }
+  }
+
   const { data, error } = await supabaseAdmin
     .from('olympiad_registrations')
-    .insert(body)
+    .insert(registration)
     .select('id')
     .single()
   if (error) return apiError(error, 400)
@@ -59,9 +72,29 @@ export async function PUT(req: NextRequest) {
   const body = await req.json()
   const { id, ...rest } = body
   if (!id) return apiError('Missing id', 400)
+
+  // Whitelist allowed fields for student updates
+  // Students can only update their answers and exam state, NOT scores or results
+  const allowedFields = [
+    'mcq_answers', 'short_answers', 'photo_answers', 'answer_sheet_url',
+    'exam_started_at', 'exam_submitted_at'
+  ]
+
+  const updates: Record<string, any> = {}
+  for (const key of allowedFields) {
+    if (rest[key] !== undefined) {
+      updates[key] = rest[key]
+    }
+  }
+
+  // Prevent updates if nothing valid was provided
+  if (Object.keys(updates).length === 0) {
+    return apiError('No valid fields to update', 400)
+  }
+
   const { error } = await supabaseAdmin
     .from('olympiad_registrations')
-    .update(rest)
+    .update(updates)
     .eq('id', id)
   if (error) return apiError(error, 400)
   return apiOk({ success: true })

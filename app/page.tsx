@@ -220,7 +220,7 @@ export default function HomePage() {
           {/* Bento-style asymmetric grid: first card spans 2 columns on lg,
              the rest fill a 2x3 grid. Replaces the 3-col-equal layout that
              read as a generic "feature row" template. */}
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5 sm:gap-6">
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-5 sm:gap-6">
             {DEPTS.map((d, i) => (
               <button
                 key={d.name}
@@ -233,9 +233,7 @@ export default function HomePage() {
                   el.style.transform = `translateY(-6px) perspective(800px) rotateX(${py * -10}deg) rotateY(${px * 10}deg)`;
                   el.style.boxShadow = `0 8px 32px ${d.color}33, 0 0 0 1px ${d.color}66`;
                 }}
-                className={`reveal dept-card group relative flex flex-col items-center gap-4 p-6 sm:p-8 rounded-3xl overflow-hidden text-left ${
-                  d.wide ? "col-span-2 md:col-span-2 lg:col-span-2" : ""
-                }`}
+                className={`reveal dept-card group relative flex flex-col items-center gap-4 p-6 sm:p-8 rounded-3xl overflow-hidden text-left`}
                 style={{
                   background: d.bg,
                   border: `1px solid ${d.border}`,
