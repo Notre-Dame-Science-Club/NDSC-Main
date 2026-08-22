@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { BookOpen, Download, X, ChevronRight } from 'lucide-react'
 import PdfViewer from './PdfViewer'
+import Book3D from './Book3D'
 
 type Publication = {
   id: string
@@ -106,77 +107,105 @@ export default function PublicationPage() {
       )}
 
       {/* AUDRI */}
-      <section className="py-24 border-b"
-        style={{ background: 'linear-gradient(180deg, var(--bg2), var(--bg))', borderColor: 'var(--border)' }}>
-        <div className="max-w-7xl mx-auto px-6">
-          <div className="reveal section-label mb-2">Annual Publication</div>
-          <div className="flex flex-col lg:flex-row items-center gap-16">
-            {audri ? (
-              <div className="shrink-0 cursor-pointer group" onClick={() => audri.pdf_url && openPdf(audri)}>
-                <div className="relative rounded-xl overflow-hidden shadow-2xl" style={{ width: 240 }}>
-                  {audri.cover_image_url ? (
-                    <img src={audri.cover_image_url} alt={audri.title} className="w-full h-auto object-contain" />
-                  ) : (
-                    <div className="w-full flex items-center justify-center"
-                      style={{ height: 320, background: 'var(--bg2)', color: 'var(--muted)' }}>
-                      <BookOpen size={56} />
-                    </div>
-                  )}
-                  {audri.pdf_url && (
-                    <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
-                      style={{ background: 'rgba(0,0,0,0.6)' }}>
-                      <span className="text-xs font-bold tracking-widest px-4 py-2 rounded border"
-                        style={{ borderColor: 'var(--blue)', color: 'var(--blue)', fontFamily: 'inherit' }}>
-                        READ
-                      </span>
-                    </div>
-                  )}
-                </div>
-              </div>
-            ) : (
-              <div className="shrink-0 w-60 rounded-xl flex items-center justify-center opacity-20"
-                style={{ height: 320, border: '2px dashed var(--border)', background: 'var(--bg2)' }}>
-                <BookOpen size={56} />
-              </div>
-            )}
+      <section className="py-24 border-b relative"
+        style={{
+          background: 'linear-gradient(180deg, #0a0a15 0%, #050510 50%, var(--bg) 100%)',
+          borderColor: 'var(--border)',
+          minHeight: '100vh'
+        }}>
+        {/* Animated background grid */}
+        <div className="absolute inset-0 opacity-20"
+          style={{
+            backgroundImage: 'linear-gradient(rgba(0, 150, 255, 0.1) 1px, transparent 1px), linear-gradient(90deg, rgba(0, 150, 255, 0.1) 1px, transparent 1px)',
+            backgroundSize: '50px 50px',
+            animation: 'gridMove 20s linear infinite'
+          }} />
 
-            <div>
-              <h1 className="reveal text-4xl md:text-5xl font-black mb-2"
-                style={{ fontFamily: 'inherit' }}>
-                অদ্রি <span style={{ color: 'var(--blue)' }}>(AUDRI)</span>
-              </h1>
+        <style jsx>{`
+          @keyframes gridMove {
+            0% { transform: translate(0, 0); }
+            100% { transform: translate(50px, 50px); }
+          }
+        `}</style>
+
+        <div className="max-w-7xl mx-auto px-6 relative z-10">
+          <div className="reveal section-label mb-2 text-center">Annual Publication</div>
+
+          <div className="grid lg:grid-cols-2 gap-16 items-center">
+            {/* 3D Book */}
+            <div className="flex justify-center lg:justify-end">
               {audri ? (
-                <div className="flex flex-col gap-4">
-                  <h2 className="text-lg font-bold" style={{ color: 'var(--muted)' }}>{audri.title}</h2>
+                <Book3D
+                  coverImageUrl={audri.cover_image_url || undefined}
+                  title={audri.title}
+                  onClick={() => audri.pdf_url && openPdf(audri)}
+                />
+              ) : (
+                <div className="w-full max-w-md aspect-[3/4] rounded-xl flex items-center justify-center opacity-20"
+                  style={{ border: '2px dashed var(--border)', background: 'var(--bg2)' }}>
+                  <BookOpen size={80} />
+                </div>
+              )}
+            </div>
+
+            {/* Text Content */}
+            <div className="flex flex-col justify-center">
+              <h1 className="reveal text-5xl md:text-6xl lg:text-7xl font-black mb-4 leading-tight"
+                style={{ fontFamily: 'inherit' }}>
+                অদ্রি
+                <br />
+                <span style={{
+                  color: 'var(--blue)',
+                  textShadow: '0 0 30px rgba(0, 150, 255, 0.5)'
+                }}>AUDRI</span>
+              </h1>
+
+              {audri ? (
+                <div className="flex flex-col gap-6">
+                  <h2 className="text-xl font-bold" style={{ color: 'var(--muted)' }}>
+                    {audri.title}
+                  </h2>
+
                   {audri.description && (
-                    <p className="text-sm leading-relaxed max-w-lg" style={{ color: 'var(--muted)' }}>
+                    <p className="text-base leading-relaxed max-w-xl"
+                      style={{ color: 'var(--muted)', lineHeight: '1.8' }}>
                       {audri.description}
                     </p>
                   )}
 
-                  <div className="flex flex-wrap gap-4 mt-2">
+                  <div className="flex flex-wrap gap-4 mt-4">
                     {audri.pdf_url && (
-                      <a 
+                      <a
                         href="https://heyzine.com/flip-book/a9df397b9b.html"
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="flex items-center gap-2 px-6 py-3 font-black text-sm tracking-widest rounded inline-flex"
-                        style={{ background: 'var(--blue)', color: '#000', fontFamily: 'inherit' }}
+                        className="flex items-center gap-2 px-8 py-4 font-black text-sm tracking-widest rounded inline-flex transition-all duration-300 hover:scale-105 hover:shadow-xl"
+                        style={{
+                          background: 'var(--blue)',
+                          color: '#000',
+                          fontFamily: 'inherit',
+                          boxShadow: '0 0 30px rgba(0, 150, 255, 0.4)'
+                        }}
                       >
-                        <BookOpen size={16} /> READ ONLINE
+                        <BookOpen size={18} /> READ ONLINE
                       </a>
                     )}
                     {audri.pdf_url && (
                       <a href={audri.pdf_url} download
-                        className="flex items-center gap-2 px-6 py-3 font-black text-sm tracking-widest rounded border"
-                        style={{ borderColor: 'var(--blue)', color: 'var(--blue)', fontFamily: 'inherit' }}>
-                        DOWNLOAD
+                        className="flex items-center gap-2 px-8 py-4 font-black text-sm tracking-widest rounded border transition-all duration-300 hover:bg-opacity-10 hover:scale-105"
+                        style={{
+                          borderColor: 'var(--blue)',
+                          color: 'var(--blue)',
+                          fontFamily: 'inherit',
+                          background: 'rgba(0, 150, 255, 0.05)'
+                        }}>
+                        <Download size={18} /> DOWNLOAD
                       </a>
                     )}
                   </div>
                 </div>
               ) : (
-                <p className="text-sm" style={{ color: 'var(--muted)' }}>Coming soon.</p>
+                <p className="text-base" style={{ color: 'var(--muted)' }}>Coming soon.</p>
               )}
             </div>
           </div>

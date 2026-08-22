@@ -4,12 +4,13 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import {
   LayoutDashboard, Users, CalendarDays, BookOpen, UserCog,
-  Megaphone, Trophy, Film, Settings, Power, ClipboardList, Palette, Workflow, Menu, X,
+  Megaphone, Trophy, Film, Settings, Power, ClipboardList, Palette, Workflow, Menu, X, UserPlus,
 } from 'lucide-react'
 
 const NAV_LINKS = [
   { href: '/admin', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/admin/members', label: 'Members', icon: Users },
+  { href: '/admin/bulk-accounts', label: 'Bulk Create Accounts', icon: UserPlus },
   { href: '/admin/activities', label: 'Activities', icon: CalendarDays },
   { href: '/admin/publications', label: 'Publications', icon: BookOpen },
   { href: '/admin/executives', label: 'Executives', icon: UserCog },

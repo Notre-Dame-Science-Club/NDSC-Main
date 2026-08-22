@@ -66,6 +66,20 @@ export interface MemberShoutboxRow {
   created_at: ISODateString
 }
 
+// ── users (event participants, non-members) ─────────────────────────────
+export interface UserRow {
+  id: UUID // == auth.users.id
+  email: string
+  full_name: string
+  phone: string
+  college: string
+  college_roll: string
+  hsc_session: string
+  batch: string
+  is_active: boolean
+  created_at: ISODateString
+}
+
 // ── announcements ───────────────────────────────────────────────────────
 export type AnnouncementTarget = 'all' | 'members' | 'non_members'
 
