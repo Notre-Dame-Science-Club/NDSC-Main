@@ -135,6 +135,9 @@ function SessionCard({ s, isMember, regsLoading, getRegistrationForSession }: {
       <div className="relative w-full overflow-hidden" style={{ background: "var(--bg2)" }}>
         {thumb ? (
           <img src={thumb} alt={s.title}
+            width={640}
+            height={400}
+            loading="lazy"
             className="w-full h-auto block transition-transform duration-700 ease-out group-hover:scale-[1.04]" />
         ) : (
           <div className="w-full flex items-center justify-center opacity-20"

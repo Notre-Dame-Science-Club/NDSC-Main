@@ -21,6 +21,7 @@ import { ActivitiesCarousel } from "./_components/home/ActivitiesCarousel";
 import { ScienceMediaSection } from "./_components/home/ScienceMediaSection";
 import { AudriCTA } from "./_components/home/AudriCTA";
 import { ThemeToggle } from "./_components/home/ThemeToggle";
+import { Card3D, StatCard3D } from "./_components/home/3DCardEffect";
 
 export default function HomePage() {
   const [deptModal, setDeptModal] = useState<typeof DEPTS[0] | null>(null);
@@ -93,7 +94,7 @@ export default function HomePage() {
               </div>
 
               <p className="hero-desc text-sm sm:text-base leading-relaxed" style={{ color: "var(--muted)", maxWidth: 420, fontFamily: "'Poppins',sans-serif" }}>
-                The <span style={{ color: "var(--white)", fontWeight: 600 }}>first college-level science club</span> in the Indian Subcontinent — shaping scientists, innovators &amp; leaders for{" "}
+                The <span style={{ color: "var(--white)", fontWeight: 600 }}>first college-level science club</span> in South Asia — shaping scientists, innovators &amp; leaders for{" "}
                 <span style={{ color: "var(--blue)", fontWeight: 700 }}>70 years</span>.
               </p>
 
@@ -156,14 +157,14 @@ export default function HomePage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 sm:gap-6">
             {STATS.map((s, i) => (
-              <div
+              <StatCard3D
                 key={s.label}
                 className="reveal stat-card card-lift relative text-center p-5 sm:p-8 rounded-2xl border cursor-default overflow-hidden"
                 style={{
                   borderColor: "var(--border)",
                   background: "var(--card)",
-                  transitionDelay: `${i * 0.06}s`,
                 }}
+                delay={i * 0.06}
               >
                 {/* Subtle accent corner — a 1px gradient strip in the top-right
                     that brightens on hover. Gives the card direction. */}
@@ -187,7 +188,7 @@ export default function HomePage() {
                 >
                   {s.label}
                 </p>
-              </div>
+              </StatCard3D>
             ))}
           </div>
         </div>
@@ -222,31 +223,23 @@ export default function HomePage() {
              read as a generic "feature row" template. */}
           <div className="grid grid-cols-2 md:grid-cols-3 gap-5 sm:gap-6">
             {DEPTS.map((d, i) => (
-              <button
+              <Card3D
                 key={d.name}
                 onClick={() => setDeptModal(d)}
-                onMouseMove={e => {
-                  const el = e.currentTarget as HTMLElement;
-                  const rect = el.getBoundingClientRect();
-                  const px = (e.clientX - rect.left) / rect.width - 0.5;
-                  const py = (e.clientY - rect.top) / rect.height - 0.5;
-                  el.style.transform = `translateY(-6px) perspective(800px) rotateX(${py * -10}deg) rotateY(${px * 10}deg)`;
-                  el.style.boxShadow = `0 8px 32px ${d.color}33, 0 0 0 1px ${d.color}66`;
-                }}
-                className={`reveal dept-card group relative flex flex-col items-center gap-4 p-6 sm:p-8 rounded-3xl overflow-hidden text-left`}
+                className="reveal dept-card group cursor-pointer"
                 style={{
-                  background: d.bg,
-                  border: `1px solid ${d.border}`,
                   animationDelay: `${i * 0.07}s`,
-                  transition: "transform 0.15s ease-out, box-shadow 0.3s, border-color 0.3s",
-                  transformStyle: "preserve-3d",
                 }}
-                onMouseLeave={e => {
-                  const el = e.currentTarget as HTMLElement;
-                  el.style.boxShadow = "none";
-                  el.style.transform = "none";
-                }}
+                glowColor={`${d.color}66`}
+                intensity={1.2}
               >
+                <div
+                  className="relative flex flex-col items-center gap-4 p-6 sm:p-8 rounded-3xl overflow-hidden text-left"
+                  style={{
+                    background: d.bg,
+                    border: `1px solid ${d.border}`,
+                  }}
+                >
                 {/* Glow corner */}
                 <div
                   className="absolute top-0 right-0 w-24 h-24 rounded-full pointer-events-none"
@@ -279,7 +272,8 @@ export default function HomePage() {
                   className="absolute bottom-0 left-0 right-0 h-0.5 opacity-0 group-hover:opacity-100 transition-opacity duration-300"
                   style={{ background: `linear-gradient(90deg, transparent, ${d.color}, transparent)` }}
                 />
-              </button>
+                </div>
+              </Card3D>
             ))}
           </div>
         </div>
