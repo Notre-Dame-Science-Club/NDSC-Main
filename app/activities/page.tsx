@@ -313,13 +313,13 @@ function DynamicActivityTab({ type, isMember, regsLoading, getRegistrationForSes
       setLoading(true);
       try {
         // Load versions
-        const vRes = await fetch(`/api/admin/activity-versions?type_id=${type.id}`);
+        const vRes = await fetch(`/api/activity-versions-public?type_id=${type.id}`);
         const vData: ActivityVersion[] = await vRes.json();
         const versions = Array.isArray(vData) ? vData : [];
         setVersions(versions);
 
         // Load ALL sessions for this type
-        const sRes = await fetch(`/api/admin/activity-sessions?type_id=${type.id}`);
+        const sRes = await fetch(`/api/activity-sessions-public?type_id=${type.id}`);
         const sData: ActivitySession[] = await sRes.json();
         const allSessions = Array.isArray(sData) ? sData : [];
 
@@ -412,7 +412,7 @@ function ActivitiesContent() {
   const { isMember, loading: regsLoading, getRegistrationForSession } = useMyActivityRegistrations();
 
   useEffect(() => {
-    fetch("/api/admin/activity-types")
+    fetch("/api/activity-types-public")
       .then(r => r.json())
       .then(d => {
         if (Array.isArray(d)) {
