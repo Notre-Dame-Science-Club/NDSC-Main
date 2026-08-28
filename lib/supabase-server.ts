@@ -6,5 +6,4 @@ import { supabaseAdmin } from "@/lib/supabase";
 // route is done manually via member_id / room participant checks.
 export function createClient() {
   return supabaseAdmin;
-  }
-  
+}

@@ -6,7 +6,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { X, Shield, MessageSquare, Eye, CheckCircle2, Ban, UserX } from "lucide-react";
+import { X, Shield, MessageSquare, Eye, CheckCircle2, Ban, UserX, Users } from "lucide-react";
 
 interface Participant {
   id: string;
