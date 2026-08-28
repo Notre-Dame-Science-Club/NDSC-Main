@@ -22,6 +22,7 @@ import { ScienceMediaSection } from "./_components/home/ScienceMediaSection";
 import { AudriCTA } from "./_components/home/AudriCTA";
 import { ThemeToggle } from "./_components/home/ThemeToggle";
 import { Card3D, StatCard3D } from "./_components/home/3DCardEffect";
+import { CosmicJourney } from "./_components/home/CosmicJourney";
 
 export default function HomePage() {
   const [deptModal, setDeptModal] = useState<typeof DEPTS[0] | null>(null);
@@ -193,6 +194,9 @@ export default function HomePage() {
           </div>
         </div>
       </section>
+
+      {/* ══════ COSMIC JOURNEY — scroll-driven 3D story ══════ */}
+      <CosmicJourney />
 
       {/* ══════ PIONEER / ABOUT ══════════════════════════════ */}
       <PioneerSection />
