@@ -86,8 +86,8 @@ export default function ChatPage({ memberId }: { memberId: string }) {
   const [editingMessage, setEditingMessage] = useState<Message | null>(null);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const pollInterval = useRef<NodeJS.Timeout>();
-  const typingTimeout = useRef<NodeJS.Timeout>();
+  const pollInterval = useRef<NodeJS.Timeout | undefined>(undefined);
+  const typingTimeout = useRef<NodeJS.Timeout | undefined>(undefined);
   const lastPollTime = useRef<string>(new Date().toISOString());
 
   useEffect(() => {
