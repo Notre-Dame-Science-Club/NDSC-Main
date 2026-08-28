@@ -696,7 +696,7 @@ export default function ChatPage({ memberId }: { memberId: string }) {
                                 className="px-2 py-1 bg-gray-100 rounded-full text-sm cursor-pointer hover:bg-gray-200"
                                 onClick={() => handleReaction(msg.id, emoji)}
                               >
-                                {emoji} {count}
+                                {emoji} {count as number}
                               </span>
                             ))}
                           </div>
