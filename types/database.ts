@@ -156,6 +156,7 @@ export interface ActivityTypeRow {
   icon: string // emoji
   description: string
   display_order: number
+  group_by_version: boolean // When true, activities are grouped by version. When false, listed chronologically with version badges.
 }
 
 export interface ActivityVersionRow {

@@ -1,11 +1,11 @@
 import { supabaseAdmin } from '@/lib/supabase'
 import { NextRequest } from 'next/server'
-import { requireAdmin } from '@/lib/api/admin-auth'
+import { requireAdmin, isAdmin } from '@/lib/api/admin-auth'
 import { apiError, apiOk } from '@/lib/api/response'
 
 export async function GET(req: NextRequest) {
-  const unauthorized = await requireAdmin()
-  if (unauthorized) return unauthorized
+  // Check if user is admin
+  const userIsAdmin = await isAdmin()
 
   const { searchParams } = new URL(req.url)
   const version_id = searchParams.get('version_id')
@@ -14,50 +14,79 @@ export async function GET(req: NextRequest) {
   const id = searchParams.get('id')
 
   if (id) {
-    const { data, error } = await supabaseAdmin
+    let query = supabaseAdmin
       .from('activity_sessions')
       .select('*')
       .eq('id', id)
-      .maybeSingle()
+
+    // Non-admins can only see published sessions
+    if (!userIsAdmin) {
+      query = query.eq('is_published', true)
+    }
+
+    const { data, error } = await query.maybeSingle()
     if (error) return apiError(error, 400)
     return apiOk(data)
   }
 
   if (slug) {
-    const { data, error } = await supabaseAdmin
+    let query = supabaseAdmin
       .from('activity_sessions')
       .select('*')
       .eq('slug', slug)
-      .single()
+
+    // Non-admins can only see published sessions
+    if (!userIsAdmin) {
+      query = query.eq('is_published', true)
+    }
+
+    const { data, error } = await query.single()
     if (error) return apiError(error, 400)
     return apiOk(data)
   }
 
   if (version_id) {
-    const { data, error } = await supabaseAdmin
+    let query = supabaseAdmin
       .from('activity_sessions')
       .select('*')
       .eq('activity_version_id', version_id)
-      .order('session_date', { ascending: false })
+
+    // Non-admins can only see published sessions
+    if (!userIsAdmin) {
+      query = query.eq('is_published', true)
+    }
+
+    const { data, error } = await query.order('session_date', { ascending: false })
     if (error) return apiError(error, 400)
     return apiOk(data ?? [])
   }
 
   if (type_id) {
-    const { data, error } = await supabaseAdmin
+    let query = supabaseAdmin
       .from('activity_sessions')
       .select('*')
       .eq('activity_type_id', type_id)
-      .order('session_date', { ascending: false })
+
+    // Non-admins can only see published sessions
+    if (!userIsAdmin) {
+      query = query.eq('is_published', true)
+    }
+
+    const { data, error } = await query.order('session_date', { ascending: false })
     if (error) return apiError(error, 400)
     return apiOk(data ?? [])
   }
 
-  // No filter — return all
-  const { data, error } = await supabaseAdmin
+  // No filter — admins get all, non-admins get published only
+  let query = supabaseAdmin
     .from('activity_sessions')
     .select('*')
-    .order('session_date', { ascending: false })
+
+  if (!userIsAdmin) {
+    query = query.eq('is_published', true)
+  }
+
+  const { data, error } = await query.order('session_date', { ascending: false })
   if (error) return apiError(error, 400)
   return apiOk(data ?? [])
 }

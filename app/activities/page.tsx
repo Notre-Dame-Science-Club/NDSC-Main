@@ -8,7 +8,7 @@ import Link from "next/link";
 
 type ActivityType = {
   id: string; name: string; slug: string; icon: string;
-  description: string; display_order: number;
+  description: string; display_order: number; group_by_version: boolean;
 };
 type ActivityVersion = {
   id: string; activity_type_id: string; version_number: number;
@@ -63,11 +63,12 @@ function ActivitiesSkeleton() {
 }
 
 /* ── Session Card ─────────────────────────────────────────────── */
-function SessionCard({ s, isMember, regsLoading, getRegistrationForSession }: {
+function SessionCard({ s, isMember, regsLoading, getRegistrationForSession, versionLabel }: {
   s: ActivitySession;
   isMember: boolean;
   regsLoading: boolean;
   getRegistrationForSession: (sessionId: string) => { id: string } | null;
+  versionLabel?: string | null;
 }) {
   const router = useRouter();
   const ytId = getYoutubeId(s.youtube_url);
@@ -195,8 +196,16 @@ function SessionCard({ s, isMember, regsLoading, getRegistrationForSession }: {
         </div>
       </div>
       <div className="p-5 flex-1 flex flex-col">
-        <h3 className="font-bold text-sm mb-2 group-hover:text-[var(--blue)] transition-colors line-clamp-2"
-          style={{ fontFamily: 'inherit' }}>{s.title}</h3>
+        <div className="flex items-start justify-between gap-2 mb-2">
+          <h3 className="font-bold text-sm group-hover:text-[var(--blue)] transition-colors line-clamp-2 flex-1"
+            style={{ fontFamily: 'inherit' }}>{s.title}</h3>
+          {versionLabel && (
+            <span className="shrink-0 px-2 py-0.5 rounded text-[9px] font-black tracking-wider"
+              style={{ background: "rgba(var(--blue-rgb), .12)", color: "var(--blue)", border: "1px solid rgba(var(--blue-rgb), .25)" }}>
+              {versionLabel}
+            </span>
+          )}
+        </div>
         {s.description && (
           <p className="text-xs leading-relaxed mb-3 line-clamp-2" style={{ color: "var(--muted)" }}>
             {s.description}
@@ -306,6 +315,8 @@ function DynamicActivityTab({ type, isMember, regsLoading, getRegistrationForSes
   const [versions, setVersions] = useState<ActivityVersion[]>([]);
   const [sessionMap, setSessionMap] = useState<Record<string, ActivitySession[]>>({});
   const [directSessions, setDirectSessions] = useState<ActivitySession[]>([]);
+  const [allSessions, setAllSessions] = useState<ActivitySession[]>([]);
+  const [versionMap, setVersionMap] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -318,38 +329,53 @@ function DynamicActivityTab({ type, isMember, regsLoading, getRegistrationForSes
         const versions = Array.isArray(vData) ? vData : [];
         setVersions(versions);
 
+        // Create version label map
+        const vMap: Record<string, string> = {};
+        versions.forEach(v => {
+          vMap[v.id] = v.version_label || `v${v.version_number}`;
+        });
+        setVersionMap(vMap);
+
         // Load ALL sessions for this type
         const sRes = await fetch(`/api/activity-sessions-public?type_id=${type.id}`);
         const sData: ActivitySession[] = await sRes.json();
         const allSessions = Array.isArray(sData) ? sData : [];
 
-        // Split: sessions with version vs without version
-        const withVersion: Record<string, ActivitySession[]> = {};
-        const withoutVersion: ActivitySession[] = [];
+        if (type.group_by_version) {
+          // Group by version (old behavior)
+          const withVersion: Record<string, ActivitySession[]> = {};
+          const withoutVersion: ActivitySession[] = [];
 
-        allSessions.forEach(s => {
-          if (s.activity_version_id) {
-            if (!withVersion[s.activity_version_id]) withVersion[s.activity_version_id] = [];
-            withVersion[s.activity_version_id].push(s);
-          } else {
-            withoutVersion.push(s);
-          }
-        });
+          allSessions.forEach(s => {
+            if (s.activity_version_id) {
+              if (!withVersion[s.activity_version_id]) withVersion[s.activity_version_id] = [];
+              withVersion[s.activity_version_id].push(s);
+            } else {
+              withoutVersion.push(s);
+            }
+          });
 
-        setSessionMap(withVersion);
-        // Sort direct sessions by date desc
-        setDirectSessions(withoutVersion.sort((a, b) =>
-          new Date(b.session_date || 0).getTime() - new Date(a.session_date || 0).getTime()
-        ));
+          setSessionMap(withVersion);
+          setDirectSessions(withoutVersion.sort((a, b) =>
+            new Date(b.session_date || 0).getTime() - new Date(a.session_date || 0).getTime()
+          ));
+        } else {
+          // Chronological list (new default behavior)
+          setAllSessions(allSessions.sort((a, b) =>
+            new Date(b.session_date || 0).getTime() - new Date(a.session_date || 0).getTime()
+          ));
+        }
       } catch {}
       setLoading(false);
     };
     load();
-  }, [type.id]);
+  }, [type.id, type.group_by_version]);
 
   if (loading) return <ActivitiesSkeleton />;
 
-  const hasContent = versions.length > 0 || directSessions.length > 0;
+  const hasContent = type.group_by_version
+    ? (versions.length > 0 || directSessions.length > 0)
+    : allSessions.length > 0;
 
   return (
     <div>
@@ -371,9 +397,9 @@ function DynamicActivityTab({ type, isMember, regsLoading, getRegistrationForSes
           <div className="mb-4 flex justify-center" style={{ color: 'var(--muted)' }}><ActivityIcon icon={type.icon} size={44} /></div>
           <p className="text-sm" style={{ color: "var(--muted)" }}>No sessions yet. Check back soon!</p>
         </div>
-      ) : (
+      ) : type.group_by_version ? (
         <>
-          {/* Versioned sessions — pinned versions first (e.g. "Science Under"), then latest version first */}
+          {/* Grouped by version display */}
           {versions
             .sort((a, b) => (b.is_pinned ? 1 : 0) - (a.is_pinned ? 1 : 0) || b.version_number - a.version_number)
             .map(v => (
@@ -396,6 +422,22 @@ function DynamicActivityTab({ type, isMember, regsLoading, getRegistrationForSes
               </div>
             </div>
           )}
+        </>
+      ) : (
+        <>
+          {/* Chronological display with version badges */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+            {allSessions.filter(s => s.is_published).map(s => (
+              <SessionCard
+                key={s.id}
+                s={s}
+                isMember={isMember}
+                regsLoading={regsLoading}
+                getRegistrationForSession={getRegistrationForSession}
+                versionLabel={s.activity_version_id ? versionMap[s.activity_version_id] : null}
+              />
+            ))}
+          </div>
         </>
       )}
     </div>
