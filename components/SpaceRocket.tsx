@@ -18,10 +18,10 @@ export default function SpaceRocket() {
   const [currentQuote, setCurrentQuote] = useState(QUOTES[0]);
   const [showBubble, setShowBubble] = useState(false);
   const [bubblePos, setBubblePos] = useState({ x: 0, y: 0, above: false });
-  const animationRef = useRef<number>();
+  const animationRef = useRef<number | undefined>(undefined);
   const positionRef = useRef({ x: 0, y: 0, vx: 0, vy: 0, angle: 0 });
   const isExitingRef = useRef(false);
-  const reentryTimeoutRef = useRef<NodeJS.Timeout>();
+  const reentryTimeoutRef = useRef<NodeJS.Timeout | undefined>(undefined);
 
   useEffect(() => {
     if (!containerRef.current || !rocketRef.current) return;
