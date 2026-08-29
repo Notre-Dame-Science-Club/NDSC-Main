@@ -39,15 +39,25 @@ export function useMyActivityRegistrations() {
       try {
         const { data: { user } } = await supabase.auth.getUser()
         if (cancelled) return
-        if (!user) { setLoading(false); return }
+        if (!user || !user.id) {
+          setRegistrations([])
+          setLoading(false)
+          return
+        }
         setMemberId(user.id)
         const res = await fetch(`/api/member-activity-registrations?member_id=${user.id}`)
-        if (!res.ok) { setLoading(false); return }
+        if (cancelled) return
+        if (!res.ok) {
+          setRegistrations([])
+          setLoading(false)
+          return
+        }
         const data = await res.json()
         if (!cancelled) setRegistrations(data.registrations || [])
       } catch {
         // Network or auth hiccup — loading just ends with isMember=false
         // (memberId stays null), so callers fall back to device markers.
+        if (!cancelled) setRegistrations([])
       } finally {
         if (!cancelled) setLoading(false)
       }

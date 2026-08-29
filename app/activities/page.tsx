@@ -83,7 +83,7 @@ function SessionCard({ s, isMember, regsLoading, getRegistrationForSession, vers
     if (!registrationTurnedOn) return;
     let cancelled = false;
     fetch(`/api/public/form-graph?owner_kind=activity&owner_id=${s.id}`)
-      .then(r => setHasFormGraph(cancelled ? false : r.ok))
+      .then(r => { if (!cancelled) setHasFormGraph(r.ok); })
       .catch(() => { if (!cancelled) setHasFormGraph(false); });
     return () => { cancelled = true; };
   }, [registrationTurnedOn, s.id]);
@@ -325,21 +325,35 @@ function DynamicActivityTab({ type, isMember, regsLoading, getRegistrationForSes
       try {
         // Load versions
         const vRes = await fetch(`/api/activity-versions-public?type_id=${type.id}`);
-        const vData: ActivityVersion[] = await vRes.json();
-        const versions = Array.isArray(vData) ? vData : [];
-        setVersions(versions);
+        let vData: ActivityVersion[] = [];
+        if (vRes.ok) {
+          try {
+            const parsed = await vRes.json();
+            vData = Array.isArray(parsed) ? parsed : [];
+          } catch {
+            vData = [];
+          }
+        }
+        setVersions(vData);
 
         // Create version label map
         const vMap: Record<string, string> = {};
-        versions.forEach(v => {
+        vData.forEach(v => {
           vMap[v.id] = v.version_label || `v${v.version_number}`;
         });
         setVersionMap(vMap);
 
         // Load ALL sessions for this type
         const sRes = await fetch(`/api/activity-sessions-public?type_id=${type.id}`);
-        const sData: ActivitySession[] = await sRes.json();
-        const allSessions = Array.isArray(sData) ? sData : [];
+        let allSessions: ActivitySession[] = [];
+        if (sRes.ok) {
+          try {
+            const parsed = await sRes.json();
+            allSessions = Array.isArray(parsed) ? parsed : [];
+          } catch {
+            allSessions = [];
+          }
+        }
 
         if (type.group_by_version) {
           // Group by version (old behavior)
@@ -365,7 +379,13 @@ function DynamicActivityTab({ type, isMember, regsLoading, getRegistrationForSes
             new Date(b.session_date || 0).getTime() - new Date(a.session_date || 0).getTime()
           ));
         }
-      } catch {}
+      } catch {
+        // Network error - set empty defaults
+        setVersions([]);
+        setSessionMap({});
+        setDirectSessions([]);
+        setAllSessions([]);
+      }
       setLoading(false);
     };
     load();
@@ -455,7 +475,10 @@ function ActivitiesContent() {
 
   useEffect(() => {
     fetch("/api/activity-types-public")
-      .then(r => r.json())
+      .then(r => {
+        if (!r.ok) return [];
+        return r.json().catch(() => []);
+      })
       .then(d => {
         if (Array.isArray(d)) {
           // Sort by display_order
@@ -465,6 +488,9 @@ function ActivitiesContent() {
             setActiveTab(sorted[0].slug);
           }
         }
+      })
+      .catch(() => {
+        setTypes([]);
       })
       .finally(() => setLoadingTypes(false));
   }, []);
