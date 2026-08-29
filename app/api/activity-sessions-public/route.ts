@@ -13,7 +13,7 @@ export async function GET(req: NextRequest) {
     .select(`
       id, title, slug, cover_image_url, session_date, youtube_url,
       is_upcoming, registration_enabled, registration_note, event_dates,
-      image_display_mode, reg_status, reg_deadline, description, location,
+      image_display_mode, reg_status, reg_deadline, description, location, is_published,
       pdf_url, gallery_urls, activity_type_id, activity_version_id,
       activity_types ( name, slug )
     `)
