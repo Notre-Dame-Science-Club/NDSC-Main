@@ -3,7 +3,7 @@
 // ============================================================================
 
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase-server";
+import { supabaseAdmin } from "@/lib/supabase";
 
 // ══════════════════════════════════════════════════════════════════════════
 // POST /api/chat/reactions
@@ -11,7 +11,7 @@ import { createClient } from "@/lib/supabase-server";
 // ══════════════════════════════════════════════════════════════════════════
 export async function POST(req: NextRequest) {
   try {
-    const supabase = createClient();
+    const supabase = supabaseAdmin;
     const body = await req.json();
 
     const { message_id, member_id, emoji } = body;
@@ -68,7 +68,7 @@ export async function POST(req: NextRequest) {
 // ══════════════════════════════════════════════════════════════════════════
 export async function DELETE(req: NextRequest) {
   try {
-    const supabase = createClient();
+    const supabase = supabaseAdmin;
     const { searchParams } = new URL(req.url);
     const messageId = searchParams.get("message_id");
     const memberId = searchParams.get("member_id");

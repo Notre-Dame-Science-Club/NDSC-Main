@@ -3,7 +3,7 @@
 // ============================================================================
 
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase-server";
+import { supabaseAdmin } from "@/lib/supabase";
 
 // ══════════════════════════════════════════════════════════════════════════
 // GET /api/chat/rooms
@@ -11,7 +11,7 @@ import { createClient } from "@/lib/supabase-server";
 // ══════════════════════════════════════════════════════════════════════════
 export async function GET(req: NextRequest) {
   try {
-    const supabase = createClient();
+    const supabase = supabaseAdmin;
     const { searchParams } = new URL(req.url);
     const memberId = searchParams.get("member_id");
     const roomType = searchParams.get("type"); // 'chat' | 'voting'
@@ -198,7 +198,7 @@ export async function GET(req: NextRequest) {
 // ══════════════════════════════════════════════════════════════════════════
 export async function POST(req: NextRequest) {
   try {
-    const supabase = createClient();
+    const supabase = supabaseAdmin;
     const body = await req.json();
 
     const {
@@ -290,7 +290,7 @@ export async function POST(req: NextRequest) {
 // ══════════════════════════════════════════════════════════════════════════
 export async function PATCH(req: NextRequest) {
   try {
-    const supabase = createClient();
+    const supabase = supabaseAdmin;
     const body = await req.json();
     const { room_id, ...updates } = body;
 
@@ -320,7 +320,7 @@ export async function PATCH(req: NextRequest) {
 // ══════════════════════════════════════════════════════════════════════════
 export async function DELETE(req: NextRequest) {
   try {
-    const supabase = createClient();
+    const supabase = supabaseAdmin;
     const { searchParams } = new URL(req.url);
     const roomId = searchParams.get("room_id");
 

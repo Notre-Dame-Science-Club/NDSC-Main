@@ -4,7 +4,7 @@
 // ============================================================================
 
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase-server";
+import { supabaseAdmin } from "@/lib/supabase";
 import { cookies } from "next/headers";
 
 // Helper to verify admin session
@@ -35,7 +35,7 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const supabase = createClient();
+    const supabase = supabaseAdmin;
 
     // Get all rooms (including inactive)
     const { data: rooms, error } = await supabase
