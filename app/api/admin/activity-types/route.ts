@@ -7,7 +7,7 @@ import { apiError, apiOk } from '@/lib/api/response'
 export async function GET() {
   const { data, error } = await supabaseAdmin
     .from('activity_types')
-    .select('id, name, slug, icon, description, display_order, created_at, updated_at')
+    .select('id, name, slug, icon, description, display_order, group_by_version, created_at, updated_at')
     .order('display_order', { ascending: true })
   if (error) return apiError(error, 400)
 
