@@ -4,21 +4,25 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import {
   LayoutDashboard, Users, CalendarDays, BookOpen, UserCog,
-  Megaphone, Trophy, Film, Settings, Power, ClipboardList, Palette, Workflow, Menu, X, UserPlus,
+  Megaphone, Trophy, Film, Settings, Power, ClipboardList, Palette, Workflow, Menu, X,
+  MessageSquare, FileText, UserPlus, Wrench,
 } from 'lucide-react'
 
 const NAV_LINKS = [
   { href: '/admin', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/admin/members', label: 'Members', icon: Users },
-  { href: '/admin/bulk-accounts', label: 'Bulk Create Accounts', icon: UserPlus },
-  { href: '/admin/activities', label: 'Activities', icon: CalendarDays },
-  { href: '/admin/publications', label: 'Publications', icon: BookOpen },
   { href: '/admin/executives', label: 'Executives', icon: UserCog },
-  { href: '/admin/announcements', label: 'Announcements', icon: Megaphone },
+  { href: '/admin/activities', label: 'Activities', icon: CalendarDays },
   { href: '/admin/olympiads', label: 'Olympiads', icon: Trophy },
-  { href: '/admin/form-builder', label: 'Form Builder', icon: Workflow },
-  { href: '/admin/surveys', label: 'Surveys', icon: ClipboardList },
+  { href: '/admin/publications', label: 'Publications', icon: BookOpen },
   { href: '/admin/science-media', label: 'Science Media', icon: Film },
+  { href: '/admin/announcements', label: 'Announcements', icon: Megaphone },
+  { href: '/admin/form-builder', label: 'Form Builder', icon: Workflow },
+  { href: '/admin/forms', label: 'Form Configs', icon: FileText },
+  { href: '/admin/surveys', label: 'Surveys', icon: ClipboardList },
+  { href: '/admin/chat', label: 'Chat & Voting', icon: MessageSquare },
+  { href: '/admin/bulk-accounts', label: 'Bulk Accounts', icon: UserPlus },
+  { href: '/admin/fix-urls', label: 'Fix URLs', icon: Wrench },
   { href: '/admin/homepage-settings', label: 'Homepage Settings', icon: Settings },
   { href: '/admin/appearance', label: 'Appearance', icon: Palette },
 ]

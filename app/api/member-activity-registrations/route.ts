@@ -20,7 +20,7 @@ import { apiError, apiOk } from '@/lib/api/response'
 // without requiring a backfill migration.
 export async function GET(req: NextRequest) {
   const memberId = req.nextUrl.searchParams.get('member_id')
-  if (!memberId) return apiError('member_id is required', 400)
+  if (!memberId) return apiOk({ registrations: [] })
 
   // Fetch this member's email once (used for the read-time fallback scan).
   const { data: memberRow } = await supabaseAdmin

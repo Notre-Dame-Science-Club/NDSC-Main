@@ -191,16 +191,6 @@ export default async function SessionDetailPage({
           </div>
         )}
 
-        {/* Always-visible dashboard link for returning participants */}
-        {!session.registration_enabled && (
-          <div className="mb-8">
-            <Link href={`/activities/${session.slug}/dashboard`}
-              className="inline-flex items-center gap-2 text-sm underline" style={{ color: 'var(--blue)' }}>
-              Already registered? View your dashboard →
-            </Link>
-          </div>
-        )}
-
         {session.description && (
           <div className="rounded-2xl border p-8 mb-8"
             style={{ background: 'var(--card)', borderColor: 'var(--border)' }}>

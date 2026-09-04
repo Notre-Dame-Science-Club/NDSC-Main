@@ -48,7 +48,7 @@ export default function AuthButton({ mobile = false }: { mobile?: boolean }) {
       <Link href="/login"
         className="mt-5 py-4 text-center font-black tracking-widest rounded-xl border text-sm"
         style={{ borderColor: 'var(--blue)', color: 'var(--blue)', fontFamily: 'inherit' }}>
-        MEMBER LOGIN
+        LOGIN
       </Link>
     )
   }

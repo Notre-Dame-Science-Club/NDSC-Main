@@ -1,15 +1,21 @@
 import { cookies } from 'next/headers'
 import { redirect } from 'next/navigation'
 import { authCookies } from '@/lib/config/site'
-import { Users, CalendarDays, BookOpen, UserCog, Trophy, Megaphone, Wrench, Bot } from 'lucide-react'
+import { Users, CalendarDays, BookOpen, UserCog, Trophy, Megaphone, Wrench, Bot, MessageSquare, FileText, UserPlus, ClipboardList, Workflow, Film } from 'lucide-react'
 
 const DASHBOARD_CARDS = [
   { label: 'Members', icon: Users, href: '/admin/members', desc: 'Manage member registrations' },
-  { label: 'Activities', icon: CalendarDays, href: '/admin/activities', desc: 'Events, workshops, seminars' },
-  { label: 'Publications', icon: BookOpen, href: '/admin/publications', desc: 'Upload & manage PDFs' },
   { label: 'Executives', icon: UserCog, href: '/admin/executives', desc: 'Manage full club' },
+  { label: 'Activities', icon: CalendarDays, href: '/admin/activities', desc: 'Events, workshops, seminars' },
   { label: 'Olympiads', icon: Trophy, href: '/admin/olympiads', desc: 'Manage olympiad registrations' },
+  { label: 'Publications', icon: BookOpen, href: '/admin/publications', desc: 'Upload & manage PDFs' },
+  { label: 'Science Media', icon: Film, href: '/admin/science-media', desc: 'Manage science media content' },
   { label: 'Announcements', icon: Megaphone, href: '/admin/announcements', desc: 'Send email & SMS blasts' },
+  { label: 'Surveys', icon: ClipboardList, href: '/admin/surveys', desc: 'Create and manage surveys' },
+  { label: 'Chat & Voting', icon: MessageSquare, href: '/admin/chat', desc: 'Manage chat rooms and polls' },
+  { label: 'Form Builder', icon: Workflow, href: '/admin/form-builder', desc: 'Visual form graph builder' },
+  { label: 'Form Configs', icon: FileText, href: '/admin/forms', desc: 'Configure form templates & themes' },
+  { label: 'Bulk Accounts', icon: UserPlus, href: '/admin/bulk-accounts', desc: 'Create multiple accounts via CSV' },
   { label: 'Fix Upload URLs', icon: Wrench, href: '/admin/fix-urls', desc: 'Fix broken image/file URLs in database' },
   { label: 'AI ChatBot', icon: Bot, href: 'https://ndsc-ai-bot.foysalmahmud1627.workers.dev/logs', desc: 'NDSC AI LightHouse' },
 ]

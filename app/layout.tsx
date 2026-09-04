@@ -7,6 +7,7 @@ import Footer from "@/components/layout/Footer";
 import SurveyNotification from "@/components/SurveyNotification";
 import ActivityNotification from "@/components/ActivityNotification";
 import ScrollReveal from "@/components/ScrollReveal";
+import SpaceRocket from "@/components/SpaceRocket";
 import { supabaseAdmin } from "@/lib/supabase";
 import { darkenHex, hexToRgbString, isValidHex } from "@/lib/color";
 
@@ -151,6 +152,7 @@ export default async function RootLayout({
         </Script>
         <a href="#main-content" className="skip-link">Skip to content</a>
         <div className="grain-overlay" aria-hidden="true" />
+        <SpaceRocket />
         <ScrollReveal />
         <Navbar />
         <main id="main-content">{children}</main>

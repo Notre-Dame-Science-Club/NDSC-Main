@@ -63,7 +63,7 @@ function AuthButton({ mobile = false }: { mobile?: boolean }) {
         <button onClick={handleLogout} className="py-3 text-sm text-center" style={{ color: "var(--muted)" }}>Sign Out</button>
       </>
     ) : (
-      <Link href="/login" className="mt-5 py-4 text-center font-black tracking-widest rounded-xl border text-sm" style={{ borderColor: "var(--blue)", color: "var(--blue)", fontFamily: 'inherit' }}>MEMBER LOGIN</Link>
+      <Link href="/login" className="mt-5 py-4 text-center font-black tracking-widest rounded-xl border text-sm" style={{ borderColor: "var(--blue)", color: "var(--blue)", fontFamily: 'inherit' }}>LOGIN</Link>
     );
   }
 

@@ -6,7 +6,7 @@ import Link from 'next/link'
 import { MessageCircle, Award, Plus, Upload, X, Home, CalendarDays, BookOpen, Trophy, User, Megaphone, Ticket, Link2, CheckCircle, FileText, CalendarCheck, CreditCard, ClipboardList, ArrowRight, IdCard, Clock } from 'lucide-react'
 import SurveyForm from '@/components/SurveyForm'
 
-type Tab = 'home' | 'activities' | 'publications' | 'olympiads' | 'surveys' | 'profile'
+type Tab = 'profile' | 'history' | 'activities' | 'chat' | 'surveys' | 'publications'
 type Achievement = { id: string; title: string; description?: string; image_url?: string; status: 'pending' | 'approved'; created_at: string }
 type ActiveSurvey = {
   id: string; title: string; description?: string; cover_image_url?: string
@@ -27,7 +27,7 @@ export default function DashboardPage() {
   const [shoutMessage, setShoutMessage] = useState('')
   const [shoutPosting, setShoutPosting] = useState(false)
   const [shoutError, setShoutError] = useState('')
-  const [tab, setTab] = useState<Tab>('home')
+  const [tab, setTab] = useState<Tab>('profile')
   const [surveys, setSurveys] = useState<ActiveSurvey[]>([])
   const [surveysLoading, setSurveysLoading] = useState(false)
   const [openSurveyId, setOpenSurveyId] = useState<string | null>(null)
@@ -162,12 +162,12 @@ export default function DashboardPage() {
   const [achSubmitting, setAchSubmitting] = useState(false)
   const [achError, setAchError] = useState('')
 
-  // Membership slip upload state (dashboard-side; for members who signed
-  // up without a slip, or whose slip hasn't been submitted/approved yet)
-  const [showMembershipModal, setShowMembershipModal] = useState(false)
-  const [slipFile, setSlipFile] = useState<File | null>(null)
-  const [slipSubmitting, setSlipSubmitting] = useState(false)
-  const [slipError, setSlipError] = useState('')
+  // Club membership application state
+  const [showClubMembershipModal, setShowClubMembershipModal] = useState(false)
+  const [clubAppForm, setClubAppForm] = useState({ college_roll: '', batch: '', department: '' })
+  const [clubAppSlipFile, setClubAppSlipFile] = useState<File | null>(null)
+  const [clubAppSubmitting, setClubAppSubmitting] = useState(false)
+  const [clubAppError, setClubAppError] = useState('')
 
   const uploadMembershipSlipFile = (file: File): Promise<string> => {
     return new Promise((resolve, reject) => {
@@ -188,28 +188,51 @@ export default function DashboardPage() {
     })
   }
 
-  const submitMembershipSlip = async () => {
-    if (!slipFile) { setSlipError('Please choose a photo of your slip first.'); return }
-    setSlipSubmitting(true)
-    setSlipError('')
+  // Helper to check if institution is NDC
+  const isNDCStudent = (m: any) => {
+    if (!m?.institution) return false
+    const inst = m.institution.toLowerCase()
+    return inst.includes('notre dame') || inst.includes('ndc')
+  }
+
+  const submitClubMembership = async () => {
+    if (!clubAppForm.college_roll.trim() || clubAppForm.college_roll.trim().length !== 8) {
+      setClubAppError('Please enter a valid 8-digit College Roll.')
+      return
+    }
+    if (!clubAppForm.batch.trim()) { setClubAppError('Please enter your Batch.'); return }
+    if (!clubAppForm.department.trim()) { setClubAppError('Please select your Department.'); return }
+    if (!clubAppSlipFile) { setClubAppError('Please upload your payment slip photo.'); return }
+
+    setClubAppSubmitting(true)
+    setClubAppError('')
     try {
-      const payment_slip_url = await uploadMembershipSlipFile(slipFile)
+      const payment_slip_url = await uploadMembershipSlipFile(clubAppSlipFile)
       const { data: { session } } = await supabase.auth.getSession()
       if (!session) throw new Error('Your session has expired. Please log in again.')
-      const res = await fetch('/api/member-membership-slip', {
-        method: 'PUT',
+
+      const res = await fetch('/api/member/apply-membership', {
+        method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
-        body: JSON.stringify({ payment_slip_url }),
+        body: JSON.stringify({
+          college_roll: clubAppForm.college_roll.trim(),
+          batch: clubAppForm.batch.trim(),
+          department: clubAppForm.department.trim(),
+          payment_slip_url,
+        }),
       })
       const data = await res.json()
-      if (!res.ok) throw new Error(data.error || 'Could not save your slip.')
-      setMember((prev: any) => ({ ...prev, payment_slip_url }))
-      setSlipFile(null)
-      setShowMembershipModal(false)
+      if (!res.ok) throw new Error(data.error || 'Could not submit your application.')
+
+      setMember((prev: any) => ({ ...prev, membership_status: 'pending', college_roll: clubAppForm.college_roll.trim(), batch: clubAppForm.batch.trim(), department: clubAppForm.department.trim(), payment_slip_url }))
+      setClubAppForm({ college_roll: '', batch: '', department: '' })
+      setClubAppSlipFile(null)
+      setShowClubMembershipModal(false)
+      alert('Application submitted successfully! An admin will review it soon.')
     } catch (e: any) {
-      setSlipError(e.message || 'Something went wrong.')
+      setClubAppError(e.message || 'Something went wrong.')
     } finally {
-      setSlipSubmitting(false)
+      setClubAppSubmitting(false)
     }
   }
 
@@ -287,12 +310,12 @@ export default function DashboardPage() {
   }
 
   const tabs: { key: Tab; label: string; icon: typeof Home }[] = [
-    { key: 'home', label: 'Home', icon: Home },
-    { key: 'activities', label: 'Activities', icon: CalendarDays },
-    { key: 'publications', label: 'Publications', icon: BookOpen },
-    { key: 'olympiads', label: 'Olympiads', icon: Trophy },
-    { key: 'surveys', label: 'Surveys', icon: ClipboardList },
     { key: 'profile', label: 'Profile', icon: User },
+    { key: 'history', label: 'History', icon: Clock },
+    { key: 'activities', label: 'Activities & Events', icon: CalendarDays },
+    { key: 'chat', label: 'Chat & Community', icon: MessageCircle },
+    { key: 'surveys', label: 'Surveys', icon: ClipboardList },
+    { key: 'publications', label: 'Publications', icon: BookOpen },
   ]
 
   if (!authChecked || loading) return (
@@ -342,151 +365,300 @@ export default function DashboardPage() {
 
       <div className="max-w-3xl mx-auto p-5 pb-16">
 
-        {/* HOME */}
-        {tab === 'home' && (
+        {/* PROFILE */}
+        {tab === 'profile' && (
           <div className="space-y-4">
-            <div className="rounded-2xl p-6"
-              style={{ background: 'linear-gradient(135deg, #0a1f3d, #0d2a50)', border: '1px solid var(--border)' }}>
-              <p className="text-sm" style={{ color: 'var(--muted)' }}>Welcome back,</p>
-              <h2 className="text-2xl font-bold mt-1" style={{ color: 'var(--white)' }}>{member?.full_name}</h2>
-              <div className="flex gap-3 mt-4 flex-wrap">
-                {member?.ndsc_id && (
-                  <span className="text-xs px-3 py-1 rounded-full"
-                    style={{ background: 'rgba(var(--blue-rgb), 0.1)', border: '1px solid rgba(var(--blue-rgb), 0.3)', color: 'var(--blue)' }}>
-                    ID: {member.ndsc_id}
-                  </span>
-                )}
-                {member?.department && (
-                  <span className="text-xs px-3 py-1 rounded-full"
-                    style={{ background: 'rgba(var(--blue-rgb), 0.1)', border: '1px solid rgba(var(--blue-rgb), 0.3)', color: 'var(--blue)' }}>
-                    {member.department}
-                  </span>
-                )}
-                {member?.batch && (
-                  <span className="text-xs px-3 py-1 rounded-full"
-                    style={{ background: 'rgba(var(--blue-rgb), 0.1)', border: '1px solid rgba(var(--blue-rgb), 0.3)', color: 'var(--blue)' }}>
-                    Batch: {member.batch}
-                  </span>
+            {/* Primary Details */}
+            <div className="rounded-xl p-6" style={{ background: 'var(--bg2)', border: '1px solid var(--border)' }}>
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="font-semibold text-sm flex items-center gap-2" style={{ color: 'var(--muted)', fontFamily: 'inherit' }}>
+                  <User size={15} /> Primary Details
+                </h3>
+                {!editingProfile && (
+                  <button onClick={() => { setEditingProfile(true); setProfileForm({ full_name: member?.full_name || '', institution: member?.institution || '', education_level: member?.education_level || '', email: member?.email || '', phone: member?.phone || '' }) }}
+                    className="text-xs px-3 py-1.5 rounded-lg flex-shrink-0" style={{ background: 'rgba(var(--blue-rgb), 0.1)', color: 'var(--blue)' }}>
+                    Edit
+                  </button>
                 )}
               </div>
-            </div>
 
-            {!member?.is_verified && (
-              <button onClick={() => setShowMembershipModal(true)}
-                className="w-full text-left flex items-center gap-3 rounded-xl p-4 transition-all hover:-translate-y-0.5"
-                style={{ background: 'rgba(255,165,0,0.08)', border: '1px solid rgba(255,165,0,0.3)' }}>
-                <div className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0"
-                  style={{ background: 'rgba(255,165,0,0.15)' }}>
-                  <IdCard size={18} style={{ color: 'var(--warning)' }} />
+              {editingProfile ? (
+                <div className="space-y-2 mb-4">
+                  <input value={profileForm.full_name} onChange={e => setProfileForm((p: any) => ({ ...p, full_name: e.target.value }))}
+                    placeholder="Full name" className="w-full px-3 py-2 rounded-lg text-sm outline-none border"
+                    style={{ background: 'rgba(255,255,255,0.04)', borderColor: 'var(--border)', color: 'var(--white)' }} />
+                  <input value={profileForm.institution} onChange={e => setProfileForm((p: any) => ({ ...p, institution: e.target.value }))}
+                    placeholder="Institution" className="w-full px-3 py-2 rounded-lg text-sm outline-none border"
+                    style={{ background: 'rgba(255,255,255,0.04)', borderColor: 'var(--border)', color: 'var(--white)' }} />
+                  <input value={profileForm.education_level} onChange={e => setProfileForm((p: any) => ({ ...p, education_level: e.target.value }))}
+                    placeholder="Education Level (e.g., HSC, SSC)" className="w-full px-3 py-2 rounded-lg text-sm outline-none border"
+                    style={{ background: 'rgba(255,255,255,0.04)', borderColor: 'var(--border)', color: 'var(--white)' }} />
+                  <input value={profileForm.phone} onChange={e => setProfileForm((p: any) => ({ ...p, phone: e.target.value }))}
+                    placeholder="Phone" className="w-full px-3 py-2 rounded-lg text-sm outline-none border"
+                    style={{ background: 'rgba(255,255,255,0.04)', borderColor: 'var(--border)', color: 'var(--white)' }} />
+                  {profileError && <p className="text-xs" style={{ color: 'var(--danger-soft)' }}>{profileError}</p>}
+                  <div className="flex gap-2 pt-1">
+                    <button onClick={saveProfile} disabled={profileSaving}
+                      className="flex-1 py-2 rounded-lg text-sm font-bold text-black disabled:opacity-50" style={{ background: 'var(--blue)' }}>
+                      {profileSaving ? 'Saving...' : 'Save'}
+                    </button>
+                    <button onClick={() => { setEditingProfile(false); setProfileError('') }} className="px-4 py-2 rounded-lg text-sm" style={{ color: 'var(--muted)' }}>Cancel</button>
+                  </div>
                 </div>
-                <div className="flex-1">
-                  <p className="text-sm font-semibold" style={{ color: 'var(--white)' }}>
-                    {member?.payment_slip_url ? 'Membership slip pending review' : 'Complete your membership'}
-                  </p>
-                  <p className="text-xs" style={{ color: 'var(--muted)' }}>
-                    {member?.payment_slip_url
-                      ? "We've got your slip — an admin will review and approve it soon."
-                      : 'Upload a photo of your membership slip so an admin can approve your account.'}
-                  </p>
-                </div>
-                <ArrowRight size={16} style={{ color: 'var(--warning)' }} className="flex-shrink-0" />
-              </button>
-            )}
-
-            {messengerLink && (
-              <a href={messengerLink} target="_blank" rel="noopener noreferrer"
-                className="flex items-center gap-3 rounded-xl p-4 transition-all hover:-translate-y-0.5"
-                style={{ background: 'rgba(0,132,255,0.1)', border: '1px solid rgba(0,132,255,0.3)' }}>
-                <div className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0"
-                  style={{ background: 'rgba(0,132,255,0.2)' }}>
-                  <MessageCircle size={18} style={{ color: '#5ab0ff' }} />
-                </div>
-                <div className="flex-1">
-                  <p className="text-sm font-semibold" style={{ color: 'var(--white)' }}>Join the Members' Messenger Group</p>
-                  <p className="text-xs" style={{ color: 'var(--muted)' }}>Stay in the loop with announcements and club life</p>
-                </div>
-              </a>
-            )}
-
-            <h3 className="font-semibold text-sm mt-2 flex items-center gap-2" style={{ color: 'var(--muted)', fontFamily: 'inherit' }}>
-              <Megaphone size={14} /> Updates
-            </h3>
-            {announcements.length === 0 && olympiads.length === 0 &&
-              activities.filter(a => a.registration_enabled && !myRegistrations.some(r => r.session?.id === a.id || r.activity_session_id === a.id)).length === 0
-              ? <p className="text-sm" style={{ color: 'var(--muted)' }}>No updates yet — check back soon.</p>
-              : (
-                <>
-                  {announcements.map(a => (
-                    <div key={a.id} className="rounded-xl p-4"
-                      style={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderLeftWidth: '3px', borderLeftColor: 'var(--blue)' }}>
-                      <p className="font-semibold text-sm" style={{ color: 'var(--white)' }}>{a.title}</p>
-                      <p className="text-sm mt-1" style={{ color: 'var(--muted)' }}>{a.body}</p>
-                      <p className="text-xs mt-2" style={{ color: 'var(--muted)' }}>
-                        {new Date(a.created_at).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })}
-                      </p>
+              ) : (
+                <div className="space-y-0">
+                  {[
+                    { label: 'Full Name', value: member?.full_name },
+                    { label: 'Institution', value: member?.institution },
+                    { label: 'Education Level', value: member?.education_level },
+                    { label: 'Email', value: member?.email },
+                    { label: 'Phone', value: member?.phone },
+                  ].map(row => (
+                    <div key={row.label} className="flex justify-between items-center py-3"
+                      style={{ borderBottom: '1px solid var(--border)' }}>
+                      <span className="text-sm" style={{ color: 'var(--muted)' }}>{row.label}</span>
+                      <span className="text-sm font-medium" style={{ color: 'var(--white)' }}>{row.value || '—'}</span>
                     </div>
                   ))}
-                  {olympiads.slice(0, 3).map(o => (
-                    <Link key={`oly-${o.id}`} href={`/olympiad?id=${o.id}`} className="block rounded-xl p-4 transition-transform hover:-translate-y-0.5"
-                      style={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderLeftWidth: '3px', borderLeftColor: 'var(--warning)' }}>
-                      <p className="font-semibold text-sm flex items-center gap-1.5" style={{ color: 'var(--white)' }}><Trophy size={14} /> {o.name} is open</p>
-                      <p className="text-sm mt-1" style={{ color: 'var(--muted)' }}>
-                        {o.registration_deadline
-                          ? `Register before ${new Date(o.registration_deadline).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`
-                          : 'Registration is currently open.'}
-                      </p>
-                    </Link>
-                  ))}
-                  {activities
-                    .filter(a => a.registration_enabled)
-                    .filter(a => !myRegistrations.some(r => r.session?.id === a.id || r.activity_session_id === a.id))
-                    .slice(0, 3).map(a => (
-                    <Link key={`act-${a.id}`} href={`/activities/${a.slug}`} className="block rounded-xl p-4 transition-transform hover:-translate-y-0.5"
-                      style={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderLeftWidth: '3px', borderLeftColor: 'var(--cat-teal)' }}>
-                      <p className="font-semibold text-sm flex items-center gap-1.5" style={{ color: 'var(--white)' }}><CalendarDays size={14} /> {a.title} — registration open</p>
-                      {a.registration_note && <p className="text-sm mt-1" style={{ color: 'var(--muted)' }}>{a.registration_note}</p>}
-                    </Link>
-                  ))}
-                </>
-              )
-            }
+                </div>
+              )}
+            </div>
 
-            {/* SHOUTBOX */}
-            <h3 className="font-semibold text-sm mt-6 flex items-center gap-2" style={{ color: 'var(--muted)', fontFamily: 'inherit' }}>
-              <MessageCircle size={14} /> Members' Shoutbox
-            </h3>
-            <div className="rounded-xl p-4" style={{ background: 'var(--bg2)', border: '1px solid var(--border)' }}>
-              <div className="flex gap-2 mb-3">
-                <input value={shoutMessage} onChange={e => setShoutMessage(e.target.value)}
-                  onKeyDown={e => { if (e.key === 'Enter' && !shoutPosting) postShout() }}
-                  placeholder="Share something with the club..." maxLength={500}
-                  className="flex-1 px-3 py-2 rounded-lg text-sm outline-none border"
-                  style={{ background: 'rgba(255,255,255,0.04)', borderColor: 'var(--border)', color: 'var(--white)' }} />
-                <button onClick={postShout} disabled={shoutPosting || !shoutMessage.trim()}
-                  className="px-4 py-2 rounded-lg text-sm font-semibold text-black disabled:opacity-40"
-                  style={{ background: 'var(--blue)' }}>
-                  {shoutPosting ? '...' : 'Post'}
-                </button>
-              </div>
-              {shoutError && <p className="text-xs mb-2" style={{ color: 'var(--danger-soft)' }}>{shoutError}</p>}
-              <div className="space-y-2 max-h-80 overflow-y-auto">
-                {shoutPosts.length === 0 ? (
-                  <p className="text-sm" style={{ color: 'var(--muted)' }}>No posts yet — be the first to say something!</p>
-                ) : shoutPosts.map(p => (
-                  <div key={p.id} className="text-sm pb-2" style={{ borderBottom: '1px solid var(--border)' }}>
-                    <span className="font-semibold" style={{ color: 'var(--blue)' }}>{p.full_name}</span>
-                    <span className="ml-2" style={{ color: 'var(--white)' }}>{p.message}</span>
-                    <p className="text-xs mt-0.5" style={{ color: 'var(--muted)' }}>
-                      {new Date(p.created_at).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}
-                    </p>
+            {/* Secondary Details */}
+            <div className="rounded-xl p-6" style={{ background: 'var(--bg2)', border: '1px solid var(--border)' }}>
+              <h3 className="font-semibold text-sm mb-4 flex items-center gap-2" style={{ color: 'var(--muted)', fontFamily: 'inherit' }}>
+                <User size={15} /> Secondary Details
+              </h3>
+              <div className="space-y-0">
+                {[
+                  { label: 'Gender', value: member?.gender },
+                  { label: 'Blood Group', value: member?.blood_group },
+                  { label: 'Address', value: member?.address },
+                  { label: 'Secondary Phone', value: member?.secondary_phone },
+                ].map(row => (
+                  <div key={row.label} className="flex justify-between items-center py-3"
+                    style={{ borderBottom: '1px solid var(--border)' }}>
+                    <span className="text-sm" style={{ color: 'var(--muted)' }}>{row.label}</span>
+                    <span className="text-sm font-medium" style={{ color: 'var(--white)' }}>{row.value || '—'}</span>
                   </div>
                 ))}
               </div>
             </div>
+
+            {/* Club Membership Status Card */}
+            <div className="rounded-xl p-6" style={{ background: 'var(--bg2)', border: '1px solid var(--border)' }}>
+              <h3 className="font-semibold text-sm mb-4 flex items-center gap-2" style={{ color: 'var(--muted)', fontFamily: 'inherit' }}>
+                <IdCard size={15} /> Club Membership Status
+              </h3>
+
+              {(member?.membership_status === 'approved' || member?.is_verified) ? (
+                <div className="flex items-center gap-3 p-4 rounded-lg" style={{ background: 'rgba(var(--success-rgb), 0.1)', border: '1px solid rgba(var(--success-rgb), 0.3)' }}>
+                  <div className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0"
+                    style={{ background: 'rgba(var(--success-rgb), 0.15)' }}>
+                    <CheckCircle size={18} style={{ color: 'var(--success)' }} />
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-sm font-bold flex items-center gap-2" style={{ color: 'var(--success)' }}>
+                      Verified NDC Club Member
+                    </p>
+                    <div className="flex gap-2 mt-2 flex-wrap">
+                      {member?.ndsc_id && (
+                        <span className="text-xs px-2 py-0.5 rounded-full" style={{ background: 'rgba(var(--blue-rgb), 0.1)', color: 'var(--blue)' }}>
+                          ID: {member.ndsc_id}
+                        </span>
+                      )}
+                      {member?.batch && (
+                        <span className="text-xs px-2 py-0.5 rounded-full" style={{ background: 'rgba(var(--blue-rgb), 0.1)', color: 'var(--blue)' }}>
+                          Batch: {member.batch}
+                        </span>
+                      )}
+                      {member?.department && (
+                        <span className="text-xs px-2 py-0.5 rounded-full" style={{ background: 'rgba(var(--blue-rgb), 0.1)', color: 'var(--blue)' }}>
+                          {member.department}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ) : member?.membership_status === 'pending' ? (
+                <div className="flex items-center gap-3 p-4 rounded-lg" style={{ background: 'rgba(255,165,0,0.1)', border: '1px solid rgba(255,165,0,0.3)' }}>
+                  <div className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0"
+                    style={{ background: 'rgba(255,165,0,0.15)' }}>
+                    <Clock size={18} style={{ color: 'var(--warning)' }} />
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-sm font-bold" style={{ color: 'var(--warning)' }}>
+                      Application Under Review
+                    </p>
+                    <p className="text-xs mt-1" style={{ color: 'var(--muted)' }}>
+                      Your club membership application is being reviewed by an admin.
+                    </p>
+                    <div className="flex gap-2 mt-2 flex-wrap">
+                      {member?.college_roll && (
+                        <span className="text-xs px-2 py-0.5 rounded-full" style={{ background: 'rgba(255,255,255,0.05)', color: 'var(--muted)' }}>
+                          Roll: {member.college_roll}
+                        </span>
+                      )}
+                      {member?.batch && (
+                        <span className="text-xs px-2 py-0.5 rounded-full" style={{ background: 'rgba(255,255,255,0.05)', color: 'var(--muted)' }}>
+                          Batch: {member.batch}
+                        </span>
+                      )}
+                      {member?.department && (
+                        <span className="text-xs px-2 py-0.5 rounded-full" style={{ background: 'rgba(255,255,255,0.05)', color: 'var(--muted)' }}>
+                          {member.department}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ) : isNDCStudent(member) ? (
+                <div>
+                  <p className="text-sm mb-3" style={{ color: 'var(--muted)' }}>
+                    You are an NDC student. Apply for club membership to access exclusive benefits.
+                  </p>
+                  <button onClick={() => setShowClubMembershipModal(true)}
+                    className="w-full py-2.5 rounded-lg text-sm font-bold text-black"
+                    style={{ background: 'var(--blue)' }}>
+                    Become a Club Member
+                  </button>
+                </div>
+              ) : (
+                <div className="p-4 rounded-lg" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid var(--border)' }}>
+                  <p className="text-sm font-medium" style={{ color: 'var(--white)' }}>
+                    General Registered User
+                  </p>
+                  <p className="text-xs mt-1" style={{ color: 'var(--muted)' }}>
+                    Club membership is available for Notre Dame College students only.
+                  </p>
+                </div>
+              )}
+            </div>
+
+            {/* ACHIEVEMENTS */}
+            <div className="rounded-xl p-6" style={{ background: 'var(--bg2)', border: '1px solid var(--border)' }}>
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="font-semibold text-sm flex items-center gap-2" style={{ color: 'var(--muted)', fontFamily: 'inherit' }}>
+                  <Award size={15} /> Achievements
+                </h3>
+                <button onClick={() => setShowAchievementForm(v => !v)}
+                  className="flex items-center gap-1 text-xs px-3 py-1.5 rounded-lg font-semibold"
+                  style={{ background: 'rgba(var(--blue-rgb), 0.1)', color: 'var(--blue)', border: '1px solid rgba(var(--blue-rgb), 0.3)' }}>
+                  <Plus size={13} /> Add
+                </button>
+              </div>
+
+              {showAchievementForm && (
+                <div className="rounded-lg p-4 mb-4 space-y-3" style={{ background: 'var(--bg)', border: '1px solid var(--border)' }}>
+                  <input value={achTitle} onChange={e => setAchTitle(e.target.value)} placeholder="Title — e.g. 1st Place, National ICT Fair 2025"
+                    className="w-full px-3 py-2 rounded-lg text-sm outline-none border"
+                    style={{ background: 'rgba(255,255,255,0.04)', borderColor: 'var(--border)', color: 'var(--white)' }} />
+                  <textarea rows={2} value={achDesc} onChange={e => setAchDesc(e.target.value)} placeholder="Short description (optional)"
+                    className="w-full px-3 py-2 rounded-lg text-sm outline-none border resize-none"
+                    style={{ background: 'rgba(255,255,255,0.04)', borderColor: 'var(--border)', color: 'var(--white)' }} />
+                  <label className="flex items-center gap-2 px-3 py-2 rounded-lg text-xs border cursor-pointer w-fit"
+                    style={{ borderColor: 'var(--border)', color: 'var(--blue)' }}>
+                    <Upload size={13} />
+                    {achImage ? achImage.name : 'Attach a photo (optional)'}
+                    <input type="file" accept="image/*" className="hidden" onChange={e => setAchImage(e.target.files?.[0] || null)} />
+                  </label>
+                  {achError && <p className="text-xs" style={{ color: 'var(--danger-soft)' }}>{achError}</p>}
+                  <div className="flex gap-2">
+                    <button onClick={submitAchievement} disabled={achSubmitting}
+                      className="flex-1 py-2 rounded-lg text-sm font-semibold text-black disabled:opacity-50"
+                      style={{ background: 'var(--blue)' }}>
+                      {achSubmitting ? 'Saving...' : 'Submit for review'}
+                    </button>
+                    <button onClick={() => setShowAchievementForm(false)} className="px-3 py-2 rounded-lg text-sm" style={{ color: 'var(--muted)' }}>
+                      <X size={15} />
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {(member?.achievements || []).length === 0 ? (
+                <p className="text-sm" style={{ color: 'var(--muted)' }}>
+                  No achievements added yet — share your awards, certificates, or accomplishments.
+                </p>
+              ) : (
+                <div className="space-y-2">
+                  {(member.achievements as Achievement[]).map(a => (
+                    <div key={a.id} className="flex items-start gap-3 rounded-lg p-3" style={{ background: 'var(--bg)' }}>
+                      {a.image_url && <img src={a.image_url} alt="" className="w-12 h-12 rounded-lg object-cover flex-shrink-0" />}
+                      <div className="flex-1">
+                        <p className="text-sm font-medium" style={{ color: 'var(--white)' }}>{a.title}</p>
+                        {a.description && <p className="text-xs mt-0.5" style={{ color: 'var(--muted)' }}>{a.description}</p>}
+                      </div>
+                      <span className="text-xs px-2 py-0.5 rounded-full flex-shrink-0"
+                        style={{
+                          background: a.status === 'approved' ? 'rgba(var(--success-rgb), 0.1)' : 'rgba(255,165,0,0.1)',
+                          color: a.status === 'approved' ? 'var(--success)' : 'var(--warning)',
+                        }}>
+                        {a.status === 'approved' ? 'Approved' : 'Pending'}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <button onClick={logout}
+              className="w-full py-2.5 rounded-lg text-sm border transition-colors"
+              style={{ borderColor: 'rgba(var(--danger-rgb), 0.4)', color: 'var(--danger-soft)' }}>
+              Sign Out
+            </button>
           </div>
         )}
 
-        {/* ACTIVITIES */}
+        {/* HISTORY */}
+        {tab === 'history' && (
+          <div className="space-y-4">
+            <h3 className="font-semibold text-sm" style={{ color: 'var(--muted)', fontFamily: 'inherit' }}>Activity History</h3>
+
+            {/* Olympiad Submissions */}
+            <div className="rounded-xl p-5" style={{ background: 'var(--bg2)', border: '1px solid var(--border)' }}>
+              <h4 className="font-semibold text-sm mb-3 flex items-center gap-2" style={{ color: 'var(--white)' }}>
+                <Trophy size={14} /> Olympiad Submissions
+              </h4>
+              <p className="text-sm" style={{ color: 'var(--muted)' }}>Your olympiad participation history will appear here.</p>
+            </div>
+
+            {/* Activity Participations */}
+            <div className="rounded-xl p-5" style={{ background: 'var(--bg2)', border: '1px solid var(--border)' }}>
+              <h4 className="font-semibold text-sm mb-3 flex items-center gap-2" style={{ color: 'var(--white)' }}>
+                <CalendarCheck size={14} /> Activity Participations
+              </h4>
+              {myRegistrations.length === 0 ? (
+                <p className="text-sm" style={{ color: 'var(--muted)' }}>You haven't participated in any activities yet.</p>
+              ) : (
+                <div className="space-y-2">
+                  {myRegistrations.map(reg => (
+                    <div key={reg.id} className="flex items-center justify-between p-3 rounded-lg"
+                      style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid var(--border)' }}>
+                      <div>
+                        <p className="text-sm font-medium" style={{ color: 'var(--white)' }}>{reg.session?.title || 'Activity'}</p>
+                        <p className="text-xs mt-0.5" style={{ color: 'var(--muted)' }}>{reg.category?.name || 'Registration'}</p>
+                      </div>
+                      <span className="text-xs px-2 py-0.5 rounded-full" style={{ background: 'rgba(var(--cat-teal-rgb), 0.1)', color: 'var(--cat-teal)' }}>
+                        Registered
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Payment History */}
+            <div className="rounded-xl p-5" style={{ background: 'var(--bg2)', border: '1px solid var(--border)' }}>
+              <h4 className="font-semibold text-sm mb-3 flex items-center gap-2" style={{ color: 'var(--white)' }}>
+                <CreditCard size={14} /> Payment History
+              </h4>
+              <p className="text-sm" style={{ color: 'var(--muted)' }}>Your payment history will appear here.</p>
+            </div>
+          </div>
+        )}
+
+        {/* ACTIVITIES & EVENTS */}
         {tab === 'activities' && (
           <div className="space-y-6">
 
@@ -639,6 +811,82 @@ export default function DashboardPage() {
           </div>
         )}
 
+        {/* CHAT & COMMUNITY */}
+        {tab === 'chat' && (
+          <div className="space-y-4">
+            {messengerLink && (
+              <a href={messengerLink} target="_blank" rel="noopener noreferrer"
+                className="flex items-center gap-3 rounded-xl p-4 transition-all hover:-translate-y-0.5"
+                style={{ background: 'rgba(0,132,255,0.1)', border: '1px solid rgba(0,132,255,0.3)' }}>
+                <div className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0"
+                  style={{ background: 'rgba(0,132,255,0.2)' }}>
+                  <MessageCircle size={18} style={{ color: '#5ab0ff' }} />
+                </div>
+                <div className="flex-1">
+                  <p className="text-sm font-semibold" style={{ color: 'var(--white)' }}>Join the Members' Messenger Group</p>
+                  <p className="text-xs" style={{ color: 'var(--muted)' }}>Stay in the loop with announcements and club life</p>
+                </div>
+              </a>
+            )}
+
+            {/* SHOUTBOX */}
+            <h3 className="font-semibold text-sm flex items-center gap-2" style={{ color: 'var(--muted)', fontFamily: 'inherit' }}>
+              <MessageCircle size={14} /> Members' Shoutbox
+            </h3>
+            <div className="rounded-xl p-4" style={{ background: 'var(--bg2)', border: '1px solid var(--border)' }}>
+              <div className="flex gap-2 mb-3">
+                <input value={shoutMessage} onChange={e => setShoutMessage(e.target.value)}
+                  onKeyDown={e => { if (e.key === 'Enter' && !shoutPosting) postShout() }}
+                  placeholder="Share something with the club..." maxLength={500}
+                  className="flex-1 px-3 py-2 rounded-lg text-sm outline-none border"
+                  style={{ background: 'rgba(255,255,255,0.04)', borderColor: 'var(--border)', color: 'var(--white)' }} />
+                <button onClick={postShout} disabled={shoutPosting || !shoutMessage.trim()}
+                  className="px-4 py-2 rounded-lg text-sm font-semibold text-black disabled:opacity-40"
+                  style={{ background: 'var(--blue)' }}>
+                  {shoutPosting ? '...' : 'Post'}
+                </button>
+              </div>
+              {shoutError && <p className="text-xs mb-2" style={{ color: 'var(--danger-soft)' }}>{shoutError}</p>}
+              <div className="space-y-2 max-h-80 overflow-y-auto">
+                {shoutPosts.length === 0 ? (
+                  <p className="text-sm" style={{ color: 'var(--muted)' }}>No posts yet — be the first to say something!</p>
+                ) : shoutPosts.map(p => (
+                  <div key={p.id} className="text-sm pb-2" style={{ borderBottom: '1px solid var(--border)' }}>
+                    <span className="font-semibold" style={{ color: 'var(--blue)' }}>{p.full_name}</span>
+                    <span className="ml-2" style={{ color: 'var(--white)' }}>{p.message}</span>
+                    <p className="text-xs mt-0.5" style={{ color: 'var(--muted)' }}>
+                      {new Date(p.created_at).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* SURVEYS */}
+        {tab === 'surveys' && (
+          <div className="space-y-4">
+            <h3 className="font-semibold text-sm" style={{ color: 'var(--muted)', fontFamily: 'inherit' }}>Open Surveys</h3>
+            {surveysLoading ? (
+              <p className="text-sm" style={{ color: 'var(--muted)' }}>Loading...</p>
+            ) : surveys.length === 0 ? (
+              <p className="text-sm" style={{ color: 'var(--muted)' }}>No surveys open for you right now.</p>
+            ) : surveys.map(sv => (
+              <div key={sv.id} className="rounded-xl p-5" style={{ background: 'var(--bg2)', border: '1px solid var(--border)' }}>
+                <h4 className="font-bold text-lg" style={{ color: 'var(--white)' }}>{sv.title}</h4>
+                {sv.description && <p className="text-sm mt-1" style={{ color: 'var(--muted)' }}>{sv.description}</p>}
+                <p className="text-xs mt-2" style={{ color: 'var(--border-soft)' }}>{sv.question_count} question{sv.question_count === 1 ? '' : 's'}</p>
+                <button onClick={() => setOpenSurveyId(sv.id)}
+                  className="inline-flex items-center gap-1.5 mt-3 text-sm px-4 py-2 rounded-lg text-black font-semibold"
+                  style={{ background: 'var(--blue)' }}>
+                  Answer Now <ArrowRight size={14} />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+
         {/* PUBLICATIONS */}
         {tab === 'publications' && (
           <div className="space-y-4">
@@ -674,284 +922,77 @@ export default function DashboardPage() {
           </div>
         )}
 
-        {/* OLYMPIADS */}
-        {tab === 'olympiads' && (
-          <div className="space-y-4">
-            <h3 className="font-semibold text-sm" style={{ color: 'var(--muted)', fontFamily: 'inherit' }}>Active Olympiads</h3>
-            {olympiads.length === 0
-              ? <p className="text-sm" style={{ color: 'var(--muted)' }}>No active olympiads at the moment.</p>
-              : olympiads.map(o => (
-                <div key={o.id} className="rounded-xl p-5"
-                  style={{ background: 'var(--bg2)', border: '1px solid var(--border)' }}>
-                  <h4 className="font-bold text-lg" style={{ color: 'var(--white)' }}>{o.name}</h4>
-                  <p className="text-sm mt-1" style={{ color: 'var(--muted)' }}>{o.description}</p>
-                  <div className="mt-3 space-y-1.5 text-sm" style={{ color: 'var(--muted)' }}>
-                    {o.registration_deadline && (
-                      <p className="flex items-start gap-1.5"><FileText size={14} className="shrink-0 mt-0.5" /> Deadline: <span style={{ color: 'var(--white)' }}>
-                        {new Date(o.registration_deadline).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
-                      </span></p>
-                    )}
-                    {o.exam_date && (
-                      <p className="flex items-start gap-1.5"><CalendarCheck size={14} className="shrink-0 mt-0.5" /> Exam: <span style={{ color: 'var(--white)' }}>
-                        {new Date(o.exam_date).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
-                      </span></p>
-                    )}
-                    {o.eligibility && <p className="flex items-start gap-1.5"><CheckCircle size={14} className="shrink-0 mt-0.5" /> Eligibility: {o.eligibility}</p>}
-                  </div>
-                  {o.pdf_url && (
-                    <a href={o.pdf_url} target="_blank"
-                      className="inline-block mt-3 text-sm px-4 py-2 rounded-lg text-black font-semibold"
-                      style={{ background: 'var(--blue)' }}>
-                      View Details PDF
-                    </a>
-                  )}
-                </div>
-              ))
-            }
-          </div>
-        )}
-
-        {/* SURVEYS */}
-        {tab === 'surveys' && (
-          <div className="space-y-4">
-            <h3 className="font-semibold text-sm" style={{ color: 'var(--muted)', fontFamily: 'inherit' }}>Open Surveys</h3>
-            {surveysLoading ? (
-              <p className="text-sm" style={{ color: 'var(--muted)' }}>Loading...</p>
-            ) : surveys.length === 0 ? (
-              <p className="text-sm" style={{ color: 'var(--muted)' }}>No surveys open for you right now.</p>
-            ) : surveys.map(sv => (
-              <div key={sv.id} className="rounded-xl p-5" style={{ background: 'var(--bg2)', border: '1px solid var(--border)' }}>
-                <h4 className="font-bold text-lg" style={{ color: 'var(--white)' }}>{sv.title}</h4>
-                {sv.description && <p className="text-sm mt-1" style={{ color: 'var(--muted)' }}>{sv.description}</p>}
-                <p className="text-xs mt-2" style={{ color: 'var(--border-soft)' }}>{sv.question_count} question{sv.question_count === 1 ? '' : 's'}</p>
-                <button onClick={() => setOpenSurveyId(sv.id)}
-                  className="inline-flex items-center gap-1.5 mt-3 text-sm px-4 py-2 rounded-lg text-black font-semibold"
-                  style={{ background: 'var(--blue)' }}>
-                  Answer Now <ArrowRight size={14} />
-                </button>
-              </div>
-            ))}
-          </div>
-        )}
-
-        {/* PROFILE */}
-        {tab === 'profile' && (
-          <div className="space-y-4">
-            <div className="rounded-xl p-6" style={{ background: 'var(--bg2)', border: '1px solid var(--border)' }}>
-              <div className="flex items-center gap-4 mb-6">
-                <div className="w-16 h-16 rounded-full flex items-center justify-center text-2xl font-bold"
-                  style={{ background: 'rgba(var(--blue-rgb), 0.1)', border: '2px solid rgba(var(--blue-rgb), 0.3)', color: 'var(--blue)' }}>
-                  {member?.full_name?.[0] || '?'}
-                </div>
-                <div className="flex-1">
-                  <h2 className="font-bold text-lg" style={{ color: 'var(--white)' }}>{member?.full_name || '—'}</h2>
-                  <p className="text-sm" style={{ color: 'var(--muted)' }}>{member?.email}</p>
-                  {member?.department && (
-                    <span className="inline-block mt-1.5 text-xs px-2.5 py-0.5 rounded-full"
-                      style={{ background: 'rgba(var(--blue-rgb), 0.1)', border: '1px solid rgba(var(--blue-rgb), 0.3)', color: 'var(--blue)' }}>
-                      {member.department} Department
-                    </span>
-                  )}
-                </div>
-                {!editingProfile && (
-                  <button onClick={() => { setEditingProfile(true); setProfileForm({ full_name: member?.full_name || '', phone: member?.phone || '', college_roll: member?.college_roll || '', batch: member?.batch || '' }) }}
-                    className="text-xs px-3 py-1.5 rounded-lg flex-shrink-0" style={{ background: 'rgba(var(--blue-rgb), 0.1)', color: 'var(--blue)' }}>
-                    Edit
-                  </button>
-                )}
-              </div>
-
-              {editingProfile ? (
-                <div className="space-y-2 mb-4">
-                  <input value={profileForm.full_name} onChange={e => setProfileForm((p: any) => ({ ...p, full_name: e.target.value }))}
-                    placeholder="Full name" className="w-full px-3 py-2 rounded-lg text-sm outline-none border"
-                    style={{ background: 'rgba(255,255,255,0.04)', borderColor: 'var(--border)', color: 'var(--white)' }} />
-                  <input value={profileForm.phone} onChange={e => setProfileForm((p: any) => ({ ...p, phone: e.target.value }))}
-                    placeholder="Phone" className="w-full px-3 py-2 rounded-lg text-sm outline-none border"
-                    style={{ background: 'rgba(255,255,255,0.04)', borderColor: 'var(--border)', color: 'var(--white)' }} />
-                  <input value={profileForm.college_roll} onChange={e => setProfileForm((p: any) => ({ ...p, college_roll: e.target.value }))}
-                    placeholder="College roll" className="w-full px-3 py-2 rounded-lg text-sm outline-none border"
-                    style={{ background: 'rgba(255,255,255,0.04)', borderColor: 'var(--border)', color: 'var(--white)' }} />
-                  <input value={profileForm.batch} onChange={e => setProfileForm((p: any) => ({ ...p, batch: e.target.value }))}
-                    placeholder="Batch" className="w-full px-3 py-2 rounded-lg text-sm outline-none border"
-                    style={{ background: 'rgba(255,255,255,0.04)', borderColor: 'var(--border)', color: 'var(--white)' }} />
-                  {profileError && <p className="text-xs" style={{ color: 'var(--danger-soft)' }}>{profileError}</p>}
-                  <div className="flex gap-2 pt-1">
-                    <button onClick={saveProfile} disabled={profileSaving}
-                      className="flex-1 py-2 rounded-lg text-sm font-bold text-black disabled:opacity-50" style={{ background: 'var(--blue)' }}>
-                      {profileSaving ? 'Saving...' : 'Save'}
-                    </button>
-                    <button onClick={() => { setEditingProfile(false); setProfileError('') }} className="px-4 py-2 rounded-lg text-sm" style={{ color: 'var(--muted)' }}>Cancel</button>
-                  </div>
-                </div>
-              ) : (
-                <div className="space-y-0">
-                  {[
-                    { label: 'NDSC ID', value: member?.ndsc_id },
-                    { label: 'Phone', value: member?.phone },
-                    { label: 'College Roll', value: member?.college_roll },
-                    { label: 'Batch', value: member?.batch },
-                  ].map(row => (
-                    <div key={row.label} className="flex justify-between items-center py-3"
-                      style={{ borderBottom: '1px solid var(--border)' }}>
-                      <span className="text-sm" style={{ color: 'var(--muted)' }}>{row.label}</span>
-                      <span className="text-sm font-medium" style={{ color: 'var(--white)' }}>{row.value || '—'}</span>
-                    </div>
-                  ))}
-                </div>
-              )}
-              <button onClick={logout}
-                className="mt-6 w-full py-2.5 rounded-lg text-sm border transition-colors"
-                style={{ borderColor: 'rgba(var(--danger-rgb), 0.4)', color: 'var(--danger-soft)' }}>
-                Sign Out
-              </button>
-            </div>
-
-            {/* MEMBERSHIP */}
-            <div className="rounded-xl p-6" style={{ background: 'var(--bg2)', border: '1px solid var(--border)' }}>
-              <h3 className="font-semibold text-sm mb-4 flex items-center gap-2" style={{ color: 'var(--muted)', fontFamily: 'inherit' }}>
-                <IdCard size={15} /> Membership
-              </h3>
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0"
-                  style={{
-                    background: member?.is_verified ? 'rgba(var(--success-rgb), 0.1)' : 'rgba(255,165,0,0.1)',
-                  }}>
-                  {member?.is_verified
-                    ? <CheckCircle size={18} style={{ color: 'var(--success)' }} />
-                    : <Clock size={18} style={{ color: 'var(--warning)' }} />}
-                </div>
-                <div className="flex-1">
-                  <p className="text-sm font-medium" style={{ color: 'var(--white)' }}>
-                    {member?.is_verified ? 'Verified member' : member?.payment_slip_url ? 'Slip submitted — pending review' : 'No slip submitted yet'}
-                  </p>
-                  <p className="text-xs mt-0.5" style={{ color: 'var(--muted)' }}>
-                    {member?.is_verified
-                      ? 'Your membership has been approved by an admin.'
-                      : 'Upload a photo of your membership slip and an admin will review it.'}
-                  </p>
-                </div>
-                {!member?.is_verified && (
-                  <button onClick={() => setShowMembershipModal(true)}
-                    className="text-xs px-3 py-1.5 rounded-lg flex-shrink-0"
-                    style={{ background: 'rgba(var(--blue-rgb), 0.1)', color: 'var(--blue)' }}>
-                    {member?.payment_slip_url ? 'Replace' : 'Upload'}
-                  </button>
-                )}
-              </div>
-            </div>
-
-            {/* ACHIEVEMENTS */}
-            <div className="rounded-xl p-6" style={{ background: 'var(--bg2)', border: '1px solid var(--border)' }}>
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="font-semibold text-sm flex items-center gap-2" style={{ color: 'var(--muted)', fontFamily: 'inherit' }}>
-                  <Award size={15} /> Achievements
-                </h3>
-                <button onClick={() => setShowAchievementForm(v => !v)}
-                  className="flex items-center gap-1 text-xs px-3 py-1.5 rounded-lg font-semibold"
-                  style={{ background: 'rgba(var(--blue-rgb), 0.1)', color: 'var(--blue)', border: '1px solid rgba(var(--blue-rgb), 0.3)' }}>
-                  <Plus size={13} /> Add
-                </button>
-              </div>
-
-              {showAchievementForm && (
-                <div className="rounded-lg p-4 mb-4 space-y-3" style={{ background: 'var(--bg)', border: '1px solid var(--border)' }}>
-                  <input value={achTitle} onChange={e => setAchTitle(e.target.value)} placeholder="Title — e.g. 1st Place, National ICT Fair 2025"
-                    className="w-full px-3 py-2 rounded-lg text-sm outline-none border"
-                    style={{ background: 'rgba(255,255,255,0.04)', borderColor: 'var(--border)', color: 'var(--white)' }} />
-                  <textarea rows={2} value={achDesc} onChange={e => setAchDesc(e.target.value)} placeholder="Short description (optional)"
-                    className="w-full px-3 py-2 rounded-lg text-sm outline-none border resize-none"
-                    style={{ background: 'rgba(255,255,255,0.04)', borderColor: 'var(--border)', color: 'var(--white)' }} />
-                  <label className="flex items-center gap-2 px-3 py-2 rounded-lg text-xs border cursor-pointer w-fit"
-                    style={{ borderColor: 'var(--border)', color: 'var(--blue)' }}>
-                    <Upload size={13} />
-                    {achImage ? achImage.name : 'Attach a photo (optional)'}
-                    <input type="file" accept="image/*" className="hidden" onChange={e => setAchImage(e.target.files?.[0] || null)} />
-                  </label>
-                  {achError && <p className="text-xs" style={{ color: 'var(--danger-soft)' }}>{achError}</p>}
-                  <div className="flex gap-2">
-                    <button onClick={submitAchievement} disabled={achSubmitting}
-                      className="flex-1 py-2 rounded-lg text-sm font-semibold text-black disabled:opacity-50"
-                      style={{ background: 'var(--blue)' }}>
-                      {achSubmitting ? 'Saving...' : 'Submit for review'}
-                    </button>
-                    <button onClick={() => setShowAchievementForm(false)} className="px-3 py-2 rounded-lg text-sm" style={{ color: 'var(--muted)' }}>
-                      <X size={15} />
-                    </button>
-                  </div>
-                </div>
-              )}
-
-              {(member?.achievements || []).length === 0 ? (
-                <p className="text-sm" style={{ color: 'var(--muted)' }}>
-                  No achievements added yet — share your awards, certificates, or accomplishments.
-                </p>
-              ) : (
-                <div className="space-y-2">
-                  {(member.achievements as Achievement[]).map(a => (
-                    <div key={a.id} className="flex items-start gap-3 rounded-lg p-3" style={{ background: 'var(--bg)' }}>
-                      {a.image_url && <img src={a.image_url} alt="" className="w-12 h-12 rounded-lg object-cover flex-shrink-0" />}
-                      <div className="flex-1">
-                        <p className="text-sm font-medium" style={{ color: 'var(--white)' }}>{a.title}</p>
-                        {a.description && <p className="text-xs mt-0.5" style={{ color: 'var(--muted)' }}>{a.description}</p>}
-                      </div>
-                      <span className="text-xs px-2 py-0.5 rounded-full flex-shrink-0"
-                        style={{
-                          background: a.status === 'approved' ? 'rgba(var(--success-rgb), 0.1)' : 'rgba(255,165,0,0.1)',
-                          color: a.status === 'approved' ? 'var(--success)' : 'var(--warning)',
-                        }}>
-                        {a.status === 'approved' ? 'Approved' : 'Pending'}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
-        )}
-
       </div>
 
-      {showMembershipModal && (
+      {showClubMembershipModal && (
         <div className="fixed inset-0 z-[80] flex items-end sm:items-center justify-center p-0 sm:p-4"
           style={{ background: 'rgba(2,8,16,0.85)' }}
-          onClick={() => { if (!slipSubmitting) { setShowMembershipModal(false); setSlipError('') } }}>
+          onClick={() => { if (!clubAppSubmitting) { setShowClubMembershipModal(false); setClubAppError('') } }}>
           <div className="w-full sm:max-w-md max-h-[90vh] overflow-y-auto rounded-t-2xl sm:rounded-2xl border p-6"
             style={{ background: 'var(--bg2)', borderColor: 'var(--border)' }} onClick={e => e.stopPropagation()}>
             <div className="flex justify-between items-center mb-1">
               <h3 className="font-bold text-sm flex items-center gap-2" style={{ color: 'var(--white)', fontFamily: 'inherit' }}>
-                <IdCard size={16} style={{ color: 'var(--blue)' }} /> Membership Slip
+                <IdCard size={16} style={{ color: 'var(--blue)' }} /> Apply for Club Membership
               </h3>
-              <button onClick={() => { setShowMembershipModal(false); setSlipError('') }} style={{ color: 'var(--muted)' }} aria-label="Close"><X size={18} /></button>
+              <button onClick={() => { setShowClubMembershipModal(false); setClubAppError('') }} style={{ color: 'var(--muted)' }} aria-label="Close"><X size={18} /></button>
             </div>
             <p className="text-xs mt-2 mb-4" style={{ color: 'var(--muted)' }}>
-              Upload a photo of the slip you received after submitting your filled membership
-              form and 200 taka fee at the control room. An admin will review it and approve your
-              account.
+              Submit your College Roll, Batch, Department, and payment slip photo to apply for NDSC club membership.
             </p>
-            <label className="flex flex-col items-center justify-center w-full h-28 rounded-lg border-2 border-dashed cursor-pointer"
-              style={{ borderColor: slipFile ? 'var(--blue)' : 'var(--border)', background: 'rgba(255,255,255,0.02)' }}>
-              <input type="file" accept="image/jpeg,image/png,image/webp,image/heic,image/heif" className="hidden"
-                disabled={slipSubmitting} onChange={e => setSlipFile(e.target.files?.[0] || null)} />
-              {slipFile ? (
-                <div className="text-center">
-                  <CheckCircle size={22} style={{ color: 'var(--blue)' }} className="mx-auto mb-1" />
-                  <p className="text-xs font-medium" style={{ color: 'var(--blue)' }}>{slipFile.name}</p>
-                  <p className="text-xs mt-0.5" style={{ color: 'var(--muted)' }}>Tap to change</p>
-                </div>
-              ) : (
-                <div className="text-center">
-                  <Upload size={20} className="mx-auto mb-1.5" style={{ color: 'var(--muted)' }} />
-                  <p className="text-xs" style={{ color: 'var(--muted)' }}>Upload slip photo — max 10MB</p>
-                </div>
-              )}
-            </label>
-            {slipError && <p className="text-xs mt-2" style={{ color: 'var(--danger-soft)' }}>{slipError}</p>}
-            <button onClick={submitMembershipSlip} disabled={slipSubmitting || !slipFile}
-              className="w-full mt-4 py-2.5 rounded-lg text-sm font-bold text-black disabled:opacity-50"
-              style={{ background: 'var(--blue)' }}>
-              {slipSubmitting ? 'Submitting...' : 'Submit for review'}
-            </button>
+
+            <div className="space-y-3">
+              <input
+                value={clubAppForm.college_roll}
+                onChange={e => setClubAppForm(p => ({ ...p, college_roll: e.target.value }))}
+                placeholder="College Roll (8 digits)"
+                maxLength={8}
+                className="w-full px-3 py-2 rounded-lg text-sm outline-none border"
+                style={{ background: 'rgba(255,255,255,0.04)', borderColor: 'var(--border)', color: 'var(--white)' }} />
+
+              <input
+                value={clubAppForm.batch}
+                onChange={e => setClubAppForm(p => ({ ...p, batch: e.target.value }))}
+                placeholder="Batch (e.g., 2024)"
+                className="w-full px-3 py-2 rounded-lg text-sm outline-none border"
+                style={{ background: 'rgba(255,255,255,0.04)', borderColor: 'var(--border)', color: 'var(--white)' }} />
+
+              <select
+                value={clubAppForm.department}
+                onChange={e => setClubAppForm(p => ({ ...p, department: e.target.value }))}
+                className="w-full px-3 py-2 rounded-lg text-sm outline-none border"
+                style={{ background: 'rgba(255,255,255,0.04)', borderColor: 'var(--border)', color: 'var(--white)' }}>
+                <option value="">Select Department</option>
+                <option value="Science">Science</option>
+                <option value="Business Studies">Business Studies</option>
+                <option value="Humanities">Humanities</option>
+              </select>
+
+              <label className="flex flex-col items-center justify-center w-full h-28 rounded-lg border-2 border-dashed cursor-pointer"
+                style={{ borderColor: clubAppSlipFile ? 'var(--blue)' : 'var(--border)', background: 'rgba(255,255,255,0.02)' }}>
+                <input type="file" accept="image/jpeg,image/png,image/webp,image/heic,image/heif" className="hidden"
+                  disabled={clubAppSubmitting} onChange={e => setClubAppSlipFile(e.target.files?.[0] || null)} />
+                {clubAppSlipFile ? (
+                  <div className="text-center">
+                    <CheckCircle size={22} style={{ color: 'var(--blue)' }} className="mx-auto mb-1" />
+                    <p className="text-xs font-medium" style={{ color: 'var(--blue)' }}>{clubAppSlipFile.name}</p>
+                    <p className="text-xs mt-0.5" style={{ color: 'var(--muted)' }}>Tap to change</p>
+                  </div>
+                ) : (
+                  <div className="text-center">
+                    <Upload size={20} className="mx-auto mb-1.5" style={{ color: 'var(--muted)' }} />
+                    <p className="text-xs" style={{ color: 'var(--muted)' }}>Upload payment slip photo — max 10MB</p>
+                  </div>
+                )}
+              </label>
+
+              {clubAppError && <p className="text-xs" style={{ color: 'var(--danger-soft)' }}>{clubAppError}</p>}
+
+              <button onClick={submitClubMembership} disabled={clubAppSubmitting}
+                className="w-full mt-4 py-2.5 rounded-lg text-sm font-bold text-black disabled:opacity-50"
+                style={{ background: 'var(--blue)' }}>
+                {clubAppSubmitting ? 'Submitting...' : 'Submit Application'}
+              </button>
+            </div>
           </div>
         </div>
       )}

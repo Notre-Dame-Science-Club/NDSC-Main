@@ -5,7 +5,7 @@ import { ActivityIcon, ACTIVITY_ICON_OPTIONS } from "@/lib/activityIcons";
 
 type ActivityType = {
   id: string; name: string; slug: string; icon: string;
-  description: string; display_order: number;
+  description: string; display_order: number; group_by_version: boolean;
 };
 type ActivityVersion = {
   id: string; activity_type_id: string; version_number: number;
@@ -74,6 +74,7 @@ function TypeForm({ initial, onSave, onClose }: {
     name: initial?.name || "", slug: initial?.slug || "",
     icon: initial?.icon || "microscope", description: initial?.description || "",
     display_order: initial?.display_order ?? 0,
+    group_by_version: initial?.group_by_version ?? false,
   });
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState("");
@@ -124,6 +125,17 @@ function TypeForm({ initial, onSave, onClose }: {
         <input type="number" className={inputCls} style={inputStyle}
           value={form.display_order} onChange={e => setForm(p => ({ ...p, display_order: +e.target.value }))} />
       </Field>
+      <div className="mb-4">
+        <label className="flex items-center gap-2 cursor-pointer">
+          <input type="checkbox" checked={form.group_by_version}
+            onChange={e => setForm(p => ({ ...p, group_by_version: e.target.checked }))} />
+          <span className="text-sm" style={{ color: S.text }}>Group by version</span>
+        </label>
+        <p className="text-xs mt-1.5" style={{ color: S.muted }}>
+          When enabled, activities are grouped by version (e.g., for podcasts). When disabled (default),
+          activities are listed chronologically with version badges.
+        </p>
+      </div>
       {err && <p className="text-xs mb-3" style={{ color: S.danger }}>{err}</p>}
       <div className="flex gap-3 justify-end">
         <button onClick={onClose} className="px-4 py-2 rounded-lg text-sm"

@@ -1,10 +1,12 @@
 import { supabaseAdmin } from '@/lib/supabase'
 import { NextRequest } from 'next/server'
-import { validateCollegeRoll } from '@/lib/validation'
 import { apiError, apiOk } from '@/lib/api/response'
 import { createHash, randomBytes, randomUUID } from 'crypto'
 
 // Member registration.
+//
+// Open to all students. Users provide basic information to create an account.
+// NDC students can apply for Club Membership from their dashboard profile.
 //
 // Two paths:
 //   - Production (default): create a Supabase Auth user via the admin
@@ -34,24 +36,18 @@ export async function POST(req: NextRequest) {
       email,
       password,
       full_name,
+      institution,
+      education_level,
       phone,
-      ndsc_id,
-      college_roll,
-      batch,
-      payment_slip_url,
     } = await req.json()
 
     // Basic validation
-    if (!email || !password || !full_name) {
-      return apiError('Name, email, and password are required.', 400)
+    if (!email || !password || !full_name || !institution || !education_level || !phone) {
+      return apiError('All fields are required.', 400)
     }
 
-    // College roll is the site's primary identifier for members — required
-    // for everyone, with the exact-8-digits rule applying because NDSC
-    // membership is specifically for Notre Dame College students.
-    const rollError = validateCollegeRoll('Notre Dame College', college_roll)
-    if (rollError) {
-      return apiError(rollError, 400)
+    if (password.length < 6) {
+      return apiError('Password must be at least 6 characters.', 400)
     }
 
     if (IS_LOCAL) {
@@ -69,11 +65,10 @@ export async function POST(req: NextRequest) {
           id: randomUUID(),
           email,
           full_name,
-          phone: phone || null,
-          ndsc_id: ndsc_id || null,
-          college_roll: String(college_roll),
-          batch: batch || null,
-          payment_slip_url: payment_slip_url || null,
+          institution,
+          education_level,
+          phone,
+          membership_status: 'none',
           is_verified: false,
           password_hash: `${salt}$${password_hash}`,
         })
@@ -83,7 +78,7 @@ export async function POST(req: NextRequest) {
       return apiOk({
         success: true,
         member_id: created.id,
-        message: 'Registration successful! Your membership will be reviewed by an admin shortly.',
+        message: 'Registration successful! You can now log in to your account.',
       })
     }
 
@@ -105,11 +100,10 @@ export async function POST(req: NextRequest) {
         id: authData.user.id,
         email,
         full_name,
-        phone: phone || null,
-        ndsc_id: ndsc_id || null,
-        college_roll: String(college_roll),
-        batch: batch || null,
-        payment_slip_url: payment_slip_url || null,
+        institution,
+        education_level,
+        phone,
+        membership_status: 'none',
         is_verified: false,
       })
 
@@ -121,7 +115,7 @@ export async function POST(req: NextRequest) {
 
     return apiOk({
       success: true,
-      message: 'Registration successful! Your membership will be reviewed by an admin shortly.',
+      message: 'Registration successful! You can now log in to your account.',
     })
   } catch (err) {
     return apiError('Server error. Please try again.', 500)

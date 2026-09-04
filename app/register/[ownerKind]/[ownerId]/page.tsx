@@ -93,7 +93,7 @@ export default function PublicRegisterPage() {
   useEffect(() => {
     if (ownerKind !== 'activity' || !ownerId) return
     let cancelled = false
-    fetch(`/api/admin/activity-sessions?id=${ownerId}`)
+    fetch(`/api/activity-sessions-public?id=${ownerId}`)
       .then(r => r.json())
       .then(d => { if (!cancelled && d?.slug) setEventSlug(d.slug) })
       .catch(() => { /* non-critical */ })

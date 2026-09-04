@@ -1,9 +1,11 @@
 import { supabaseAdmin } from '@/lib/supabase'
 import { NextRequest } from 'next/server'
-import { requireAdmin } from '@/lib/api/admin-auth'
+import { requireAdmin, isAdmin } from '@/lib/api/admin-auth'
 import { apiError, apiOk } from '@/lib/api/response'
 
 export async function GET(req: NextRequest) {
+  // GET is public — no auth required, returns all versions
+  // (versions don't have a published flag, so all are visible to everyone)
   const { searchParams } = new URL(req.url)
   const type_id = searchParams.get('type_id')
 

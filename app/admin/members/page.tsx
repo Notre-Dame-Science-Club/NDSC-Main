@@ -8,9 +8,17 @@ type Member = {
   college_roll?: string; ndsc_id?: string; department?: string; is_verified: boolean
   is_organizer?: boolean; is_executive?: boolean
   payment_slip_url?: string; achievements?: Achievement[]; created_at: string
+  institution?: string; education_level?: string; membership_status?: 'none' | 'pending' | 'approved' | 'rejected'
 }
 
 const DEPARTMENTS = ['Administration', 'Project', 'Publication', 'ICT', 'LWS', 'Quiz', 'R&D']
+const EDUCATION_LEVELS = ['SSC', 'HSC', 'Honors', 'Masters']
+const MEMBERSHIP_STATUSES = [
+  { value: 'none', label: 'General User', color: 'var(--border-soft)', bg: 'rgba(128,128,128,0.1)', border: 'rgba(128,128,128,0.3)' },
+  { value: 'pending', label: 'Pending Application', color: 'var(--warning)', bg: 'rgba(255,165,0,0.1)', border: 'rgba(255,165,0,0.3)' },
+  { value: 'approved', label: 'Approved Member', color: 'var(--success)', bg: 'rgba(var(--success-rgb), 0.1)', border: 'rgba(var(--success-rgb), 0.3)' },
+  { value: 'rejected', label: 'Rejected', color: 'var(--danger)', bg: 'rgba(var(--danger-rgb), 0.1)', border: 'rgba(var(--danger-rgb), 0.3)' },
+]
 
 const s = { background: 'var(--bg2)', borderColor: 'var(--border)' }
 const h = { fontFamily: 'inherit', color: 'var(--blue)' }
@@ -20,7 +28,13 @@ export default function AdminMembersPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [viewingSlip, setViewingSlip] = useState<string | null>(null)
-  const [filter, setFilter] = useState<'all' | 'pending' | 'verified'>('all')
+  const [filter, setFilter] = useState<'all' | 'pending' | 'verified' | 'general' | 'membership_pending' | 'membership_approved'>('all')
+  const [editingMember, setEditingMember] = useState<Member | null>(null)
+  const [editInstitution, setEditInstitution] = useState('')
+  const [editEducationLevel, setEditEducationLevel] = useState('')
+  const [editMembershipStatus, setEditMembershipStatus] = useState<'none' | 'pending' | 'approved' | 'rejected'>('none')
+  const [editSaving, setEditSaving] = useState(false)
+  const [editError, setEditError] = useState('')
   const [emailingMember, setEmailingMember] = useState<Member | null>(null)
   const [emailSubject, setEmailSubject] = useState('')
   const [emailBody, setEmailBody] = useState('')
@@ -87,6 +101,48 @@ export default function AdminMembersPage() {
       if (!res.ok) { const d = await res.json(); setError(d.error || 'Could not update department.'); return }
       setMembers(prev => prev.map(x => x.id === m.id ? { ...x, department } : x))
     } catch { setError('Network error.') }
+  }
+
+  const updateMembershipStatus = async (m: Member, membership_status: 'approved' | 'rejected') => {
+    setError('')
+    try {
+      const res = await fetch('/api/admin/members', {
+        method: 'PUT', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: m.id, membership_status }),
+      })
+      if (!res.ok) { const d = await res.json(); setError(d.error || 'Could not update membership status.'); return }
+      setMembers(prev => prev.map(x => x.id === m.id ? { ...x, membership_status } : x))
+    } catch { setError('Network error.') }
+  }
+
+  const saveEditedMember = async () => {
+    if (!editingMember) return
+    setEditSaving(true)
+    setEditError('')
+    try {
+      const res = await fetch('/api/admin/members', {
+        method: 'PUT', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: editingMember.id,
+          institution: editInstitution,
+          education_level: editEducationLevel,
+          membership_status: editMembershipStatus
+        }),
+      })
+      const data = await res.json()
+      if (!res.ok) { setEditError(data.error || 'Could not update member.'); return }
+      setMembers(prev => prev.map(x => x.id === editingMember.id ? {
+        ...x,
+        institution: editInstitution,
+        education_level: editEducationLevel,
+        membership_status: editMembershipStatus
+      } : x))
+      setEditingMember(null)
+    } catch {
+      setEditError('Network error.')
+    } finally {
+      setEditSaving(false)
+    }
   }
 
   const moderateAchievement = async (m: Member, achievementId: string, status: 'approved' | 'rejected') => {
@@ -160,9 +216,15 @@ export default function AdminMembersPage() {
     }
   }
 
-  const filtered = members.filter(m =>
-    filter === 'all' ? true : filter === 'pending' ? !m.is_verified : m.is_verified
-  )
+  const filtered = members.filter(m => {
+    if (filter === 'all') return true
+    if (filter === 'pending') return !m.is_verified
+    if (filter === 'verified') return m.is_verified
+    if (filter === 'general') return m.membership_status === 'none'
+    if (filter === 'membership_pending') return m.membership_status === 'pending'
+    if (filter === 'membership_approved') return m.membership_status === 'approved'
+    return true
+  })
 
   const pendingAchievementsCount = members.reduce(
     (sum, m) => sum + (m.achievements || []).filter(a => a.status === 'pending').length, 0
@@ -174,15 +236,20 @@ export default function AdminMembersPage() {
     <div>
       <div className="flex items-center justify-between mb-6 flex-wrap gap-3">
         <h1 className="text-2xl font-bold" style={h}>Members</h1>
-        <div className="flex gap-2">
-          {(['all', 'pending', 'verified'] as const).map(f => (
-            <button key={f} onClick={() => setFilter(f)}
-              className="px-3 py-1.5 rounded-lg text-xs font-semibold border capitalize"
+        <div className="flex gap-2 flex-wrap">
+          {([
+            { key: 'all', label: 'All Users' },
+            { key: 'general', label: 'General Users' },
+            { key: 'membership_pending', label: 'Pending Applications' },
+            { key: 'membership_approved', label: 'Approved Members' },
+          ] as const).map(f => (
+            <button key={f.key} onClick={() => setFilter(f.key)}
+              className="px-3 py-1.5 rounded-lg text-xs font-semibold border"
               style={{
-                borderColor: filter === f ? 'var(--blue)' : 'var(--border)',
-                color: filter === f ? 'var(--blue)' : 'var(--muted)',
-                background: filter === f ? 'rgba(var(--blue-rgb), 0.1)' : 'transparent',
-              }}>{f}</button>
+                borderColor: filter === f.key ? 'var(--blue)' : 'var(--border)',
+                color: filter === f.key ? 'var(--blue)' : 'var(--muted)',
+                background: filter === f.key ? 'rgba(var(--blue-rgb), 0.1)' : 'transparent',
+              }}>{f.label}</button>
           ))}
         </div>
       </div>
@@ -206,98 +273,141 @@ export default function AdminMembersPage() {
               <th className="text-left px-4 py-3 font-medium" style={{ color: 'var(--muted)' }}>Name</th>
               <th className="text-left px-4 py-3 font-medium" style={{ color: 'var(--muted)' }}>College Roll</th>
               <th className="text-left px-4 py-3 font-medium" style={{ color: 'var(--muted)' }}>Email</th>
+              <th className="text-left px-4 py-3 font-medium" style={{ color: 'var(--muted)' }}>Institution</th>
+              <th className="text-left px-4 py-3 font-medium" style={{ color: 'var(--muted)' }}>Education</th>
               <th className="text-left px-4 py-3 font-medium" style={{ color: 'var(--muted)' }}>Department</th>
+              <th className="text-left px-4 py-3 font-medium" style={{ color: 'var(--muted)' }}>Membership</th>
               <th className="text-left px-4 py-3 font-medium" style={{ color: 'var(--muted)' }}>Slip</th>
-              <th className="text-left px-4 py-3 font-medium" style={{ color: 'var(--muted)' }}>Status</th>
+              <th className="text-left px-4 py-3 font-medium" style={{ color: 'var(--muted)' }}>Verified</th>
               <th className="text-left px-4 py-3 font-medium" style={{ color: 'var(--muted)' }}>Roles</th>
               <th className="text-left px-4 py-3 font-medium" style={{ color: 'var(--muted)' }}>Action</th>
             </tr>
           </thead>
           <tbody>
-            {filtered.map(member => (
-              <tr key={member.id} style={{ borderBottom: '1px solid var(--surface-alt)' }}>
-                <td className="px-4 py-3" style={{ color: 'var(--white)' }}>{member.full_name}</td>
-                <td className="px-4 py-3" style={{ color: 'var(--muted)' }}>{member.college_roll || '—'}</td>
-                <td className="px-4 py-3" style={{ color: 'var(--muted)' }}>{member.email}</td>
-                <td className="px-4 py-3">
-                  <select value={member.department || ''} onChange={e => setDepartment(member, e.target.value)}
-                    className="px-2 py-1 rounded text-xs border outline-none"
-                    style={{ background: 'var(--surface)', borderColor: 'var(--border)', color: 'var(--white)' }}>
-                    <option value="">—</option>
-                    {DEPARTMENTS.map(d => <option key={d} value={d}>{d}</option>)}
-                  </select>
-                </td>
-                <td className="px-4 py-3">
-                  {member.payment_slip_url ? (
-                    <button onClick={() => setViewingSlip(member.payment_slip_url!)}
-                      className="flex items-center gap-1 text-xs underline" style={{ color: 'var(--blue)' }}>
-                      <Eye size={13} /> View
-                    </button>
-                  ) : <span className="text-xs" style={{ color: 'var(--border-soft)' }}>—</span>}
-                </td>
-                <td className="px-4 py-3">
-                  <span className="px-2 py-1 rounded-full text-xs font-medium"
-                    style={{
-                      background: member.is_verified ? 'rgba(var(--success-rgb), 0.1)' : 'rgba(255,165,0,0.1)',
-                      color: member.is_verified ? 'var(--success)' : 'var(--warning)',
-                      border: `1px solid ${member.is_verified ? 'rgba(var(--success-rgb), 0.3)' : 'rgba(255,165,0,0.3)'}`,
-                    }}>
-                    {member.is_verified ? 'Verified' : 'Pending'}
-                  </span>
-                </td>
-                <td className="px-4 py-3">
-                  <div className="flex flex-wrap gap-1.5">
-                    <button onClick={() => toggleRole(member, 'is_organizer')}
-                      title="Toggle Organizer — used for survey/notification audience targeting"
-                      className="px-2 py-1 rounded text-xs font-medium transition-all"
+            {filtered.map(member => {
+              const membershipBadge = MEMBERSHIP_STATUSES.find(s => s.value === (member.membership_status || 'none'))!
+              return (
+                <tr key={member.id} style={{ borderBottom: '1px solid var(--surface-alt)' }}>
+                  <td className="px-4 py-3" style={{ color: 'var(--white)' }}>{member.full_name}</td>
+                  <td className="px-4 py-3" style={{ color: 'var(--muted)' }}>{member.college_roll || '—'}</td>
+                  <td className="px-4 py-3" style={{ color: 'var(--muted)' }}>{member.email}</td>
+                  <td className="px-4 py-3" style={{ color: 'var(--muted)' }}>{member.institution || '—'}</td>
+                  <td className="px-4 py-3" style={{ color: 'var(--muted)' }}>{member.education_level || '—'}</td>
+                  <td className="px-4 py-3">
+                    <select value={member.department || ''} onChange={e => setDepartment(member, e.target.value)}
+                      className="px-2 py-1 rounded text-xs border outline-none"
+                      style={{ background: 'var(--surface)', borderColor: 'var(--border)', color: 'var(--white)' }}>
+                      <option value="">—</option>
+                      {DEPARTMENTS.map(d => <option key={d} value={d}>{d}</option>)}
+                    </select>
+                  </td>
+                  <td className="px-4 py-3">
+                    <span className="px-2 py-1 rounded-full text-xs font-medium"
                       style={{
-                        background: member.is_organizer ? 'rgba(var(--accent2-rgb), 0.15)' : 'transparent',
-                        color: member.is_organizer ? 'var(--accent2)' : 'var(--border-soft)',
-                        border: `1px solid ${member.is_organizer ? 'rgba(var(--accent2-rgb), 0.35)' : 'var(--border)'}`,
+                        background: membershipBadge.bg,
+                        color: membershipBadge.color,
+                        border: `1px solid ${membershipBadge.border}`,
                       }}>
-                      Organizer
-                    </button>
-                    <button onClick={() => toggleRole(member, 'is_executive')}
-                      title="Toggle Executive — used for survey/notification audience targeting"
-                      className="px-2 py-1 rounded text-xs font-medium transition-all"
+                      {membershipBadge.label}
+                    </span>
+                  </td>
+                  <td className="px-4 py-3">
+                    {member.payment_slip_url ? (
+                      <button onClick={() => setViewingSlip(member.payment_slip_url!)}
+                        className="flex items-center gap-1 text-xs underline" style={{ color: 'var(--blue)' }}>
+                        <Eye size={13} /> View
+                      </button>
+                    ) : <span className="text-xs" style={{ color: 'var(--border-soft)' }}>—</span>}
+                  </td>
+                  <td className="px-4 py-3">
+                    <span className="px-2 py-1 rounded-full text-xs font-medium"
                       style={{
-                        background: member.is_executive ? 'rgba(var(--warning-rgb), 0.15)' : 'transparent',
-                        color: member.is_executive ? 'var(--warning)' : 'var(--border-soft)',
-                        border: `1px solid ${member.is_executive ? 'rgba(var(--warning-rgb), 0.35)' : 'var(--border)'}`,
+                        background: member.is_verified ? 'rgba(var(--success-rgb), 0.1)' : 'rgba(255,165,0,0.1)',
+                        color: member.is_verified ? 'var(--success)' : 'var(--warning)',
+                        border: `1px solid ${member.is_verified ? 'rgba(var(--success-rgb), 0.3)' : 'rgba(255,165,0,0.3)'}`,
                       }}>
-                      Executive
-                    </button>
-                  </div>
-                </td>
-                <td className="px-4 py-3">
-                  <div className="flex flex-wrap gap-1.5">
-                    <button onClick={() => toggleVerified(member)}
-                      className="px-3 py-1 rounded text-xs font-medium transition-all"
-                      style={{
-                        background: member.is_verified ? 'rgba(var(--danger-rgb), 0.1)' : 'rgba(var(--blue-rgb), 0.1)',
-                        color: member.is_verified ? 'var(--danger)' : 'var(--blue)',
-                        border: `1px solid ${member.is_verified ? 'rgba(var(--danger-rgb), 0.3)' : 'rgba(var(--blue-rgb), 0.3)'}`,
-                      }}>
-                      {member.is_verified ? 'Revoke' : 'Approve'}
-                    </button>
-                    <button onClick={() => { setEmailingMember(member); setEmailResult(null) }}
-                      className="px-3 py-1 rounded text-xs font-medium" style={{ background: 'rgba(var(--info-rgb), 0.1)', color: 'var(--info)', border: '1px solid rgba(var(--info-rgb), 0.3)' }}>
-                      Email
-                    </button>
-                    <button onClick={() => { setAddingAchievementFor(member); setAchError('') }}
-                      className="px-3 py-1 rounded text-xs font-medium" style={{ background: 'rgba(var(--warning-rgb), 0.1)', color: 'var(--warning)', border: '1px solid rgba(var(--warning-rgb), 0.3)' }}>
-                      + Achievement
-                    </button>
-                    <button onClick={() => cancelMembership(member)}
-                      className="px-3 py-1 rounded text-xs font-medium" style={{ background: 'rgba(var(--danger-rgb), 0.05)', color: 'var(--danger)', border: '1px solid rgba(var(--danger-rgb), 0.2)' }}>
-                      Cancel
-                    </button>
-                  </div>
-                </td>
-              </tr>
-            ))}
+                      {member.is_verified ? 'Verified' : 'Pending'}
+                    </span>
+                  </td>
+                  <td className="px-4 py-3">
+                    <div className="flex flex-wrap gap-1.5">
+                      <button onClick={() => toggleRole(member, 'is_organizer')}
+                        title="Toggle Organizer — used for survey/notification audience targeting"
+                        className="px-2 py-1 rounded text-xs font-medium transition-all"
+                        style={{
+                          background: member.is_organizer ? 'rgba(var(--accent2-rgb), 0.15)' : 'transparent',
+                          color: member.is_organizer ? 'var(--accent2)' : 'var(--border-soft)',
+                          border: `1px solid ${member.is_organizer ? 'rgba(var(--accent2-rgb), 0.35)' : 'var(--border)'}`,
+                        }}>
+                        Organizer
+                      </button>
+                      <button onClick={() => toggleRole(member, 'is_executive')}
+                        title="Toggle Executive — used for survey/notification audience targeting"
+                        className="px-2 py-1 rounded text-xs font-medium transition-all"
+                        style={{
+                          background: member.is_executive ? 'rgba(var(--warning-rgb), 0.15)' : 'transparent',
+                          color: member.is_executive ? 'var(--warning)' : 'var(--border-soft)',
+                          border: `1px solid ${member.is_executive ? 'rgba(var(--warning-rgb), 0.35)' : 'var(--border)'}`,
+                        }}>
+                        Executive
+                      </button>
+                    </div>
+                  </td>
+                  <td className="px-4 py-3">
+                    <div className="flex flex-wrap gap-1.5">
+                      {member.membership_status === 'pending' ? (
+                        <>
+                          <button onClick={() => updateMembershipStatus(member, 'approved')}
+                            className="px-3 py-1 rounded text-xs font-medium"
+                            style={{ background: 'rgba(var(--success-rgb), 0.1)', color: 'var(--success)', border: '1px solid rgba(var(--success-rgb), 0.3)' }}>
+                            Approve Membership
+                          </button>
+                          <button onClick={() => updateMembershipStatus(member, 'rejected')}
+                            className="px-3 py-1 rounded text-xs font-medium"
+                            style={{ background: 'rgba(var(--danger-rgb), 0.1)', color: 'var(--danger)', border: '1px solid rgba(var(--danger-rgb), 0.3)' }}>
+                            Reject
+                          </button>
+                        </>
+                      ) : (
+                        <button onClick={() => toggleVerified(member)}
+                          className="px-3 py-1 rounded text-xs font-medium transition-all"
+                          style={{
+                            background: member.is_verified ? 'rgba(var(--danger-rgb), 0.1)' : 'rgba(var(--blue-rgb), 0.1)',
+                            color: member.is_verified ? 'var(--danger)' : 'var(--blue)',
+                            border: `1px solid ${member.is_verified ? 'rgba(var(--danger-rgb), 0.3)' : 'rgba(var(--blue-rgb), 0.3)'}`,
+                          }}>
+                          {member.is_verified ? 'Revoke' : 'Approve'}
+                        </button>
+                      )}
+                      <button onClick={() => {
+                        setEditingMember(member)
+                        setEditInstitution(member.institution || '')
+                        setEditEducationLevel(member.education_level || '')
+                        setEditMembershipStatus(member.membership_status || 'none')
+                        setEditError('')
+                      }}
+                        className="px-3 py-1 rounded text-xs font-medium" style={{ background: 'rgba(var(--blue-rgb), 0.1)', color: 'var(--blue)', border: '1px solid rgba(var(--blue-rgb), 0.3)' }}>
+                        Edit
+                      </button>
+                      <button onClick={() => { setEmailingMember(member); setEmailResult(null) }}
+                        className="px-3 py-1 rounded text-xs font-medium" style={{ background: 'rgba(var(--info-rgb), 0.1)', color: 'var(--info)', border: '1px solid rgba(var(--info-rgb), 0.3)' }}>
+                        Email
+                      </button>
+                      <button onClick={() => { setAddingAchievementFor(member); setAchError('') }}
+                        className="px-3 py-1 rounded text-xs font-medium" style={{ background: 'rgba(var(--warning-rgb), 0.1)', color: 'var(--warning)', border: '1px solid rgba(var(--warning-rgb), 0.3)' }}>
+                        + Achievement
+                      </button>
+                      <button onClick={() => cancelMembership(member)}
+                        className="px-3 py-1 rounded text-xs font-medium" style={{ background: 'rgba(var(--danger-rgb), 0.05)', color: 'var(--danger)', border: '1px solid rgba(var(--danger-rgb), 0.2)' }}>
+                        Cancel
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              )
+            })}
             {filtered.length === 0 && (
-              <tr><td colSpan={8} className="px-4 py-8 text-center" style={{ color: 'var(--muted)' }}>No members found.</td></tr>
+              <tr><td colSpan={11} className="px-4 py-8 text-center" style={{ color: 'var(--muted)' }}>No members found.</td></tr>
             )}
           </tbody>
         </table>
@@ -382,6 +492,43 @@ export default function AdminMembersPage() {
                 {achSaving ? 'Saving...' : 'Add Achievement'}
               </button>
               <button onClick={() => setAddingAchievementFor(null)} className="px-4 py-2 rounded-lg text-sm" style={{ color: 'var(--muted)' }}>Cancel</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {editingMember && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(2,8,16,0.85)' }}>
+          <div className="w-full max-w-md rounded-2xl border p-6" style={s}>
+            <h2 className="font-bold text-sm mb-1" style={h}>Edit Member — {editingMember.full_name}</h2>
+            <p className="text-xs mb-4" style={{ color: 'var(--muted)' }}>Update institution, education level, and membership status.</p>
+            <div className="mb-3">
+              <label className="text-xs mb-1 block" style={{ color: 'var(--muted)' }}>Institution</label>
+              <input value={editInstitution} onChange={e => setEditInstitution(e.target.value)} placeholder="Institution name"
+                className="w-full px-3 py-2 rounded-lg text-sm border outline-none" style={{ background: 'var(--surface)', borderColor: 'var(--border)', color: 'var(--white)' }} />
+            </div>
+            <div className="mb-3">
+              <label className="text-xs mb-1 block" style={{ color: 'var(--muted)' }}>Education Level</label>
+              <select value={editEducationLevel} onChange={e => setEditEducationLevel(e.target.value)}
+                className="w-full px-3 py-2 rounded-lg text-sm border outline-none" style={{ background: 'var(--surface)', borderColor: 'var(--border)', color: 'var(--white)' }}>
+                <option value="">—</option>
+                {EDUCATION_LEVELS.map(l => <option key={l} value={l}>{l}</option>)}
+              </select>
+            </div>
+            <div className="mb-3">
+              <label className="text-xs mb-1 block" style={{ color: 'var(--muted)' }}>Membership Status</label>
+              <select value={editMembershipStatus} onChange={e => setEditMembershipStatus(e.target.value as 'none' | 'pending' | 'approved' | 'rejected')}
+                className="w-full px-3 py-2 rounded-lg text-sm border outline-none" style={{ background: 'var(--surface)', borderColor: 'var(--border)', color: 'var(--white)' }}>
+                {MEMBERSHIP_STATUSES.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
+              </select>
+            </div>
+            {editError && <p className="text-xs mb-3" style={{ color: 'var(--danger-soft)' }}>{editError}</p>}
+            <div className="flex gap-2">
+              <button onClick={saveEditedMember} disabled={editSaving}
+                className="flex-1 py-2 rounded-lg text-sm font-bold disabled:opacity-50" style={{ background: 'var(--blue)', color: '#000' }}>
+                {editSaving ? 'Saving...' : 'Save Changes'}
+              </button>
+              <button onClick={() => setEditingMember(null)} className="px-4 py-2 rounded-lg text-sm" style={{ color: 'var(--muted)' }}>Cancel</button>
             </div>
           </div>
         </div>
