@@ -1,6 +1,5 @@
 import { supabaseAdmin } from '@/lib/supabase'
 import { NextRequest } from 'next/server'
-import { validateCollegeRoll } from '@/lib/validation'
 import { apiError, apiOk } from '@/lib/api/response'
 
 // Lets a logged-in member edit their own basic info from the dashboard.
@@ -20,7 +19,19 @@ async function getMemberFromRequest(req: NextRequest) {
   return data.user
 }
 
-const EDITABLE_FIELDS = ['full_name', 'phone', 'college_roll', 'batch']
+// Primary fields: essential identity fields
+// Secondary fields: optional profile enhancement fields
+const EDITABLE_FIELDS = [
+  'full_name',
+  'institution',
+  'education_level',
+  'phone',
+  'gender',
+  'blood_group',
+  'address',
+  'secondary_phone',
+  'avatar_url',
+]
 
 export async function PUT(req: NextRequest) {
   const user = await getMemberFromRequest(req)
@@ -34,12 +45,25 @@ export async function PUT(req: NextRequest) {
     if (body[key] !== undefined) patch[key] = body[key]
   }
 
-  if (patch.college_roll !== undefined) {
-    const rollError = validateCollegeRoll('Notre Dame College', patch.college_roll)
-    if (rollError) return apiError(rollError, 400)
-  }
+  // Validate full_name if provided
   if (patch.full_name !== undefined && !String(patch.full_name).trim()) {
     return apiError('Name cannot be empty.', 400)
+  }
+
+  // Validate phone if provided
+  if (patch.phone !== undefined && patch.phone !== null) {
+    const phoneStr = String(patch.phone).trim()
+    if (phoneStr && !/^\d{11}$/.test(phoneStr)) {
+      return apiError('Phone number must be 11 digits.', 400)
+    }
+  }
+
+  // Validate secondary_phone if provided
+  if (patch.secondary_phone !== undefined && patch.secondary_phone !== null) {
+    const phoneStr = String(patch.secondary_phone).trim()
+    if (phoneStr && !/^\d{11}$/.test(phoneStr)) {
+      return apiError('Secondary phone number must be 11 digits.', 400)
+    }
   }
 
   const { data, error } = await supabaseAdmin

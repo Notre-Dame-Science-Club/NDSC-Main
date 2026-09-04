@@ -5,24 +5,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase";
-import { cookies } from "next/headers";
-
-// Helper to verify admin session
-async function getAdminSession() {
-  const cookieStore = await cookies();
-  const sessionCookie = cookieStore.get("admin_session");
-
-  if (!sessionCookie?.value) {
-    return null;
-  }
-
-  try {
-    const session = JSON.parse(sessionCookie.value);
-    return session.admin;
-  } catch {
-    return null;
-  }
-}
+import { requireAdmin } from "@/lib/api/admin-auth";
 
 // ══════════════════════════════════════════════════════════════════════════
 // GET /api/admin/chat/rooms
@@ -30,10 +13,8 @@ async function getAdminSession() {
 // ══════════════════════════════════════════════════════════════════════════
 export async function GET(req: NextRequest) {
   try {
-    const admin = await getAdminSession();
-    if (!admin) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const unauthorized = await requireAdmin();
+    if (unauthorized) return unauthorized;
 
     const supabase = supabaseAdmin;
 

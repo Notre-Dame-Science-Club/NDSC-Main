@@ -43,7 +43,7 @@ export interface MemberRow {
   ndsc_id: string
   /** @deprecated legacy, unused */
   college_role?: number | null
-  college_roll: string
+  college_roll?: string | null
   batch: string
   department: MemberDepartment
   /** @deprecated legacy fallback for department */
@@ -55,6 +55,14 @@ export interface MemberRow {
   is_organizer?: boolean
   /** Used for survey/notification audience targeting — see lib/survey.ts */
   is_executive?: boolean
+  institution?: string | null
+  education_level?: string | null
+  gender?: string | null
+  blood_group?: string | null
+  address?: string | null
+  secondary_phone?: string | null
+  avatar_url?: string | null
+  membership_status?: 'none' | 'pending' | 'approved' | 'rejected' | null
   created_at: ISODateString
 }
 
@@ -539,4 +547,22 @@ export interface ActivitySessionFormAppearance {
   form_auto_pull_cover: boolean
   form_contact_persons: AppearanceContactPersons
   updated_at: ISODateString
+}
+
+// ── Member Helper Functions ──────────────────────────────────────────────
+
+export function isNDCStudent(member: Partial<MemberRow> | null | undefined): boolean {
+  if (!member?.institution) return false;
+  const inst = member.institution.toLowerCase();
+  return inst.includes('notre dame college') || inst === 'ndc';
+}
+
+export function isNDCClubMember(member: Partial<MemberRow> | null | undefined): boolean {
+  if (!member) return false;
+  return member.membership_status === 'approved' || member.is_verified === true;
+}
+
+export function canApplyForClubMembership(member: Partial<MemberRow> | null | undefined): boolean {
+  if (!member) return false;
+  return isNDCStudent(member) && (member.membership_status === 'none' || member.membership_status === 'rejected' || !member.membership_status);
 }

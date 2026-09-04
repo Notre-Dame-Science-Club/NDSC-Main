@@ -17,7 +17,7 @@ export async function GET() {
 
   const { data, error } = await supabaseAdmin
     .from('members')
-    .select('*')
+    .select('id, full_name, email, phone, batch, college_roll, ndsc_id, department, is_verified, is_organizer, is_executive, payment_slip_url, achievements, created_at, institution, education_level, membership_status')
     .order('created_at', { ascending: false })
 
   if (error) return apiError(error, 400)
