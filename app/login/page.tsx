@@ -1,0 +1,144 @@
+'use client'
+import { useState } from 'react'
+import { useRouter } from 'next/navigation'
+import { supabase } from '@/lib/supabase'
+import Link from 'next/link'
+import { Microscope } from 'lucide-react'
+import OAuthButton from '@/components/auth/OAuthButton'
+import { isOAuthEnabled } from '@/lib/authConfig'
+
+export default function LoginPage() {
+  const router = useRouter()
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
+
+  const submit = async () => {
+    if (!email || !password) return setError('Email and password are required.')
+    setLoading(true)
+    setError('')
+
+    try {
+      // The local-stack client shim in lib/supabase.ts handles
+      // supabase.auth.signInWithPassword (it posts to /api/auth/login,
+      // stashes the resulting bearer in localStorage, and returns the
+      // session). Using the shim path here means the prod and local
+      // branches share one code path; we don't need to know which
+      // mode we're in.
+      const { data, error: signInError } = await supabase.auth.signInWithPassword({ email, password })
+
+      if (signInError || !data?.session) {
+        setLoading(false)
+        return setError(signInError?.message || 'Login failed.')
+      }
+
+      router.push('/dashboard')
+      router.refresh()
+    } catch {
+      setLoading(false)
+      setError('Network error. Please try again.')
+    }
+  }
+
+  return (
+    <div className="min-h-screen flex items-center justify-center" style={{ background: 'var(--bg)' }}>
+      <div className="fixed inset-0 grid-bg opacity-30 pointer-events-none" />
+
+      <div className="relative w-full max-w-sm mx-4">
+        <div className="absolute -inset-1 rounded-2xl opacity-30 blur-xl"
+          style={{ background: 'radial-gradient(circle, var(--blue) 0%, transparent 70%)' }} />
+
+        <div className="relative rounded-2xl p-8 border"
+          style={{ background: 'var(--bg2)', borderColor: 'var(--border)' }}>
+
+          <div className="text-center mb-8">
+            <div className="inline-flex items-center justify-center w-14 h-14 rounded-full mb-4"
+              style={{ background: 'rgba(var(--blue-rgb), 0.1)', border: '1px solid rgba(var(--blue-rgb), 0.3)' }}>
+              <Microscope size={22} style={{ color: 'var(--blue)' }} />
+            </div>
+            <h1 className="text-xl font-bold mb-1"
+              style={{ fontFamily: 'inherit', color: 'var(--blue)' }}>
+              Member Login
+            </h1>
+            <p className="text-sm" style={{ color: 'var(--muted)' }}>Sign in to your NDSC account</p>
+          </div>
+
+          {error && (
+            <div className="px-4 py-3 rounded-lg mb-5 text-sm border"
+              style={{ background: 'rgba(255,50,50,0.08)', borderColor: 'rgba(var(--danger-rgb), 0.3)', color: 'var(--danger-soft)' }}>
+              {error}
+            </div>
+          )}
+
+          {isOAuthEnabled() && (
+            <div className="mb-5 space-y-3">
+              <OAuthButton />
+              <div className="flex items-center gap-3 text-xs" style={{ color: 'var(--muted)' }}>
+                <div className="flex-1" style={{ borderTop: '1px solid var(--border)' }} />
+                or continue with email
+                <div className="flex-1" style={{ borderTop: '1px solid var(--border)' }} />
+              </div>
+            </div>
+          )}
+
+          <div className="space-y-4">
+            <div>
+              <label className="block text-xs font-medium mb-1.5 uppercase tracking-wider"
+                style={{ color: 'var(--muted)' }}>Email</label>
+              <input
+                type="email" value={email} onChange={e => setEmail(e.target.value)}
+                placeholder="email@example.com"
+                onKeyDown={e => e.key === 'Enter' && submit()}
+                className="w-full rounded-lg px-3 py-2.5 text-sm outline-none transition-all"
+                style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid var(--border)', color: 'var(--white)' }}
+                onFocus={e => (e.target.style.borderColor = 'var(--blue)')}
+                onBlur={e => (e.target.style.borderColor = 'var(--border)')}
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-medium mb-1.5 uppercase tracking-wider"
+                style={{ color: 'var(--muted)' }}>Password</label>
+              <input
+                type="password" value={password} onChange={e => setPassword(e.target.value)}
+                placeholder="••••••••"
+                onKeyDown={e => e.key === 'Enter' && submit()}
+                className="w-full rounded-lg px-3 py-2.5 text-sm outline-none transition-all"
+                style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid var(--border)', color: 'var(--white)' }}
+                onFocus={e => (e.target.style.borderColor = 'var(--blue)')}
+                onBlur={e => (e.target.style.borderColor = 'var(--border)')}
+              />
+            </div>
+
+            <button
+              onClick={submit} disabled={loading}
+              className="w-full py-2.5 rounded-lg font-semibold text-sm transition-all mt-2 text-black"
+              style={{
+                background: 'var(--blue)',
+                opacity: loading ? 0.6 : 1,
+                fontFamily: 'inherit',
+                letterSpacing: '0.05em',
+              }}>
+              {loading ? 'Signing in...' : 'Login'}
+            </button>
+
+            <p className="text-center text-sm" style={{ color: 'var(--muted)' }}>
+              Don&apos;t have an account?{' '}
+              <Link href="/register" className="font-medium hover:underline" style={{ color: 'var(--blue)' }}>
+                Register
+              </Link>
+            </p>
+
+            <div className="pt-2 text-center" style={{ borderTop: '1px solid var(--border)' }}>
+              <Link href="/admin/login" className="text-xs hover:text-white transition-colors"
+                style={{ color: 'var(--muted)' }}>
+                Admin Login →
+              </Link>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
