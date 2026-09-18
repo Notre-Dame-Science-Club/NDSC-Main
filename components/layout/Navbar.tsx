@@ -1,11 +1,11 @@
 "use client";
 import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { Menu, X, ChevronDown } from "lucide-react";
 import { ActivityIcon } from "@/lib/activityIcons";
 import ThemeSwitcher from "@/components/theme/ThemeSwitcher";
-import AtomMark from "@/components/layout/AtomMark";
 
 type NavChild = { href: string; label: string; icon?: string };
 type NavItem = { href?: string; label: string; children?: NavChild[] };
@@ -27,6 +27,19 @@ const STATIC_NAV: NavItem[] = [
 ];
 
 const HIDE_NAVBAR_ON = ["/login", "/register", "/dashboard", "/admin"];
+
+// Short second word shown under each nav label on hover — same two-line
+// slide treatment as the Cosmos prototype nav ("About" / "Legacy" etc).
+// Falls back to the label itself when a link isn't in this list.
+const NAV_ALT: Record<string, string> = {
+  Home: "Top",
+  "About Us": "Legacy",
+  Activities: "Latest",
+  Publication: "AUDRI",
+  Executives: "Team",
+  Olympiad: "Compete",
+  Membership: "Join",
+};
 
 function AuthButton({ mobile = false }: { mobile?: boolean }) {
   const [loggedIn, setLoggedIn] = useState(false);
@@ -60,18 +73,18 @@ function AuthButton({ mobile = false }: { mobile?: boolean }) {
   if (mobile) {
     return loggedIn ? (
       <>
-        <Link href="/dashboard" className="mt-5 py-4 text-center font-black tracking-widest rounded-xl border text-sm" style={{ borderColor: "var(--blue)", color: "var(--blue)", fontFamily: 'inherit' }}>MY DASHBOARD</Link>
+        <Link href="/dashboard" className="nav-cta mobile-cta">MY DASHBOARD</Link>
         <button onClick={handleLogout} className="py-3 text-sm text-center" style={{ color: "var(--muted)" }}>Sign Out</button>
       </>
     ) : (
-      <Link href="/login" className="mt-5 py-4 text-center font-black tracking-widest rounded-xl border text-sm" style={{ borderColor: "var(--blue)", color: "var(--blue)", fontFamily: 'inherit' }}>LOGIN</Link>
+      <Link href="/login" className="nav-cta mobile-cta">LOGIN</Link>
     );
   }
 
   return loggedIn ? (
-    <Link href="/dashboard" className="px-4 py-2 text-xs font-black tracking-widest rounded-lg border transition-all duration-200 hover:bg-[var(--blue)] hover:text-black hover:border-[var(--blue)]" style={{ borderColor: "var(--blue)", color: "var(--blue)", fontFamily: 'inherit' }}>Dashboard</Link>
+    <Link href="/dashboard" className="nav-cta">Dashboard</Link>
   ) : (
-    <Link href="/login" className="px-4 py-2 text-xs font-black tracking-widest rounded-lg border transition-all duration-200 hover:bg-[var(--blue)] hover:text-black hover:border-[var(--blue)]" style={{ borderColor: "var(--blue)", color: "var(--blue)", fontFamily: 'inherit' }}>Login</Link>
+    <Link href="/login" className="nav-cta">Login</Link>
   );
 }
 
@@ -81,6 +94,7 @@ export default function Navbar() {
   const [execOpen, setExecOpen] = useState(false);
   const [nav, setNav] = useState<NavItem[]>(STATIC_NAV);
   const [openDesktop, setOpenDesktop] = useState<string | null>(null);
+  const [stuck, setStuck] = useState(false);
   const pathname = usePathname();
   const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const desktopWheelRef = useRef<HTMLSpanElement | null>(null);
@@ -163,6 +177,17 @@ export default function Navbar() {
     return () => cancelAnimationFrame(raf);
   }, []);
 
+  // The bar starts fully transparent over the hero (matching the cosmos
+  // scene design) and only picks up its glass/blur/border once the page
+  // has scrolled past it — same "stuck" behaviour as the Cosmos prototype.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const onScroll = () => setStuck(window.scrollY > 24);
+    onScroll();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
+
   useEffect(() => {
     fetch("/api/activity-types-public")
       .then((r) => r.json())
@@ -203,21 +228,52 @@ export default function Navbar() {
     <>
       <style>{`
         .navbar-glass {
-          background: rgba(2, 8, 16, 0.92);
+          background: transparent;
+          backdrop-filter: none;
+          -webkit-backdrop-filter: none;
+          border-bottom: 1px solid transparent;
+          transition: background 0.4s ease, backdrop-filter 0.4s ease, border-color 0.4s ease;
+        }
+        .navbar-glass.stuck {
+          background: rgba(2, 8, 16, 0.82);
           backdrop-filter: blur(20px) saturate(180%);
           -webkit-backdrop-filter: blur(20px) saturate(180%);
-          border-bottom: 1px solid rgba(var(--blue-rgb), 0.12);
+          border-bottom: 1px solid rgba(var(--blue-rgb), 0.14);
         }
         .nav-link {
           position: relative;
-          font-size: 0.82rem;
-          font-weight: 600;
-          letter-spacing: 0.04em;
+          font-size: 11px;
+          font-weight: 500;
+          letter-spacing: 0.16em;
+          text-transform: uppercase;
           color: var(--muted);
-          transition: color 0.2s;
-          font-family: 'Poppins', sans-serif;
+          font-family: var(--font-mono);
           padding: 0.25rem 0;
+          transition: color 0.25s;
         }
+        .nav-link:hover { color: var(--blue); }
+        .nav-link-txt {
+          position: relative;
+          display: block;
+          height: 14px;
+          line-height: 14px;
+          overflow: hidden;
+        }
+        .nav-link-txt .main,
+        .nav-link-txt .alt {
+          display: block;
+          height: 14px;
+          line-height: 14px;
+          transition: transform 0.5s cubic-bezier(0.16,1,0.3,1);
+        }
+        .nav-link-txt .alt {
+          position: absolute;
+          inset: 0;
+          transform: translate3d(0, 100%, 0);
+          color: var(--blue);
+        }
+        .nav-link:hover .nav-link-txt .main { transform: translate3d(0, -100%, 0); }
+        .nav-link:hover .nav-link-txt .alt { transform: translate3d(0, 0, 0); }
         .nav-link::after {
           content: '';
           position: absolute;
@@ -229,10 +285,39 @@ export default function Navbar() {
           transition: width 0.25s cubic-bezier(0.22,1,0.36,1);
           border-radius: 2px;
         }
-        .nav-link:hover { color: var(--blue); }
         .nav-link:hover::after { width: 100%; }
-        .nav-link.active { color: var(--blue); }
+        .nav-link.active .nav-link-txt .main { color: var(--white); }
         .nav-link.active::after { width: 100%; }
+
+        /* Login / Dashboard pill — same shape as the Cosmos prototype's
+           nav-cta, plus a soft cyan glow that blooms on hover and flashes
+           brighter on click, matching the original site's button feel. */
+        .nav-cta {
+          display: inline-flex;
+          align-items: center;
+          padding: 9px 20px;
+          border: 1px solid var(--border);
+          border-radius: 100px;
+          font-family: var(--font-mono);
+          font-size: 10px;
+          font-weight: 600;
+          letter-spacing: 0.2em;
+          text-transform: uppercase;
+          color: var(--blue);
+          background: rgba(var(--blue-rgb), 0.06);
+          box-shadow: 0 0 0 0 rgba(var(--blue-rgb), 0);
+          transition: background 0.35s ease, border-color 0.35s ease, color 0.35s ease, box-shadow 0.35s ease, transform 0.15s ease;
+        }
+        .nav-cta:hover {
+          background: var(--blue);
+          border-color: var(--blue);
+          color: #001018;
+          box-shadow: 0 0 22px 3px rgba(var(--blue-rgb), 0.55), 0 0 46px rgba(var(--blue-rgb), 0.28);
+        }
+        .nav-cta:active {
+          transform: scale(0.96);
+          box-shadow: 0 0 30px 6px rgba(var(--blue-rgb), 0.75), 0 0 60px rgba(var(--blue-rgb), 0.4);
+        }
 
         /* Static, deliberate brand mark — replaces the old sliding-gradient
            "shimmer" (3s linear infinite background-position) which read as
@@ -294,19 +379,19 @@ export default function Navbar() {
         }
       `}</style>
 
-      <header className="navbar-glass fixed top-0 left-0 w-full z-50 transition-[background,backdrop-filter,border-color] duration-300">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 flex items-center justify-between" style={{ height: "var(--navbar-height, 64px)" }}>
+      <header className={`navbar-glass fixed top-0 left-0 w-full z-50 transition-[background,backdrop-filter,border-color] duration-300 ${stuck ? "stuck" : ""}`}>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 flex items-center justify-between" style={{ height: "var(--navbar-height, 72px)" }}>
 
           {/* LOGO */}
           <Link href="/" className="ndsc-logo-glow flex items-center gap-2.5 sm:gap-3 shrink-0 z-10 group">
-            <span ref={desktopWheelRef} className="ndsc-logo-mark relative shrink-0" style={{ width: "var(--navbar-logo, 38px)", height: "var(--navbar-logo, 38px)", display: "inline-block" }}>
+            <span ref={desktopWheelRef} className="ndsc-logo-mark relative shrink-0" style={{ width: "var(--navbar-logo, 42px)", height: "var(--navbar-logo, 42px)", display: "inline-block" }}>
               <span className="ndsc-logo-mark-inner">
-                <AtomMark size={38} />
+                <Image src="/images/cropped-logo.png" alt="NDSC" fill sizes="42px" className="object-contain" priority />
               </span>
             </span>
             <div className="ndsc-logo-text-wrap flex flex-col leading-none min-w-0">
               <span className="ndsc-logo-text-inner">
-                <span className="ndsc-logo-text text-[12px] sm:text-sm font-black tracking-[0.2em] block truncate" style={{ fontFamily: 'inherit' }}>
+                <span className="ndsc-logo-text text-[12px] sm:text-sm font-black tracking-[0.2em] block truncate" style={{ fontFamily: 'var(--font-heading)' }}>
                   NDSC
                 </span>
                 <span className="hidden sm:block text-[9px] tracking-[0.18em] mt-0.5 font-medium truncate" style={{ color: "rgba(var(--blue-rgb), 0.55)", fontFamily: "var(--font-mono)" }}>
@@ -316,58 +401,66 @@ export default function Navbar() {
             </div>
           </Link>
 
-          {/* CENTER NAV — desktop */}
-          <nav className="hidden lg:flex items-center gap-6 xl:gap-8 absolute left-1/2 -translate-x-1/2">
-            {nav.map((item) =>
-              item.children && item.children.length > 0 ? (
-                <div key={item.label} className="relative"
-                  onMouseEnter={() => handleMouseEnter(item.label)}
-                  onMouseLeave={handleMouseLeave}>
-                  <button className={`nav-link flex items-center gap-1 ${openDesktop === item.label ? "active" : ""}`}>
-                    {item.label}
-                    <ChevronDown size={12} style={{ transition: "transform .2s", transform: openDesktop === item.label ? "rotate(180deg)" : "" }} />
-                  </button>
-                  <div style={{
-                    position: "absolute", top: "calc(100% + 10px)", left: "50%",
-                    opacity: openDesktop === item.label ? 1 : 0,
-                    pointerEvents: openDesktop === item.label ? "auto" : "none",
-                    transition: "opacity .15s, transform .15s",
-                    transform: openDesktop === item.label ? "translateX(-50%) translateY(0)" : "translateX(-50%) translateY(-4px)",
-                    zIndex: 50, minWidth: "210px",
-                  }}>
-                    <div className="rounded-xl border py-2" style={{
-                      background: "rgba(3,10,22,0.98)", borderColor: "rgba(var(--blue-rgb), 0.2)",
-                      backdropFilter: "blur(24px)", boxShadow: "0 8px 32px rgba(0,0,0,0.6), 0 0 0 1px rgba(var(--blue-rgb), 0.05)",
+          {/* RIGHT GROUP — links, theme switcher and the Login/Dashboard
+              pill all live in one flex row that hugs the right edge, same
+              as the Cosmos prototype (brand pinned left, everything else
+              pinned right — no independently-centered nav). */}
+          <div className="hidden lg:flex items-center gap-6 xl:gap-7">
+            <nav className="flex items-center gap-6 xl:gap-7">
+              {nav.map((item) =>
+                item.children && item.children.length > 0 ? (
+                  <div key={item.label} className="relative"
+                    onMouseEnter={() => handleMouseEnter(item.label)}
+                    onMouseLeave={handleMouseLeave}>
+                    <button className={`nav-link flex items-center gap-1.5 ${openDesktop === item.label ? "active" : ""}`}>
+                      <span className="nav-link-txt">
+                        <span className="main">{item.label}</span>
+                        <span className="alt">{NAV_ALT[item.label] || item.label}</span>
+                      </span>
+                      <ChevronDown size={12} style={{ transition: "transform .2s", transform: openDesktop === item.label ? "rotate(180deg)" : "" }} />
+                    </button>
+                    <div style={{
+                      position: "absolute", top: "calc(100% + 10px)", left: "50%",
+                      opacity: openDesktop === item.label ? 1 : 0,
+                      pointerEvents: openDesktop === item.label ? "auto" : "none",
+                      transition: "opacity .15s, transform .15s",
+                      transform: openDesktop === item.label ? "translateX(-50%) translateY(0)" : "translateX(-50%) translateY(-4px)",
+                      zIndex: 50, minWidth: "210px",
                     }}>
-                      {item.children.map((c) => (
-                        <Link key={c.href} href={c.href}
-                          className="flex items-center gap-2.5 px-4 py-2.5 text-xs font-medium transition-all hover:text-[var(--blue)] hover:pl-5 hover:bg-[rgba(var(--blue-rgb), 0.04)]"
-                          style={{ color: "var(--muted)" }}>
-                          {c.icon ? (
-                            <ActivityIcon icon={c.icon} size={14} className="shrink-0" style={{ color: "var(--blue)" }} />
-                          ) : (
-                            <span className="w-1 h-1 rounded-full shrink-0" style={{ background: "var(--blue)" }} />
-                          )}
-                          {c.label}
-                        </Link>
-                      ))}
+                      <div className="rounded-xl border py-2" style={{
+                        background: "rgba(3,10,22,0.98)", borderColor: "rgba(var(--blue-rgb), 0.2)",
+                        backdropFilter: "blur(24px)", boxShadow: "0 8px 32px rgba(0,0,0,0.6), 0 0 0 1px rgba(var(--blue-rgb), 0.05)",
+                      }}>
+                        {item.children.map((c) => (
+                          <Link key={c.href} href={c.href}
+                            className="flex items-center gap-2.5 px-4 py-2.5 text-xs font-medium transition-all hover:text-[var(--blue)] hover:pl-5 hover:bg-[rgba(var(--blue-rgb), 0.04)]"
+                            style={{ color: "var(--muted)" }}>
+                            {c.icon ? (
+                              <ActivityIcon icon={c.icon} size={14} className="shrink-0" style={{ color: "var(--blue)" }} />
+                            ) : (
+                              <span className="w-1 h-1 rounded-full shrink-0" style={{ background: "var(--blue)" }} />
+                            )}
+                            {c.label}
+                          </Link>
+                        ))}
+                      </div>
                     </div>
                   </div>
-                </div>
-              ) : item.href ? (
-                <Link key={item.href} href={item.href}
-                  className={`nav-link ${pathname === item.href ? "active" : ""}`}>
-                  {item.label}
-                </Link>
-              ) : null
-            )}
-          </nav>
+                ) : item.href ? (
+                  <Link key={item.href} href={item.href}
+                    className={`nav-link ${pathname === item.href ? "active" : ""}`}>
+                    <span className="nav-link-txt">
+                      <span className="main">{item.label}</span>
+                      <span className="alt">{NAV_ALT[item.label] || item.label}</span>
+                    </span>
+                  </Link>
+                ) : null
+              )}
+            </nav>
 
-          {/* RIGHT — theme switcher + auth button.
-              The switcher renders nothing when Admin > Appearance has it
-              switched off, or when only one model is allowed, so no layout
-              branch is needed here. */}
-          <div className="hidden lg:flex items-center gap-3">
+            {/* The switcher renders nothing when Admin > Appearance has it
+                switched off, or when only one model is allowed, so no
+                layout branch is needed here. */}
             <ThemeSwitcher />
             <AuthButton />
           </div>
@@ -554,6 +647,13 @@ export default function Navbar() {
           border-top: 1px solid rgba(var(--blue-rgb), 0.10);
           display: flex; flex-direction: column; gap: 6px;
         }
+        .mobile-cta {
+          justify-content: center;
+          margin-top: 4px;
+          padding: 14px 20px;
+          border-radius: 12px;
+          font-size: 12px;
+        }
         .mnav-foot {
           padding: 10px 18px 14px;
           font-family: var(--font-mono);
@@ -583,7 +683,7 @@ export default function Navbar() {
           <Link href="/" className="mnav-brand" onClick={() => setMobileOpen(false)}>
             <span ref={mobileWheelRef} className="mark" style={{ width: 36, height: 36, position: "relative", display: "inline-block", overflow: "hidden", borderRadius: 6 }}>
               <span style={{ display: "flex", alignItems: "center", justifyContent: "center", width: "100%", height: "100%", position: "relative" }}>
-                <AtomMark size={30} />
+                <Image src="/images/cropped-logo.png" alt="NDSC" width={30} height={30} className="object-contain" />
               </span>
             </span>
             <div className="flex flex-col leading-none min-w-0">

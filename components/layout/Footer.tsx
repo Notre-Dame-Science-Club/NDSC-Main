@@ -2,88 +2,67 @@ import Link from "next/link";
 import Image from "next/image";
 import { Mail, Phone, MapPin, ExternalLink, Code2, Facebook, Instagram, Youtube, Linkedin, Navigation, UserPlus, LogIn, LayoutDashboard, ShieldCheck, BookOpen, Users, Microscope, Trophy, Newspaper } from "lucide-react";
 
-/* Small helper — icon-tile row used inside the frosted-glass cards.
-   Keeps the contact + social cards consistent. */
-function ContactRow({
+const NAV_LINKS = [
+  { href: "/", label: "Home", icon: <Navigation size={13} /> },
+  { href: "/about", label: "About Us", icon: <BookOpen size={13} /> },
+  { href: "/activities", label: "Activities", icon: <Microscope size={13} /> },
+  { href: "/publication", label: "Publication", icon: <Newspaper size={13} /> },
+  { href: "/executives", label: "Executives", icon: <Users size={13} /> },
+  { href: "/olympiad", label: "Olympiad", icon: <Trophy size={13} /> },
+];
+
+const PORTAL_LINKS = [
+  { href: "/membership", label: "Membership", icon: <UserPlus size={13} /> },
+  { href: "/login", label: "Member Login", icon: <LogIn size={13} /> },
+  { href: "/register", label: "Register", icon: <UserPlus size={13} /> },
+  { href: "/dashboard", label: "Dashboard", icon: <LayoutDashboard size={13} /> },
+  { href: "/admin/login", label: "Admin Panel", icon: <ShieldCheck size={13} /> },
+];
+
+const CONTACT_LINKS = [
+  { href: "tel:+8801568171970", label: "+880-1568-171970", icon: <Phone size={13} />, external: false },
+  { href: "mailto:contact@ndscbd.net", label: "contact@ndscbd.net", icon: <Mail size={13} />, external: false },
+  { href: "https://maps.google.com/?q=Notre+Dame+College+Dhaka", label: "G.P.O Box 5, Toyenbee Circular Rd, Dhaka 1000", icon: <MapPin size={13} />, external: true },
+  { href: "https://maps.google.com/?q=Notre+Dame+College+Dhaka", label: "Open in Google Maps", icon: <ExternalLink size={13} />, external: true },
+];
+
+const SOCIALS = [
+  { href: "https://www.facebook.com/ndscbd.official/", label: "Facebook", icon: <Facebook size={13} /> },
+  { href: "https://www.instagram.com/ndscbd.official/", label: "Instagram", icon: <Instagram size={13} /> },
+  { href: "https://www.youtube.com/@ndscbd.official/", label: "YouTube", icon: <Youtube size={13} /> },
+  { href: "https://www.linkedin.com/company/notre-dame-science-club/", label: "LinkedIn", icon: <Linkedin size={13} /> },
+];
+
+/* One plain footer link row -- no card, no box, just an icon + label that
+   slides right and picks up the accent color on hover. Same treatment for
+   nav links, contact details and socials, so the whole footer reads as one
+   consistent list system instead of four different widget styles. */
+function FootLink({
   href,
   label,
-  value,
   icon,
   external = false,
 }: {
   href: string;
   label: string;
-  value: string;
   icon: React.ReactNode;
   external?: boolean;
 }) {
   const Comp: any = external ? "a" : Link;
   const extra = external ? { target: "_blank", rel: "noopener noreferrer" } : {};
   return (
-    <Comp href={href} {...extra} className="footer-row group">
-      <span className="footer-row-icon">{icon}</span>
-      <span className="footer-row-text">
-        <small>{label}</small>
-        <strong>{value}</strong>
-      </span>
-    </Comp>
+    <li>
+      <Comp href={href} {...extra} className="foot-link">
+        <span className="foot-link-ic">{icon}</span>
+        <span className="foot-link-tx">{label}</span>
+      </Comp>
+    </li>
   );
 }
 
-const SOCIALS = [
-  {
-    href: "https://www.facebook.com/ndscbd.official/",
-    label: "Like on",
-    value: "Facebook",
-    icon: <Facebook size={18} />,
-  },
-  {
-    href: "https://www.instagram.com/ndscbd.official/",
-    label: "Follow on",
-    value: "Instagram",
-    icon: <Instagram size={18} />,
-  },
-  {
-    href: "https://www.youtube.com/@ndscbd.official/",
-    label: "Subscribe on",
-    value: "YouTube",
-    icon: <Youtube size={18} />,
-  },
-  {
-    href: "https://www.linkedin.com/company/notre-dame-science-club/",
-    label: "Connect on",
-    value: "LinkedIn",
-    icon: <Linkedin size={18} />,
-  },
-];
-
-const NAV_LINKS = [
-  { href: "/", label: "Home", icon: <Navigation size={14} /> },
-  { href: "/about", label: "About Us", icon: <BookOpen size={14} /> },
-  { href: "/activities", label: "Activities", icon: <Microscope size={14} /> },
-  { href: "/publication", label: "Publication", icon: <Newspaper size={14} /> },
-  { href: "/executives", label: "Executives", icon: <Users size={14} /> },
-  { href: "/olympiad", label: "Olympiad", icon: <Trophy size={14} /> },
-];
-
-const PORTAL_LINKS = [
-  { href: "/membership", label: "Membership", icon: <UserPlus size={14} /> },
-  { href: "/login", label: "Member Login", icon: <LogIn size={14} /> },
-  { href: "/register", label: "Register", icon: <UserPlus size={14} /> },
-  { href: "/dashboard", label: "Dashboard", icon: <LayoutDashboard size={14} /> },
-  { href: "/admin/login", label: "Admin Panel", icon: <ShieldCheck size={14} /> },
-];
-
 export default function Footer() {
   return (
-    <footer
-      className="footer-shell"
-      id="ch-footer"
-      data-cosmos-chapter
-      style={{
-        background: "linear-gradient(180deg, var(--bg2) 0%, var(--bg) 100%)",
-      }}
-    >
+    <footer className="footer-shell" id="ch-footer" data-cosmos-chapter>
       <style>{`
         .footer-shell {
           position: relative;
@@ -91,419 +70,219 @@ export default function Footer() {
           color: var(--white);
           font-family: var(--font-body);
           overflow: hidden;
+          padding: clamp(54px, 8vh, 100px) var(--pad, clamp(20px,3.4vw,60px)) clamp(26px, 4vh, 42px);
         }
         .footer-shell::before {
           content: "";
           position: absolute;
           inset: 0;
-          background:
-            radial-gradient(ellipse at 0% 0%, rgba(var(--blue-rgb), 0.08), transparent 55%),
-            radial-gradient(ellipse at 100% 100%, rgba(var(--blue-rgb), 0.06), transparent 60%);
+          z-index: -1;
           pointer-events: none;
+          background: linear-gradient(180deg, rgba(2,5,12,.35) 0%, rgba(2,5,12,.9) 38%, rgba(2,5,12,.98) 100%);
+        }
+        .footer-shell::after {
+          content: "";
+          position: absolute;
+          inset: 0;
+          z-index: -1;
+          pointer-events: none;
+          background:
+            radial-gradient(ellipse at 0% 0%, rgba(var(--blue-rgb), 0.07), transparent 55%),
+            radial-gradient(ellipse at 100% 100%, rgba(var(--blue-rgb), 0.05), transparent 60%);
         }
         .footer-top-glow {
+          position: absolute;
+          top: 0; left: 0; right: 0;
           height: 1px;
-          background: linear-gradient(90deg, transparent, rgba(var(--blue-rgb), 0.45), transparent);
+          background: linear-gradient(90deg, transparent, rgba(var(--blue-rgb), 0.4), transparent);
         }
-        .footer-inner {
+        .foot-inner {
           position: relative;
-          width: calc(100% - 40px);
-          max-width: 1200px;
+          max-width: 1280px;
           margin: 0 auto;
-          display: grid;
-          grid-template-columns: minmax(260px, 320px) minmax(0, 1fr) minmax(260px, 320px);
-          gap: clamp(25px, 3vw, 45px);
-          align-items: start;
         }
-        .footer-glass {
-          width: 100%;
-          min-width: 0;
-          padding: 24px;
-          border: 1px solid var(--border);
-          border-radius: 16px;
-          background: var(--card);
-        }
-        .footer-row-list {
+
+        /* -- brand strip -- */
+        .foot-brand {
           display: grid;
-          grid-template-columns: minmax(0, 1fr);
-          gap: 12px;
-          width: 100%;
+          grid-template-columns: 60px minmax(0, 1fr);
+          align-items: center;
+          gap: 22px;
+          padding-bottom: clamp(28px, 4.4vh, 44px);
+          margin-bottom: clamp(28px, 4.4vh, 48px);
+          border-bottom: 1px solid var(--border-soft);
+        }
+        .foot-brand-logo {
+          width: 60px;
+          height: 60px;
+          position: relative;
+          filter: drop-shadow(0 0 14px rgba(var(--blue-rgb), 0.35));
+        }
+        .foot-brand-copy {
+          font-family: var(--font-heading);
+          font-weight: 400;
+          font-size: clamp(16px, 1.9vw, 25px);
+          line-height: 1.38;
+          color: var(--white-soft);
           margin: 0;
+          max-width: 62ch;
         }
-        .footer-row {
-          display: flex !important;
-          align-items: center;
-          width: 100%;
-          min-width: 0;
-          gap: 12px;
-          margin: 0 !important;
-          padding: 13px 14px;
-          border: 1px solid var(--border);
-          border-radius: 12px;
-          background: var(--bg2);
-          color: var(--white) !important;
-          text-decoration: none !important;
-          transition: background-color 0.3s ease, border-color 0.3s ease, transform 0.3s ease;
+        .foot-brand-copy b {
+          font-weight: 600;
+          color: var(--white);
         }
-        .footer-row:hover {
-          color: var(--white) !important;
-          background: var(--surface-alt);
-          border-color: rgba(var(--blue-rgb), 0.4);
-          transform: translateY(-2px);
-        }
-        .footer-row-icon {
-          width: 38px;
-          height: 38px;
-          min-width: 38px;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          border: 1px solid rgba(var(--blue-rgb), 0.32);
-          border-radius: 10px;
-          background: rgba(var(--blue-rgb), 0.1);
+        .foot-brand-copy em {
+          font-style: normal;
           color: var(--blue);
         }
-        .footer-row-text {
-          min-width: 0;
-          flex: 1;
-        }
-        .footer-row-text small {
-          display: block;
-          margin: 0 0 3px;
-          color: var(--muted);
-          font-size: 12px;
-          font-weight: 400;
-          line-height: 1.3;
-        }
-        .footer-row-text strong {
-          display: block;
-          color: var(--white);
-          font-size: 14px;
-          font-weight: 600;
-          line-height: 1.35;
-          overflow-wrap: anywhere;
-          word-break: break-word;
-        }
-        .footer-links-wrap {
+
+        /* -- link grid -- */
+        .foot-grid {
           display: grid;
-          grid-template-columns: repeat(2, minmax(0, 1fr));
-          gap: 35px;
-          align-items: start;
-          padding-top: 5px;
+          grid-template-columns: repeat(4, minmax(0, 1fr));
+          gap: clamp(22px, 3.6vw, 48px);
         }
-        .footer-link-group h3 {
-          margin: 0 0 17px;
-          color: var(--white) !important;
-          font-family: var(--font-heading);
-          font-size: 14px;
-          font-weight: 800;
-          letter-spacing: 0.18em;
+        .foot-col h4 {
+          margin: 0 0 18px;
+          font-family: var(--font-mono);
+          font-size: 10px;
+          font-weight: 500;
+          letter-spacing: 0.24em;
           text-transform: uppercase;
-          line-height: 1.3;
+          color: var(--muted);
         }
-        .footer-link-list {
+        .foot-col ul {
+          list-style: none;
+          margin: 0;
+          padding: 0;
           display: flex;
           flex-direction: column;
-          gap: 6px;
         }
-        .footer-link-list a {
+        .foot-link {
           display: flex;
           align-items: center;
-          gap: 8px;
-          width: fit-content;
-          max-width: 100%;
-          padding: 6px 0;
-          color: var(--muted) !important;
-          font-size: 14px;
-          font-weight: 400;
-          line-height: 1.4;
+          gap: 10px;
+          padding: 8px 0;
+          color: var(--white-soft) !important;
           text-decoration: none !important;
-          transition: color 0.3s ease, transform 0.3s ease;
+          font-size: 13.5px;
+          line-height: 1.4;
+          transition: color 0.28s ease, transform 0.28s ease;
         }
-        .footer-link-list a:hover {
+        .foot-link-ic {
+          display: inline-flex;
+          color: rgba(var(--blue-rgb), 0.7);
+          flex-shrink: 0;
+          transition: color 0.28s ease;
+        }
+        .foot-link-tx {
+          overflow-wrap: anywhere;
+        }
+        .foot-link:hover {
           color: var(--blue) !important;
           transform: translateX(5px);
         }
-        .footer-link-list a .li-dot {
-          width: 5px;
-          height: 5px;
-          border-radius: 50%;
-          background: var(--blue);
-          opacity: 0.6;
-          transition: opacity 0.3s, transform 0.3s;
+        .foot-link:hover .foot-link-ic {
+          color: var(--blue);
         }
-        .footer-link-list a:hover .li-dot {
-          opacity: 1;
-          transform: scale(1.4);
-        }
-        .footer-bottom {
+
+        /* -- bottom bar -- */
+        .foot-base {
           position: relative;
-          width: calc(100% - 40px);
-          max-width: 1200px;
-          margin: 38px auto 0;
-          padding: 20px 0 4px;
-          border-top: 1px solid var(--border);
+          margin-top: clamp(32px, 5vh, 56px);
+          padding-top: 22px;
+          border-top: 1px solid var(--border-soft);
           display: flex;
           align-items: center;
           justify-content: space-between;
-          gap: 20px;
           flex-wrap: wrap;
-        }
-        .footer-bottom p {
-          margin: 0 !important;
-          color: var(--muted) !important;
-          font-size: 14px;
-          font-weight: 400;
-          line-height: 1.5;
-        }
-        .footer-bottom-meta {
-          display: flex;
-          align-items: center;
-          gap: 14px;
-        }
-        .footer-brand {
-          display: flex;
-          align-items: center;
-          gap: 12px;
-          margin-bottom: 14px;
-        }
-        .footer-brand-logo {
-          width: 44px;
-          height: 44px;
-          position: relative;
-          filter: drop-shadow(0 0 10px rgba(var(--blue-rgb), 0.4));
-        }
-        .footer-brand-text {
-          display: flex;
-          flex-direction: column;
-          line-height: 1.1;
-        }
-        .footer-brand-text .t1 {
-          font-family: var(--font-heading);
-          font-size: 14px;
-          font-weight: 900;
-          letter-spacing: 0.22em;
-          background: linear-gradient(180deg, #e8f4ff 0%, var(--blue) 100%);
-          -webkit-background-clip: text;
-          background-clip: text;
-          -webkit-text-fill-color: transparent;
-        }
-        .footer-brand-text .t2 {
+          gap: 12px 28px;
           font-family: var(--font-mono);
-          font-size: 10px;
-          letter-spacing: 0.18em;
-          color: rgba(var(--blue-rgb), 0.6);
-          margin-top: 2px;
-        }
-        .footer-blurb {
+          font-size: 10.5px;
+          font-weight: 500;
+          letter-spacing: 0.16em;
+          text-transform: uppercase;
           color: var(--muted);
-          font-size: 13px;
-          line-height: 1.55;
-          margin: 0;
         }
-        .footer-blurb em {
-          color: rgba(var(--blue-rgb), 0.85);
-          font-style: normal;
+        .foot-base a {
+          display: inline-flex;
+          align-items: center;
+          gap: 6px;
+          color: rgba(var(--blue-rgb), 0.75) !important;
+          text-decoration: none !important;
+          transition: color 0.25s ease;
         }
+        .foot-base a:hover { color: var(--blue) !important; }
 
-        @media screen and (max-width: 1050px) {
-          .footer-inner {
-            grid-template-columns: repeat(2, minmax(0, 1fr));
-            gap: 30px;
-          }
-          .footer-contact-card { order: 1; }
-          .footer-social-card { order: 2; }
-          .footer-links-wrap {
-            grid-column: 1 / -1;
-            order: 3;
-            gap: 30px;
-            padding-top: 5px;
-          }
+        @media screen and (max-width: 1000px) {
+          .foot-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 34px 24px; }
         }
-        @media screen and (max-width: 700px) {
-          .footer-shell { padding: 45px 0 20px; }
-          .footer-inner {
-            width: calc(100% - 32px);
-            grid-template-columns: minmax(0, 1fr);
-            gap: 24px;
-          }
-          .footer-links-wrap {
-            grid-column: auto;
-            order: 3;
-            grid-template-columns: repeat(2, minmax(0, 1fr));
-            gap: 20px;
-          }
-          .footer-glass { padding: 20px; }
-          .footer-link-group h3 { font-size: 14px; }
-          .footer-bottom {
-            width: calc(100% - 32px);
-            margin-top: 30px;
-            padding-top: 18px;
-            flex-direction: column;
-            justify-content: center;
-            text-align: center;
-            gap: 8px;
-          }
-        }
-        @media screen and (max-width: 420px) {
-          .footer-links-wrap {
-            grid-template-columns: minmax(0, 1fr);
-            gap: 25px;
-          }
-          .footer-glass { padding: 16px; }
-          .footer-row { padding: 12px; }
-          .footer-row-text strong { font-size: 13px; }
+        @media screen and (max-width: 620px) {
+          .foot-brand { grid-template-columns: 46px minmax(0, 1fr); gap: 16px; }
+          .foot-brand-logo { width: 46px; height: 46px; }
+          .foot-base { flex-direction: column; align-items: flex-start; gap: 8px; }
         }
       `}</style>
 
-      {/* Top glow line */}
       <div className="footer-top-glow" />
 
-      <div style={{ padding: "60px 0 20px" }}>
-        <div className="footer-inner">
-          {/* Contact Card */}
-          <div className="footer-glass footer-contact-card">
-            <div className="footer-brand">
-              <div className="footer-brand-logo">
-                <Image src="/images/cropped-logo.png" alt="NDSC" fill className="object-contain" />
-              </div>
-              <div className="footer-brand-text">
-                <span className="t1">NDSC</span>
-                <span className="t2">Notre Dame Science Club</span>
-              </div>
-            </div>
-            <p className="footer-blurb" style={{ marginBottom: 16 }}>
-              Founded in <em style={{ color: "rgba(var(--blue-rgb), 0.95)" }}>1955</em> — the first
-              college-level science club in the Indian Subcontinent. Upholding
-              <em> &quot;Science in Human Welfare.&quot;</em>
-            </p>
-
-            <div className="footer-row-list">
-              <ContactRow
-                href="tel:+8801568171970"
-                label="Contact"
-                value="+880-1568-171970"
-                icon={<Phone size={16} />}
-              />
-              <ContactRow
-                href="mailto:contact@ndscbd.net"
-                label="Email"
-                value="contact@ndscbd.net"
-                icon={<Mail size={16} />}
-              />
-              <ContactRow
-                href="https://maps.google.com/?q=Notre+Dame+College+Dhaka"
-                label="Address"
-                value="G.P.O Box 5, Toyenbee Circular Rd, Dhaka 1000"
-                icon={<MapPin size={16} />}
-                external
-              />
-              <ContactRow
-                href="https://maps.google.com/?q=Notre+Dame+College+Dhaka"
-                label="Find Us"
-                value="Open in Google Maps"
-                icon={<ExternalLink size={16} />}
-                external
-              />
-            </div>
+      <div className="foot-inner">
+        {/* Brand strip */}
+        <div className="foot-brand">
+          <div className="foot-brand-logo">
+            <Image src="/images/cropped-logo.png" alt="NDSC" fill className="object-contain" />
           </div>
+          <p className="foot-brand-copy">
+            The pioneer science club of the <b>Indian Subcontinent</b>, founded <em>1955</em> at
+            Notre Dame College, Dhaka.
+          </p>
+        </div>
 
-          {/* Link Columns */}
-          <div className="footer-links-wrap">
-            <div className="footer-link-group">
-              <h3>Navigate</h3>
-              <div className="footer-link-list">
-                {NAV_LINKS.map(({ href, label, icon }) => (
-                  <Link key={href} href={href}>
-                    <span className="li-dot" />
-                    <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
-                      <span style={{ color: "var(--blue)", display: "inline-flex" }}>{icon}</span>
-                      {label}
-                    </span>
-                  </Link>
-                ))}
-              </div>
-            </div>
-
-            <div className="footer-link-group">
-              <h3>Member Portal</h3>
-              <div className="footer-link-list">
-                {PORTAL_LINKS.map(({ href, label, icon }) => (
-                  <Link key={href} href={href}>
-                    <span className="li-dot" />
-                    <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
-                      <span style={{ color: "var(--blue)", display: "inline-flex" }}>{icon}</span>
-                      {label}
-                    </span>
-                  </Link>
-                ))}
-              </div>
-            </div>
-          </div>
-
-          {/* Social Card */}
-          <div className="footer-glass footer-social-card">
-            <h3
-              style={{
-                margin: "0 0 16px",
-                color: "var(--white)",
-                fontFamily: 'inherit',
-                fontSize: 14,
-                fontWeight: 800,
-                letterSpacing: "0.18em",
-                textTransform: "uppercase",
-              }}
-            >
-              Follow Us
-            </h3>
-            <div className="footer-row-list">
-              {SOCIALS.map(({ href, label, value, icon }) => (
-                <ContactRow
-                  key={href}
-                  href={href}
-                  label={label}
-                  value={value}
-                  icon={icon}
-                  external
-                />
+        {/* Link columns */}
+        <div className="foot-grid">
+          <div className="foot-col">
+            <h4>Club</h4>
+            <ul>
+              {NAV_LINKS.map(({ href, label, icon }) => (
+                <FootLink key={href} href={href} label={label} icon={icon} />
               ))}
-            </div>
+            </ul>
+          </div>
+
+          <div className="foot-col">
+            <h4>Member Portal</h4>
+            <ul>
+              {PORTAL_LINKS.map(({ href, label, icon }) => (
+                <FootLink key={href} href={href} label={label} icon={icon} />
+              ))}
+            </ul>
+          </div>
+
+          <div className="foot-col">
+            <h4>Contact</h4>
+            <ul>
+              {CONTACT_LINKS.map(({ href, label, icon, external }) => (
+                <FootLink key={label} href={href} label={label} icon={icon} external={external} />
+              ))}
+            </ul>
+          </div>
+
+          <div className="foot-col">
+            <h4>Elsewhere</h4>
+            <ul>
+              {SOCIALS.map(({ href, label, icon }) => (
+                <FootLink key={href} href={href} label={label} icon={icon} external />
+              ))}
+              <FootLink href="/developers" label="Developers" icon={<Code2 size={13} />} />
+            </ul>
           </div>
         </div>
 
         {/* Bottom bar */}
-        <div className="footer-bottom">
-          <p>
-            © {new Date().getFullYear()} Notre Dame Science Club (NDSC). All rights reserved.
-          </p>
-          <div className="footer-bottom-meta">
-            <span
-              style={{
-                fontFamily: "var(--font-mono)",
-                fontSize: 12,
-                letterSpacing: "0.18em",
-                color: "rgba(var(--blue-rgb), 0.5)",
-              }}
-            >
-              EST. 1955 · DHAKA, BD
-            </span>
-            <Link
-              href="/developers"
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: 6,
-                fontSize: 12,
-                fontWeight: 700,
-                letterSpacing: "0.15em",
-                color: "rgba(var(--blue-rgb), 0.7)",
-                fontFamily: "var(--font-mono)",
-                textDecoration: "none",
-              }}
-            >
-              <Code2 size={12} /> DEVELOPERS
-            </Link>
-          </div>
+        <div className="foot-base">
+          <span>© {new Date().getFullYear()} Notre Dame Science Club</span>
+          <span>Science in Human Welfare</span>
+          <span>Est. 1955 · Dhaka, BD</span>
         </div>
       </div>
     </footer>

@@ -93,7 +93,7 @@ export const metadata: Metadata = {
 
 const HEADER_SIZES: Record<string, { height: string; logo: string }> = {
   compact: { height: "56px", logo: "32px" },
-  default: { height: "64px", logo: "38px" },
+  default: { height: "72px", logo: "42px" },
   large: { height: "76px", logo: "46px" },
 };
 

@@ -73,9 +73,9 @@
   color-scheme: dark;
 
   /* Header size — overridden at runtime by AppearanceProvider from the
-     Admin > Appearance setting. Defaults match the original fixed h-16 navbar. */
-  --navbar-height: 64px;
-  --navbar-logo: 38px;
+     Admin > Appearance setting. Defaults match the "default" header size. */
+  --navbar-height: 72px;
+  --navbar-logo: 42px;
 }
 
 /* ═══════════════════════════════════════════

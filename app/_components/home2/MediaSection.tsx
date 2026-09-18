@@ -61,12 +61,26 @@ export default function MediaSection() {
                 className="ch-media-item"
                 data-cursor
                 onClick={() => setActive(i)}
-                style={{ borderColor: active === i ? "var(--blue)" : undefined, background: "none", textAlign: "left", cursor: "pointer" }}
+                style={{
+                  borderColor: active === i ? "var(--blue)" : undefined,
+                  background: active === i ? "color-mix(in srgb, var(--blue) 8%, transparent)" : "none",
+                  textAlign: "left",
+                  cursor: "pointer",
+                }}
               >
                 <span className="thumb" style={{ backgroundImage: `url(https://img.youtube.com/vi/${vid}/mqdefault.jpg)` }} />
                 <span className="tx">
                   <b>{v.title}</b>
-                  <span>{active === i ? "NOW PLAYING" : `#${i + 1}`}</span>
+                  <span>
+                    {active === i ? (
+                      <>
+                        <span style={{ width: 5, height: 5, borderRadius: "50%", background: "var(--blue)", display: "inline-block", boxShadow: "0 0 6px var(--blue)" }} />
+                        NOW PLAYING
+                      </>
+                    ) : (
+                      `#${i + 1}`
+                    )}
+                  </span>
                 </span>
               </button>
             );
