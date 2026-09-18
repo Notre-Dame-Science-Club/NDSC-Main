@@ -1,4 +1,5 @@
 import Link from "next/link";
+import FounderPhoto from "./FounderPhoto";
 
 /**
  * Chapter 1. Two beats, in order: first the club's own pitch with the link
@@ -47,7 +48,7 @@ export default function LegacySection() {
         <figure className="ch-founder-photo">
           {/* Placeholder silhouette -- replace src with the real transparent
               cut-out once it's ready; nothing else in this stage changes. */}
-          <img src="/images/founder-cutout.png" alt="Fr. Richard William Timm, C.S.C." onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }} />
+          <FounderPhoto />
           <figcaption>
             <b>Fr. Richard William Timm, C.S.C.</b>
             <span>Founder · 1955</span>
