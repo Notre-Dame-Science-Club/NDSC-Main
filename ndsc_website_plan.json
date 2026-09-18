@@ -1,0 +1,962 @@
+{
+  "title": "NDSC Website - Information Architecture / Sitemap",
+  "version": 2,
+  "source": "Reconstructed from an XMind mind map. v1 from a screenshot (NDSC_Website.jpg); v2 updated against a later text export (REGISTER.pdf) reflecting edits made to the live map.",
+  "notes": [
+    "This mind map is the source-of-truth sitemap for the Notre Dame Science Club (NDSC) web platform.",
+    "Node shapes in the original diagram carry meaning: rounded rectangles = pages/sections, parallelogram = data input/upload, circle (o) = a generic connector/process step with no label, dashed boxes = data-structure notes (not pages), strikethrough text = collapsed/duplicate reference to a node defined elsewhere in the tree (not re-expanded to save space). Shape info could not be re-verified in v2 since the update source was plain text, not an image.",
+    "Four small diagrams in the tree are NOT connected by lines to the main tree - they are floating reference/legend diagrams that define shared concepts reused all over the tree (the form system, shared data models, and two workflows). They are included under 'reference_diagrams' and 'workflows' and are cross-referenced from the main tree via 'ref' fields.",
+    "Some labels in the source diagram appear to be typos or placeholders left by the original author; these are preserved verbatim with an 'original_label' plus a 'note' where it seemed useful, rather than silently corrected.",
+    "Changes made in v2 vs v1: added a stage note under DASHBOARD; removed the 'history' branch from Profile; moved 'Recent Post' from Submission/History to Social; fleshed out ADMIN > Activities > Enrollments (Basic Data, From Config, FORM SYSTEM) in place of the old 'Subtopic 2' placeholder; substantially expanded ADMIN > Social (Voting/Chats/Survays/Mailing/WP Messaging + new 'Sponsorship messaging', each now with history/responses, plus a filtering note); added a new 'Social_Response' data entity to Veriable Structures."
+  ],
+  "root": {
+    "name": "NDSC Website",
+    "children": [
+      {
+        "name": "DASHBOARD",
+        "note": "Main logged-in user dashboard",
+        "children": [
+          {
+            "type": "note",
+            "name": "stage primarily -> member, gr, organizer, executive",
+            "note": "As written in the source; 'gr' is unclear (possibly 'guest' or a typo) - kept verbatim rather than guessed."
+          },
+          {
+            "name": "Profile",
+            "note": "The 'history' / 'Get from History List' branch present in the earlier version of this diagram has been removed here.",
+            "children": [
+              {
+                "name": "personal details"
+              },
+              {
+                "name": "Become a Club Member",
+                "note": "only for college students",
+                "children": [
+                  {
+                    "name": "Submit Form",
+                    "children": [
+                      {
+                        "type": "connector",
+                        "children": [
+                          {
+                            "name": "Membership Slip Pic",
+                            "shape": "parallelogram (upload)",
+                            "children": [
+                              {
+                                "name": "Justify by Admin"
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "name": "Status",
+                    "children": [
+                      {
+                        "type": "connector",
+                        "children": [
+                          {
+                            "name": "Submissions",
+                            "children": [
+                              {
+                                "name": "Type"
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "name": "Tasks",
+            "note": "person specific, assignable",
+            "children": [
+              {
+                "name": "completed"
+              },
+              {
+                "name": "going"
+              },
+              {
+                "name": "passed"
+              }
+            ]
+          },
+          {
+            "name": "Archievements",
+            "original_label": "Archievements",
+            "note": "organized by stage",
+            "children": [
+              {
+                "name": "member life"
+              },
+              {
+                "name": "organizer life"
+              },
+              {
+                "name": "executive life"
+              }
+            ]
+          },
+          {
+            "name": "Submission/History",
+            "note": "submissions of events, payment status",
+            "children": [
+              {
+                "name": "payments"
+              },
+              {
+                "name": "events/activities"
+              },
+              {
+                "name": "olympiads"
+              },
+              {
+                "name": "Membership"
+              }
+            ]
+          },
+          {
+            "name": "Social",
+            "note": "event / stage specific chats",
+            "children": [
+              {
+                "name": "Recent Post",
+                "note": "Moved here from Submission/History in the latest version of the diagram."
+              },
+              {
+                "name": "chat rooms",
+                "children": [
+                  {
+                    "name": "club chats",
+                    "note": "for club members"
+                  },
+                  {
+                    "name": "public chats"
+                  }
+                ]
+              },
+              {
+                "name": "Announcements",
+                "note": "broadcasted to a stage",
+                "children": [
+                  {
+                    "name": "for members"
+                  },
+                  {
+                    "name": "for organizers"
+                  },
+                  {
+                    "name": "public users"
+                  }
+                ]
+              },
+              {
+                "name": "Activities and Olympiads",
+                "children": [
+                  {
+                    "name": "Open Events",
+                    "children": [
+                      {
+                        "name": "register",
+                        "ref": "workflows.registration_workflow"
+                      },
+                      {
+                        "name": "Event FAQ"
+                      }
+                    ]
+                  },
+                  {
+                    "name": "Past Events and Activities"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "name": "Control Room",
+            "note": "Only for executives",
+            "children": [
+              {
+                "name": "DEPARTMENTS ....",
+                "note": "'....' in original label suggests placeholder/incomplete list",
+                "children": [
+                  {
+                    "name": "assign/remove to a task"
+                  },
+                  {
+                    "name": "add/remove credit"
+                  },
+                  {
+                    "name": "TASKS",
+                    "children": [
+                      {
+                        "name": "Sponsorshit",
+                        "original_label": "Sponsorshit",
+                        "note": "likely typo for 'Sponsorship'"
+                      },
+                      {
+                        "name": "Olympiad Marking"
+                      },
+                      {
+                        "name": "Session Invite etc"
+                      },
+                      {
+                        "type": "data_structure_note",
+                        "name": "Structure",
+                        "fields": [
+                          "Task_UUID",
+                          "Task_Start",
+                          "Task_End",
+                          "Task_Assignment_List",
+                          "Task_Name",
+                          "Task_Description",
+                          "Task_Department",
+                          "Task_Is_Complete",
+                          "Task_Credit"
+                        ],
+                        "ref": "reference_diagrams.variable_structures.task"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "name": "TECHNICAL NOTES",
+            "children": [
+              {
+                "type": "data_structure_note",
+                "name": "Structure",
+                "fields": [
+                  "User_UUID",
+                  "User_Stage (User, Member, Organizer, Executive)",
+                  "User_Stage will filter out all enabled chats, rooms, announcements specific for that stage",
+                  "User_Credit",
+                  "[... Common detail variables ...]"
+                ],
+                "ref": "reference_diagrams.variable_structures.website_user"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "name": "ACTIVITY",
+        "note": "Six content categories, each with an identical description/gallery/docs/register pattern. Only 'Event' shows the register->FORM SYSTEM chain fully expanded in the source diagram; the rest collapse it (shown with strikethrough) as a reference to the same flow.",
+        "children": [
+          {
+            "name": "Event",
+            "children": [
+              {
+                "name": "description"
+              },
+              {
+                "name": "gallery"
+              },
+              {
+                "name": "docs"
+              },
+              {
+                "name": "register",
+                "children": [
+                  {
+                    "name": "FORM SYSTEM",
+                    "ref": "reference_diagrams.form_system",
+                    "children": [
+                      {
+                        "type": "connector",
+                        "children": [
+                          {
+                            "name": "Inputs by Form",
+                            "shape": "parallelogram (input)",
+                            "children": [
+                              {
+                                "name": "Invoke Submission",
+                                "children": [
+                                  {
+                                    "name": "Subtopic 1",
+                                    "note": "unfilled placeholder in source"
+                                  }
+                                ]
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "name": "Workshop",
+            "children": [
+              {
+                "name": "description"
+              },
+              {
+                "name": "gallery"
+              },
+              {
+                "name": "docs"
+              },
+              {
+                "name": "register",
+                "children": [
+                  {
+                    "name": "FORM SYSTEM",
+                    "collapsed": true,
+                    "ref": "reference_diagrams.form_system"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "name": "Scientific Posts",
+            "children": [
+              {
+                "name": "description"
+              },
+              {
+                "name": "gallery"
+              },
+              {
+                "name": "docs"
+              },
+              {
+                "name": "register",
+                "children": [
+                  {
+                    "name": "FORM SYSTEM",
+                    "collapsed": true,
+                    "ref": "reference_diagrams.form_system"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "name": "Projects",
+            "children": [
+              {
+                "name": "description"
+              },
+              {
+                "name": "gallery"
+              },
+              {
+                "name": "docs"
+              },
+              {
+                "name": "register",
+                "children": [
+                  {
+                    "name": "FORM SYSTEM",
+                    "collapsed": true,
+                    "ref": "reference_diagrams.form_system"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "name": "Stem Insights",
+            "children": [
+              {
+                "name": "description"
+              },
+              {
+                "name": "gallery"
+              },
+              {
+                "name": "docs"
+              },
+              {
+                "name": "register",
+                "children": [
+                  {
+                    "name": "FORM SYSTEM",
+                    "collapsed": true,
+                    "ref": "reference_diagrams.form_system"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "name": "Podcasts",
+            "children": [
+              {
+                "name": "description"
+              },
+              {
+                "name": "gallery"
+              },
+              {
+                "name": "docs"
+              },
+              {
+                "name": "register",
+                "children": [
+                  {
+                    "name": "FORM SYSTEM",
+                    "collapsed": true,
+                    "ref": "reference_diagrams.form_system"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "name": "OLYMPIAD",
+        "children": [
+          {
+            "name": "FORM SYSTEM",
+            "ref": "reference_diagrams.form_system",
+            "children": [
+              {
+                "name": "Relay System",
+                "shape": "dashed box (note/planned feature)"
+              },
+              {
+                "name": "Picture/Text/Latex Input"
+              }
+            ]
+          },
+          {
+            "name": "Timer"
+          },
+          {
+            "name": "AntiCheatProvider"
+          }
+        ]
+      },
+      {
+        "name": "UTILITY PAGES",
+        "children": [
+          {
+            "name": "Executives"
+          },
+          {
+            "name": "About Us"
+          },
+          {
+            "name": "Member Ship",
+            "original_label": "Member Ship",
+            "note": "likely intended as 'Membership'"
+          },
+          {
+            "name": "Publication"
+          }
+        ]
+      },
+      {
+        "name": "ADMIN",
+        "children": [
+          {
+            "name": "Dashboard"
+          },
+          {
+            "name": "Members"
+          },
+          {
+            "name": "Executives"
+          },
+          {
+            "name": "Activities",
+            "note": "The previous placeholder child 'Subtopic 2' has been fleshed out into real content under Enrollments.",
+            "children": [
+              {
+                "name": "Enrollments",
+                "note": "Nesting of Basic Data / From Config / FORM SYSTEM under Enrollments is inferred from reading order in a text-only export (no diagram lines available for this update) - worth confirming against the live diagram.",
+                "children": [
+                  {
+                    "name": "Basic Data"
+                  },
+                  {
+                    "name": "From Config",
+                    "original_label": "From Config",
+                    "note": "likely typo for 'Form Config'"
+                  },
+                  {
+                    "name": "FORM SYSTEM",
+                    "ref": "reference_diagrams.form_system"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "name": "Olympiad"
+          },
+          {
+            "name": "Public Media",
+            "note": "appears twice in a row in the source diagram - likely a duplicate/leftover node; kept both as separate entries"
+          },
+          {
+            "name": "Public Media (duplicate)",
+            "note": "second occurrence, immediately after the first 'Public Media' node in the source"
+          },
+          {
+            "name": "Announcements"
+          },
+          {
+            "name": "FORM",
+            "children": [
+              {
+                "name": "Form Bulider",
+                "original_label": "Form Bulider",
+                "note": "likely typo for 'Form Builder'"
+              },
+              {
+                "name": "From Configs",
+                "original_label": "From Configs",
+                "note": "likely typo for 'Form Configs'"
+              }
+            ]
+          },
+          {
+            "name": "Social",
+            "note": "We will have filter, in both viewing, and sending the social messages",
+            "children": [
+              {
+                "name": "Voting",
+                "children": [
+                  {
+                    "name": "history"
+                  },
+                  {
+                    "name": "responses",
+                    "ref": "reference_diagrams.variable_structures.social_response"
+                  }
+                ]
+              },
+              {
+                "name": "Chats",
+                "children": [
+                  {
+                    "name": "history"
+                  },
+                  {
+                    "name": "responses",
+                    "ref": "reference_diagrams.variable_structures.social_response"
+                  }
+                ]
+              },
+              {
+                "name": "Survays",
+                "original_label": "Survays",
+                "note": "likely typo for 'Surveys'",
+                "children": [
+                  {
+                    "name": "history"
+                  },
+                  {
+                    "name": "responses",
+                    "ref": "reference_diagrams.variable_structures.social_response"
+                  }
+                ]
+              },
+              {
+                "name": "Mailing",
+                "children": [
+                  {
+                    "name": "history"
+                  },
+                  {
+                    "name": "responses",
+                    "ref": "reference_diagrams.variable_structures.social_response"
+                  }
+                ]
+              },
+              {
+                "name": "WP Messaging",
+                "note": "Renamed from 'Messaging' in the earlier version; 'WP' meaning not specified in source.",
+                "children": [
+                  {
+                    "name": "history"
+                  },
+                  {
+                    "name": "responses",
+                    "ref": "reference_diagrams.variable_structures.social_response"
+                  }
+                ]
+              },
+              {
+                "name": "Sponsorship messaging",
+                "note": "New item added in this version.",
+                "children": [
+                  {
+                    "name": "history"
+                  },
+                  {
+                    "name": "responses",
+                    "ref": "reference_diagrams.variable_structures.social_response"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "name": "Bulk Accounts"
+          },
+          {
+            "name": "Page Apperiances",
+            "original_label": "Page Apperiances",
+            "note": "likely typo for 'Page Appearances'"
+          }
+        ]
+      }
+    ]
+  },
+  "reference_diagrams": {
+    "form_system": {
+      "aka": "FROM SYSTEM (label as written in source; almost certainly means FORM SYSTEM)",
+      "note": "Not connected by a line to the main tree. Describes the generic form-builder system referenced by every 'register' / 'FORM SYSTEM' node across ACTIVITY and OLYMPIAD.",
+      "children": [
+        {
+          "name": "Form Rendering",
+          "children": [
+            {
+              "type": "connector",
+              "children": [
+                {
+                  "name": "Root Node",
+                  "children": [
+                    {
+                      "name": "Child Node 1",
+                      "children": [
+                        {
+                          "name": "END"
+                        }
+                      ]
+                    },
+                    {
+                      "name": "Child Node 2",
+                      "children": [
+                        {
+                          "name": "Child Node 6",
+                          "children": [
+                            {
+                              "name": "..."
+                            },
+                            {
+                              "name": "END"
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "name": "Child Node 3",
+                      "children": [
+                        {
+                          "name": "Child Node 4",
+                          "children": [
+                            {
+                              "name": "Child Node 7"
+                            },
+                            {
+                              "name": "END"
+                            }
+                          ]
+                        },
+                        {
+                          "name": "Child Node 5",
+                          "children": [
+                            {
+                              "name": "END"
+                            }
+                          ]
+                        },
+                        {
+                          "name": "..."
+                        }
+                      ]
+                    },
+                    {
+                      "name": "..."
+                    }
+                  ]
+                }
+              ]
+            }
+          ],
+          "note": "Illustrates the form as a branching node graph: each answer/child node can lead to further nodes or an END state."
+        },
+        {
+          "name": "Form Building"
+        },
+        {
+          "name": "Node Attributes",
+          "children": [
+            {
+              "name": "Apperiance",
+              "original_label": "Apperiance",
+              "note": "likely typo for 'Appearance'"
+            },
+            {
+              "name": "Behavior",
+              "children": [
+                {
+                  "name": "Team Event",
+                  "children": [
+                    {
+                      "name": "Setup"
+                    }
+                  ]
+                },
+                {
+                  "name": "Payment",
+                  "children": [
+                    {
+                      "name": "MERCHENT FROM",
+                      "original_label": "MERCHENT FROM",
+                      "note": "likely typo for 'Merchant Form'"
+                    }
+                  ]
+                },
+                {
+                  "name": "Utility",
+                  "children": [
+                    {
+                      "name": "Schedule"
+                    },
+                    {
+                      "name": "Project Field"
+                    },
+                    {
+                      "name": "Show Progress Bar"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "name": "Fields"
+            }
+          ]
+        },
+        {
+          "name": "From Type/Owner",
+          "original_label": "From Type/Owner",
+          "note": "likely typo for 'Form Type/Owner'",
+          "children": [
+            {
+              "name": "Olympiad"
+            },
+            {
+              "name": "Event"
+            }
+          ]
+        },
+        {
+          "name": "Graph Level Settings"
+        }
+      ]
+    },
+    "variable_structures": {
+      "label_in_source": "Veriable Structures",
+      "note": "Not connected by a line to the main tree. Defines the core shared data entities used across the whole platform.",
+      "children": [
+        {
+          "name": "Website User",
+          "id_key": "website_user",
+          "children": [
+            {
+              "name": "Club Member",
+              "children": [
+                {
+                  "name": "Member"
+                },
+                {
+                  "name": "Organizer",
+                  "children": [
+                    {
+                      "type": "note",
+                      "text": "Extra Utilities: Can assign task to members ..."
+                    }
+                  ]
+                },
+                {
+                  "name": "Executive",
+                  "children": [
+                    {
+                      "type": "note",
+                      "text": "Extra Utilities: Executive things ..."
+                    }
+                  ]
+                },
+                {
+                  "name": "Allumni",
+                  "original_label": "Allumni",
+                  "note": "likely typo for 'Alumni'"
+                },
+                {
+                  "type": "note",
+                  "text": "Club Members will have extra information; applies to all kinds of Club Members: Task_List, Credits, Archivement_List, ..."
+                }
+              ]
+            },
+            {
+              "type": "note",
+              "text": "Variables: Name, Email, Phone, Institute, Class, Password, Blood Group, Roll ...; History_List; ChatRoom_List; Submission_List; Latest_Events ..."
+            }
+          ]
+        },
+        {
+          "name": "Submission",
+          "children": [
+            {
+              "name": "Submission Type",
+              "children": [
+                {
+                  "name": "Activity Submission"
+                },
+                {
+                  "name": "Olympiad Submission"
+                },
+                {
+                  "name": "Membership Submission"
+                },
+                {
+                  "name": "Payment for some Activity",
+                  "children": [
+                    {
+                      "name": "Approved/No Approved"
+                    },
+                    {
+                      "name": "Amount and details"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "name": "Submission Data",
+              "children": [
+                {
+                  "name": "Big String / Json"
+                }
+              ]
+            },
+            {
+              "name": "Submission User Data/Index/gmail"
+            }
+          ]
+        },
+        {
+          "name": "Activity",
+          "children": [
+            {
+              "name": "Has Registration",
+              "children": [
+                {
+                  "name": "Form ID"
+                }
+              ]
+            },
+            {
+              "name": "Version"
+            },
+            {
+              "name": "Title, Description ..."
+            },
+            {
+              "name": "External Docs and Links"
+            }
+          ]
+        },
+        {
+          "name": "Task",
+          "id_key": "task",
+          "children": [
+            {
+              "name": "String Details and Title"
+            },
+            {
+              "name": "Assignment member ID/ gmail/ data"
+            },
+            {
+              "name": "Progress, Credit and passing history string"
+            }
+          ]
+        },
+        {
+          "name": "Chat Room",
+          "children": [
+            {
+              "name": "Stage (Club Member, Public, Organizer ...)"
+            },
+            {
+              "name": "Room Data Strong / Json",
+              "note": "likely typo for 'Room Data String / Json'"
+            }
+          ]
+        },
+        {
+          "name": "Social_Response",
+          "id_key": "social_response",
+          "note": "New entity added in this version - backs the 'history'/'responses' pattern now used under ADMIN > Social.",
+          "children": [
+            {
+              "name": "Response Type"
+            },
+            {
+              "name": "Response Data String / Json"
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "workflows": {
+    "registration_workflow": {
+      "label_in_source": "Registration WorkFlow",
+      "note": "Not connected by a line to the main tree. Two parallel paths depending on login method.",
+      "paths": [
+        {
+          "name": "Normal Registration",
+          "steps": [
+            "Login",
+            "Justify",
+            "Input Basic Details",
+            "(connector)",
+            "Normal Registration"
+          ]
+        },
+        {
+          "name": "OAuth Registration",
+          "steps": [
+            "Login",
+            "0Auth Server Choosing and Justify",
+            "Input Basic Details",
+            "(connector)",
+            "0Auth Registration"
+          ]
+        }
+      ]
+    },
+    "survey_workflow": {
+      "label_in_source": "Suvery WorkFlow",
+      "note": "Not connected by a line to the main tree; likely typo for 'Survey WorkFlow'.",
+      "steps": [
+        "Form Builder",
+        "Stage (...)",
+        "Responses"
+      ]
+    }
+  }
+}

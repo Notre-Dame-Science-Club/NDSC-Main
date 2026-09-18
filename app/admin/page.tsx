@@ -1,0 +1,60 @@
+import { cookies } from 'next/headers'
+import { redirect } from 'next/navigation'
+import { authCookies } from '@/lib/config/site'
+import { Users, CalendarDays, BookOpen, UserCog, Trophy, Megaphone, Wrench, Bot, MessageSquare, FileText, UserPlus, ClipboardList, Workflow, Film } from 'lucide-react'
+
+const DASHBOARD_CARDS = [
+  { label: 'Members', icon: Users, href: '/admin/members', desc: 'Manage member registrations' },
+  { label: 'Executives', icon: UserCog, href: '/admin/executives', desc: 'Manage full club' },
+  { label: 'Activities', icon: CalendarDays, href: '/admin/activities', desc: 'Events, workshops, seminars' },
+  { label: 'Olympiads', icon: Trophy, href: '/admin/olympiads', desc: 'Manage olympiad registrations' },
+  { label: 'Publications', icon: BookOpen, href: '/admin/publications', desc: 'Upload & manage PDFs' },
+  { label: 'Science Media', icon: Film, href: '/admin/science-media', desc: 'Manage science media content' },
+  { label: 'Announcements', icon: Megaphone, href: '/admin/announcements', desc: 'Send email & SMS blasts' },
+  { label: 'Surveys', icon: ClipboardList, href: '/admin/surveys', desc: 'Create and manage surveys' },
+  { label: 'Chat & Voting', icon: MessageSquare, href: '/admin/chat', desc: 'Manage chat rooms and polls' },
+  { label: 'Form Builder', icon: Workflow, href: '/admin/form-builder', desc: 'Visual form graph builder' },
+  { label: 'Form Configs', icon: FileText, href: '/admin/forms', desc: 'Configure form templates & themes' },
+  { label: 'Bulk Accounts', icon: UserPlus, href: '/admin/bulk-accounts', desc: 'Create multiple accounts via CSV' },
+  { label: 'Fix Upload URLs', icon: Wrench, href: '/admin/fix-urls', desc: 'Fix broken image/file URLs in database' },
+  { label: 'AI ChatBot', icon: Bot, href: 'https://ndsc-ai-bot.foysalmahmud1627.workers.dev/logs', desc: 'NDSC AI LightHouse' },
+]
+
+export default async function AdminDashboard() {
+  const cookieStore = await cookies()
+  const session = cookieStore.get(authCookies.admin)
+  if (!session) redirect('/admin/login')
+
+  let adminEmail = 'Admin'
+  try {
+    adminEmail = JSON.parse(session.value).email || 'Admin'
+  } catch {}
+
+  return (
+    <div>
+      <div className="mb-8">
+        <h1 className="text-2xl font-bold mb-1" style={{ fontFamily: 'inherit', color: 'var(--blue)' }}>
+          Dashboard
+        </h1>
+        <p className="text-sm" style={{ color: 'var(--muted)' }}>Welcome back, {adminEmail}</p>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        {DASHBOARD_CARDS.map(card => (
+          <a
+            key={card.href}
+            href={card.href}
+            className="block rounded-xl p-5 border transition-all hover:border-[color:var(--blue)] hover:scale-[1.02]"
+            style={{ background: 'var(--bg2)', borderColor: 'var(--border)' }}
+          >
+            <div className="mb-3" style={{ color: 'var(--blue)' }}><card.icon size={28} /></div>
+            <h3 className="font-bold text-sm mb-1" style={{ fontFamily: 'inherit', color: 'var(--white)' }}>
+              {card.label}
+            </h3>
+            <p className="text-xs" style={{ color: 'var(--muted)' }}>{card.desc}</p>
+          </a>
+        ))}
+      </div>
+    </div>
+  )
+}
