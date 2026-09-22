@@ -13,7 +13,7 @@ const NAV_LINKS = [
 
 const PORTAL_LINKS = [
   { href: "/membership", label: "Membership", icon: <UserPlus size={13} /> },
-  { href: "/login", label: "Member Login", icon: <LogIn size={13} /> },
+  { href: "/login", label: "Login", icon: <LogIn size={13} /> },
   { href: "/register", label: "Register", icon: <UserPlus size={13} /> },
   { href: "/dashboard", label: "Dashboard", icon: <LayoutDashboard size={13} /> },
   { href: "/admin/login", label: "Admin Panel", icon: <ShieldCheck size={13} /> },
@@ -250,7 +250,7 @@ export default function Footer() {
           </div>
 
           <div className="foot-col">
-            <h4>Member Portal</h4>
+            <h4>Account</h4>
             <ul>
               {PORTAL_LINKS.map(({ href, label, icon }) => (
                 <FootLink key={href} href={href} label={label} icon={icon} />

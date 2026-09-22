@@ -110,7 +110,7 @@ export default function AdminLoginPage() {
             <div className="text-center pt-1">
               <Link href="/login" className="text-xs hover:text-white transition-colors"
                 style={{ color: 'var(--muted)' }}>
-                ← Member Login
+                ← Back to Login
               </Link>
             </div>
           </div>

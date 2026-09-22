@@ -403,8 +403,14 @@ export default function DashboardPage() {
       <div className="text-white px-6 py-4 flex justify-between items-center sticky top-0 z-10"
         style={{ background: 'var(--surface)', borderBottom: '1px solid var(--border)' }}>
         <div>
-          <h1 className="text-base font-bold" style={{ fontFamily: 'inherit', color: 'var(--blue)' }}>
-            NDSC Member Portal
+          <h1 className="text-base font-bold flex items-center gap-2" style={{ fontFamily: 'inherit', color: 'var(--blue)' }}>
+            NDSC Portal
+            {isVerified && (
+              <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full"
+                style={{ background: 'rgba(var(--success-rgb), 0.1)', color: 'var(--success)', border: '1px solid rgba(var(--success-rgb), 0.3)' }}>
+                <IdCard size={10} /> Member
+              </span>
+            )}
           </h1>
           <p className="text-xs mt-0.5" style={{ color: 'var(--muted)' }}>{member?.full_name || member?.email}</p>
         </div>
