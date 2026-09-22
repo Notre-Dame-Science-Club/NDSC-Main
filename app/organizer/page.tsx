@@ -11,10 +11,14 @@ type Reg = {
   annotations?: Annotation[]; organizer_note?: string
 }
 
-type Olympiad = { id: string; name: string; mode: string; questions?: any[] }
+type Olympiad = {
+  id: string; name: string; mode: string; questions?: any[]
+  result_published?: boolean; annotations_published?: boolean
+}
 
 export default function OrganizerPage() {
   const [step, setStep] = useState<'login' | 'select' | 'review'>('login')
+  const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [olympiads, setOlympiads] = useState<Olympiad[]>([])
@@ -44,14 +48,14 @@ export default function OrganizerPage() {
     })()
   }, [])
 
-  const doLogin = async (pwd: string) => {
+  const doLogin = async (uname: string, pwd: string) => {
     if (!pwd) return
     setLoading(true); setError('')
     try {
       const res = await fetch('/api/organizer/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ password: pwd }),
+        body: JSON.stringify({ username: uname, password: pwd }),
       })
       const data = await res.json()
       if (!res.ok) {
@@ -101,9 +105,36 @@ export default function OrganizerPage() {
     }
   }
 
+  // Lets the organizer decide, per olympiad, what participants see on their own
+  // dashboard once marking is done: the numeric score, the marked-up answer
+  // sheet, both, or neither. Scoped server-side to olympiads this organizer's
+  // session was actually granted (see /api/organizer/olympiad-settings).
+  const toggleSetting = async (field: 'result_published' | 'annotations_published', value: boolean) => {
+    if (!selected) return
+    // Optimistic update so the button feels instant; reconciled with the server response below.
+    setSelected(prev => prev ? { ...prev, [field]: value } : prev)
+    try {
+      const res = await fetch('/api/organizer/olympiad-settings', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ olympiadId: selected.id, [field]: value }),
+      })
+      if (!res.ok) {
+        // Revert on failure
+        setSelected(prev => prev ? { ...prev, [field]: !value } : prev)
+        return
+      }
+      const data = await res.json()
+      setSelected(prev => prev ? { ...prev, result_published: data.result_published, annotations_published: data.annotations_published } : prev)
+      setOlympiads(prev => prev.map(o => o.id === selected.id ? { ...o, result_published: data.result_published, annotations_published: data.annotations_published } : o))
+    } catch {
+      setSelected(prev => prev ? { ...prev, [field]: !value } : prev)
+    }
+  }
+
   const logout = async () => {
     await fetch('/api/organizer/logout', { method: 'POST' })
-    setStep('login'); setPassword(''); setOlympiads([]); setSelected(null); setRegs([])
+    setStep('login'); setUsername(''); setPassword(''); setOlympiads([]); setSelected(null); setRegs([])
   }
 
   const filteredRegs = regs.filter(r => {
@@ -128,12 +159,16 @@ export default function OrganizerPage() {
       <div className="w-full max-w-sm p-8 rounded-2xl border" style={{ background: 'var(--bg2)', borderColor: 'var(--border)' }}>
         <h1 className="text-2xl font-black mb-2 text-center" style={{ fontFamily: 'inherit', color: 'var(--blue)' }}>ORGANIZER</h1>
         <p className="text-xs text-center mb-6" style={{ color: 'var(--muted)' }}>Review panel for NDSC Olympiad submissions</p>
+        <label className="block text-xs mb-1" style={{ color: 'var(--muted)' }}>Organizer Username</label>
+        <input type="text" autoCapitalize="none" autoComplete="username" className="w-full px-4 py-3 rounded-lg text-sm border outline-none mb-4"
+          style={inpStyle} value={username} onChange={e => setUsername(e.target.value)}
+          onKeyDown={e => e.key === 'Enter' && doLogin(username, password)} placeholder="Given to you by the admin (optional for older accounts)" />
         <label className="block text-xs mb-1" style={{ color: 'var(--muted)' }}>Organizer Password</label>
-        <input type="password" className="w-full px-4 py-3 rounded-lg text-sm border outline-none mb-4"
+        <input type="password" autoComplete="current-password" className="w-full px-4 py-3 rounded-lg text-sm border outline-none mb-4"
           style={inpStyle} value={password} onChange={e => setPassword(e.target.value)}
-          onKeyDown={e => e.key === 'Enter' && doLogin(password)} placeholder="Enter organizer password" />
+          onKeyDown={e => e.key === 'Enter' && doLogin(username, password)} placeholder="Enter organizer password" />
         {error && <p className="text-xs mb-3" style={{ color: 'var(--danger-soft)' }}>{error}</p>}
-        <button onClick={() => doLogin(password)} disabled={loading}
+        <button onClick={() => doLogin(username, password)} disabled={loading}
           className="w-full py-3 font-black text-sm rounded-lg disabled:opacity-50"
           style={{ background: 'var(--blue)', color: '#000', fontFamily: 'inherit' }}>
           {loading ? 'CHECKING...' : 'LOGIN →'}
@@ -183,6 +218,36 @@ export default function OrganizerPage() {
             </div>
           </div>
           <button onClick={logout} className="text-xs px-3 py-1.5 rounded-lg border" style={{ borderColor: 'var(--border)', color: 'var(--muted)' }}>Logout</button>
+        </div>
+
+        {/* Participant-facing display — choose what a participant sees on their own
+            dashboard once you're done marking their submission. The two are independent:
+            turn on the score, the marked sheet, both, or neither. */}
+        <div className="rounded-xl p-4 mb-6 border" style={{ background: 'var(--bg2)', borderColor: 'var(--border)' }}>
+          <p className="text-xs font-bold tracking-widest mb-1" style={{ color: 'var(--muted)' }}>SHOW TO PARTICIPANTS</p>
+          <p className="text-xs mb-3" style={{ color: 'var(--border-soft)' }}>
+            Controls what a participant sees for this olympiad on their own dashboard.
+          </p>
+          <div className="flex flex-wrap gap-2">
+            <button onClick={() => toggleSetting('result_published', !selected?.result_published)}
+              className="text-xs px-3 py-1.5 rounded-lg border font-semibold"
+              style={{
+                borderColor: selected?.result_published ? 'rgba(var(--success-rgb), 0.4)' : 'var(--border)',
+                color: selected?.result_published ? 'var(--success)' : 'var(--muted)',
+                background: selected?.result_published ? 'rgba(var(--success-rgb), 0.08)' : 'transparent',
+              }}>
+              {selected?.result_published ? '✓ Marks visible' : 'Show marks obtained'}
+            </button>
+            <button onClick={() => toggleSetting('annotations_published', !selected?.annotations_published)}
+              className="text-xs px-3 py-1.5 rounded-lg border font-semibold"
+              style={{
+                borderColor: selected?.annotations_published ? 'rgba(var(--blue-rgb), 0.4)' : 'var(--border)',
+                color: selected?.annotations_published ? 'var(--blue)' : 'var(--muted)',
+                background: selected?.annotations_published ? 'rgba(var(--blue-rgb), 0.08)' : 'transparent',
+              }}>
+              {selected?.annotations_published ? '✓ Marked sheet visible' : 'Show marked answer sheet'}
+            </button>
+          </div>
         </div>
 
         {/* Stats */}

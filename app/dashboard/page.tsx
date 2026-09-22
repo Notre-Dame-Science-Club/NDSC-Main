@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { MessageCircle, Award, Plus, Upload, X, Home, CalendarDays, BookOpen, Trophy, User, Megaphone, Ticket, Link2, CheckCircle, FileText, CalendarCheck, CreditCard, ClipboardList, ArrowRight, IdCard, Clock } from 'lucide-react'
 import SurveyForm from '@/components/SurveyForm'
+import AnnotationViewer from '@/components/olympiad/AnnotationViewer'
 
 type Tab = 'profile' | 'tasks' | 'history' | 'activities' | 'chat' | 'surveys' | 'publications' | 'control'
 type Achievement = { id: string; title: string; description?: string; image_url?: string; status: 'pending' | 'approved'; created_at: string }
@@ -37,6 +38,10 @@ export default function DashboardPage() {
   const [tasksLoading, setTasksLoading] = useState(false)
   const [historyData, setHistoryData] = useState<any>({ olympiadSubmissions: [], paymentHistory: [] })
   const [historyLoading, setHistoryLoading] = useState(false)
+  // Which submission's marked-up answer sheet the participant is currently viewing —
+  // only ever opened for a submission whose olympiad has annotations_published = true
+  // (the organizer's choice; see /organizer's "Show to participants" toggles).
+  const [viewingAnnotatedSubmission, setViewingAnnotatedSubmission] = useState<any>(null)
 
   useEffect(() => {
     const load = async () => {
@@ -939,6 +944,14 @@ export default function DashboardPage() {
                               {submission.result_feedback}
                             </p>
                           )}
+                          {/* Organizer's choice — only shown once they've turned this on for the olympiad */}
+                          {submission.olympiads?.annotations_published && submission.answer_sheet_url && (
+                            <button onClick={() => setViewingAnnotatedSubmission(submission)}
+                              className="text-xs mt-2 px-2.5 py-1 rounded inline-flex items-center gap-1.5 font-medium"
+                              style={{ background: 'rgba(var(--blue-rgb), 0.1)', color: 'var(--blue)', border: '1px solid rgba(var(--blue-rgb), 0.25)' }}>
+                              <FileText size={12} /> View marked answer sheet
+                            </button>
+                          )}
                         </div>
                       </div>
                     </div>
@@ -1469,6 +1482,17 @@ export default function DashboardPage() {
             </div>
           </div>
         </div>
+      )}
+
+      {viewingAnnotatedSubmission && (
+        <AnnotationViewer
+          imageUrl={viewingAnnotatedSubmission.answer_sheet_url}
+          initialAnnotations={viewingAnnotatedSubmission.annotations || []}
+          initialScore={viewingAnnotatedSubmission.final_score ?? ''}
+          initialNote={viewingAnnotatedSubmission.organizer_note || ''}
+          readOnly
+          onClose={() => setViewingAnnotatedSubmission(null)}
+        />
       )}
 
       {openSurveyId && (

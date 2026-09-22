@@ -47,6 +47,7 @@ type Olympiad = {
   exam_date?: string
   eligibility?: string
   external_only?: boolean
+  organizer_username?: string
   organizer_password?: string
   registration_fields: RegField[]
   questions: Question[]
@@ -300,6 +301,7 @@ export default function AdminOlympiadsPage() {
       exam_date: editing.exam_date || null,
       eligibility: editing.eligibility || null,
       external_only: editing.external_only ?? false,
+      organizer_username: editing.organizer_username || null,
       organizer_password: editing.organizer_password || null,
       registration_fields: editing.registration_fields || [],
       questions: editing.questions || [],
@@ -589,7 +591,7 @@ export default function AdminOlympiadsPage() {
                 </>
               )}
             </div>
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="block text-xs mb-1" style={{ color: 'var(--muted)' }}>Question Display</label>
                 <select className={inputClass} style={inputStyle} value={editing.question_display || 'all_at_once'} onChange={e => setEditing(p => ({ ...p, question_display: e.target.value as any }))}>
@@ -601,11 +603,28 @@ export default function AdminOlympiadsPage() {
                 <label className="block text-xs mb-1" style={{ color: 'var(--muted)' }}>Timer (minutes)</label>
                 <input type="number" min={1} max={300} className={inputClass} style={inputStyle} value={editing.timer_minutes ?? 60} onChange={e => setEditing(p => ({ ...p, timer_minutes: Number(e.target.value) }))} />
               </div>
-              <div>
-                <label className="block text-xs mb-1" style={{ color: 'var(--muted)' }}>Organizer Password</label>
-                <input className={inputClass} style={inputStyle} value={editing.organizer_password || ''} onChange={e => setEditing(p => ({ ...p, organizer_password: e.target.value }))} placeholder="For organizer login" />
-              </div>
             </div>
+
+            {/* Organizer login — issued from here so admins control who can review this olympiad's submissions */}
+            <div className="rounded-lg p-4 space-y-3" style={{ background: 'var(--bg3)', border: '1px solid var(--border)' }}>
+              <p className="text-xs font-bold tracking-widest" style={{ color: 'var(--cat-teal)' }}>ORGANIZER LOGIN</p>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs mb-1" style={{ color: 'var(--muted)' }}>Organizer Username</label>
+                  <input className={inputClass} style={inputStyle} value={editing.organizer_username || ''} onChange={e => setEditing(p => ({ ...p, organizer_username: e.target.value }))} placeholder="e.g. physics-organizer" />
+                </div>
+                <div>
+                  <label className="block text-xs mb-1" style={{ color: 'var(--muted)' }}>Organizer Password</label>
+                  <input className={inputClass} style={inputStyle} value={editing.organizer_password || ''} onChange={e => setEditing(p => ({ ...p, organizer_password: e.target.value }))} placeholder="For organizer login" />
+                </div>
+              </div>
+              <p className="text-xs" style={{ color: 'var(--border-soft)' }}>
+                Give these to the organizer reviewing this olympiad at <code>/organizer</code>. Leaving username blank keeps
+                the old password-only login working for this olympiad. The same username + password can be reused across
+                multiple olympiads to give one organizer access to all of them at once.
+              </p>
+            </div>
+
             <div className="flex gap-6">
               <label className="flex items-center gap-2 text-sm cursor-pointer" style={{ color: 'var(--muted)' }}>
                 <input type="checkbox" checked={editing.result_published || false} onChange={e => setEditing(p => ({ ...p, result_published: e.target.checked }))} />

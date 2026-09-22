@@ -421,6 +421,8 @@ export interface OlympiadRow {
   eligibility: string
   /** plaintext — see organizer login; not a real security boundary */
   organizer_password: string
+  /** paired with organizer_password; null = legacy password-only login for this olympiad */
+  organizer_username: string | null
   registration_fields: RegistrationFieldDef[]
   questions: OlympiadQuestion[]
   relay_mode: boolean

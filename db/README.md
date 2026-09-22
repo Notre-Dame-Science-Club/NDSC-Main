@@ -35,6 +35,8 @@ Format: `XX_descriptive_name.sql`
 - `18_migration_achievements_stage.sql` - Member achievements and stages
 - `19_migration_tasks_system.sql` - Task/project management system
 - `20_migration_event_start_end.sql` - Event date range (start/end dates)
+- `21_migration_publication_flipbook_url.sql` - Per-publication flip-book link
+- `22_migration_organizer_username.sql` - Organizer login username (paired with organizer_password, set from Admin → Olympiads)
 
 ### Data Seeds
 - `98_seed_local.sql` - Local development seed data

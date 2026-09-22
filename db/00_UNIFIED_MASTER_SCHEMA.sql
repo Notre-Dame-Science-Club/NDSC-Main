@@ -324,6 +324,7 @@ create table if not exists olympiads (
   exam_date              timestamptz,
   eligibility            text,
   organizer_password     text,
+  organizer_username     text,                            -- paired with organizer_password; NULL = legacy password-only login (see 22_migration_organizer_username.sql)
   registration_fields    jsonb default '[]',
   questions              jsonb default '[]',
   relay_mode             boolean default false,
@@ -341,6 +342,13 @@ create table if not exists olympiads (
   theme_header_logo_url  text,
   created_at             timestamptz default now()
 );
+
+-- Add organizer_username column if not exists (from 22_migration_organizer_username.sql)
+do $$ begin
+  if not exists (select 1 from information_schema.columns where table_name='olympiads' and column_name='organizer_username') then
+    alter table olympiads add column organizer_username text;
+  end if;
+end $$;
 
 -- Add FK constraint for linked_olympiad_id after olympiads table exists
 do $$ begin

@@ -39,6 +39,9 @@ export async function GET(req: NextRequest) {
         result_score,
         result_feedback,
         review_status,
+        answer_sheet_url,
+        annotations,
+        organizer_note,
         created_at,
         olympiads (
           id,
@@ -46,7 +49,8 @@ export async function GET(req: NextRequest) {
           description,
           cover_image_url,
           exam_date,
-          result_published
+          result_published,
+          annotations_published
         )
       `)
       .eq('email', member.email)

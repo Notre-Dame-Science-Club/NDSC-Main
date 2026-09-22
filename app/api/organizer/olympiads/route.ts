@@ -12,7 +12,7 @@ export async function GET() {
 
   const { data, error } = await supabaseAdmin
     .from('olympiads')
-    .select('id, name, mode, questions')
+    .select('id, name, mode, questions, result_published, annotations_published')
     .in('id', session.olympiadIds)
 
   if (error) {
