@@ -572,13 +572,22 @@ function RegistrantsPanel({ sessionId }: { sessionId: string }) {
       </div>
 
       {viewing && (() => {
-        // Render custom_answers in the segment's form_field_schema order, so
-        // the admin sees the answers laid out exactly like the registrant
-        // did. Falls back to insertion order if no schema is available.
+        // Render custom_answers in form_field_schema order, so the admin
+        // sees the answers laid out exactly like the registrant did.
+        // Falls back to insertion order if no schema is available.
+        //
+        // Bug fix: `viewingSegment` only knows the top-level segment
+        // node's own fields — for v2 (form-graph) registrations that
+        // dropped any field asked on the root/common-details node or on
+        // an intermediate node below the segment. `viewing.field_schema`
+        // (added server-side in activity-registrations-list) is built by
+        // walking this specific registration's actual root→leaf path, so
+        // it covers every field regardless of which step collected it.
         const viewingSegment = segments.find(s => s.id === viewing.segment_id)
+        const fieldSchema: any[] = viewing.field_schema?.length ? viewing.field_schema : (viewingSegment?.form_field_schema || [])
         const orderedKeys: string[] = []
-        if (viewingSegment?.form_field_schema?.length) {
-          for (const f of viewingSegment.form_field_schema) {
+        if (fieldSchema.length) {
+          for (const f of fieldSchema) {
             const k = f.key || f.id
             if (k && !f.is_builtin && viewing.custom_answers && k in viewing.custom_answers) orderedKeys.push(k)
           }
@@ -616,7 +625,7 @@ function RegistrantsPanel({ sessionId }: { sessionId: string }) {
                 {orderedKeys.map((k: string) => {
                   // Look up the schema's display label, falling back to the
                   // raw key for legacy custom_answers with no schema.
-                  const field = viewingSegment?.form_field_schema?.find((f: any) => (f.key || f.id) === k)
+                  const field = fieldSchema.find((f: any) => (f.key || f.id) === k)
                   const label = field?.label || k
                   const v = viewing.custom_answers?.[k]
                   return (
@@ -637,7 +646,7 @@ function RegistrantsPanel({ sessionId }: { sessionId: string }) {
               // (defense-in-depth: the API doesn't return it but we strip
               // it again here in case someone adds a future path that
               // leaks it).
-              const teamFieldSchema: any[] = viewingSegment?.team_member_fields || []
+              const teamFieldSchema: any[] = viewing.team_field_schema?.length ? viewing.team_field_schema : (viewingSegment?.team_member_fields || [])
               const safeMembers = (viewing.team_members || []).map((m: any) => {
                 if (!m || typeof m !== 'object') return m
                 const { password_hash, passwordHash, ...rest } = m

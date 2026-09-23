@@ -80,8 +80,26 @@ export async function GET(req: NextRequest) {
     const lastNodeId = isV2 && Array.isArray(r.submitted_node_ids) && r.submitted_node_ids.length
       ? r.submitted_node_ids[r.submitted_node_ids.length - 1]
       : null
+    // Bug fix: `viewingSegment.form_field_schema` (built below from just the
+    // top-level segment node) only ever labeled fields collected on that one
+    // node. Any field asked on the starter/root node (the "common details"
+    // step everyone passes through) or on an intermediate node between the
+    // segment and wherever this particular registration actually terminated
+    // fell through to the raw-key fallback in the admin UI — unlabeled,
+    // dumped at the end, easy to mistake for "not there". submitted_node_ids
+    // IS the registrant's full root→leaf path (every submit route appends to
+    // it), so walking it and concatenating each node's own `fields` gives an
+    // accurate, per-registration schema regardless of tree depth.
+    const fieldSchema = isV2 && Array.isArray(r.submitted_node_ids)
+      ? (r.submitted_node_ids as string[]).flatMap(id => (nodeById.get(id)?.fields as any[]) || [])
+      : null
+    const teamFieldSchema = isV2 && Array.isArray(r.submitted_node_ids)
+      ? (r.submitted_node_ids as string[]).flatMap(id => nodeById.get(id)?.behavior?.require_team?.fields || [])
+      : null
     return {
       ...r,
+      field_schema: fieldSchema,
+      team_field_schema: teamFieldSchema,
       // category_id is only set for registrations from the old segment/
       // category system. Anything through the Form Builder graph has
       // category_id = null and form_graph_id set instead.

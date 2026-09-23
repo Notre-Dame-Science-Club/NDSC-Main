@@ -56,6 +56,16 @@ export type FormRunnerProps = {
 
 const BLANK_BUILTINS = { full_name: '', phone: '', email: '', college: 'Notre Dame College', college_roll: '', hsc_session: '', division: '', batch: '' }
 
+// Same key the legacy v1 register page (app/activities/[slug]/register/page.tsx)
+// writes on a successful submit, so a returning anonymous (non-member) user's
+// common info carries over into this newer form-graph flow too, whichever
+// one they used first. Bug fix: this flow previously only pre-filled
+// identity fields for logged-in members (via the Supabase profile lookup
+// below) — an anonymous user registering for a second segment of the same
+// event got a completely blank form and had to retype name/phone/email/etc.
+// every single time.
+const PRIMARY_INFO_KEY = 'ndsc_primary_info'
+
 export type FormRunnerOwner = { title?: string | null; description?: string | null; cover_image_url?: string | null }
 
 function resolveAppearance(node: FormNode, graph: FormGraph, owner?: FormRunnerOwner | null): FormNodeAppearance {
@@ -228,7 +238,16 @@ export default function FormRunner({
   })
   const [submittedIds, setSubmittedIds] = useState<Set<string>>(new Set())
   const [registrationId, setRegistrationId] = useState<string | null>(initialRegistrationId || null)
-  const [form, setForm] = useState<Record<string, any>>({ ...BLANK_BUILTINS })
+  const [form, setForm] = useState<Record<string, any>>(() => {
+    // Anonymous-user prefill (see PRIMARY_INFO_KEY comment above). Lazy
+    // initializer so it only runs once, on first mount, client-side.
+    if (typeof window === 'undefined') return { ...BLANK_BUILTINS }
+    try {
+      const saved = window.localStorage.getItem(PRIMARY_INFO_KEY)
+      if (saved) return { ...BLANK_BUILTINS, ...JSON.parse(saved) }
+    } catch { /* ignore — localStorage may be unavailable / bad JSON */ }
+    return { ...BLANK_BUILTINS }
+  })
   const [custom, setCustom] = useState<Record<string, any>>({})
   const [teamMembers, setTeamMembers] = useState<TeamMemberDraft[]>([])
   // Snapshot of each visited node's custom/team answers, so that going
@@ -256,6 +275,58 @@ export default function FormRunner({
   const [fieldsValid, setFieldsValid] = useState(true)
   const [teamValid, setTeamValid] = useState(true)
   const [forceShowErrors, setForceShowErrors] = useState(false)
+
+  // Resume hydration. Bug fix: resuming mid-flow (page refresh, closed
+  // tab, or coming back later via the resume keys the parent page stores)
+  // previously only restored WHICH node to land on (`initialCurrentNodeId`)
+  // and the registration id — never the actual values already saved for
+  // that registration. `answersByNode` only helps for nodes revisited via
+  // the in-page "back" button; it's plain React state, so a hard refresh
+  // wipes it just like everything else. The person landed back on their
+  // in-progress node with every field blank, even fields they (or an
+  // earlier node) had already filled in and that were already safely
+  // persisted server-side. Fetching the registration once on mount and
+  // folding its saved values into `form`/`custom`/`teamMembers` fixes that
+  // without touching anything about how submits themselves work.
+  useEffect(() => {
+    if (!initialRegistrationId) return
+    let cancelled = false
+    const endpoint = graph.owner_kind === 'olympiad'
+      ? `/api/olympiad-register?id=${initialRegistrationId}`
+      : `/api/activity-register?id=${initialRegistrationId}`
+    fetch(endpoint)
+      .then(r => r.json())
+      .then(d => {
+        if (cancelled || !d?.registration) return
+        const reg = d.registration
+        setForm(f => ({
+          ...f,
+          full_name: f.full_name || reg.full_name || '',
+          phone: f.phone || reg.phone || '',
+          email: f.email || reg.email || '',
+          college: f.college || reg.college || '',
+          college_roll: f.college_roll || reg.college_roll || '',
+          hsc_session: f.hsc_session || reg.hsc_session || '',
+          division: f.division || reg.division || '',
+          batch: f.batch || reg.batch || '',
+        }))
+        // custom_answers accumulates across every node the person has
+        // already passed (see form-graph/submit/route.ts), so this may
+        // include keys that don't belong to the currently-active node —
+        // harmless, FieldsRenderer only reads the keys its own node's
+        // fields actually ask for.
+        if (reg.custom_answers) setCustom(c => ({ ...reg.custom_answers, ...c }))
+        if (Array.isArray(reg.team_members) && reg.team_members.length) {
+          setTeamMembers(tm => (tm.length ? tm : reg.team_members))
+        }
+        if (reg.team_name) setTeamName(t => t || reg.team_name)
+      })
+      .catch(() => { /* non-critical — worst case, resume starts blank like before */ })
+    return () => { cancelled = true }
+    // Intentionally only depends on the id we resumed with — this should
+    // run once, not re-fetch every time local state changes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialRegistrationId])
 
   // If the person filling this out is a logged-in member, tie the
   // registration to their account (member_id column on

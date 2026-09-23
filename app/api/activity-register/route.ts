@@ -47,7 +47,7 @@ export async function GET(req: NextRequest) {
   // for them. The node someone actually finished on IS effectively their
   // segment ("Science Olympiad", "Quiz Competition", etc.), so its label
   // is the right stand-in.
-  let nodeBehavior: { is_online_submission?: boolean; linked_olympiad_id?: string | null } | null = null
+  let nodeBehavior: Record<string, any> | null = null
   let nodeLabel: string | null = null
   if ((registration as any).form_node_id) {
     const { data: fn } = await supabaseAdmin
@@ -57,11 +57,22 @@ export async function GET(req: NextRequest) {
       .maybeSingle()
     if (fn) {
       const b: any = (fn as any).behavior || {}
+      nodeLabel = (fn as any).label || null
       nodeBehavior = {
+        // Bug fix: this used to only carry is_online_submission /
+        // linked_olympiad_id. The dashboard also reads submission_config,
+        // submission_who, schedule_* and name off `category` — for a v2
+        // registration those were always silently undefined before,
+        // regardless of what the leaf node's behavior actually said.
         is_online_submission: !!b.is_online_submission,
         linked_olympiad_id: b.linked_olympiad_id ?? null,
+        submission_config: b.submission_config || [],
+        submission_who: b.submission_who,
+        schedule_date: b.schedule?.date ?? null,
+        schedule_time: b.schedule?.time ?? null,
+        schedule_room: b.schedule?.room ?? null,
+        name: nodeLabel,
       }
-      nodeLabel = (fn as any).label || null
     }
   }
 
@@ -112,9 +123,16 @@ export async function GET(req: NextRequest) {
   // If the legacy v1 path set up the category with online flags, prefer
   // those — they're the canonical v1 source. v2 paths get nodeBehavior
   // instead. We merge so callers can read either name uniformly.
+  //
+  // Bug fix: this used to be `category ? {...category, ...nodeBehavior} : null`,
+  // which threw nodeBehavior away entirely whenever `category` was null —
+  // which is EVERY v2 (form-graph) registration, since those never get a
+  // category_id (see form-graph/submit/route.ts). That's why the online-round
+  // link never showed up in the dashboard for any registration made through
+  // the new form builder, no matter what was configured on the leaf node.
   const categoryWithFlags = category
     ? { ...category, ...(nodeBehavior || {}) }
-    : null
+    : nodeBehavior
 
   return apiOk({ registration, category: categoryWithFlags, session, node_label: nodeLabel, siblings })
 }
