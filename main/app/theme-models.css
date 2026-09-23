@@ -1,0 +1,284 @@
+/* ═══════════════════════════════════════════════════════════════════════
+   NDSC — THEME MODELS
+   Loaded *after* globals.css (see app/layout.tsx), so every block here wins
+   over the token defaults defined there.
+
+   Three models, one token contract. Nothing in this file styles a specific
+   page: it only re-points the variables the whole site already reads
+   (--bg, --white, --card, --border, …) plus the few component styles the
+   switcher and the cinematic backdrop need.
+
+   That is what makes one click repaint the navbar, the footer, every card
+   and every heading at once — no page has to know which model is live.
+═══════════════════════════════════════════════════════════════════════ */
+
+/* ── Admin accent ──────────────────────────────────────────────────────
+   Admin → Appearance publishes its chosen accent as --user-accent-* on
+   <html>. Each model maps it onto --blue itself, with its own fallback for
+   when no accent has been set. The fallbacks are the model's own defaults,
+   so nothing changes on a site that has never touched the setting. */
+:root,
+[data-theme="dark"] {
+  --blue: var(--user-accent, #00d4ff);
+  --blue2: var(--user-accent-2, #0077ff);
+  --glow: var(--user-accent-glow, #00d4ff55);
+  --blue-rgb: var(--user-accent-rgb, 0, 212, 255);
+}
+
+/* ── DARK · "Deep Space" ───────────────────────────────────────────────
+   Identical to :root in globals.css. Declared so an explicit
+   data-theme="dark" is a real state rather than "no attribute", which the
+   switcher needs in order to move off cosmos or light and back again. */
+[data-theme="dark"] {
+  color-scheme: dark;
+}
+
+/* ── LIGHT · "Daylight" ────────────────────────────────────────────────
+   A real white theme, not the dark palette with the lightness inverted.
+   Backgrounds are paper-white, text is near-black, and the neon is dialled
+   back to a solid editorial blue that holds 7:1 against white — cyan on
+   white is unreadable, which is what made the old light mode feel unfinished.
+   Surfaces are opaque so cards read as sheets of paper stacked on the page
+   instead of glass panes over a void. */
+[data-theme="light"] {
+  --bg: #ffffff;
+  --bg2: #f4f7fb;
+  --bg2-rgb: 244, 247, 251;
+  --bg3: #eef3f9;
+
+  /* The darkened variant, so a cyan or amber accent still holds contrast on
+     white instead of vanishing into the page. */
+  --blue: var(--user-accent-dark, #0b63d6);
+  --blue2: #08479b;
+  --blue-rgb: var(--user-accent-dark-rgb, 11, 99, 214);
+  --blue2-rgb: 8, 71, 155;
+  --glow: rgba(var(--blue-rgb), 0.18);
+
+  --white: #0c1524;          /* "white" = the primary text token */
+  --white-rgb: 12, 21, 36;
+  --white-soft: #1d2b40;
+  --muted: #566274;
+  --muted-rgb: 86, 98, 116;
+
+  --card: #ffffff;
+  --surface: #ffffff;
+  --surface-alt: #f4f7fb;
+  --surface-deep: #eef3f9;
+  --border: #dde4ee;
+  --border-soft: #c3cedd;
+
+  --accent: #c2410c;
+  --accent2: #6d28d9;
+  --accent2-rgb: 109, 40, 217;
+
+  --success: #047857;
+  --success-rgb: 4, 120, 87;
+  --danger: #b91c1c;
+  --danger-rgb: 185, 28, 28;
+  --danger-soft: #dc2626;
+  --danger-soft-rgb: 220, 38, 38;
+  --warning: #b45309;
+  --warning-rgb: 180, 83, 9;
+  --info: #1d4ed8;
+  --info-rgb: 29, 78, 216;
+
+  --cat-teal: #0f766e;
+  --cat-teal-rgb: 15, 118, 110;
+  --cat-purple: #6d28d9;
+  --cat-red: #b91c1c;
+  --cat-red-rgb: 185, 28, 28;
+  --cat-amber: #a16207;
+  --cat-amber-rgb: 161, 98, 7;
+  --cat-blue: #1d4ed8;
+  --cat-orange: #c2410c;
+  --cat-orange-rgb: 194, 65, 12;
+
+  color-scheme: light;
+}
+
+/* Effects tuned for a black page read as dirt on a white one. A glow is
+   light *added*; on paper there is nothing to add it to, so the same
+   drop-shadow comes back as grey haze around the type. These turn that
+   whole family of treatments off in one place rather than asking every
+   component to branch on the theme. */
+[data-theme="light"] .grain-overlay { display: none; }
+[data-theme="light"] .glow-text { text-shadow: none; }
+[data-theme="light"] [class*="glow"] { filter: none; }
+[data-theme="light"] .btn-primary { color: #ffffff; }
+[data-theme="light"] .ticker-pill {
+  background: var(--surface-alt);
+  border-color: var(--border);
+}
+/* Cards need a real shadow instead of a glow to sit off the page. */
+[data-theme="light"] .card-lift,
+[data-theme="light"] .glow-card,
+[data-theme="light"] .stat-card,
+[data-theme="light"] .dept-card {
+  box-shadow: 0 1px 2px rgba(12, 21, 36, 0.04), 0 8px 24px -12px rgba(12, 21, 36, 0.14);
+}
+[data-theme="light"] .card-lift:hover,
+[data-theme="light"] .dept-card:hover {
+  box-shadow: 0 2px 4px rgba(12, 21, 36, 0.06), 0 18px 40px -16px rgba(12, 21, 36, 0.22);
+}
+
+/* ── COSMOS · the cinematic model ──────────────────────────────────────
+   Same family as dark, but pitched for a *live* backdrop: the surfaces are
+   translucent and the borders are hairlines, so the starfield behind the
+   page is visible through the whole layout rather than being covered by the
+   first opaque section. The accent cools off to an ice blue because the
+   backdrop already carries the warm end of the frame. */
+[data-theme="cosmos"] {
+  /* Translucent on purpose. Sections all over the site paint themselves with
+     `background: var(--bg)` / `var(--bg2)` — a hundred opaque bands stacked
+     down the page. Rather than edit every one of them, the tokens themselves
+     go to glass here, so each band lets the live sky through and the page
+     reads as one scene. The solid colour moves to <html> below, which is what
+     the canvas is actually drawn over. */
+  --bg: rgba(4, 6, 13, 0.58);
+  --bg2: rgba(8, 12, 24, 0.62);
+  --bg2-rgb: 8, 12, 24;
+  --bg3: rgba(5, 8, 15, 0.66);
+  --bg-solid: #04060d;
+
+  --blue: var(--user-accent, #5ad8ff);
+  --blue2: var(--user-accent-2, #1b9fd8);
+  --blue-rgb: var(--user-accent-rgb, 125, 211, 252);
+  --blue2-rgb: 56, 189, 248;
+  --glow: rgba(var(--blue-rgb), 0.28);
+
+  --white: #eaf2ff;
+  --white-rgb: 234, 242, 255;
+  --white-soft: #cddcf2;
+  --muted: #8fa3c0;
+  --muted-rgb: 143, 163, 192;
+
+  --card: rgba(10, 16, 32, 0.55);
+  --surface: rgba(12, 18, 36, 0.62);
+  --surface-alt: rgba(16, 24, 44, 0.58);
+  --surface-deep: rgba(6, 10, 20, 0.7);
+  --border: rgba(125, 211, 252, 0.16);
+  --border-soft: rgba(125, 211, 252, 0.28);
+
+  --accent: #fb923c;
+  --accent2: #a78bfa;
+  --accent2-rgb: 196, 181, 253;
+
+  color-scheme: dark;
+}
+
+html[data-theme="cosmos"] { background: #04060d; }
+/* body must not re-fill, or it covers the canvas it is meant to sit behind. */
+html[data-theme="cosmos"] body { background: transparent; }
+[data-theme="cosmos"] .cosmos-glass {
+  backdrop-filter: blur(14px) saturate(1.15);
+  -webkit-backdrop-filter: blur(14px) saturate(1.15);
+}
+[data-theme="cosmos"] .grain-overlay { opacity: 0.4; }
+
+/* ── The live backdrop ─────────────────────────────────────────────────
+   One fixed layer behind everything, mounted once in the root layout. The
+   canvas only exists while cosmos is live; the gradient wash is cheap
+   enough to keep in every model, and is what replaces the stack of blurred
+   blobs the homepage used to carry in its own markup. */
+/* The base fill moves from <body> to <html> so the backdrop can sit at
+   z-index:-1 — behind every block background, but still in front of the root
+   fill. Parking it at 0 instead would paint it over any section that doesn't
+   carry its own z-index, and forcing the page content up with a
+   `body > * { z-index: 1 }` rule would quietly outrank the navbar's own
+   z-50 and drop the header under the page. */
+html { background: var(--bg); }
+body { background: transparent; }
+
+.site-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  overflow: hidden;
+}
+.site-backdrop canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+/* A single horizon glow, sitting low and off-centre. One light source reads
+   as a place; three overlapping blobs read as a gradient test. */
+.site-backdrop::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(120% 70% at 50% 108%, rgba(var(--blue-rgb), 0.10), transparent 62%),
+    radial-gradient(90% 55% at 78% -8%, rgba(var(--accent2-rgb), 0.07), transparent 60%);
+}
+[data-theme="light"] .site-backdrop::after {
+  background:
+    radial-gradient(120% 70% at 50% 108%, rgba(var(--blue-rgb), 0.05), transparent 62%),
+    radial-gradient(90% 55% at 78% -8%, rgba(var(--blue-rgb), 0.035), transparent 60%);
+}
+/* A vignette closes the frame so the scene stops at the edges of the screen
+   instead of being cut off by them. Cosmos only — on paper it reads as dirt. */
+[data-theme="cosmos"] .site-backdrop::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  background: radial-gradient(125% 95% at 50% 42%, transparent 38%, rgba(2, 4, 9, 0.62) 100%);
+}
+
+/* ── The public switcher ───────────────────────────────────────────────
+   Lives in the navbar, to the right of Login. Collapses to a single icon
+   button when only two models are switchable, and to a small menu when
+   there are three. */
+.theme-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 3px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: rgba(var(--white-rgb), 0.04);
+}
+[data-theme="light"] .theme-switch { background: var(--surface-alt); }
+
+.theme-switch-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 28px;
+  min-width: 28px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  transition: color 0.2s ease, background 0.2s ease;
+}
+.theme-switch-btn:hover { color: var(--white); }
+.theme-switch-btn[aria-pressed="true"] {
+  background: rgba(var(--blue-rgb), 0.14);
+  color: var(--blue);
+}
+.theme-switch-label {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+/* Mobile: the same control, laid out as a full-width row in the drawer. */
+.theme-switch--block {
+  width: 100%;
+  justify-content: space-between;
+  border-radius: 12px;
+  padding: 6px;
+}
+.theme-switch--block .theme-switch-btn { flex: 1; height: 36px; }
+
+@media (prefers-reduced-motion: reduce) {
+  .theme-switch-btn { transition: none; }
+}

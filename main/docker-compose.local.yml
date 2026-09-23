@@ -1,0 +1,56 @@
+# Local dev stack: Postgres + PostgREST so the Next.js app can talk to a
+# real database without going through Supabase. Mimics the Supabase REST
+# surface (anon + service_role JWTs) just closely enough that the existing
+# `@supabase/supabase-js` client works without code changes.
+#
+# Bring up:    docker compose -f docker-compose.local.yml up -d
+# Tear down:   docker compose -f docker-compose.local.yml down -v
+# Reset DB:    docker compose -f docker-compose.local.yml down -v && up -d
+#
+# After `up`, apply the schema + seed (see README "Local dev" section).
+
+services:
+  db:
+    image: postgres:15
+    container_name: ndsc-local-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - ndsc-local-data:/var/lib/postgresql/data
+      # PostgREST needs two roles present (`anon` for unauthenticated
+      # reads, `service_role` for admin). The plain postgres:15 image
+      # only has `postgres`; we add the rest on first boot. The script
+      # is idempotent so re-creating the volume is safe.
+      - ./db/init_roles.sql:/docker-entrypoint-initdb.d/00-init-roles.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
+  postgrest:
+    image: postgrest/postgrest:v12.2.3
+    container_name: ndsc-local-postgrest
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      PGRST_DB_URI: postgres://postgres:postgres@db:5432/postgres
+      PGRST_DB_ANON_ROLE: anon
+      PGRST_DB_SCHEMA: public
+      PGRST_SERVER_PORT: 3001
+      # Dev secret. ANY JWT signed with this key will be accepted. The
+      # .env.local in this repo sends a static token signed with this
+      # secret for both anon and service_role — see scripts/dev-jwt.js.
+      PGRST_JWT_SECRET: "dev-only-not-a-real-secret-change-me-in-real-life"
+    ports:
+      - "3001:3001"
+
+volumes:
+  ndsc-local-data:

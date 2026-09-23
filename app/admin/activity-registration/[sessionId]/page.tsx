@@ -421,18 +421,13 @@ function RegistrantsPanel({ sessionId }: { sessionId: string }) {
   }, [sessionId])
 
   const filtered = registrations.filter(r => {
-    // Segment chip filter — restrict to a single top-level is_segment row
-    // (plus its children, so sub-categories stay under the same chip).
-    if (segmentFilter !== 'all') {
-      if (r.category_id !== segmentFilter) {
-        // Allow descendants of the selected segment to also match — the
-        // chip represents "this whole segment, including its sub-categories".
-        const cat = (segments.find(s => s.id === segmentFilter) as any)
-        // No descendant data here, so we only match exact id; sub-categories
-        // are unusual for is_segment rows anyway.
-        if (!cat) return false
-      }
-    }
+    // Segment chip filter — restrict to a single top-level bucket.
+    // `segment_id` is precomputed server-side as the top-level ancestor
+    // of wherever the registration actually landed, whether that's a v1
+    // category several levels deep or a v2 leaf under a subsegment several
+    // levels deep — so this one comparison correctly covers descendants
+    // for both systems without needing per-row tree walking here.
+    if (segmentFilter !== 'all' && r.segment_id !== segmentFilter) return false
     if (!search.trim()) return true
     const q = search.toLowerCase()
     return r.full_name?.toLowerCase().includes(q) || r.phone?.includes(q) || r.email?.toLowerCase().includes(q) || r.breadcrumb.join(' ').toLowerCase().includes(q) || (r.team_name || '').toLowerCase().includes(q)
@@ -512,7 +507,7 @@ function RegistrantsPanel({ sessionId }: { sessionId: string }) {
             All
           </button>
           {segments.map(seg => {
-            const count = registrations.filter(r => r.category_id === seg.id).length
+            const count = registrations.filter(r => r.segment_id === seg.id).length
             const active = segmentFilter === seg.id
             return (
               <button key={seg.id} onClick={() => setSegmentFilter(seg.id)}
@@ -553,6 +548,11 @@ function RegistrantsPanel({ sessionId }: { sessionId: string }) {
                 )}
                 {r.team_size > 1 && <span className="text-xs px-1.5 py-0.5 rounded" style={{ background: 'rgba(var(--accent2-rgb), 0.13)', color: 'var(--accent2)' }}>Team of {r.team_size}</span>}
                 {r.is_online_category && <span className="text-xs px-1.5 py-0.5 rounded" style={{ background: 'rgba(var(--blue-rgb), 0.13)', color: 'var(--blue)' }}>Online</span>}
+                {/* v2 rows that haven't reached a terminal node yet — started
+                    a form-graph path but didn't finish it. v1 rows are
+                    always complete the moment they exist, so this only
+                    ever shows for the new form-graph system. */}
+                {r.is_terminal === false && <span className="text-xs px-1.5 py-0.5 rounded" style={{ background: 'rgba(var(--warning-rgb), 0.13)', color: 'var(--warning)' }}>Incomplete</span>}
                 {r.payment_status && r.payment_status !== 'not_required' && (
                   <span className="text-xs px-1.5 py-0.5 rounded" style={{
                     background: r.payment_status === 'paid' ? '#34d39922' : r.payment_status === 'failed' ? 'rgba(var(--danger-soft-rgb), 0.13)' : 'rgba(var(--warning-rgb), 0.13)',
@@ -575,7 +575,7 @@ function RegistrantsPanel({ sessionId }: { sessionId: string }) {
         // Render custom_answers in the segment's form_field_schema order, so
         // the admin sees the answers laid out exactly like the registrant
         // did. Falls back to insertion order if no schema is available.
-        const viewingSegment = segments.find(s => s.id === viewing.category_id)
+        const viewingSegment = segments.find(s => s.id === viewing.segment_id)
         const orderedKeys: string[] = []
         if (viewingSegment?.form_field_schema?.length) {
           for (const f of viewingSegment.form_field_schema) {

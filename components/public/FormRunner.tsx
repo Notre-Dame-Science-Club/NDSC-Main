@@ -54,7 +54,7 @@ export type FormRunnerProps = {
   onDone?: (result: { registration_id: string; is_olympiad: boolean }) => void
 }
 
-const BLANK_BUILTINS = { full_name: '', phone: '', email: '', college: 'Notre Dame College', college_roll: '', hsc_session: '', division: '' }
+const BLANK_BUILTINS = { full_name: '', phone: '', email: '', college: 'Notre Dame College', college_roll: '', hsc_session: '', division: '', batch: '' }
 
 export type FormRunnerOwner = { title?: string | null; description?: string | null; cover_image_url?: string | null }
 
@@ -269,8 +269,30 @@ export default function FormRunner({
   const [memberId, setMemberId] = useState<string | null>(null)
   useEffect(() => {
     let cancelled = false
-    supabase.auth.getUser().then(({ data }) => {
-      if (!cancelled) setMemberId(data.user?.id || null)
+    supabase.auth.getUser().then(async ({ data }) => {
+      if (cancelled) return
+      const uid = data.user?.id || null
+      setMemberId(uid)
+      if (!uid) return
+      // Prefill from the member's own account so they don't have to retype
+      // identity details the site already has for them — in particular
+      // `batch`, which previously had no builtin field to bind to here at
+      // all, so it was always asked (or silently dropped) instead of just
+      // carrying over from their profile.
+      const { data: m } = await supabase
+        .from('members')
+        .select('full_name, phone, email, college_roll, batch')
+        .eq('id', uid)
+        .maybeSingle()
+      if (cancelled || !m) return
+      setForm(f => ({
+        ...f,
+        full_name: f.full_name || m.full_name || '',
+        phone: f.phone || m.phone || '',
+        email: f.email || m.email || '',
+        college_roll: f.college_roll || m.college_roll || '',
+        batch: f.batch || m.batch || '',
+      }))
     }).catch(() => { /* not logged in / session hiccup — submit as anonymous */ })
     return () => { cancelled = true }
   }, [])
@@ -283,6 +305,15 @@ export default function FormRunner({
 
   const activeId = path[path.length - 1] || null
   const activeNode = activeId ? nodesById[activeId] : null
+  // The node the person is currently on. Passed down so the live
+  // "already registered" check (activity-unique-check) can scope itself
+  // to this exact node — matched against OTHER registrations' own last-
+  // submitted node — instead of just the top-level segment. That old
+  // scoping treated every subsegment under one segment as one shared
+  // "already registered" bucket; scoping by the actual current node
+  // means it only warns when someone's re-entering identity fields for
+  // the SAME terminal they (or someone else) already finished.
+  const segmentNodeId = activeId
 
   // When the active node changes and that node requires a team, ensure
   // the teamMembers state has at least `min` rows pre-filled. Mirrors
@@ -380,8 +411,15 @@ export default function FormRunner({
       setForceShowErrors(false)
     }
 
-    if (submittedIds.has(activeNode.id)) {
-      // Already persisted (e.g. a link-button jump) — just move on.
+    if (submittedIds.has(activeNode.id) || (activeNode.id === rootId && registrationId)) {
+      // Already persisted (e.g. a link-button jump, or the root node
+      // whose one-time "create the registration" submit already
+      // happened — the API can never accept a second root submit once
+      // registrationId exists, whether that's because goToStep cleared
+      // this node out of submittedIds when stepping back to it, or
+      // because we resumed mid-flow with an initialRegistrationId and
+      // never actually re-submitted the root this session). Just move
+      // on to whichever child/segment was picked.
       if (childId) {
         setAnswersByNode(prev => ({ ...prev, [activeNode.id]: { custom, team: teamMembers, teamName } }))
         const saved = answersByNode[childId]
@@ -421,7 +459,7 @@ export default function FormRunner({
     } finally {
       setSubmitting(false)
     }
-  }, [activeNode, graph.id, form, custom, teamMembers, teamName, registrationId, submittedIds, onDone, memberId, answersByNode, fieldsValid, teamValid])
+  }, [activeNode, graph.id, form, custom, teamMembers, teamName, registrationId, submittedIds, onDone, memberId, answersByNode, fieldsValid, teamValid, rootId])
 
   // Anti-cheat timer auto-submit. When the timer hits 0, the provider
   // calls onExpire, which we wire to the same advance handler — it acts
@@ -544,19 +582,6 @@ export default function FormRunner({
                   <p className="text-sm mb-4" style={{ color: 'var(--muted)' }}>{appearance.subtitle}</p>
                 )}
 
-                {error && (
-                  <div className="text-sm p-2.5 rounded-lg mb-3"
-                    style={{ background: 'rgba(var(--danger-rgb), 0.1)', color: 'var(--danger-soft)', border: '1px solid rgba(var(--danger-rgb), 0.3)' }}>
-                    <p>{error}</p>
-                    {duplicateRegId && eventSlug && (
-                      <a href={`/activities/${eventSlug}/dashboard?reg=${duplicateRegId}`}
-                        className="inline-flex items-center gap-1 mt-1.5 font-semibold underline">
-                        Open my existing registration
-                      </a>
-                    )}
-                  </div>
-                )}
-
                 {renderContentBlocks(activeNode, jumpTo)}
 
                 {hasFields && (
@@ -569,6 +594,7 @@ export default function FormRunner({
                       onCustomAnswersChange={setCustom}
                       accent={accent}
                       sessionId={sessionId}
+                      segmentNodeId={segmentNodeId}
                       eventSlug={eventSlug}
                       onValidityChange={setFieldsValid}
                       forceShowErrors={forceShowErrors}
@@ -604,6 +630,26 @@ export default function FormRunner({
                       member_field_validation: activeNode.behavior.require_team.member_field_validation,
                     }}
                   />
+                )}
+
+                {/* Moved below the fields (and, when this node branches
+                    instead of submitting, right above the child cards) so
+                    it sits next to what it's actually about — a field
+                    format issue like "Roll must be exactly 8 digits" or a
+                    duplicate-registration warning — rather than at the
+                    top of the page where it was disconnected from both
+                    the offending field and the button that triggered it. */}
+                {error && (
+                  <div className="text-sm p-2.5 rounded-lg mt-3"
+                    style={{ background: 'rgba(var(--danger-rgb), 0.1)', color: 'var(--danger-soft)', border: '1px solid rgba(var(--danger-rgb), 0.3)' }}>
+                    <p>{error}</p>
+                    {duplicateRegId && eventSlug && (
+                      <a href={`/activities/${eventSlug}/dashboard?reg=${duplicateRegId}`}
+                        className="inline-flex items-center gap-1 mt-1.5 font-semibold underline">
+                        Open my existing registration
+                      </a>
+                    )}
+                  </div>
                 )}
 
                 {hasChildren ? (
