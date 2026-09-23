@@ -40,6 +40,9 @@ export default function NodeEditorPage() {
   const [saved, setSaved] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [showAnswerKey, setShowAnswerKey] = useState<Record<string, boolean>>({})
+  // For the "linked olympiad" picker below — every olympiad in the system,
+  // so the admin can select one instead of pasting a raw UUID.
+  const [olympiadOptions, setOlympiadOptions] = useState<{ id: string; name: string }[]>([])
 
   useEffect(() => {
     (async () => {
@@ -70,6 +73,10 @@ export default function NodeEditorPage() {
         setLoading(false)
       }
     })()
+    fetch('/api/admin/olympiads')
+      .then(r => r.json())
+      .then((rows: any[]) => { if (Array.isArray(rows)) setOlympiadOptions(rows.map(o => ({ id: o.id, name: o.name }))) })
+      .catch(() => { /* picker just falls back to showing nothing to choose */ })
   }, [graphId, nodeId])
 
   const patch = (changes: Partial<FormNode>) => {
@@ -492,15 +499,22 @@ export default function NodeEditorPage() {
               it onto the form node so the form-graph is the source of
               truth. */}
           {node.behavior.is_online_submission ? (
-            <Field label="Linked olympiad (ID) — shows after 'Online round' is checked">
-              <input
+            <Field label="Linked olympiad — shows after 'Online round' is checked">
+              <select
                 value={node.behavior.linked_olympiad_id || ''}
                 onChange={e => patchBehavior({ linked_olympiad_id: e.target.value || null })}
-                placeholder="e.g. uuid of the olympiad to link to"
                 className={inputCls} style={inputStyle}
-              />
+              >
+                <option value="">— none —</option>
+                {node.behavior.linked_olympiad_id && !olympiadOptions.some(o => o.id === node.behavior.linked_olympiad_id) && (
+                  <option value={node.behavior.linked_olympiad_id}>Unknown olympiad ({node.behavior.linked_olympiad_id})</option>
+                )}
+                {olympiadOptions.map(o => (
+                  <option key={o.id} value={o.id}>{o.name}</option>
+                ))}
+              </select>
               <p className="text-xs mt-1" style={{ color: 'var(--muted)' }}>
-                Paste the olympiad's UUID. The dashboard will fetch its questions + relay state from this id.
+                The dashboard fetches this olympiad's questions + relay state through this link.
               </p>
             </Field>
           ) : null}

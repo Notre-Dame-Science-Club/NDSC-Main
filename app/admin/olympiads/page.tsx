@@ -11,6 +11,24 @@ import { normalizeUploadUrl } from '@/lib/uploadUrl'
 
 const uid = () => Math.random().toString(36).slice(2, 9)
 
+// datetime-local inputs give/take a naive "YYYY-MM-DDTHH:mm" string with no
+// timezone attached. Every admin on this page is working in Bangladesh
+// (UTC+6, no DST), but the DB columns are `timestamptz` — sent a naive
+// string, Postgres stores it as if it were already UTC, silently shifting
+// every exam start/end/deadline 6 hours off from what was actually typed.
+// These two helpers make Dhaka-local time explicit on both sides of that
+// round trip instead of relying on whatever timezone the DB session
+// happens to default to.
+const DHAKA_OFFSET_MS = 6 * 60 * 60 * 1000
+function dhakaLocalToISO(value?: string | null): string | null {
+  if (!value) return null
+  return new Date(new Date(`${value}:00Z`).getTime() - DHAKA_OFFSET_MS).toISOString()
+}
+function isoToDhakaLocal(value?: string | null): string {
+  if (!value) return ''
+  return new Date(new Date(value).getTime() + DHAKA_OFFSET_MS).toISOString().slice(0, 16)
+}
+
 type FieldType = 'text' | 'textarea' | 'email' | 'tel' | 'select'
 type RegField = { key: string; label: string; type: FieldType; required: boolean; options?: string[] }
 
@@ -298,7 +316,7 @@ export default function AdminOlympiadsPage() {
       is_active: editing.is_active ?? true,
       result_published: editing.result_published ?? false,
       annotations_published: editing.annotations_published ?? false,
-      registration_deadline: editing.registration_deadline || null,
+      registration_deadline: dhakaLocalToISO(editing.registration_deadline),
       eligibility: editing.eligibility || null,
       external_only: editing.external_only ?? false,
       organizer_username: editing.organizer_username || null,
@@ -311,8 +329,8 @@ export default function AdminOlympiadsPage() {
       theme_header_title: editing.theme_header_title || null,
       theme_header_subtitle: editing.theme_header_subtitle || null,
       theme_header_logo_url: editing.theme_header_logo_url || null,
-      scheduled_start_at: editing.scheduled_start_at || null,
-      scheduled_end_at: editing.scheduled_end_at || null,
+      scheduled_start_at: dhakaLocalToISO(editing.scheduled_start_at),
+      scheduled_end_at: dhakaLocalToISO(editing.scheduled_end_at),
       relay_mode: (editing as any).relay_mode ?? false,
       relay_type: (editing as any).relay_type || 'sequential',
       subjects: (editing as any).subjects || [],
@@ -555,7 +573,7 @@ export default function AdminOlympiadsPage() {
             </div>
             <div>
               <label className="block text-xs mb-1" style={{ color: 'var(--muted)' }}>Registration Deadline</label>
-              <input type="datetime-local" className={inputClass} style={inputStyle} value={editing.registration_deadline?.slice(0, 16) || ''} onChange={e => setEditing(p => ({ ...p, registration_deadline: e.target.value }))} />
+              <input type="datetime-local" className={inputClass} style={inputStyle} value={editing.registration_deadline || ''} onChange={e => setEditing(p => ({ ...p, registration_deadline: e.target.value }))} />
               <p className="text-xs mt-1" style={{ color: 'var(--border-soft)' }}>
                 When people can no longer register. The exam window itself (when they can actually enter and take it) is set below, under Exam Scheduling.
               </p>
@@ -652,13 +670,13 @@ export default function AdminOlympiadsPage() {
               <div>
                 <label className="block text-xs mb-1" style={{ color: 'var(--muted)' }}>Start</label>
                 <input type="datetime-local" className={inputClass} style={inputStyle}
-                  value={editing.scheduled_start_at?.slice(0, 16) || ''}
+                  value={editing.scheduled_start_at || ''}
                   onChange={e => setEditing(p => ({ ...p, scheduled_start_at: e.target.value || undefined }))} />
               </div>
               <div>
                 <label className="block text-xs mb-1" style={{ color: 'var(--muted)' }}>End</label>
                 <input type="datetime-local" className={inputClass} style={inputStyle}
-                  value={editing.scheduled_end_at?.slice(0, 16) || ''}
+                  value={editing.scheduled_end_at || ''}
                   onChange={e => setEditing(p => ({ ...p, scheduled_end_at: e.target.value || undefined }))} />
               </div>
             </div>
@@ -1164,7 +1182,7 @@ export default function AdminOlympiadsPage() {
                 <button onClick={() => toggleField(o.id, 'is_active', !o.is_active)} title={o.is_active ? 'Hide' : 'Activate'} className="p-1.5 rounded" style={{ color: 'var(--border-soft)' }}>
                   {o.is_active ? <Eye size={15} /> : <EyeOff size={15} />}
                 </button>
-                <button onClick={() => { setEditing(o); setUploadError(''); setUploadProgress(0); setUploading(null) }} className="p-1.5 rounded" style={{ color: 'var(--muted)' }}>
+                <button onClick={() => { setEditing({ ...o, scheduled_start_at: isoToDhakaLocal(o.scheduled_start_at), scheduled_end_at: isoToDhakaLocal(o.scheduled_end_at), registration_deadline: isoToDhakaLocal(o.registration_deadline) } as any); setUploadError(''); setUploadProgress(0); setUploading(null) }} className="p-1.5 rounded" style={{ color: 'var(--muted)' }}>
                   <Edit2 size={15} />
                 </button>
                 <button onClick={() => del(o.id)} className="p-1.5 rounded" style={{ color: 'var(--danger-soft)' }}><Trash2 size={15} /></button>

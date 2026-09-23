@@ -1,7 +1,7 @@
 'use client'
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
-import { ArrowLeft, Plus, Trash2, Workflow, Loader2, RefreshCw, Calendar, Trophy } from 'lucide-react'
+import { ArrowLeft, Plus, Trash2, Workflow, Loader2, RefreshCw, Calendar, Trophy, Copy, Check } from 'lucide-react'
 
 type Graph = {
   id: string
@@ -36,6 +36,18 @@ export default function FormBuilderListPage() {
   const [olympiads, setOlympiads] = useState<{ id: string; name: string }[]>([])
   const [creating, setCreating] = useState(false)
   const [createError, setCreateError] = useState('')
+  const [copiedId, setCopiedId] = useState<string | null>(null)
+
+  // Copies the graph's own UUID — the id other places (like a form-node's
+  // "linked olympiad" field, or a direct API call) need to reference this
+  // graph. Shows a brief checkmark instead of relying on a toast.
+  const copyId = async (id: string) => {
+    try {
+      await navigator.clipboard.writeText(id)
+      setCopiedId(id)
+      setTimeout(() => setCopiedId(prev => (prev === id ? null : prev)), 1500)
+    } catch { /* clipboard may be unavailable — ignore */ }
+  }
 
   const load = async () => {
     setLoading(true)
@@ -188,6 +200,9 @@ export default function FormBuilderListPage() {
                 style={{ background: 'rgba(var(--blue-rgb), 0.12)', color: 'var(--blue)', border: '1px solid rgba(var(--blue-rgb), 0.3)' }}>
                 Open diagram →
               </Link>
+              <button onClick={() => copyId(g.id)} className="p-1.5 rounded" style={{ color: copiedId === g.id ? 'var(--cat-teal)' : 'var(--muted)' }} title="Copy form UUID">
+                {copiedId === g.id ? <Check size={14} /> : <Copy size={14} />}
+              </button>
               <button onClick={() => del(g.id)} className="p-1.5 rounded" style={{ color: 'var(--danger-soft)' }} title="Delete graph">
                 <Trash2 size={14} />
               </button>

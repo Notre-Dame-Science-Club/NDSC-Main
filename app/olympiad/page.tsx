@@ -54,6 +54,23 @@ type Card = {
   reason: string
 }
 
+// A round that's really a segment of an Activity event (linked via
+// activity_reg_categories/form_nodes) — see /api/activity-online-categories-public.
+// These never get their own standalone Register button: registering for
+// one of these through /register/olympiad/<id> would create a second,
+// disconnected registration on top of whatever the person already has (or
+// will fill out) for the parent Activity. Instead they route straight into
+// that Activity's own registration flow.
+type ActivityCard = {
+  category_id: string
+  name: string
+  description?: string
+  session_id: string
+  session_slug?: string
+  session_title?: string
+  cover_image_url?: string | null
+}
+
 const STORAGE_KEY = 'ndsc_olympiad_reg_id'
 
 function fmtDate(d?: string | null) {
@@ -65,6 +82,7 @@ function fmtDateTime(d?: string | null) {
 
 export default function OlympiadListPage() {
   const [olympiads, setOlympiads] = useState<Olympiad[]>([])
+  const [activityCards, setActivityCards] = useState<ActivityCard[]>([])
   const [loading, setLoading] = useState(true)
   const [resuming, setResuming] = useState(true)
   const [resumeTarget, setResumeTarget] = useState<string | null>(null)
@@ -116,6 +134,16 @@ export default function OlympiadListPage() {
       })
       .catch(() => {})
       .finally(() => setLoading(false))
+
+    // Rounds that belong to an Activity event — shown alongside the
+    // standalone olympiads, but they link into the Activity's own
+    // registration flow instead of a separate form.
+    fetch('/api/activity-online-categories-public')
+      .then(r => r.json())
+      .then((rows: any[]) => {
+        if (Array.isArray(rows)) setActivityCards(rows as ActivityCard[])
+      })
+      .catch(() => {})
   }, [])
 
   // If we're on the page just to resume a saved registration, bounce to
@@ -187,22 +215,63 @@ export default function OlympiadListPage() {
           </p>
         </div>
 
-        {cards.length === 0 && (
+        {cards.length === 0 && activityCards.length === 0 && (
           <p className="text-center py-12" style={{ color: 'var(--border-soft)' }}>
             No olympiads open right now. Check back soon.
           </p>
         )}
 
         <div className="space-y-4">
+          {activityCards.map(c => (
+            <ActivityOlympiadCard key={c.category_id} card={c} />
+          ))}
           {cards.map(c => (
             <OlympiadCard key={c.olympiad.id} card={c} />
           ))}
         </div>
 
         <p className="text-center text-xs mt-10" style={{ color: 'var(--border-soft)' }}>
-          Olympiads and activities are independent — each olympiad has its own form, set up in the form builder.
+          Some rounds are a segment of an Activity event — those register through that event's own form so your info is only entered once.
         </p>
       </div>
+    </div>
+  )
+}
+
+function ActivityOlympiadCard({ card }: { card: ActivityCard }) {
+  const accent = 'var(--cat-teal)'
+  const cardStyle: React.CSSProperties = {
+    background: 'var(--surface-deep)',
+    border: '1px solid var(--border)',
+    borderRadius: 16,
+    borderLeft: `3px solid ${accent}`,
+  }
+  return (
+    <div className="flex gap-5 p-5" style={cardStyle}>
+      {card.cover_image_url && (
+        <img src={card.cover_image_url} alt="" className="w-24 h-24 rounded-xl object-cover flex-shrink-0" />
+      )}
+      <div className="flex-1">
+        <div className="flex items-center gap-2 mb-1 flex-wrap">
+          <h2 className="font-bold text-lg" style={{ color: 'var(--white-soft)' }}>{card.name}</h2>
+          <span className="text-[10px] font-bold tracking-wider px-2 py-0.5 rounded-full inline-flex items-center gap-1"
+            style={{ background: 'rgba(var(--cat-teal-rgb), 0.12)', color: accent }}>
+            Part of {card.session_title}
+          </span>
+        </div>
+        {card.description && <p className="text-sm" style={{ color: 'var(--muted)' }}>{card.description}</p>}
+        <p className="text-xs mt-1" style={{ color: 'var(--border-soft)' }}>
+          Register through the {card.session_title} event — your info carries over, no separate form.
+        </p>
+      </div>
+      {card.session_slug ? (
+        <Link
+          href={`/activities/${card.session_slug}/register`}
+          className="self-center px-5 py-2.5 rounded-xl text-sm font-bold flex-shrink-0 inline-flex items-center gap-1.5"
+          style={{ background: accent, color: '#000' }}>
+          Register via Activity <ArrowRight size={14} />
+        </Link>
+      ) : null}
     </div>
   )
 }

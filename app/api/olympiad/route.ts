@@ -32,16 +32,31 @@ export async function GET(req: NextRequest) {
   }
 
   if (listing) {
-    // Phase 6: olympiads can no longer be "linked to an activity"
-    // (activity_reg_categories is gone). The listing page returns every
-    // active olympiad; the old "exclude linked" filter is dead, so the
-    // branch now reads the same shape as the unfiltered GET.
+    // activity_reg_categories is still very much alive (see
+    // /api/admin/online-categories and /api/activity-online-categories-public),
+    // and form_nodes can carry the same kind of link via
+    // behavior.linked_olympiad_id (see the form-builder node editor). An
+    // olympiad referenced by either is surfaced through the Activity flow
+    // instead — via /api/activity-online-categories-public — so it must be
+    // excluded here, or the same round shows up twice with two separate,
+    // disconnected registration paths.
+    const [{ data: v1Links }, { data: nodes }] = await Promise.all([
+      supabaseAdmin.from('activity_reg_categories').select('linked_olympiad_id').not('linked_olympiad_id', 'is', null),
+      supabaseAdmin.from('form_nodes').select('behavior'),
+    ])
+    const linkedIds = new Set<string>()
+    for (const row of v1Links || []) if (row.linked_olympiad_id) linkedIds.add(row.linked_olympiad_id)
+    for (const n of nodes || []) {
+      const linkedId = (n as any).behavior?.linked_olympiad_id
+      if (linkedId) linkedIds.add(linkedId)
+    }
+
     const { data, error } = await supabaseAdmin
       .from('olympiads')
       .select('id, name, description, cover_image_url, is_active, mode, exam_type, registration_deadline, scheduled_start_at, scheduled_end_at, eligibility, external_only, created_at, theme_bg_color, theme_accent_color, theme_header_logo_url')
       .order('created_at', { ascending: false })
     if (error) return apiError(error, 400)
-    return apiOk(data || [])
+    return apiOk((data || []).filter(o => !linkedIds.has(o.id)))
   }
 
   const { data, error } = await supabaseAdmin

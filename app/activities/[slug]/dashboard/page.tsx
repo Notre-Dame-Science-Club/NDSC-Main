@@ -66,7 +66,6 @@ export default function ActivityDashboardPage() {
   const [subjectAssignments, setSubjectAssignments] = useState<any[]>([])
   const [selectedSubject, setSelectedSubject] = useState<string>('')
   const [examScheduledStart, setExamScheduledStart] = useState<string | null>(null)
-  const [examStarted, setExamStarted] = useState(false)
   const [showFullDesc, setShowFullDesc] = useState(false)
   const [updates, setUpdates] = useState<any[]>([])
 
@@ -337,6 +336,10 @@ export default function ActivityDashboardPage() {
   // Exam schedule
   const examNotYetStarted = examScheduledStart && new Date(examScheduledStart) > new Date()
   const examEnded = olympiad?.scheduled_end_at && new Date(olympiad.scheduled_end_at) < new Date()
+  // Actually live right now (not just "linked to an online round somewhere
+  // in the future") — this is the spotlight state that earns top billing
+  // on the page, above the registration/segments card.
+  const examLive = !!(category?.is_online_submission && olympiad && !examNotYetStarted && !examEnded)
 
   return (
     <div className="min-h-screen py-12 px-4" style={{ background: 'var(--bg)', paddingTop: '88px' }}>
@@ -397,109 +400,14 @@ export default function ActivityDashboardPage() {
           )}
         </div>
 
-        {/* ── Other segments of this event ─────────────────────────────── */}
-        {session?.id && (
-          <div className="rounded-2xl border p-4" style={{ background: 'var(--card)', borderColor: 'var(--border)' }}>
-            {siblingRegs.length > 0 && (
-              <>
-                <p className="text-xs font-bold uppercase tracking-wide mb-3" style={{ color: 'var(--muted)' }}>
-                  Your registrations for this event
-                </p>
-                <div className="flex flex-col gap-2 mb-3">
-                  <div className="px-3 py-2 rounded-lg text-sm font-semibold" style={{ background: 'rgba(var(--blue-rgb), 0.1)', color: 'var(--blue)' }}>
-                    {category?.name || nodeLabel || 'This registration'} — you're viewing this one
-                  </div>
-                  {siblingRegs.map(s => (
-                    <Link key={s.id} href={`/activities/${slug}/dashboard?reg=${s.id}`}
-                      className="px-3 py-2 rounded-lg text-sm flex items-center justify-between"
-                      style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid var(--border)', color: 'var(--white)' }}>
-                      {s.label || 'Registration'}
-                      <span style={{ color: 'var(--muted)' }}>View →</span>
-                    </Link>
-                  ))}
-                </div>
-              </>
-            )}
-            <Link href={`/register/activity/${session.id}`}
-              className="inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-lg text-sm font-bold w-full"
-              style={{ background: 'var(--cat-teal)', color: '#000' }}>
-              Register for another segment →
-            </Link>
-          </div>
-        )}
-
-        {updates.length > 0 && (
-          <div className="rounded-2xl border p-4" style={{ background: 'var(--card)', borderColor: 'var(--border)' }}>
-            <p className="text-xs font-bold uppercase tracking-wide mb-3" style={{ color: 'var(--muted)' }}>Updates</p>
-            <div className="flex flex-col gap-3">
-              {updates.map((u: any) => (
-                <div key={u.id} className="pb-3 border-b last:border-0 last:pb-0" style={{ borderColor: 'var(--border)' }}>
-                  <div className="flex items-baseline justify-between gap-3">
-                    <p className="font-semibold text-sm" style={{ color: 'var(--white)' }}>{u.title}</p>
-                    <span className="text-[11px] whitespace-nowrap" style={{ color: 'var(--muted)' }}>
-                      {new Date(u.created_at).toLocaleDateString('en-BD', { month: 'short', day: 'numeric' })}
-                    </span>
-                  </div>
-                  {u.body && <p className="text-xs mt-0.5" style={{ color: '#a0b4c8' }}>{u.body}</p>}
-                  {u.link_url && (
-                    <a href={u.link_url} target="_blank" rel="noopener noreferrer" className="text-xs underline" style={{ color: 'var(--blue)' }}>
-                      Learn more →
-                    </a>
-                  )}
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {error && <p className="text-sm" style={{ color: 'var(--danger-soft)' }}>{error}</p>}
-
-        {paymentRedirectStatus && (
-          <div className="rounded-xl p-4 text-sm" style={{
-            background: paymentRedirectStatus === 'success' ? 'rgba(var(--success-rgb), 0.08)' : 'rgba(var(--danger-rgb), 0.08)',
-            color: paymentRedirectStatus === 'success' ? 'var(--success)' : 'var(--danger-soft)',
-            border: `1px solid ${paymentRedirectStatus === 'success' ? 'rgba(var(--success-rgb), 0.25)' : 'rgba(var(--danger-rgb), 0.25)'}`,
-          }} >
-            <span className="inline-flex items-center gap-1.5">
-              {paymentRedirectStatus === 'success' && <><CheckCircle size={14} /> Payment received! It may take a moment to fully confirm below.</>}
-              {paymentRedirectStatus === 'failed' && <><XCircle size={14} /> Payment failed. You can try again from your dashboard.</>}
-              {paymentRedirectStatus === 'cancelled' && <><AlertTriangle size={14} /> Payment was cancelled.</>}
-            </span>
-          </div>
-        )}
-
-        {/* ── Schedule ──────────────────────────────────────────────────── */}
-        {category?.schedule_date && (
-          <div className="rounded-xl p-4 space-y-1.5" style={{ background: 'rgba(var(--cat-teal-rgb), 0.08)', border: '1px solid rgba(var(--cat-teal-rgb), 0.25)' }}>
-            <p className="text-sm font-bold flex items-center gap-2" style={{ color: 'var(--cat-teal)' }}>
-              <Calendar size={14} /> Your Schedule
-            </p>
-            <p className="text-sm" style={{ color: 'var(--white)' }}>
-              {new Date(category.schedule_date).toLocaleDateString('en-BD', { weekday: 'long', month: 'long', day: 'numeric' })}
-            </p>
-            {category.schedule_time && <p className="text-sm flex items-center gap-1.5" style={{ color: 'var(--muted)' }}><Clock size={12} /> {category.schedule_time}</p>}
-            {category.schedule_room && <p className="text-sm flex items-center gap-1.5" style={{ color: 'var(--muted)' }}><MapPin size={12} /> {category.schedule_room}</p>}
-          </div>
-        )}
-
-        {/* ── Payment ───────────────────────────────────────────────────── */}
-        {registration.payment_status !== 'not_required' && (
-          <div className="rounded-xl p-4" style={{
-            background: registration.payment_status === 'paid' ? 'rgba(var(--success-rgb), 0.08)' : 'rgba(var(--warning-rgb), 0.08)',
-            border: `1px solid ${registration.payment_status === 'paid' ? 'rgba(var(--success-rgb), 0.25)' : 'rgba(var(--warning-rgb), 0.25)'}`,
-          }}>
-            <p className="text-sm font-bold flex items-center gap-1.5" style={{ color: registration.payment_status === 'paid' ? 'var(--success)' : 'var(--warning)' }}>
-              <CreditCard size={14} /> Payment: {registration.payment_status === 'paid' ? <>Completed <CheckCircle size={13} /></> : registration.payment_status === 'pending' ? 'Pending verification' : 'Failed'}
-            </p>
-            {registration.payment_amount && <p className="text-xs mt-1" style={{ color: 'var(--muted)' }}>৳{registration.payment_amount}</p>}
-          </div>
-        )}
-
         {/* ── Online Submission / Exam Section ─────────────────────────── */}
         {category?.is_online_submission && (
-          <div className="rounded-xl p-5 space-y-4" style={{ background: 'rgba(var(--blue-rgb), 0.05)', border: '1px solid rgba(var(--blue-rgb), 0.25)' }}>
-            <p className="text-sm font-bold flex items-center gap-2" style={{ color: 'var(--blue)', fontFamily: 'inherit' }}>
-              <ExternalLink size={14} /> Online Round
+          <div className="rounded-xl p-5 space-y-4" style={{
+            background: examLive ? 'rgba(var(--success-rgb), 0.08)' : 'rgba(var(--blue-rgb), 0.05)',
+            border: `1px solid ${examLive ? 'rgba(var(--success-rgb), 0.35)' : 'rgba(var(--blue-rgb), 0.25)'}`,
+          }}>
+            <p className="text-sm font-bold flex items-center gap-2" style={{ color: examLive ? 'var(--success)' : 'var(--blue)', fontFamily: 'inherit' }}>
+              <ExternalLink size={14} /> Online Round {examLive && <span className="text-xs px-2 py-0.5 rounded-full" style={{ background: 'rgba(var(--success-rgb), 0.15)' }}>● Live now</span>}
             </p>
 
             {/* Exam scheduled but not started yet */}
@@ -668,6 +576,104 @@ export default function ActivityDashboardPage() {
                 View Olympiad page <ExternalLink size={10} />
               </Link>
             )}
+          </div>
+        )}
+
+        {/* ── Other segments of this event ─────────────────────────────── */}
+        {session?.id && (
+          <div className="rounded-2xl border p-4" style={{ background: 'var(--card)', borderColor: 'var(--border)' }}>
+            {siblingRegs.length > 0 && (
+              <>
+                <p className="text-xs font-bold uppercase tracking-wide mb-3" style={{ color: 'var(--muted)' }}>
+                  Your registrations for this event
+                </p>
+                <div className="flex flex-col gap-2 mb-3">
+                  <div className="px-3 py-2 rounded-lg text-sm font-semibold" style={{ background: 'rgba(var(--blue-rgb), 0.1)', color: 'var(--blue)' }}>
+                    {category?.name || nodeLabel || 'This registration'} — you're viewing this one
+                  </div>
+                  {siblingRegs.map(s => (
+                    <Link key={s.id} href={`/activities/${slug}/dashboard?reg=${s.id}`}
+                      className="px-3 py-2 rounded-lg text-sm flex items-center justify-between"
+                      style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid var(--border)', color: 'var(--white)' }}>
+                      {s.label || 'Registration'}
+                      <span style={{ color: 'var(--muted)' }}>View →</span>
+                    </Link>
+                  ))}
+                </div>
+              </>
+            )}
+            <Link href={`/register/activity/${session.id}`}
+              className="inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-lg text-sm font-bold w-full"
+              style={{ background: 'var(--cat-teal)', color: '#000' }}>
+              Register for another segment →
+            </Link>
+          </div>
+        )}
+
+        {updates.length > 0 && (
+          <div className="rounded-2xl border p-4" style={{ background: 'var(--card)', borderColor: 'var(--border)' }}>
+            <p className="text-xs font-bold uppercase tracking-wide mb-3" style={{ color: 'var(--muted)' }}>Updates</p>
+            <div className="flex flex-col gap-3">
+              {updates.map((u: any) => (
+                <div key={u.id} className="pb-3 border-b last:border-0 last:pb-0" style={{ borderColor: 'var(--border)' }}>
+                  <div className="flex items-baseline justify-between gap-3">
+                    <p className="font-semibold text-sm" style={{ color: 'var(--white)' }}>{u.title}</p>
+                    <span className="text-[11px] whitespace-nowrap" style={{ color: 'var(--muted)' }}>
+                      {new Date(u.created_at).toLocaleDateString('en-BD', { month: 'short', day: 'numeric' })}
+                    </span>
+                  </div>
+                  {u.body && <p className="text-xs mt-0.5" style={{ color: '#a0b4c8' }}>{u.body}</p>}
+                  {u.link_url && (
+                    <a href={u.link_url} target="_blank" rel="noopener noreferrer" className="text-xs underline" style={{ color: 'var(--blue)' }}>
+                      Learn more →
+                    </a>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {error && <p className="text-sm" style={{ color: 'var(--danger-soft)' }}>{error}</p>}
+
+        {paymentRedirectStatus && (
+          <div className="rounded-xl p-4 text-sm" style={{
+            background: paymentRedirectStatus === 'success' ? 'rgba(var(--success-rgb), 0.08)' : 'rgba(var(--danger-rgb), 0.08)',
+            color: paymentRedirectStatus === 'success' ? 'var(--success)' : 'var(--danger-soft)',
+            border: `1px solid ${paymentRedirectStatus === 'success' ? 'rgba(var(--success-rgb), 0.25)' : 'rgba(var(--danger-rgb), 0.25)'}`,
+          }} >
+            <span className="inline-flex items-center gap-1.5">
+              {paymentRedirectStatus === 'success' && <><CheckCircle size={14} /> Payment received! It may take a moment to fully confirm below.</>}
+              {paymentRedirectStatus === 'failed' && <><XCircle size={14} /> Payment failed. You can try again from your dashboard.</>}
+              {paymentRedirectStatus === 'cancelled' && <><AlertTriangle size={14} /> Payment was cancelled.</>}
+            </span>
+          </div>
+        )}
+
+        {/* ── Schedule ──────────────────────────────────────────────────── */}
+        {category?.schedule_date && (
+          <div className="rounded-xl p-4 space-y-1.5" style={{ background: 'rgba(var(--cat-teal-rgb), 0.08)', border: '1px solid rgba(var(--cat-teal-rgb), 0.25)' }}>
+            <p className="text-sm font-bold flex items-center gap-2" style={{ color: 'var(--cat-teal)' }}>
+              <Calendar size={14} /> Your Schedule
+            </p>
+            <p className="text-sm" style={{ color: 'var(--white)' }}>
+              {new Date(category.schedule_date).toLocaleDateString('en-BD', { weekday: 'long', month: 'long', day: 'numeric' })}
+            </p>
+            {category.schedule_time && <p className="text-sm flex items-center gap-1.5" style={{ color: 'var(--muted)' }}><Clock size={12} /> {category.schedule_time}</p>}
+            {category.schedule_room && <p className="text-sm flex items-center gap-1.5" style={{ color: 'var(--muted)' }}><MapPin size={12} /> {category.schedule_room}</p>}
+          </div>
+        )}
+
+        {/* ── Payment ───────────────────────────────────────────────────── */}
+        {registration.payment_status !== 'not_required' && (
+          <div className="rounded-xl p-4" style={{
+            background: registration.payment_status === 'paid' ? 'rgba(var(--success-rgb), 0.08)' : 'rgba(var(--warning-rgb), 0.08)',
+            border: `1px solid ${registration.payment_status === 'paid' ? 'rgba(var(--success-rgb), 0.25)' : 'rgba(var(--warning-rgb), 0.25)'}`,
+          }}>
+            <p className="text-sm font-bold flex items-center gap-1.5" style={{ color: registration.payment_status === 'paid' ? 'var(--success)' : 'var(--warning)' }}>
+              <CreditCard size={14} /> Payment: {registration.payment_status === 'paid' ? <>Completed <CheckCircle size={13} /></> : registration.payment_status === 'pending' ? 'Pending verification' : 'Failed'}
+            </p>
+            {registration.payment_amount && <p className="text-xs mt-1" style={{ color: 'var(--muted)' }}>৳{registration.payment_amount}</p>}
           </div>
         )}
 
