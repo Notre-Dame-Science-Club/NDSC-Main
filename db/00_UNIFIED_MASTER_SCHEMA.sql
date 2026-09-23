@@ -321,7 +321,6 @@ create table if not exists olympiads (
   result_published       boolean default false,
   annotations_published  boolean default false,
   registration_deadline  timestamptz,
-  exam_date              timestamptz,
   eligibility            text,
   organizer_password     text,
   organizer_username     text,                            -- paired with organizer_password; NULL = legacy password-only login (see 22_migration_organizer_username.sql)
@@ -331,9 +330,12 @@ create table if not exists olympiads (
   relay_type             text default 'sequential',
   subjects               jsonb default '[]',
   subject_assignment_mode text default 'self_select',
+  -- The single source of truth for the exam window: entry auto-unlocks at
+  -- scheduled_start_at and locks at scheduled_end_at. For a one-day exam,
+  -- set both to the same day. (Replaces the old exam_date + auto_start
+  -- fields — see 24_migration_consolidate_exam_schedule.sql.)
   scheduled_start_at     timestamptz,
   scheduled_end_at       timestamptz,
-  auto_start             boolean default false,
   theme_bg_color         text,
   theme_bg_image_url     text,
   theme_accent_color     text,

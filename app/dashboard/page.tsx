@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { MessageCircle, Award, Plus, Upload, X, Home, CalendarDays, BookOpen, Trophy, User, Megaphone, Ticket, Link2, CheckCircle, FileText, CalendarCheck, CreditCard, ClipboardList, ArrowRight, IdCard, Clock } from 'lucide-react'
+import { MessageCircle, Award, Plus, Upload, X, Home, CalendarDays, BookOpen, Trophy, User, Megaphone, Ticket, Link2, CheckCircle, FileText, CalendarCheck, CreditCard, ClipboardList, ArrowRight, IdCard, Clock, Zap, Sparkles, PenLine, ExternalLink } from 'lucide-react'
 import SurveyForm from '@/components/SurveyForm'
 import AnnotationViewer from '@/components/olympiad/AnnotationViewer'
 
@@ -93,7 +93,7 @@ export default function DashboardPage() {
         // itself relies on.
         fetch('/api/activity-sessions-public').then(r => r.json()).catch(() => []),
         supabase.from('publications').select('*').eq('is_published', true).order('created_at', { ascending: false }),
-        supabase.from('olympiads').select('*').eq('is_active', true).order('exam_date', { ascending: true }),
+        supabase.from('olympiads').select('*').eq('is_active', true).order('scheduled_start_at', { ascending: true }),
         fetch('/api/admin/homepage-settings').catch(() => null),
       ])
 
@@ -1043,10 +1043,10 @@ export default function DashboardPage() {
         {tab === 'activities' && (
           <div className="space-y-6">
 
-            {/* ── My Registrations ─────────────────────────────────── */}
+            {/* ── Registered Events ─────────────────────────────────── */}
             <div>
               <h3 className="font-semibold text-sm mb-3 flex items-center gap-2" style={{ color: 'var(--muted)', fontFamily: 'inherit' }}>
-                <Ticket size={14} /> My Registrations
+                <Ticket size={14} /> Registered Events
               </h3>
               {regsLoading ? (
                 <p className="text-sm" style={{ color: 'var(--muted)' }}>Loading your registrations…</p>
@@ -1056,8 +1056,8 @@ export default function DashboardPage() {
                 <div className="space-y-3">
                   {(() => {
                     // Group by event (session). A user may have registered in
-                    // multiple segments of one event, so we want one card per
-                    // event with sub-rows per segment.
+                    // multiple segments of one event, so one wedge per event
+                    // with every registered subsegment listed underneath it.
                     const groups: Record<string, { session: any; regs: any[] }> = {}
                     for (const r of myRegistrations) {
                       const sid = r.session?.id || r.activity_session_id
@@ -1067,37 +1067,46 @@ export default function DashboardPage() {
                     return Object.values(groups).map(({ session, regs }) => (
                       <div key={session?.id || regs[0].activity_session_id} className="rounded-2xl overflow-hidden"
                         style={{ background: 'var(--bg2)', border: '1px solid var(--border)' }}>
-                        {session?.cover_image_url && (
-                          <img src={session.cover_image_url} alt={session.title}
-                            className="w-full h-32 object-cover" />
-                        )}
-                        <div className="p-4">
-                          <div className="flex items-start justify-between gap-3 mb-3">
-                            <div className="flex-1 min-w-0">
-                              <p className="font-bold text-base truncate" style={{ color: 'var(--white)' }}>
+                        <div className="flex items-center justify-between gap-3 p-4" style={{ borderBottom: '1px solid var(--border)' }}>
+                          <div className="flex items-center gap-3 min-w-0">
+                            {session?.cover_image_url && (
+                              <img src={session.cover_image_url} alt={session.title}
+                                className="w-11 h-11 rounded-lg object-cover flex-shrink-0" />
+                            )}
+                            <div className="min-w-0">
+                              <p className="font-bold text-sm truncate" style={{ color: 'var(--white)' }}>
                                 {session?.title || 'Event'}
                               </p>
-                              {session?.reg_status && (
-                                <span className="text-xs px-1.5 py-0.5 rounded-full font-semibold inline-block mt-1"
-                                  style={{ background: 'rgba(255, 176, 32, 0.1)', color: '#ffb020' }}>
-                                  {session.reg_status}
+                              <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                                {session?.reg_status && (
+                                  <span className="text-xs px-1.5 py-0.5 rounded-full font-semibold"
+                                    style={{ background: 'rgba(255, 176, 32, 0.1)', color: '#ffb020' }}>
+                                    {session.reg_status}
+                                  </span>
+                                )}
+                                <span className="text-xs" style={{ color: 'var(--muted)' }}>
+                                  {regs.length} segment{regs.length === 1 ? '' : 's'} registered
                                 </span>
-                              )}
+                              </div>
                             </div>
-                            {session?.slug && (
-                              <Link href={`/activities/${session.slug}/dashboard`}
-                                className="flex-shrink-0 px-3 py-1.5 rounded-lg text-xs font-bold"
-                                style={{ background: 'rgba(var(--blue-rgb), 0.1)', color: 'var(--blue)', border: '1px solid rgba(var(--blue-rgb), 0.3)', whiteSpace: 'nowrap' }}>
-                                Dashboard →
-                              </Link>
-                            )}
                           </div>
+                          {session?.slug && (
+                            <Link href={`/activities/${session.slug}/dashboard`}
+                              className="flex-shrink-0 px-3 py-1.5 rounded-lg text-xs font-bold"
+                              style={{ background: 'rgba(var(--blue-rgb), 0.1)', color: 'var(--blue)', border: '1px solid rgba(var(--blue-rgb), 0.3)', whiteSpace: 'nowrap' }}>
+                              Dashboard →
+                            </Link>
+                          )}
+                        </div>
 
-                          <div className="space-y-2">
-                            {regs.map(reg => (
-                              <div key={reg.id} className="rounded-lg p-3"
-                                style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid var(--border)' }}>
-                                <div className="flex items-start justify-between gap-2">
+                        <div className="divide-y" style={{ borderColor: 'var(--border)' }}>
+                          {regs.map(reg => {
+                            const summary = reg.submission_summary
+                            const finalSub = summary?.final
+                            const draftCount = summary?.draft_count || 0
+                            return (
+                              <div key={reg.id} className="p-4">
+                                <div className="flex items-start justify-between gap-3">
                                   <div className="flex-1 min-w-0">
                                     <p className="text-sm font-semibold" style={{ color: 'var(--white)' }}>
                                       {reg.category?.name || 'Registration'}
@@ -1106,15 +1115,14 @@ export default function DashboardPage() {
                                       <p className="text-xs mt-0.5" style={{ color: 'var(--blue)' }}>Project: {reg.project_name}</p>
                                     )}
                                     <div className="flex gap-2 mt-1.5 flex-wrap">
-                                      {reg.session?.reg_deadline && (
-                                        <span className="text-xs flex items-center gap-1" style={{ color: 'var(--cat-teal)' }}>
-                                          <CalendarDays size={11} /> Deadline {new Date(reg.session.reg_deadline).toLocaleDateString('en-BD', { month: 'short', day: 'numeric' })}
-                                        </span>
-                                      )}
-                                      {reg.category?.schedule_date && (
+                                      {reg.category?.schedule_date ? (
                                         <span className="text-xs flex items-center gap-1" style={{ color: 'var(--cat-teal)' }}>
                                           <CalendarDays size={11} /> {new Date(reg.category.schedule_date).toLocaleDateString('en-BD', { month: 'short', day: 'numeric' })}
                                           {reg.category?.schedule_time && ` ${reg.category.schedule_time}`}
+                                        </span>
+                                      ) : reg.session?.reg_deadline && (
+                                        <span className="text-xs flex items-center gap-1" style={{ color: 'var(--cat-teal)' }}>
+                                          <CalendarDays size={11} /> Deadline {new Date(reg.session.reg_deadline).toLocaleDateString('en-BD', { month: 'short', day: 'numeric' })}
                                         </span>
                                       )}
                                       {reg.payment_status && reg.payment_status !== 'not_required' && (
@@ -1125,12 +1133,33 @@ export default function DashboardPage() {
                                           <CreditCard size={10} /> {reg.payment_status}
                                         </span>
                                       )}
-                                      {reg.category?.is_online_submission && (
-                                        <span className="text-xs px-1.5 py-0.5 rounded-full" style={{ background: 'rgba(var(--blue-rgb), 0.1)', color: 'var(--blue)' }}>
-                                          <Link2 size={10} className="inline mr-1 -mt-0.5" /> Online round
-                                        </span>
-                                      )}
                                     </div>
+
+                                    {/* Submission / olympiad status — only shown for online-round segments */}
+                                    {reg.category?.is_online_submission && (
+                                      <div className="flex items-center gap-2 mt-2 flex-wrap">
+                                        {finalSub ? (
+                                          <span className="text-xs px-1.5 py-0.5 rounded-full flex items-center gap-1" style={{ background: 'rgba(var(--success-rgb), 0.1)', color: 'var(--success)' }}>
+                                            <CheckCircle size={10} /> Final submitted {new Date(finalSub.updated_at || finalSub.created_at).toLocaleDateString('en-BD', { month: 'short', day: 'numeric' })}
+                                          </span>
+                                        ) : (
+                                          <span className="text-xs px-1.5 py-0.5 rounded-full flex items-center gap-1" style={{ background: 'rgba(var(--warning-rgb), 0.1)', color: 'var(--warning)' }}>
+                                            <PenLine size={10} /> Not finalized yet
+                                          </span>
+                                        )}
+                                        {draftCount > 0 && (
+                                          <span className="text-xs" style={{ color: 'var(--muted)' }}>
+                                            + {draftCount} intermediate {draftCount === 1 ? 'entry' : 'entries'} saved
+                                          </span>
+                                        )}
+                                        {reg.olympiad && (
+                                          <Link href={`/olympiad?id=${reg.olympiad.id}`}
+                                            className="text-xs underline flex items-center gap-1" style={{ color: 'var(--blue)' }}>
+                                            <Trophy size={10} /> {reg.olympiad.name} <ExternalLink size={9} />
+                                          </Link>
+                                        )}
+                                      </div>
+                                    )}
                                   </div>
                                   {reg.session?.slug && (
                                     <Link href={`/activities/${reg.session.slug}/dashboard?reg=${reg.id}`}
@@ -1141,8 +1170,8 @@ export default function DashboardPage() {
                                   )}
                                 </div>
                               </div>
-                            ))}
-                          </div>
+                            )
+                          })}
                         </div>
                       </div>
                     ))
@@ -1158,35 +1187,67 @@ export default function DashboardPage() {
               </h3>
               {activities.length === 0
                 ? <p className="text-sm" style={{ color: 'var(--muted)' }}>No activities published yet.</p>
-                : activities.map(a => (
-                  <Link key={a.id} href={`/activities/${a.slug}`} className="block rounded-xl overflow-hidden transition-transform hover:-translate-y-0.5 mb-3"
-                    style={{ background: 'var(--bg2)', border: '1px solid var(--border)' }}>
-                    {a.cover_image_url && (
-                      <img src={a.cover_image_url} alt={a.title} className="w-full h-40 object-cover" />
-                    )}
-                    <div className="p-4 flex items-start justify-between gap-3">
-                      <div className="flex-1 min-w-0">
-                        {a.activity_types?.name && (
-                          <span className="text-xs px-2 py-0.5 rounded-full font-medium" style={{ background: 'rgba(var(--blue-rgb), 0.1)', color: 'var(--blue)' }}>
-                            {a.activity_types.name}
-                          </span>
+                : [...activities].sort((a, b) => {
+                    // Live (registration currently open) and new/upcoming
+                    // activities are what people actually need to act on,
+                    // so they lead the list regardless of session_date —
+                    // past/archived activities fall to the bottom.
+                    const tier = (x: any) => {
+                      const isLive = !!x.registration_enabled && typeof x.reg_status === 'string' && /open/i.test(x.reg_status)
+                      if (isLive) return 0
+                      if (x.is_upcoming) return 1
+                      return 2
+                    }
+                    const ta = tier(a), tb = tier(b)
+                    if (ta !== tb) return ta - tb
+                    const da = a.session_date ? new Date(a.session_date).getTime() : 0
+                    const db = b.session_date ? new Date(b.session_date).getTime() : 0
+                    return db - da
+                  }).map(a => {
+                    const isLive = !!a.registration_enabled && typeof a.reg_status === 'string' && /open/i.test(a.reg_status)
+                    const isNew = !isLive && !!a.is_upcoming
+                    return (
+                      <Link key={a.id} href={`/activities/${a.slug}`} className="block rounded-xl overflow-hidden transition-transform hover:-translate-y-0.5 mb-3"
+                        style={{ background: 'var(--bg2)', border: '1px solid var(--border)' }}>
+                        {a.cover_image_url && (
+                          <img src={a.cover_image_url} alt={a.title} className="w-full h-40 object-cover" />
                         )}
-                        <h4 className="font-semibold mt-2 truncate" style={{ color: 'var(--white)' }}>{a.title}</h4>
-                        {a.session_date && (
-                          <p className="text-xs mt-1" style={{ color: 'var(--muted)' }}>
-                            <CalendarCheck size={11} className="inline mr-1 -mt-0.5" /> {new Date(a.session_date).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })}
-                          </p>
-                        )}
-                      </div>
-                      {/* If member already registered for this session, show dashboard link */}
-                      {myRegistrations.find(r => r.session?.id === a.id) && (
-                        <span className="text-xs px-2 py-1 rounded-full flex-shrink-0 inline-flex items-center gap-1" style={{ background: 'rgba(var(--cat-teal-rgb), 0.1)', color: 'var(--cat-teal)' }}>
-                          <CheckCircle size={11} /> Registered
-                        </span>
-                      )}
-                    </div>
-                  </Link>
-                ))}
+                        <div className="p-4 flex items-start justify-between gap-3">
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              {isLive && (
+                                <span className="text-xs px-2 py-0.5 rounded-full font-bold inline-flex items-center gap-1" style={{ background: 'rgba(var(--success-rgb), 0.15)', color: 'var(--success)' }}>
+                                  <Zap size={10} /> Live
+                                </span>
+                              )}
+                              {isNew && (
+                                <span className="text-xs px-2 py-0.5 rounded-full font-bold inline-flex items-center gap-1" style={{ background: 'rgba(var(--blue-rgb), 0.15)', color: 'var(--blue)' }}>
+                                  <Sparkles size={10} /> New
+                                </span>
+                              )}
+                              {a.activity_types?.name && (
+                                <span className="text-xs px-2 py-0.5 rounded-full font-medium" style={{ background: 'rgba(var(--blue-rgb), 0.1)', color: 'var(--blue)' }}>
+                                  {a.activity_types.name}
+                                </span>
+                              )}
+                            </div>
+                            <h4 className="font-semibold mt-2 truncate" style={{ color: 'var(--white)' }}>{a.title}</h4>
+                            {a.session_date && (
+                              <p className="text-xs mt-1" style={{ color: 'var(--muted)' }}>
+                                <CalendarCheck size={11} className="inline mr-1 -mt-0.5" /> {new Date(a.session_date).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })}
+                              </p>
+                            )}
+                          </div>
+                          {/* If member already registered for this session, show dashboard link */}
+                          {myRegistrations.find(r => r.session?.id === a.id) && (
+                            <span className="text-xs px-2 py-1 rounded-full flex-shrink-0 inline-flex items-center gap-1" style={{ background: 'rgba(var(--cat-teal-rgb), 0.1)', color: 'var(--cat-teal)' }}>
+                              <CheckCircle size={11} /> Registered
+                            </span>
+                          )}
+                        </div>
+                      </Link>
+                    )
+                  })}
             </div>
 
           </div>

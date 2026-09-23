@@ -48,7 +48,7 @@ export async function GET(req: NextRequest) {
           name,
           description,
           cover_image_url,
-          exam_date,
+          scheduled_start_at,
           result_published,
           annotations_published
         )

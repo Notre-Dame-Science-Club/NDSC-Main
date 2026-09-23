@@ -10,6 +10,6 @@ export type Executive = {
   photo_url: string | null; session_year?: string;
   quote?: string; link?: string;
 };
-export type PulseOlympiad = { id: string; name: string; exam_date: string | null; registration_deadline: string | null };
+export type PulseOlympiad = { id: string; name: string; scheduled_start_at: string | null; registration_deadline: string | null };
 export type LeaderboardEntry = { name: string; score: number };
 export type Leaderboard = { olympiad_id: string; olympiad_name: string; entries: LeaderboardEntry[] };

@@ -37,7 +37,6 @@ type Olympiad = {
   mode?: string
   exam_type?: 'photo_only' | 'live_only' | 'mixed'
   registration_deadline?: string | null
-  exam_date?: string | null
   scheduled_start_at?: string | null
   scheduled_end_at?: string | null
   eligibility?: string
@@ -150,10 +149,6 @@ export default function OlympiadListPage() {
     if (o.scheduled_end_at && now > new Date(o.scheduled_end_at).getTime()) {
       return { status: 'closed', reason: 'Exam window has ended' }
     }
-    if (!o.scheduled_end_at && o.exam_date) {
-      const end = new Date(o.exam_date); end.setHours(23, 59, 59, 999)
-      if (now > end.getTime()) return { status: 'closed', reason: `Exam was on ${fmtDate(o.exam_date)}` }
-    }
     if (o.external_only === false && member && !isNDCStudent(member)) {
       return { status: 'closed', reason: 'Open to Notre Dame College students only' }
     }
@@ -259,7 +254,7 @@ function OlympiadCard({ card }: { card: Card }) {
           {o.exam_type && o.exam_type !== 'live_only' && <span>Online questions</span>}
           {o.exam_type === 'live_only' && <span>Written exam</span>}
           {o.timer_minutes && <span>· {o.timer_minutes} min</span>}
-          {o.exam_date && <span className="inline-flex items-center gap-1"><Calendar size={11} /> {fmtDate(o.exam_date)}</span>}
+          {o.scheduled_start_at && <span className="inline-flex items-center gap-1"><Calendar size={11} /> {fmtDate(o.scheduled_start_at)}</span>}
           {o.registration_deadline && isOpen && (
             <span>· Register by {fmtDate(o.registration_deadline)}</span>
           )}

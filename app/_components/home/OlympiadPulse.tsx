@@ -23,10 +23,10 @@ export function OlympiadPulse() {
   }, []);
 
   const next = olympiads
-    .filter(o => o.exam_date && new Date(o.exam_date).getTime() > Date.now())
-    .sort((a, b) => new Date(a.exam_date!).getTime() - new Date(b.exam_date!).getTime())[0];
+    .filter(o => o.scheduled_start_at && new Date(o.scheduled_start_at).getTime() > Date.now())
+    .sort((a, b) => new Date(a.scheduled_start_at!).getTime() - new Date(b.scheduled_start_at!).getTime())[0];
 
-  const left = useCountdown(next?.exam_date || null);
+  const left = useCountdown(next?.scheduled_start_at || null);
 
   if (!next && leaderboards.length === 0) return null;
 

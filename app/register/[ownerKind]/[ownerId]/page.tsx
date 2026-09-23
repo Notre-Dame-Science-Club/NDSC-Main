@@ -1,6 +1,6 @@
 'use client'
 import { useEffect, useState, useCallback } from 'react'
-import { useParams, useRouter } from 'next/navigation'
+import { useParams, useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { ArrowLeft, Loader2, AlertTriangle, CheckCircle2 } from 'lucide-react'
 import FormRunner, { type FormRunnerOwner } from '@/components/public/FormRunner'
@@ -41,8 +41,17 @@ function getCookie(name: string): string | null {
 export default function PublicRegisterPage() {
   const params = useParams()
   const router = useRouter()
+  const searchParams = useSearchParams()
   const ownerKind = (params?.ownerKind as string) || ''
   const ownerId = (params?.ownerId as string) || ''
+  // Set by the "Register for another segment →" links (RegistrationCTA.tsx,
+  // activities/[slug]/dashboard/page.tsx) — a deliberate second registration
+  // for this event, not an accidental resubmit. The "already registered"
+  // marker below is keyed per-event, not per-segment, so without this flag
+  // it would stop every second-segment registration with a warning screen
+  // that has nothing to do with what actually happened (a different segment,
+  // not a duplicate of the same one).
+  const isNewSegment = searchParams.get('newSegment') === '1'
 
   const [graph, setGraph] = useState<FormGraph | null>(null)
   const [nodes, setNodes] = useState<FormNode[]>([])
@@ -63,10 +72,14 @@ export default function PublicRegisterPage() {
     setError('')
 
     // Check for a durable "already completed this" marker before doing
-    // anything else — cookie first, localStorage as a fallback.
-    const existingDoneId = getCookie(doneKey(ownerKind, ownerId)) || (() => {
+    // anything else — cookie first, localStorage as a fallback. Skipped
+    // entirely for a deliberate new-segment registration (see isNewSegment
+    // above) — that marker only ever means "you finished this event's form
+    // once before", which is expected and fine when registering for
+    // another segment, not something to warn about.
+    const existingDoneId = isNewSegment ? null : (getCookie(doneKey(ownerKind, ownerId)) || (() => {
       try { return localStorage.getItem(doneKey(ownerKind, ownerId)) } catch { return null }
-    })()
+    })())
     if (existingDoneId) setAlreadyDone({ registrationId: existingDoneId })
 
     fetch(`/api/public/form-graph?owner_kind=${ownerKind}&owner_id=${ownerId}`)
@@ -88,7 +101,7 @@ export default function PublicRegisterPage() {
       .catch((e: any) => !cancelled && setError(e.message || 'Failed to load form.'))
       .finally(() => !cancelled && setLoading(false))
     return () => { cancelled = true }
-  }, [ownerKind, ownerId])
+  }, [ownerKind, ownerId, isNewSegment])
 
   // Resolve the activity's slug (for a working "open my dashboard" link
   // in the duplicate-registration warning) — only relevant for activities.

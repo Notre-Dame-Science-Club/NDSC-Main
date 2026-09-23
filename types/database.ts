@@ -417,7 +417,6 @@ export interface OlympiadRow {
   result_published: boolean
   annotations_published: boolean
   registration_deadline: ISODateString | null
-  exam_date: ISODateString | null
   eligibility: string
   /** plaintext — see organizer login; not a real security boundary */
   organizer_password: string
@@ -429,9 +428,9 @@ export interface OlympiadRow {
   relay_type: OlympiadRelayType
   subjects: OlympiadSubject[]
   subject_assignment_mode: OlympiadSubjectAssignmentMode
+  /** The exam window — entry auto-unlocks at start and locks at end. Same day on both = a one-day exam. */
   scheduled_start_at: ISODateString | null
   scheduled_end_at: ISODateString | null
-  auto_start: boolean
   created_at: ISODateString
 }
 

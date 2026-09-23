@@ -781,7 +781,7 @@ begin
   -- ══════════════════════════════════════════════════════════════════════
   insert into olympiads (
     id, name, description, exam_type, exam_mode, question_display, timer_minutes,
-    is_active, external_only, registration_deadline, exam_date, eligibility,
+    is_active, external_only, registration_deadline, scheduled_start_at, scheduled_end_at, eligibility,
     registration_fields, questions,
     relay_mode, relay_type, subjects, subject_assignment_mode
   )
@@ -789,7 +789,7 @@ begin
     o1_id, 'Physics Live Challenge 2025',
     'Team relay exam — Physics and Math rounds, one member at a time, sequential handoff.',
     'live_only', 'mixed', 'one_by_one', 20,
-    true, true, now() + interval '35 days', now() + interval '35 days',
+    true, true, now() + interval '35 days', now() + interval '35 days', now() + interval '35 days',
     'Open to all HSC students competing as a registered Robo... (n/a — see linked activity for team rules).',
     '[]'::jsonb,
     '[
@@ -862,7 +862,7 @@ begin
   -- ══════════════════════════════════════════════════════════════════════
   insert into olympiads (
     id, name, description, exam_type, exam_mode, question_display, timer_minutes,
-    is_active, external_only, registration_deadline, exam_date,
+    is_active, external_only, registration_deadline, scheduled_start_at, scheduled_end_at,
     registration_fields, questions,
     relay_mode, relay_type, subjects, subject_assignment_mode
   )
@@ -870,7 +870,7 @@ begin
     o2_id, 'Bio Quiz Relay',
     'Chain relay: each teammate answers using the previous teammate''s answer as an input.',
     'live_only', 'mixed', 'one_by_one', 15,
-    true, true, now() + interval '40 days', now() + interval '40 days',
+    true, true, now() + interval '40 days', now() + interval '40 days', now() + interval '40 days',
     '[]'::jsonb,
     '[
       {"id":"bq1","type":"short","text":"Name one organelle responsible for energy production in a cell.","marks":2,"subject_id":"bio"},
@@ -1050,16 +1050,16 @@ begin
   -- ══════════════════════════════════════════════════════════════════════
   insert into olympiads (
     id, name, description, exam_type, exam_mode, question_display, timer_minutes,
-    is_active, external_only, registration_deadline, exam_date,
+    is_active, external_only, registration_deadline,
     registration_fields, questions,
-    scheduled_start_at, scheduled_end_at, auto_start,
+    scheduled_start_at, scheduled_end_at,
     theme_bg_color, theme_bg_image_url, theme_accent_color, theme_header_title, theme_header_subtitle, theme_header_logo_url
   )
   values (
     o3_id, 'Photo-Only Sprint Olympiad',
     'Work the problems on paper, photograph each answer sheet, upload. No typing required.',
     'photo_only', 'mixed', 'one_by_one', 30,
-    true, true, now() + interval '10 days', now() + interval '15 days',
+    true, true, now() + interval '10 days',
     '[
       {"key":"full_name","type":"text","label":"Full Name","required":true},
       {"key":"phone","type":"text","label":"Phone","required":true},
@@ -1072,7 +1072,7 @@ begin
       {"id":"ps2","type":"photo","text":"Photograph your full working for the quadratic formula derivation.","marks":8,"max_files":2},
       {"id":"ps3","type":"photo","text":"Photograph your answer sheet for the geometry proof (see PDF).","marks":7,"max_files":1}
     ]'::jsonb,
-    now() + interval '15 days', now() + interval '15 days' + interval '3 hours', true,
+    now() + interval '15 days', now() + interval '15 days' + interval '3 hours',
     '#0b0f1a', 'https://example.com/uploads/photo-sprint-bg.jpg', '#ffb703',
     'Photo-Only Sprint Olympiad', 'Paper first, camera second.', 'https://example.com/uploads/ndsc-logo.png'
   )
@@ -1136,14 +1136,14 @@ begin
   insert into olympiads (
     id, name, description, exam_type, exam_mode, question_display, timer_minutes,
     is_active, external_only, result_published, annotations_published,
-    registration_deadline, exam_date, eligibility, organizer_password,
+    registration_deadline, scheduled_start_at, scheduled_end_at, eligibility, organizer_password,
     registration_fields, questions
   )
   values (
     o4_id, 'Live MCQ Blitz', '30 rapid-fire MCQs, all on one screen, 15 minutes on the clock.',
     'live_only', 'mixed', 'all_at_once', 15,
     true, false, true, true,
-    now() - interval '2 days', now() - interval '1 day',
+    now() - interval '2 days', now() - interval '1 day', now() - interval '1 day',
     'Open to Notre Dame College students only — bring your college ID to the exam venue.',
     'demopass123',
     '[

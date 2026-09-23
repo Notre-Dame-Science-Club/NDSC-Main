@@ -44,7 +44,8 @@ type Olympiad = {
   result_published: boolean
   annotations_published: boolean
   registration_deadline?: string
-  exam_date?: string
+  scheduled_start_at?: string
+  scheduled_end_at?: string
   eligibility?: string
   external_only?: boolean
   organizer_username?: string
@@ -298,7 +299,6 @@ export default function AdminOlympiadsPage() {
       result_published: editing.result_published ?? false,
       annotations_published: editing.annotations_published ?? false,
       registration_deadline: editing.registration_deadline || null,
-      exam_date: editing.exam_date || null,
       eligibility: editing.eligibility || null,
       external_only: editing.external_only ?? false,
       organizer_username: editing.organizer_username || null,
@@ -311,6 +311,12 @@ export default function AdminOlympiadsPage() {
       theme_header_title: editing.theme_header_title || null,
       theme_header_subtitle: editing.theme_header_subtitle || null,
       theme_header_logo_url: editing.theme_header_logo_url || null,
+      scheduled_start_at: editing.scheduled_start_at || null,
+      scheduled_end_at: editing.scheduled_end_at || null,
+      relay_mode: (editing as any).relay_mode ?? false,
+      relay_type: (editing as any).relay_type || 'sequential',
+      subjects: (editing as any).subjects || [],
+      subject_assignment_mode: (editing as any).subject_assignment_mode || 'self_select',
     }
     const res = await fetch('/api/admin/olympiads', {
       method: editing.id ? 'PUT' : 'POST',
@@ -547,15 +553,12 @@ export default function AdminOlympiadsPage() {
                 <input className={inputClass} style={inputStyle} value={editing.eligibility || ''} onChange={e => setEditing(p => ({ ...p, eligibility: e.target.value }))} placeholder="e.g. NDC Batch 28" />
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-xs mb-1" style={{ color: 'var(--muted)' }}>Registration Deadline</label>
-                <input type="datetime-local" className={inputClass} style={inputStyle} value={editing.registration_deadline?.slice(0, 16) || ''} onChange={e => setEditing(p => ({ ...p, registration_deadline: e.target.value }))} />
-              </div>
-              <div>
-                <label className="block text-xs mb-1" style={{ color: 'var(--muted)' }}>Exam Date</label>
-                <input type="datetime-local" className={inputClass} style={inputStyle} value={editing.exam_date?.slice(0, 16) || ''} onChange={e => setEditing(p => ({ ...p, exam_date: e.target.value }))} />
-              </div>
+            <div>
+              <label className="block text-xs mb-1" style={{ color: 'var(--muted)' }}>Registration Deadline</label>
+              <input type="datetime-local" className={inputClass} style={inputStyle} value={editing.registration_deadline?.slice(0, 16) || ''} onChange={e => setEditing(p => ({ ...p, registration_deadline: e.target.value }))} />
+              <p className="text-xs mt-1" style={{ color: 'var(--border-soft)' }}>
+                When people can no longer register. The exam window itself (when they can actually enter and take it) is set below, under Exam Scheduling.
+              </p>
             </div>
             <label className="flex items-center gap-2 text-sm cursor-pointer" style={{ color: 'var(--muted)' }}>
               <input type="checkbox" checked={editing.external_only || false} onChange={e => setEditing(p => ({ ...p, external_only: e.target.checked }))} />
@@ -637,25 +640,26 @@ export default function AdminOlympiadsPage() {
             </div>
           </div>
 
-          {/* ── Phase D: Scheduling ────────────────────────────────── */}
+          {/* ── Exam window: the one place that controls when students can enter ── */}
           <div className="rounded-xl p-5 space-y-4" style={s}>
-            <p className="text-xs font-bold tracking-widest" style={{ color: 'var(--cat-teal)' }}>⏰ EXAM SCHEDULING (auto-start at a set time)</p>
+            <p className="text-xs font-bold tracking-widest" style={{ color: 'var(--cat-teal)' }}>⏰ EXAM WINDOW</p>
             <p className="text-xs" style={{ color: 'var(--border-soft)' }}>
-              If set, the exam page will show a countdown and auto-unlock at the scheduled start time.
-              Students cannot start early; submissions are locked after the end time.
+              The only dates that control the exam itself. Students can enter and take the exam any time between
+              Start and End — set both to the same day for a one-day exam. Before Start, the page shows a countdown;
+              after End, submissions are locked.
             </p>
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-xs mb-1" style={{ color: 'var(--muted)' }}>Scheduled Start</label>
+                <label className="block text-xs mb-1" style={{ color: 'var(--muted)' }}>Start</label>
                 <input type="datetime-local" className={inputClass} style={inputStyle}
-                  value={(editing as any).scheduled_start_at?.slice(0, 16) || ''}
-                  onChange={e => setEditing(p => ({ ...p, scheduled_start_at: e.target.value || null } as any))} />
+                  value={editing.scheduled_start_at?.slice(0, 16) || ''}
+                  onChange={e => setEditing(p => ({ ...p, scheduled_start_at: e.target.value || undefined }))} />
               </div>
               <div>
-                <label className="block text-xs mb-1" style={{ color: 'var(--muted)' }}>Scheduled End</label>
+                <label className="block text-xs mb-1" style={{ color: 'var(--muted)' }}>End</label>
                 <input type="datetime-local" className={inputClass} style={inputStyle}
-                  value={(editing as any).scheduled_end_at?.slice(0, 16) || ''}
-                  onChange={e => setEditing(p => ({ ...p, scheduled_end_at: e.target.value || null } as any))} />
+                  value={editing.scheduled_end_at?.slice(0, 16) || ''}
+                  onChange={e => setEditing(p => ({ ...p, scheduled_end_at: e.target.value || undefined }))} />
               </div>
             </div>
           </div>
@@ -1188,7 +1192,16 @@ export default function AdminOlympiadsPage() {
             {expandedId === o.id && (
               <div className="px-5 pb-4 space-y-2" style={{ borderTop: '1px solid var(--border)' }}>
                 <div className="flex gap-4 pt-3 text-xs flex-wrap" style={{ color: 'var(--border-soft)' }}>
-                  {o.exam_date && <span>Exam: {new Date(o.exam_date).toLocaleString()}</span>}
+                  {(o.scheduled_start_at || o.scheduled_end_at) && (
+                    <span>
+                      Exam: {o.scheduled_start_at ? new Date(o.scheduled_start_at).toLocaleString() : '—'}
+                      {o.scheduled_end_at && (
+                        o.scheduled_start_at && new Date(o.scheduled_start_at).toDateString() === new Date(o.scheduled_end_at).toDateString()
+                          ? ` – ${new Date(o.scheduled_end_at).toLocaleTimeString()}`
+                          : ` → ${new Date(o.scheduled_end_at).toLocaleString()}`
+                      )}
+                    </span>
+                  )}
                   {o.registration_deadline && <span>Reg deadline: {new Date(o.registration_deadline).toLocaleString()}</span>}
                   {o.eligibility && <span>Eligibility: {o.eligibility}</span>}
                   <span>Display: {o.question_display === 'one_by_one' ? 'One by one' : 'All at once'}</span>

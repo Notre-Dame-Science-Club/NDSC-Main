@@ -37,6 +37,8 @@ Format: `XX_descriptive_name.sql`
 - `20_migration_event_start_end.sql` - Event date range (start/end dates)
 - `21_migration_publication_flipbook_url.sql` - Per-publication flip-book link
 - `22_migration_organizer_username.sql` - Organizer login username (paired with organizer_password, set from Admin → Olympiads)
+- `23_migration_backfill_oauth_institution.sql` - Backfill oauth institution data
+- `24_migration_consolidate_exam_schedule.sql` - Collapses `exam_date` + `scheduled_start_at`/`scheduled_end_at` + the unused `auto_start` flag into a single `scheduled_start_at`/`scheduled_end_at` pair (same day = one-day exam)
 
 ### Data Seeds
 - `98_seed_local.sql` - Local development seed data
