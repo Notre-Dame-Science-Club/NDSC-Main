@@ -1,7 +1,7 @@
 import { cookies } from 'next/headers'
 import { redirect } from 'next/navigation'
 import { authCookies } from '@/lib/config/site'
-import { Users, CalendarDays, BookOpen, UserCog, Trophy, Megaphone, Wrench, Bot, MessageSquare, FileText, UserPlus, ClipboardList, Workflow, Film } from 'lucide-react'
+import { Users, CalendarDays, BookOpen, UserCog, Trophy, Megaphone, Wrench, Bot, MessageSquare, FileText, UserPlus, ClipboardList, Workflow, Film, Images, LayoutGrid } from 'lucide-react'
 
 const DASHBOARD_CARDS = [
   { label: 'Members', icon: Users, href: '/admin/members', desc: 'Manage member registrations' },
@@ -10,6 +10,8 @@ const DASHBOARD_CARDS = [
   { label: 'Olympiads', icon: Trophy, href: '/admin/olympiads', desc: 'Manage olympiad registrations' },
   { label: 'Publications', icon: BookOpen, href: '/admin/publications', desc: 'Upload & manage PDFs' },
   { label: 'Science Media', icon: Film, href: '/admin/science-media', desc: 'Manage science media content' },
+  { label: 'Legacy Gallery', icon: Images, href: '/admin/legacy-gallery', desc: 'Vintage homepage photo strip' },
+  { label: 'Glance Gallery', icon: LayoutGrid, href: '/admin/glance-gallery', desc: '"What We Do" homepage tiles' },
   { label: 'Announcements', icon: Megaphone, href: '/admin/announcements', desc: 'Send email & SMS blasts' },
   { label: 'Surveys', icon: ClipboardList, href: '/admin/surveys', desc: 'Create and manage surveys' },
   { label: 'Chat & Voting', icon: MessageSquare, href: '/admin/chat', desc: 'Manage chat rooms and polls' },
