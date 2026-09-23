@@ -445,6 +445,50 @@ export default function DashboardPage() {
 
       <div className="max-w-3xl mx-auto p-5 pb-16">
 
+        {/* ── Live / starting-soon Olympiads — spotlighted above everything else,
+             regardless of which tab is open, since these are time-critical. ── */}
+        {(() => {
+          const now = Date.now()
+          const isLive = (o: any) => o.scheduled_start_at && new Date(o.scheduled_start_at).getTime() <= now &&
+            (!o.scheduled_end_at || new Date(o.scheduled_end_at).getTime() > now)
+          const live = olympiads.filter(isLive)
+          const upcoming = olympiads
+            .filter(o => o.scheduled_start_at && new Date(o.scheduled_start_at).getTime() > now)
+            .slice(0, 3)
+          if (live.length === 0 && upcoming.length === 0) return null
+          return (
+            <div className="space-y-2 mb-5">
+              {live.map(o => (
+                <a key={o.id} href={`/olympiad?id=${o.id}`}
+                  className="flex items-center justify-between gap-3 rounded-xl p-4 border"
+                  style={{ background: 'rgba(var(--success-rgb), 0.08)', borderColor: 'rgba(var(--success-rgb), 0.35)' }}>
+                  <div className="min-w-0">
+                    <p className="text-xs font-bold flex items-center gap-1.5" style={{ color: 'var(--success)' }}>
+                      <span className="w-1.5 h-1.5 rounded-full" style={{ background: 'var(--success)' }} /> LIVE NOW
+                    </p>
+                    <p className="text-sm font-semibold truncate mt-0.5" style={{ color: 'var(--white)' }}>{o.name}</p>
+                  </div>
+                  <ExternalLink size={14} style={{ color: 'var(--success)', flexShrink: 0 }} />
+                </a>
+              ))}
+              {upcoming.map(o => (
+                <a key={o.id} href={`/olympiad?id=${o.id}`}
+                  className="flex items-center justify-between gap-3 rounded-xl p-4 border"
+                  style={{ background: 'rgba(var(--blue-rgb), 0.06)', borderColor: 'rgba(var(--blue-rgb), 0.25)' }}>
+                  <div className="min-w-0">
+                    <p className="text-xs font-bold" style={{ color: 'var(--blue)' }}>UPCOMING OLYMPIAD</p>
+                    <p className="text-sm font-semibold truncate mt-0.5" style={{ color: 'var(--white)' }}>{o.name}</p>
+                    <p className="text-xs mt-0.5" style={{ color: 'var(--muted)' }}>
+                      {new Date(o.scheduled_start_at).toLocaleString('en-BD', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}
+                    </p>
+                  </div>
+                  <ExternalLink size={14} style={{ color: 'var(--blue)', flexShrink: 0 }} />
+                </a>
+              ))}
+            </div>
+          )
+        })()}
+
         {/* PROFILE */}
         {tab === 'profile' && (
           <div className="space-y-4">

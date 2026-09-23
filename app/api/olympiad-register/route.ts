@@ -92,6 +92,29 @@ export async function PUT(req: NextRequest) {
     return apiError('No valid fields to update', 400)
   }
 
+  // Some olympiads disable resubmission (e.g. to prevent a student comparing
+  // notes and re-answering after seeing others' results) — once this
+  // registration already has a final submission, any further PUT (whether
+  // it's another exam_submitted_at or just a quiet answers overwrite) is
+  // blocked for those. Olympiads that never set the flag keep today's
+  // behavior (resubmission allowed) so nothing breaks for existing data.
+  const { data: existing } = await supabaseAdmin
+    .from('olympiad_registrations')
+    .select('exam_submitted_at, olympiad_id')
+    .eq('id', id)
+    .single()
+
+  if (existing?.exam_submitted_at) {
+    const { data: olympiad } = await supabaseAdmin
+      .from('olympiads')
+      .select('allow_resubmission')
+      .eq('id', existing.olympiad_id)
+      .single()
+    if (olympiad?.allow_resubmission === false) {
+      return apiError('This olympiad has already received your submission and does not allow resubmission.', 409)
+    }
+  }
+
   const { error } = await supabaseAdmin
     .from('olympiad_registrations')
     .update(updates)

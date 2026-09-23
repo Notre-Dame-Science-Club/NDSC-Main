@@ -9,7 +9,11 @@ export async function POST(req: NextRequest) {
   const session = await getOrganizerSession()
   if (!session) return apiError('Unauthorized', 401)
 
-  const { regId, score, annotations, organizer_note } = await req.json().catch(() => ({}))
+  // field: present when this submission has multiple photo answers (e.g. the
+  // form has "gp1"/"gp2"/"gp3" photo questions) and the organizer just marked
+  // up one specific one — then `annotations` holds only that photo's marks
+  // and must be merged into the others' rather than overwriting the column.
+  const { regId, score, annotations, organizer_note, field } = await req.json().catch(() => ({}))
 
   if (!regId || typeof regId !== 'string') {
     return apiError('regId is required.', 400)
@@ -21,7 +25,7 @@ export async function POST(req: NextRequest) {
   // Confirm this registration belongs to an olympiad the organizer is authorized for
   const { data: reg, error: regError } = await supabaseAdmin
     .from('olympiad_registrations')
-    .select('id, olympiad_id')
+    .select('id, olympiad_id, annotations')
     .eq('id', regId)
     .single()
 
@@ -39,7 +43,16 @@ export async function POST(req: NextRequest) {
   // Tick/cross/note overlay data on the answer sheet image, and the
   // organizer's overall written comment on the sheet (separate from the
   // per-mark notes that live inside each annotation object).
-  if (annotations !== undefined) updatePayload.annotations = annotations
+  let savedAnnotations = reg.annotations
+  if (annotations !== undefined) {
+    if (field && typeof field === 'string') {
+      const existing = reg.annotations && !Array.isArray(reg.annotations) ? reg.annotations : {}
+      savedAnnotations = { ...existing, [field]: annotations }
+    } else {
+      savedAnnotations = annotations
+    }
+    updatePayload.annotations = savedAnnotations
+  }
   if (organizer_note !== undefined) updatePayload.organizer_note = organizer_note
 
   const { error: updateError } = await supabaseAdmin
@@ -51,5 +64,5 @@ export async function POST(req: NextRequest) {
     return apiError('Could not save score.', 500)
   }
 
-  return apiOk({ success: true })
+  return apiOk({ success: true, annotations: savedAnnotations })
 }

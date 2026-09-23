@@ -8,7 +8,24 @@ type Reg = {
   college_roll?: string; batch?: string; group_name?: string; answer_sheet_url?: string
   mcq_score?: number; final_score?: number; review_status?: string; created_at: string
   custom_answers?: Record<string, string>; mcq_answers?: Record<string, string>
-  annotations?: Annotation[]; organizer_note?: string
+  // Legacy shape (one answer_sheet_url per submission): a plain array of marks.
+  // Newer shape (one or more photo-type custom_answers, e.g. "gp1"/"gp2"/"gp3"):
+  // an object keyed by the answer field, each holding its own mark array, since
+  // every uploaded photo needs to be annotated separately.
+  annotations?: Annotation[] | Record<string, Annotation[]>
+  organizer_note?: string
+}
+
+// Custom-answer values that are themselves uploaded photos (not typed text) —
+// these need the same click-to-annotate treatment as answer_sheet_url, not a
+// raw URL dumped on the card as text.
+function isImageUrl(v: unknown): v is string {
+  return typeof v === 'string' && /^https?:\/\//i.test(v) && /\.(png|jpe?g|webp|gif|heic)(\?|$)/i.test(v)
+}
+function annotationsFor(annotations: Reg['annotations'], field: string | null): Annotation[] {
+  if (!annotations) return []
+  if (Array.isArray(annotations)) return field ? [] : annotations // legacy single-sheet shape
+  return annotations[field || ''] || []
 }
 
 type Olympiad = {
@@ -27,6 +44,7 @@ export default function OrganizerPage() {
   const [loading, setLoading] = useState(false)
   const [checkingSession, setCheckingSession] = useState(true)
   const [viewingReg, setViewingReg] = useState<Reg | null>(null)
+  const [viewingPhoto, setViewingPhoto] = useState<{ reg: Reg; field: string; url: string } | null>(null)
   const [filter, setFilter] = useState<'all' | 'pending' | 'reviewed'>('all')
 
   // On mount, see if the httpOnly cookie from a previous login is still valid —
@@ -84,7 +102,10 @@ export default function OrganizerPage() {
     }
   }
 
-  const saveAnnotatedScore = async (regId: string, data: { score: number; annotations: Annotation[]; organizerNote: string }) => {
+  // field: null → legacy single answer_sheet_url (annotations stored as a plain array).
+  // field: "gp1" etc → one of several photo answers (annotations stored keyed by field,
+  // so marking one photo never clobbers the marks already made on another).
+  const saveAnnotatedScore = async (regId: string, data: { score: number; annotations: Annotation[]; organizerNote: string }, field: string | null = null) => {
     const res = await fetch('/api/organizer/score', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -92,12 +113,14 @@ export default function OrganizerPage() {
         regId,
         score: data.score,
         annotations: data.annotations,
+        field,
         organizer_note: data.organizerNote,
       }),
     })
     if (res.ok) {
+      const d = await res.json().catch(() => ({}))
       setRegs(prev => prev.map(r => r.id === regId
-        ? { ...r, final_score: data.score, review_status: 'reviewed', annotations: data.annotations, organizer_note: data.organizerNote }
+        ? { ...r, final_score: data.score, review_status: 'reviewed', annotations: d.annotations ?? data.annotations, organizer_note: data.organizerNote }
         : r))
     } else {
       const d = await res.json().catch(() => ({}))
@@ -287,12 +310,17 @@ export default function OrganizerPage() {
                   <div className="absolute inset-0 flex items-center justify-center" style={{ background: 'rgba(0,0,0,0.4)' }}>
                     <Eye size={24} style={{ color: 'var(--blue)' }} />
                   </div>
-                  {(r.annotations?.length ?? 0) > 0 && (
-                    <span className="absolute top-2 right-2 text-xs px-2 py-0.5 rounded-full font-semibold"
-                      style={{ background: 'rgba(var(--blue-rgb), 0.85)', color: '#001018' }}>
-                      {r.annotations!.length} marks
-                    </span>
-                  )}
+                  {(() => {
+                    const count = Array.isArray(r.annotations)
+                      ? r.annotations.length
+                      : Object.values(r.annotations || {}).reduce((n, a) => n + (a?.length || 0), 0)
+                    return count > 0 ? (
+                      <span className="absolute top-2 right-2 text-xs px-2 py-0.5 rounded-full font-semibold"
+                        style={{ background: 'rgba(var(--blue-rgb), 0.85)', color: '#001018' }}>
+                        {count} marks
+                      </span>
+                    ) : null
+                  })()}
                 </button>
               )}
               <div className="p-4">
@@ -311,10 +339,34 @@ export default function OrganizerPage() {
                 </div>
 
                 {r.custom_answers && Object.keys(r.custom_answers).length > 0 && (
-                  <div className="mt-2 p-2 rounded-lg text-xs space-y-1" style={{ background: 'var(--bg3)' }}>
-                    {Object.entries(r.custom_answers).map(([k, v]) => v ? (
+                  <div className="mt-2 p-2 rounded-lg text-xs space-y-2" style={{ background: 'var(--bg3)' }}>
+                    {/* Plain typed answers stay as text */}
+                    {Object.entries(r.custom_answers).filter(([, v]) => v && !isImageUrl(v)).map(([k, v]) => (
                       <div key={k}><span style={{ color: 'var(--muted)' }}>{k}: </span><span style={{ color: 'var(--white)' }}>{v}</span></div>
-                    ) : null)}
+                    ))}
+                    {/* Uploaded photo answers (e.g. multiple answer-sheet pages: gp1, gp2, gp3…)
+                        get a clickable thumbnail straight into the annotation tool, instead of
+                        a bare link the organizer has to copy into a new tab. */}
+                    {Object.entries(r.custom_answers).filter(([, v]) => isImageUrl(v)).length > 0 && (
+                      <div className="flex flex-wrap gap-2">
+                        {Object.entries(r.custom_answers).filter(([, v]) => isImageUrl(v)).map(([k, v]) => {
+                          const marks = annotationsFor(r.annotations, k).length
+                          return (
+                            <button key={k} onClick={() => setViewingPhoto({ reg: r, field: k, url: v as string })}
+                              className="relative w-16 h-16 rounded-lg overflow-hidden border flex-shrink-0"
+                              style={{ borderColor: 'var(--border)' }} title={`Annotate ${k}`}>
+                              <img src={v as string} alt={k} className="w-full h-full object-cover" />
+                              <span className="absolute bottom-0 inset-x-0 text-[9px] px-1 py-0.5 text-center truncate"
+                                style={{ background: 'rgba(0,0,0,0.6)', color: '#fff' }}>{k}</span>
+                              {marks > 0 && (
+                                <span className="absolute top-0.5 right-0.5 text-[9px] px-1 rounded-full font-bold"
+                                  style={{ background: 'var(--blue)', color: '#001018' }}>{marks}</span>
+                              )}
+                            </button>
+                          )
+                        })}
+                      </div>
+                    )}
                   </div>
                 )}
 
@@ -359,8 +411,21 @@ export default function OrganizerPage() {
         />
       )}
 
+      {/* Annotate one of several photo answers (gp1/gp2/gp3-style multi-photo submissions).
+          Score stays a single overall value for the whole submission — only the marks are per-photo. */}
+      {viewingPhoto && (
+        <AnnotationViewer
+          imageUrl={viewingPhoto.url}
+          initialAnnotations={annotationsFor(viewingPhoto.reg.annotations, viewingPhoto.field)}
+          initialScore={viewingPhoto.reg.final_score ?? ''}
+          initialNote={viewingPhoto.reg.organizer_note || ''}
+          onClose={() => setViewingPhoto(null)}
+          onSave={data => saveAnnotatedScore(viewingPhoto.reg.id, data, viewingPhoto.field)}
+        />
+      )}
+
       {/* Simple score-only modal for submissions with no photo to annotate (e.g. pure online MCQ) */}
-      {viewingReg && !viewingReg.answer_sheet_url && (
+      {viewingReg && !viewingReg.answer_sheet_url && Object.entries(viewingReg.custom_answers || {}).filter(([, v]) => isImageUrl(v)).length === 0 && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(2,8,16,0.85)' }}>
           <div className="w-full max-w-sm rounded-2xl border p-6" style={{ background: 'var(--bg2)', borderColor: 'var(--border)' }}>
             <h2 className="font-bold text-sm mb-4" style={{ color: 'var(--blue)', fontFamily: 'inherit' }}>

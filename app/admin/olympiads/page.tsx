@@ -64,6 +64,7 @@ type Olympiad = {
   registration_deadline?: string
   scheduled_start_at?: string
   scheduled_end_at?: string
+  allow_resubmission?: boolean
   eligibility?: string
   external_only?: boolean
   organizer_username?: string
@@ -331,6 +332,7 @@ export default function AdminOlympiadsPage() {
       theme_header_logo_url: editing.theme_header_logo_url || null,
       scheduled_start_at: dhakaLocalToISO(editing.scheduled_start_at),
       scheduled_end_at: dhakaLocalToISO(editing.scheduled_end_at),
+      allow_resubmission: (editing as any).allow_resubmission ?? true,
       relay_mode: (editing as any).relay_mode ?? false,
       relay_type: (editing as any).relay_type || 'sequential',
       subjects: (editing as any).subjects || [],
@@ -680,6 +682,16 @@ export default function AdminOlympiadsPage() {
                   onChange={e => setEditing(p => ({ ...p, scheduled_end_at: e.target.value || undefined }))} />
               </div>
             </div>
+            <label className="flex items-center gap-2 text-sm cursor-pointer pt-1" style={{ color: 'var(--white)' }}>
+              <input type="checkbox" checked={(editing as any).allow_resubmission ?? true}
+                onChange={e => setEditing(p => ({ ...p, allow_resubmission: e.target.checked } as any))} />
+              Allow resubmission
+            </label>
+            <p className="text-xs" style={{ color: 'var(--border-soft)' }}>
+              On: students can overwrite an earlier submission any time before End. Off: once a student
+              submits, that answer is final and any further attempt is rejected — use this for olympiads
+              where seeing your own submitted answer sheet again could enable copying.
+            </p>
           </div>
 
           {/* ── Phase D: Relay / Sequential exam ──────────────────── */}

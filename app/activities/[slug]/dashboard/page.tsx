@@ -104,7 +104,15 @@ export default function ActivityDashboardPage() {
         }
       }
 
-      // If online submission → load olympiad + relay state
+      // If online submission → load olympiad + relay state. Reset first: without
+      // this, switching between registrations (e.g. via the sibling-registration
+      // switcher, or a fresh reg id in the URL) left the *previous* olympiad's
+      // countdown target sitting in state, so the exam-starts-in timer could
+      // silently point at a different/older olympiad's schedule than the one
+      // actually being viewed.
+      setOlympiad(null)
+      setRelayState(null)
+      setExamScheduledStart(null)
       if (data.category?.is_online_submission && data.category?.linked_olympiad_id) {
         const [olyRes, relayRes] = await Promise.all([
           fetch(`/api/olympiad?id=${data.category.linked_olympiad_id}`),
@@ -113,7 +121,7 @@ export default function ActivityDashboardPage() {
         if (olyRes.ok) {
           const olyData = await olyRes.json()
           setOlympiad(olyData.olympiad || null)
-          if (olyData.olympiad?.scheduled_start_at) setExamScheduledStart(olyData.olympiad.scheduled_start_at)
+          setExamScheduledStart(olyData.olympiad?.scheduled_start_at || null)
         }
         if (relayRes.ok) {
           const relayData = await relayRes.json()
@@ -490,6 +498,29 @@ export default function ActivityDashboardPage() {
                 style={{ background: 'var(--blue)', fontFamily: 'inherit' }}>
                 <Play size={14} /> Start Exam →
               </Link>
+            )}
+
+            {/* Already submitted — previously showed nothing here once mySubmission existed,
+                so there was no way to tell from the dashboard that a submission had gone
+                through, or whether trying again would even be allowed. */}
+            {olympiad && !hasSubmissionConfig && mySubmission && (
+              <div className="text-sm space-y-2">
+                <p className="font-semibold flex items-center gap-1.5" style={{ color: 'var(--cat-teal)' }}>
+                  <CheckCircle size={14} /> Submitted
+                </p>
+                {olympiad.allow_resubmission === false ? (
+                  <p className="text-xs" style={{ color: 'var(--muted)' }}>
+                    Your answer is final for this round — this olympiad does not allow resubmission.
+                  </p>
+                ) : !examEnded ? (
+                  <Link href={`/activities/${slug}/relay-exam?reg=${registration.id}&olympiad=${olympiad.id}&member=${mySubmittedBy}`}
+                    className="inline-flex items-center gap-1.5 text-xs underline" style={{ color: 'var(--blue)' }}>
+                    Resubmit before the window closes <ExternalLink size={10} />
+                  </Link>
+                ) : (
+                  <p className="text-xs" style={{ color: 'var(--muted)' }}>The submission window has since closed.</p>
+                )}
+              </div>
             )}
 
             {/* File/text submission form */}
