@@ -3,7 +3,7 @@ import type { CSSProperties } from "react";
 const DEPARTMENTS = [
   { n: "01", name: "Administration", tint: "rgba(90,216,255,.13)", accent: "#5ad8ff", desc: "Ensures smooth operation and management. Coordinates planning, logistics and execution of every event." },
   { n: "02", name: "Project", tint: "rgba(52,211,153,.13)", accent: "#34d399", desc: "Conducts scientific research and innovation-based projects. Encourages experimentation." },
-  { n: "03", name: "Publication", tint: "rgba(167,139,250,.13)", accent: "#a78bfa", desc: "Publishes wall magazines and the AUDRI journal. Promotes scientific writing." },
+  { n: "03", name: "Publication", tint: "rgba(167,139,250,.13)", accent: "#a78bfa", desc: "Manages all visual assets and event layouts. Designs official club materials, wall magazines, and the annual publication, AUDRI, to promote scientific writing." },
   { n: "04", name: "ICT", tint: "rgba(248,113,113,.13)", accent: "#f87171", desc: "Handles digital media, website management and emerging technology workshops." },
   { n: "05", name: "LWS", tint: "rgba(245,158,11,.13)", accent: "#f59e0b", desc: "Library, Workshop & Seminar — the academics department." },
   { n: "06", name: "Quiz", tint: "rgba(96,165,250,.13)", accent: "#60a5fa", desc: "Q-League, BrainRain, Scienceophile — NDC Blue, Green & Gold." },
