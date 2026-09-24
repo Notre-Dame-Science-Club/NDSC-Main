@@ -6,7 +6,7 @@ const DEPARTMENTS = [
   { n: "03", name: "Publication", tint: "rgba(167,139,250,.13)", accent: "#a78bfa", desc: "Manages all visual assets and event layouts. Designs official club materials, wall magazines, and the annual publication, AUDRI, to promote scientific writing." },
   { n: "04", name: "ICT", tint: "rgba(248,113,113,.13)", accent: "#f87171", desc: "Handles digital media, website management and emerging technology workshops." },
   { n: "05", name: "LWS", tint: "rgba(245,158,11,.13)", accent: "#f59e0b", desc: "Library, Workshop & Seminar — the academics department." },
-  { n: "06", name: "Quiz", tint: "rgba(96,165,250,.13)", accent: "#60a5fa", desc: "Q-League, BrainRain, Scienceophile — NDC Blue, Green & Gold." },
+  { n: "06", name: "Quiz", tint: "rgba(96,165,250,.13)", accent: "#60a5fa", desc: "Selects dedicated teams through Q-League to represent NDSC in the General Knowledge Competition, featuring diverse topics such as sports, manga, movies, Nobel Prizes, history, and culture. — NDC Blue, Green & Gold." },
 ];
 
 /**
