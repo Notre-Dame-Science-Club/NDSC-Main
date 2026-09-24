@@ -30,7 +30,7 @@ const REQUIRED_FIELDS: FieldName[] = ['full_name', 'email', 'password', 'confirm
 const EDUCATION_LEVELS = [
   'Class 1', 'Class 2', 'Class 3', 'Class 4', 'Class 5',
   'Class 6', 'Class 7', 'Class 8', 'Class 9', 'Class 10',
-  'SSC', 'HSC', 'University', 'Other'
+  'Class 11', 'Class 12', 'SSC', 'HSC', 'University', 'Other'
 ]
 
 /** One labelled input with linked label, helper/error text and a11y wiring. */
