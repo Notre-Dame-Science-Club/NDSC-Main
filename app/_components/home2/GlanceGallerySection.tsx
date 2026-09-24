@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { GLANCE_ITEMS } from "./glanceGalleryContent";
 
 type GlanceRow = {
@@ -25,9 +25,18 @@ type GlanceRow = {
  * the tile in an earlier pass), the title rises slightly on hover, the
  * photo starts clean/full-colour and only darkens on hover, and the admin
  * "slot" labels from the preview are gone — this is the live version.
+ *
+ * Mobile has no hover, so tapping-and-holding one tile to read it was the
+ * only way in. Below 820px this component instead tracks scroll position
+ * and marks whichever tile's centre sits closest to the viewport's centre
+ * as "active" — CSS gives .active the exact same treatment as :hover
+ * (see home2.css), so the description of the tile currently in the middle
+ * of the screen reveals itself automatically as the visitor scrolls.
  */
 export default function GlanceGallerySection() {
   const [rows, setRows] = useState<Record<string, GlanceRow>>({});
+  const [activeKey, setActiveKey] = useState<string | null>(null);
+  const tileRefs = useRef<Record<string, HTMLElement | null>>({});
 
   useEffect(() => {
     let cancelled = false;
@@ -41,6 +50,45 @@ export default function GlanceGallerySection() {
       })
       .catch(() => {});
     return () => { cancelled = true; };
+  }, []);
+
+  useEffect(() => {
+    const mq = window.matchMedia("(max-width:820px)");
+    let raf = 0;
+
+    function computeActive() {
+      raf = 0;
+      if (!mq.matches) {
+        setActiveKey(null);
+        return;
+      }
+      const viewportCenter = window.innerHeight / 2;
+      let bestKey: string | null = null;
+      let bestDist = Infinity;
+      for (const key in tileRefs.current) {
+        const el = tileRefs.current[key];
+        if (!el) continue;
+        const rect = el.getBoundingClientRect();
+        if (rect.bottom <= 0 || rect.top >= window.innerHeight) continue;
+        const dist = Math.abs(rect.top + rect.height / 2 - viewportCenter);
+        if (dist < bestDist) { bestDist = dist; bestKey = key; }
+      }
+      setActiveKey(bestKey);
+    }
+    function onScrollOrResize() {
+      if (raf) return;
+      raf = requestAnimationFrame(computeActive);
+    }
+    computeActive();
+    window.addEventListener("scroll", onScrollOrResize, { passive: true });
+    window.addEventListener("resize", onScrollOrResize);
+    mq.addEventListener("change", computeActive);
+    return () => {
+      window.removeEventListener("scroll", onScrollOrResize);
+      window.removeEventListener("resize", onScrollOrResize);
+      mq.removeEventListener("change", computeActive);
+      if (raf) cancelAnimationFrame(raf);
+    };
   }, []);
 
   return (
@@ -63,10 +111,11 @@ export default function GlanceGallerySection() {
           return (
             <Tag
               key={item.slotKey}
+              ref={(el: any) => { tileRefs.current[item.slotKey] = el; }}
               {...(row?.learn_more_url
                 ? { href: row.learn_more_url, target: "_blank", rel: "noopener noreferrer" }
                 : {})}
-              className={"ch-glance-tile" + (item.big ? " big" : "")}
+              className={"ch-glance-tile" + (item.big ? " big" : "") + (activeKey === item.slotKey ? " active" : "")}
               data-cursor
             >
               {row?.image_url && (
@@ -107,3 +156,4 @@ export default function GlanceGallerySection() {
     </div>
   );
 }
+

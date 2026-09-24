@@ -92,7 +92,7 @@ export default function GlanceGalleryAdminPage() {
                 <div>
                   <b style={{ color: 'var(--white)' }}>{item.title}</b>
                   <span className="ml-2 text-xs uppercase tracking-wider" style={{ color: 'var(--blue)' }}>
-                    {item.small} · {item.big ? 'BIG TILE' : 'MEDIUM TILE'}
+                    {item.small} · {item.big ? 'BIG TILE (desktop)' : 'MEDIUM TILE (desktop)'}
                   </span>
                 </div>
               </div>
@@ -109,7 +109,7 @@ export default function GlanceGalleryAdminPage() {
                 <FocalPointPicker
                   label="Mobile crop"
                   imageUrl={row.image_url}
-                  aspect="16/10"
+                  aspect="6/4"
                   x={row.mobile_focal_x}
                   y={row.mobile_focal_y}
                   onChange={(x, y) => patch(item.slotKey, { mobile_focal_x: x, mobile_focal_y: y })}
