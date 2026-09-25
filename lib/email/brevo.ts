@@ -18,6 +18,39 @@ export type EmailRecipient = { email: string; name?: string }
 
 export type SendEmailResult = { sent: number; error: string | null; configured: boolean }
 
+export type VerifyResult = { ok: boolean; error?: string }
+
+/**
+ * Verify a Brevo API key by making a test call to the Brevo API.
+ * Returns { ok: true } if valid, { ok: false, error: '...' } otherwise.
+ */
+export async function verifyBrevoApiKey(apiKey: string): Promise<VerifyResult> {
+  if (!apiKey || apiKey.trim() === '') {
+    return { ok: false, error: 'API key is required' }
+  }
+
+  try {
+    // Call Brevo account endpoint to verify the key
+    const response = await fetch('https://api.brevo.com/v3/account', {
+      headers: {
+        'api-key': apiKey,
+        'Content-Type': 'application/json',
+      },
+    })
+
+    if (!response.ok) {
+      if (response.status === 401) {
+        return { ok: false, error: 'Invalid API key' }
+      }
+      return { ok: false, error: `Brevo API error: ${response.status}` }
+    }
+
+    return { ok: true }
+  } catch (error: any) {
+    return { ok: false, error: error.message || 'Failed to verify API key' }
+  }
+}
+
 export async function sendSurveyEmail(
   recipients: EmailRecipient[],
   subject: string,
