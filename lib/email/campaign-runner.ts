@@ -1,9 +1,9 @@
 /**
  * lib/email/campaign-runner.ts — Campaign sending engine with quota management.
  *
- * Both "Send Now" and the scheduled cron job funnel through processCampaignBatch.
+ * Self-contained campaign processor that doesn't depend on external cron jobs.
  * Implements daily quota reset (Asia/Dhaka timezone), round-robin account selection,
- * and concurrency guards.
+ * concurrency guards, and automatic continuation until campaign completes.
  */
 
 import { supabaseAdmin } from '@/lib/supabase'
@@ -218,6 +218,16 @@ export async function processCampaignBatch(campaignId: string, maxRecipients = M
           failed_count: failedCount,
         })
         .eq('id', campaignId)
+
+      // Continue processing if there are more recipients and we have capacity
+      if (batches.length > 0) {
+        // Schedule next batch asynchronously (don't wait)
+        setTimeout(() => {
+          processCampaignBatch(campaignId, maxRecipients).catch(err => {
+            console.error(`Error processing next batch for campaign ${campaignId}:`, err)
+          })
+        }, 1000) // 1 second delay between batches
+      }
     }
   } finally {
     // Clear the lock
@@ -226,4 +236,39 @@ export async function processCampaignBatch(campaignId: string, maxRecipients = M
       .update({ processing_lock_at: null })
       .eq('id', campaignId)
   }
+}
+
+/**
+ * Process all active campaigns (sending or scheduled and due).
+ * Can be called manually or from a cron job.
+ */
+export async function processAllCampaigns(): Promise<{ processed: number; campaigns: string[] }> {
+  const { data: campaigns, error } = await supabaseAdmin
+    .from('email_campaigns')
+    .select('id, status, scheduled_at')
+    .or('status.eq.sending,status.eq.scheduled')
+
+  if (error) {
+    console.error('Error fetching campaigns:', error)
+    return { processed: 0, campaigns: [] }
+  }
+
+  const processed: string[] = []
+  const now = new Date()
+
+  for (const campaign of campaigns || []) {
+    // Skip scheduled campaigns that aren't due yet
+    if (campaign.status === 'scheduled' && campaign.scheduled_at) {
+      if (new Date(campaign.scheduled_at) > now) continue
+    }
+
+    try {
+      await processCampaignBatch(campaign.id)
+      processed.push(campaign.id)
+    } catch (err) {
+      console.error(`Error processing campaign ${campaign.id}:`, err)
+    }
+  }
+
+  return { processed: processed.length, campaigns: processed }
 }

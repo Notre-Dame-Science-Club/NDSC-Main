@@ -51,6 +51,77 @@ export async function verifyBrevoApiKey(apiKey: string): Promise<VerifyResult> {
   }
 }
 
+export type SendResult = { ok: boolean; error?: string }
+
+/**
+ * Send a batch of emails using Brevo transactional email API.
+ * Brevo accepts up to 50 recipients per call.
+ *
+ * @param apiKey - Brevo API key
+ * @param sender - Sender email and name
+ * @param subject - Email subject
+ * @param htmlContent - HTML body
+ * @param recipients - List of recipients (max 50)
+ * @returns Array of results for each recipient
+ */
+export async function sendBrevoBatch(
+  apiKey: string,
+  sender: { email: string; name: string },
+  subject: string,
+  htmlContent: string,
+  recipients: EmailRecipient[]
+): Promise<SendResult[]> {
+  if (!apiKey) {
+    return recipients.map(() => ({ ok: false, error: 'API key not configured' }))
+  }
+
+  // Brevo supports up to 50 recipients per call, but we'll send individually
+  // for better error tracking and delivery reporting
+  const results: SendResult[] = []
+
+  for (const recipient of recipients) {
+    try {
+      const response = await fetch('https://api.brevo.com/v3/smtp/email', {
+        method: 'POST',
+        headers: {
+          'api-key': apiKey,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          sender: {
+            email: sender.email,
+            name: sender.name,
+          },
+          to: [
+            {
+              email: recipient.email,
+              name: recipient.name || recipient.email,
+            },
+          ],
+          subject,
+          htmlContent,
+        }),
+      })
+
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({ message: 'Unknown error' }))
+        results.push({ ok: false, error: error.message || `HTTP ${response.status}` })
+      } else {
+        results.push({ ok: true })
+      }
+    } catch (error: any) {
+      results.push({ ok: false, error: error.message || 'Network error' })
+    }
+
+    // Small delay between emails to avoid rate limiting
+    if (recipients.indexOf(recipient) < recipients.length - 1) {
+      await new Promise(resolve => setTimeout(resolve, 100))
+    }
+  }
+
+  return results
+}
+
 export async function sendSurveyEmail(
   recipients: EmailRecipient[],
   subject: string,
