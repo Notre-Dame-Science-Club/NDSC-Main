@@ -26,7 +26,6 @@ export default function ActivityRegistrationBuilder() {
   const sessionId = params.sessionId as string
 
   const [session, setSession] = useState<any>(null)
-  const [categories, setCategories] = useState<Category[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [tab, setTab] = useState<'appearance' | 'files' | 'flow' | 'registrants' | 'updates'>('appearance')

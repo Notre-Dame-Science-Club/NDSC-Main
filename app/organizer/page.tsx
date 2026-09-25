@@ -457,7 +457,7 @@ export default function OrganizerPage() {
       {viewingReg && viewingReg.answer_sheet_url && (
         <AnnotationViewer
           imageUrl={viewingReg.answer_sheet_url}
-          initialAnnotations={viewingReg.annotations || []}
+          initialAnnotations={annotationsFor(viewingReg.annotations, null)}
           initialScore={viewingReg.final_score ?? ''}
           initialNote={viewingReg.organizer_note || ''}
           onClose={() => setViewingReg(null)}
@@ -508,7 +508,7 @@ function ScoreOnlyForm({ reg, onClose, onSave }: {
     if (score === '' || Number.isNaN(num)) { setErr('Please enter a valid score.'); return }
     setSaving(true); setErr('')
     try {
-      await onSave(reg.id, { score: num, annotations: reg.annotations || [], organizerNote: note })
+      await onSave(reg.id, { score: num, annotations: annotationsFor(reg.annotations, null), organizerNote: note })
       onClose()
     } catch (e: any) {
       setErr(e.message || 'Could not save.')

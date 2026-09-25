@@ -41,11 +41,15 @@ export async function GET(_req: NextRequest, ctx: Ctx) {
   const { sessionId } = await ctx.params
   if (!sessionId) return apiError('sessionId is required.', 400)
 
-  // Load the form graph (v2 only)
-  const [{ data: graph }, { data: regs, error: rErr }] = await Promise.all([
+  // Load the form graph (v2) and the legacy category tree (v1) in parallel
+  // with the registrations themselves.
+  const [{ data: graph }, { data: categories }, { data: regs, error: rErr }] = await Promise.all([
     supabaseAdmin.from('form_graphs').select('id').eq('owner_kind', 'activity').eq('owner_id', sessionId).maybeSingle(),
+    supabaseAdmin.from('activity_reg_categories')
+      .select('id, parent_id, name, form_field_schema, team_member_fields')
+      .eq('activity_session_id', sessionId),
     supabaseAdmin.from('activity_registrations')
-      .select('id, form_node_id, form_graph_id, submitted_node_ids, full_name, phone, email, college, college_roll, hsc_session, division, project_name, custom_answers, team_members, team_name, payment_status, created_at')
+      .select('id, form_node_id, form_graph_id, submitted_node_ids, category_id, full_name, phone, email, college, college_roll, hsc_session, division, project_name, custom_answers, team_members, team_name, payment_status, created_at')
       .eq('activity_session_id', sessionId)
       .order('created_at', { ascending: false }),
   ])

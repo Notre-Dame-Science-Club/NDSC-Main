@@ -2,7 +2,7 @@
 import { useEffect, useState, useRef, useCallback } from 'react'
 import { useParams, useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
-import { Clock, ChevronRight, ChevronLeft, CheckCircle, ArrowLeft } from 'lucide-react'
+import { Clock, ChevronRight, ChevronLeft, CheckCircle, ArrowLeft, X } from 'lucide-react'
 import MathText from '@/components/olympiad/MathText'
 import FieldsRenderer from '@/components/FieldsRenderer'
 

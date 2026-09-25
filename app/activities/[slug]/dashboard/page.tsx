@@ -653,7 +653,7 @@ export default function ActivityDashboardPage() {
                     {submitError && <p className="text-xs" style={{ color: 'var(--danger-soft)' }}>{submitError}</p>}
                     {submitSuccess && <p className="text-xs" style={{ color: 'var(--cat-teal)' }}>Saved successfully!</p>}
 
-                    {submissionConfig.map((field: any) => (
+                    {submissionFields.map((field: any) => (
                       <div key={field.id}>
                         <label className="block text-sm font-medium mb-1" style={{ color: 'var(--white)' }}>
                           {field.title} {field.required && <span style={{ color: 'var(--blue)' }}>*</span>}
