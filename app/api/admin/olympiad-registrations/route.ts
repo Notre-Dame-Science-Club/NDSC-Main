@@ -26,9 +26,13 @@ export async function GET(req: NextRequest) {
   }
 
   // Activity-linked olympiad — query activity_registrations + relay_exam_state + activity_submissions
+  // NOTE: the built-in identity columns (phone/email/college/college_roll/hsc_session)
+  // are real columns on activity_registrations, populated at registration time —
+  // they must be selected explicitly here or the admin UI has nothing to show
+  // for a child olympiad's registrants beyond full_name.
   const { data: activityRegs, error: regError } = await supabaseAdmin
     .from('activity_registrations')
-    .select('id, full_name, team_name, team_members, custom_answers, created_at')
+    .select('id, full_name, phone, email, college, college_roll, hsc_session, team_name, team_members, custom_answers, created_at')
     .eq('form_node_id', link.category_id)
     .order('created_at', { ascending: false })
 
@@ -50,34 +54,51 @@ export async function GET(req: NextRequest) {
   // Query activity_submissions for these registrations
   const { data: submissions } = await supabaseAdmin
     .from('activity_submissions')
-    .select('registration_id, answers')
+    .select('registration_id, submitted_by, answers')
     .in('registration_id', regIds.length > 0 ? regIds : ['00000000-0000-0000-0000-000000000000'])
     .eq('is_final', true)
 
-  const submissionByRegId = new Map((submissions || []).map(s => [s.registration_id, s]))
+  // A registration can have more than one final submission (one per team
+  // member, when submission_who is 'any_member') — group by registration_id
+  // instead of collapsing to a single row, or every submission after the
+  // first silently overwrote the previous one.
+  const submissionsByRegId = new Map<string, any[]>()
+  for (const s of submissions || []) {
+    const list = submissionsByRegId.get(s.registration_id) || []
+    list.push(s)
+    submissionsByRegId.set(s.registration_id, list)
+  }
 
   // Normalize to the shape the admin UI expects
   const normalized = (activityRegs || []).map(reg => {
     const relay = relayByRegId.get(reg.id)
-    const submission = submissionByRegId.get(reg.id)
-    const teamMembers = reg.team_members || []
+    const regSubmissions = submissionsByRegId.get(reg.id) || []
+    const teamMembers = (reg.team_members || []).map((m: any) => ({ ...m, custom_answers: { ...(m.custom_answers || {}) } }))
+    const teamMemberById = new Map<string, any>(teamMembers.map((m: any): [string, any] => [m.id, m]))
 
-    // Start with registration-time custom_answers
+    // Start with registration-time custom_answers (the leader's own, collected
+    // at the linking node itself — usually empty beyond identity fields).
     const custom_answers: Record<string, unknown> = { ...(reg.custom_answers || {}) }
 
-    // Merge relay member submissions if exists
+    // Merge relay member submissions — attribute each member's answers to
+    // *their own* custom_answers bucket rather than always landing in one
+    // blob on the leader's row, so a member's card shows their own answers.
     if (relay?.member_submissions) {
       for (const sub of relay.member_submissions) {
-        const prefix = teamMembers.length > 0 ? `${sub.member_id}__` : ''
+        const target = sub.member_id && sub.member_id !== 'leader' ? teamMemberById.get(sub.member_id) : null
+        const bucket: Record<string, unknown> = target ? target.custom_answers : custom_answers
         for (const [qId, val] of Object.entries(sub.answers || {})) {
-          custom_answers[`${prefix}${qId}`] = val
+          bucket[qId] = val
         }
       }
     }
 
-    // Merge activity_submissions answers if exists
-    if (submission?.answers) {
-      Object.assign(custom_answers, submission.answers)
+    // Merge activity_submissions answers — same per-submitter attribution.
+    for (const submission of regSubmissions) {
+      const submittedBy = submission.submitted_by
+      const target = submittedBy && submittedBy !== 'leader' ? teamMemberById.get(submittedBy) : null
+      const bucket: Record<string, unknown> = target ? target.custom_answers : custom_answers
+      if (submission.answers) Object.assign(bucket, submission.answers)
     }
 
     // Merge all member submissions' question_results into one array
@@ -122,7 +143,8 @@ export async function GET(req: NextRequest) {
     let annotations = relay?.annotations || null
     let organizer_note = relay?.organizer_note || null
 
-    if (submission?.answers) {
+    for (const submission of regSubmissions) {
+      if (!submission.answers) continue
       if (submission.answers.__organizer_score !== undefined) {
         final_score = submission.answers.__organizer_score
       }
@@ -141,6 +163,12 @@ export async function GET(req: NextRequest) {
       id: reg.id,
       olympiad_id: olympiadId,
       full_name: reg.team_name || reg.full_name,
+      phone: reg.phone,
+      email: reg.email,
+      college: reg.college,
+      college_roll: reg.college_roll,
+      hsc_session: reg.hsc_session,
+      team_members: teamMembers,
       custom_answers,
       question_results,
       final_score,

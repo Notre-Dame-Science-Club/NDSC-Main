@@ -45,7 +45,19 @@ Format: `XX_descriptive_name.sql`
 - `98_update_08_07_2026.sql` - Specific data update from Aug 2026
 
 ### Cleanup Migrations (run last)
-- `99_drop_legacy_olympiad_system.sql` - Remove old olympiad registration system
+- `99_drop_legacy_olympiad_system.sql` - ⚠️ **DO NOT RUN.** Its precondition
+  ("no production code references olympiad_registrations") is false — the
+  table is still the live storage for every standalone olympiad. Running it
+  breaks standalone-olympiad registration with
+  "Could not find the table 'public.olympiad_registrations' in the schema
+  cache". If it's already been run against an environment, run
+  `30_migration_restore_olympiad_registrations.sql` to recreate the table.
+
+### Fixes
+- `30_migration_restore_olympiad_registrations.sql` - Recreates
+  `olympiad_registrations` after it was mistakenly dropped by `99_...` while
+  still in active use. Safe/idempotent to run any time; a no-op if the table
+  already exists.
 
 ## When Adding New Migrations
 
