@@ -14,6 +14,32 @@ type Reg = {
   // every uploaded photo needs to be annotated separately.
   annotations?: Annotation[] | Record<string, Annotation[]>
   organizer_note?: string
+  // Team members are "children" of the leader's registration — each can
+  // carry its own custom_answers, separate from the leader's.
+  team_members?: any[]
+  // The field blocks (id/key -> label, etc.) collected along this specific
+  // registration's submitted path, so custom_answers keys — which are
+  // often just a random id until an admin renames them — can be shown
+  // with their actual question label instead.
+  field_schema?: any[]
+  team_field_schema?: any[]
+}
+
+// Given a custom_answers-style object and the field_schema for the node(s)
+// that collected it, returns [key, label, value] triples in field order
+// (falling back to insertion order for anything not in the schema).
+function labeledAnswers(answers: Record<string, any> | undefined, schema: any[] | undefined): { key: string; label: string; value: any }[] {
+  if (!answers) return []
+  const fieldByKey = new Map((schema || []).map(f => [f.key || f.id, f]))
+  const orderedKeys: string[] = []
+  for (const f of schema || []) {
+    const k = f.key || f.id
+    if (k && k in answers && !orderedKeys.includes(k)) orderedKeys.push(k)
+  }
+  for (const k of Object.keys(answers)) {
+    if (!orderedKeys.includes(k)) orderedKeys.push(k)
+  }
+  return orderedKeys.map(k => ({ key: k, label: fieldByKey.get(k)?.label || k, value: answers[k] }))
 }
 
 // Custom-answer values that are themselves uploaded photos (not typed text) —
@@ -115,6 +141,7 @@ export default function OrganizerPage() {
         annotations: data.annotations,
         field,
         organizer_note: data.organizerNote,
+        olympiadId: selected?.id,
       }),
     })
     if (res.ok) {
@@ -338,35 +365,62 @@ export default function OrganizerPage() {
                   }}>{r.review_status || 'pending'}</span>
                 </div>
 
-                {r.custom_answers && Object.keys(r.custom_answers).length > 0 && (
+                {r.custom_answers && Object.keys(r.custom_answers).length > 0 && (() => {
+                  const labeled = labeledAnswers(r.custom_answers, r.field_schema)
+                  const textAnswers = labeled.filter(a => a.value && !isImageUrl(a.value))
+                  const photoAnswers = labeled.filter(a => isImageUrl(a.value))
+                  return (
+                    <div className="mt-2 p-2 rounded-lg text-xs space-y-2" style={{ background: 'var(--bg3)' }}>
+                      {/* Plain typed answers stay as text, labeled with the question
+                          text the admin configured — not the raw storage key, which
+                          is often just a random id until someone renames it. */}
+                      {textAnswers.map(a => (
+                        <div key={a.key}><span style={{ color: 'var(--muted)' }}>{a.label}: </span><span style={{ color: 'var(--white)' }}>{Array.isArray(a.value) ? a.value.join(', ') : a.value}</span></div>
+                      ))}
+                      {/* Uploaded photo answers (e.g. multiple answer-sheet pages: gp1, gp2, gp3…)
+                          get a clickable thumbnail straight into the annotation tool, instead of
+                          a bare link the organizer has to copy into a new tab. */}
+                      {photoAnswers.length > 0 && (
+                        <div className="flex flex-wrap gap-2">
+                          {photoAnswers.map(a => {
+                            const marks = annotationsFor(r.annotations, a.key).length
+                            return (
+                              <button key={a.key} onClick={() => setViewingPhoto({ reg: r, field: a.key, url: a.value as string })}
+                                className="relative w-16 h-16 rounded-lg overflow-hidden border flex-shrink-0"
+                                style={{ borderColor: 'var(--border)' }} title={`Annotate ${a.label}`}>
+                                <img src={a.value as string} alt={a.label} className="w-full h-full object-cover" />
+                                <span className="absolute bottom-0 inset-x-0 text-[9px] px-1 py-0.5 text-center truncate"
+                                  style={{ background: 'rgba(0,0,0,0.6)', color: '#fff' }}>{a.label}</span>
+                                {marks > 0 && (
+                                  <span className="absolute top-0.5 right-0.5 text-[9px] px-1 rounded-full font-bold"
+                                    style={{ background: 'var(--blue)', color: '#001018' }}>{marks}</span>
+                                )}
+                              </button>
+                            )
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  )
+                })()}
+
+                {/* Team members are "children" of this leader's registration — each
+                    can have their own answers, separate from the leader's above. */}
+                {(r.team_members || []).length > 0 && (
                   <div className="mt-2 p-2 rounded-lg text-xs space-y-2" style={{ background: 'var(--bg3)' }}>
-                    {/* Plain typed answers stay as text */}
-                    {Object.entries(r.custom_answers).filter(([, v]) => v && !isImageUrl(v)).map(([k, v]) => (
-                      <div key={k}><span style={{ color: 'var(--muted)' }}>{k}: </span><span style={{ color: 'var(--white)' }}>{v}</span></div>
-                    ))}
-                    {/* Uploaded photo answers (e.g. multiple answer-sheet pages: gp1, gp2, gp3…)
-                        get a clickable thumbnail straight into the annotation tool, instead of
-                        a bare link the organizer has to copy into a new tab. */}
-                    {Object.entries(r.custom_answers).filter(([, v]) => isImageUrl(v)).length > 0 && (
-                      <div className="flex flex-wrap gap-2">
-                        {Object.entries(r.custom_answers).filter(([, v]) => isImageUrl(v)).map(([k, v]) => {
-                          const marks = annotationsFor(r.annotations, k).length
-                          return (
-                            <button key={k} onClick={() => setViewingPhoto({ reg: r, field: k, url: v as string })}
-                              className="relative w-16 h-16 rounded-lg overflow-hidden border flex-shrink-0"
-                              style={{ borderColor: 'var(--border)' }} title={`Annotate ${k}`}>
-                              <img src={v as string} alt={k} className="w-full h-full object-cover" />
-                              <span className="absolute bottom-0 inset-x-0 text-[9px] px-1 py-0.5 text-center truncate"
-                                style={{ background: 'rgba(0,0,0,0.6)', color: '#fff' }}>{k}</span>
-                              {marks > 0 && (
-                                <span className="absolute top-0.5 right-0.5 text-[9px] px-1 rounded-full font-bold"
-                                  style={{ background: 'var(--blue)', color: '#001018' }}>{marks}</span>
-                              )}
-                            </button>
-                          )
-                        })}
-                      </div>
-                    )}
+                    <p className="font-bold tracking-wide" style={{ color: 'var(--blue)' }}>TEAM MEMBERS</p>
+                    {(r.team_members || []).map((m: any, i: number) => {
+                      const memberLabeled = labeledAnswers(m?.custom_answers, r.team_field_schema)
+                      return (
+                        <div key={i} className="pl-2" style={{ borderLeft: '2px solid var(--border)' }}>
+                          <p style={{ color: 'var(--white)' }}>{i + 1}. {m?.full_name || '(no name)'}</p>
+                          <p style={{ color: 'var(--muted)' }}>{m?.email || m?.college_roll || ''}{m?.phone ? ` · ${m.phone}` : ''}</p>
+                          {memberLabeled.map(a => (
+                            <div key={a.key}><span style={{ color: 'var(--muted)' }}>{a.label}: </span><span style={{ color: 'var(--white)' }}>{Array.isArray(a.value) ? a.value.join(', ') : (a.value ?? '—')}</span></div>
+                          ))}
+                        </div>
+                      )
+                    })}
                   </div>
                 )}
 

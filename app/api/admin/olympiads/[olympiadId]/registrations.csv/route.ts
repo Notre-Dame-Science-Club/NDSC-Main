@@ -14,6 +14,7 @@ import { requireAdmin } from '@/lib/api/admin-auth'
 import { apiError } from '@/lib/api/response'
 import { normalizeBlocks } from '@/lib/formBlocks'
 import { rowsToCsv, dedupHeaders } from '@/lib/csv'
+import { getOlympiadActivityLink } from '@/lib/server/olympiadActivityLink'
 
 type Ctx = { params: Promise<{ olympiadId: string }> }
 
@@ -23,15 +24,107 @@ export async function GET(_req: NextRequest, ctx: Ctx) {
   const { olympiadId } = await ctx.params
   if (!olympiadId) return apiError('olympiadId is required.', 400)
 
+  // Check if this olympiad is activity-linked
+  const link = await getOlympiadActivityLink(olympiadId)
+
   // Load the form graph so we know the question set — questions live on
   // its preset_olympiad_questions node(s), not on the olympiad row.
-  const [{ data: graph }, { data: regs, error: rErr }] = await Promise.all([
-    supabaseAdmin.from('form_graphs').select('id').eq('owner_kind', 'olympiad').eq('owner_id', olympiadId).maybeSingle(),
-    supabaseAdmin.from('olympiad_registrations')
+  const { data: graph } = await supabaseAdmin
+    .from('form_graphs')
+    .select('id')
+    .eq('owner_kind', 'olympiad')
+    .eq('owner_id', olympiadId)
+    .maybeSingle()
+
+  let regs: any[] = []
+  let rErr: any = null
+
+  if (!link) {
+    // Standalone olympiad — use existing flow
+    const result = await supabaseAdmin
+      .from('olympiad_registrations')
       .select('id, full_name, phone, email, college, college_roll, hsc_session, batch, group_name, custom_answers, short_answers, mcq_answers, photo_answers, exam_started_at, exam_submitted_at, mcq_score, final_score, created_at, form_graph_id')
       .eq('olympiad_id', olympiadId)
-      .order('created_at', { ascending: false }),
-  ])
+      .order('created_at', { ascending: false })
+    regs = result.data || []
+    rErr = result.error
+  } else {
+    // Activity-linked olympiad — query activity_registrations + relay_exam_state
+    const { data: activityRegs, error: regError } = await supabaseAdmin
+      .from('activity_registrations')
+      .select('id, full_name, team_name, team_members, created_at')
+      .eq('form_node_id', link.category_id)
+      .order('created_at', { ascending: false })
+
+    if (regError) {
+      rErr = regError
+    } else {
+      const regIds = (activityRegs || []).map(r => r.id)
+
+      // Query relay_exam_state for these registrations
+      const { data: relayStates } = await supabaseAdmin
+        .from('relay_exam_state')
+        .select('registration_id, member_submissions, review_status, annotations, organizer_note, organizer_score')
+        .eq('olympiad_id', olympiadId)
+        .in('registration_id', regIds.length > 0 ? regIds : ['00000000-0000-0000-0000-000000000000'])
+
+      const relayByRegId = new Map((relayStates || []).map(r => [r.registration_id, r]))
+
+      // Normalize to the shape CSV expects
+      regs = (activityRegs || []).map(reg => {
+        const relay = relayByRegId.get(reg.id)
+        const teamMembers = reg.team_members || []
+
+        // Merge all member submissions into one custom_answers object
+        const custom_answers: Record<string, unknown> = {}
+        if (relay?.member_submissions) {
+          for (const sub of relay.member_submissions) {
+            const prefix = teamMembers.length > 0 ? `${sub.member_id}__` : ''
+            for (const [qId, val] of Object.entries(sub.answers || {})) {
+              custom_answers[`${prefix}${qId}`] = val
+            }
+          }
+        }
+
+        // Calculate final_score: sum of all member submission scores if all expected members submitted
+        let final_score: number | null = null
+        if (relay?.member_submissions) {
+          const expectedCount = Math.max(teamMembers.length, 1)
+          if (relay.member_submissions.length === expectedCount) {
+            final_score = relay.member_submissions.reduce((sum, sub: any) => sum + (sub.score || 0), 0)
+          }
+        }
+
+        // Use organizer_score if set, otherwise use calculated final_score
+        if (relay?.organizer_score !== null && relay?.organizer_score !== undefined) {
+          final_score = relay.organizer_score
+        }
+
+        return {
+          id: reg.id,
+          full_name: reg.team_name || reg.full_name,
+          phone: '',
+          email: '',
+          college: '',
+          college_roll: '',
+          hsc_session: '',
+          batch: '',
+          group_name: '',
+          custom_answers,
+          short_answers: {},
+          mcq_answers: {},
+          photo_answers: [],
+          exam_started_at: null,
+          exam_submitted_at: null,
+          mcq_score: null,
+          final_score,
+          created_at: reg.created_at,
+          form_graph_id: null,
+        }
+      })
+    }
+  }
+
   if (rErr) return apiError(rErr, 400)
 
   // Derive question columns from ALL fields on the form graph (except those on

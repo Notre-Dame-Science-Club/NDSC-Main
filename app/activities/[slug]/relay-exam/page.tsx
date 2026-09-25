@@ -211,6 +211,15 @@ export default function RelayExamPage() {
     return !q.subject_id || q.subject_id === mySubjectId
   })
 
+  // The dashboard's own "Start Exam" click is the real confirmation — don't make
+  // the user confirm a second time on this page. Auto-start the moment we land on
+  // 'intro' with valid questions for this subject.
+  useEffect(() => {
+    if (phase === 'intro' && visibleQuestions.length > 0) {
+      startExam()
+    }
+  }, [phase, visibleQuestions.length])
+
   const chainValues = relayState?.chain_values || {}
   const resolvedQuestion = (q: Question): Question => {
     if (olympiad?.relay_type !== 'chain') return q
@@ -258,7 +267,7 @@ export default function RelayExamPage() {
         } catch { reject(new Error('Upload failed.')) }
       })
       xhr.addEventListener('error', () => reject(new Error('Network error during upload.')))
-      xhr.open('POST', '/api/admin/upload')
+      xhr.open('POST', '/api/olympiad-upload')
       xhr.send(fd)
     })
 
@@ -309,28 +318,19 @@ export default function RelayExamPage() {
         )}
 
         {phase === 'intro' && (
-          <div className="rounded-2xl p-6 border text-center space-y-4" style={{ background: 'var(--bg2)', borderColor: 'var(--border)' }}>
-            {visibleQuestions.length === 0 ? (
-              <>
-                <p className="text-sm mb-2" style={{ color: 'var(--danger-soft)' }}>⚠ This exam has no questions configured yet.</p>
-                <p className="text-xs" style={{ color: 'var(--muted)' }}>Please contact the organizer. The exam cannot be started without questions.</p>
-                <Link href={`/activities/${slug}/dashboard?reg=${regId}`} className="inline-block mt-4 text-sm underline" style={{ color: 'var(--blue)' }}>
-                  ← Back to dashboard
-                </Link>
-              </>
-            ) : (
-              <>
-                <p className="text-sm" style={{ color: 'var(--white)' }}>
-                  {visibleQuestions.length} questions · {olympiad?.timer_minutes} minutes
-                  {mySubjectId && <><br />Subject: {olympiad?.subjects.find(s => s.id === mySubjectId)?.name}</>}
-                </p>
-                <p className="text-xs" style={{ color: 'var(--muted)' }}>Once you start, the timer begins and cannot be paused.</p>
-                <button onClick={startExam} className="w-full py-3 rounded-xl font-bold text-sm text-black" style={{ background: 'var(--blue)' }}>
-                  Start Exam →
-                </button>
-              </>
-            )}
-          </div>
+          visibleQuestions.length === 0 ? (
+            <div className="rounded-2xl p-6 border text-center space-y-4" style={{ background: 'var(--bg2)', borderColor: 'var(--border)' }}>
+              <p className="text-sm mb-2" style={{ color: 'var(--danger-soft)' }}>⚠ This exam has no questions configured yet.</p>
+              <p className="text-xs" style={{ color: 'var(--muted)' }}>Please contact the organizer. The exam cannot be started without questions.</p>
+              <Link href={`/activities/${slug}/dashboard?reg=${regId}`} className="inline-block mt-4 text-sm underline" style={{ color: 'var(--blue)' }}>
+                ← Back to dashboard
+              </Link>
+            </div>
+          ) : (
+            <div className="min-h-screen flex items-center justify-center">
+              <p style={{ color: 'var(--muted)' }}>Starting exam…</p>
+            </div>
+          )
         )}
 
         {phase === 'exam' && visibleQuestions.length > 0 && (

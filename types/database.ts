@@ -357,6 +357,10 @@ export interface RelayExamStateRow {
   chain_values: Record<string, unknown>
   started_at: ISODateString | null
   completed_at: ISODateString | null
+  organizer_score: number | null
+  review_status: string | null
+  annotations: OlympiadAnnotation[] | null
+  organizer_note: string | null
   created_at: ISODateString
 }
 

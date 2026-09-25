@@ -451,6 +451,10 @@ create table if not exists relay_exam_state (
   chain_values           jsonb default '{}',
   started_at             timestamptz,
   completed_at           timestamptz,
+  organizer_score        numeric,
+  review_status          text,
+  annotations            jsonb,
+  organizer_note         text,
   created_at             timestamptz default now(),
   unique (registration_id, olympiad_id)
 );
