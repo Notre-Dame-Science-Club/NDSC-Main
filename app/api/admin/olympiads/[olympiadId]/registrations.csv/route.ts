@@ -1,10 +1,9 @@
 // CSV download for an olympiad's registrations.
 //
 // Flattens every registrant's answers into one row. Built-in columns
-// (name, phone, etc.) + one column per MCQ question (option text not
-// included, just the chosen option id) + one column per short-answer
-// question (the text) + one column per photo question (the URL) +
-// custom answers + exam timing + score columns.
+// (name, phone, etc.) + one column per question on the olympiad's
+// form-graph question node (MCQ: chosen option id, short-answer: the
+// text, photo: the URL) + custom answers + exam timing + score columns.
 //
 // Output: text/csv with CRLF newlines. Filename:
 //   ndsc-olympiad-<olympiadId>-<YYYYMMDD>.csv
@@ -24,11 +23,9 @@ export async function GET(_req: NextRequest, ctx: Ctx) {
   const { olympiadId } = await ctx.params
   if (!olympiadId) return apiError('olympiadId is required.', 400)
 
-  // Load the olympiad so we can read the legacy `questions` JSONB
-  // (v1 registrations still use that). Also load the form graph (v2)
-  // so we know the question set for v2 registrations.
-  const [{ data: olympiad }, { data: graph }, { data: regs, error: rErr }] = await Promise.all([
-    supabaseAdmin.from('olympiads').select('id, questions, registration_fields').eq('id', olympiadId).maybeSingle(),
+  // Load the form graph so we know the question set — questions live on
+  // its preset_olympiad_questions node(s), not on the olympiad row.
+  const [{ data: graph }, { data: regs, error: rErr }] = await Promise.all([
     supabaseAdmin.from('form_graphs').select('id').eq('owner_kind', 'olympiad').eq('owner_id', olympiadId).maybeSingle(),
     supabaseAdmin.from('olympiad_registrations')
       .select('id, full_name, phone, email, college, college_roll, hsc_session, batch, group_name, custom_answers, short_answers, mcq_answers, photo_answers, exam_started_at, exam_submitted_at, mcq_score, final_score, created_at, form_graph_id')
@@ -37,14 +34,15 @@ export async function GET(_req: NextRequest, ctx: Ctx) {
   ])
   if (rErr) return apiError(rErr, 400)
 
-  // Derive question columns. For v1, read olympiad.questions directly.
-  // For v2, read the form graph's questions node. We use a Map<key,
+  // Derive question columns from ALL fields on the form graph (except those on
+  // identity nodes: preset_common_details and preset_team_info). We use a Map<key,
   // label> to keep the column header stable.
   const questionHeaderByKey = new Map<string, { header: string; type: string }>()
+  const IDENTITY_NODE_KINDS = new Set(['preset_common_details', 'preset_team_info'])
   function addQuestions(blocks: any[]) {
     for (const f of normalizeBlocks(blocks)) {
       if (f.kind !== 'field') continue
-      if (f.type !== 'mcq' && f.type !== 'checkbox' && f.type !== 'short_answer' && f.type !== 'photo') continue
+      // Include ALL field types as question columns
       const k = f.key || f.id
       if (!k) continue
       if (!questionHeaderByKey.has(k)) {
@@ -54,20 +52,11 @@ export async function GET(_req: NextRequest, ctx: Ctx) {
   }
   if (graph) {
     const { data: nodes } = await supabaseAdmin
-      .from('form_nodes').select('fields').eq('graph_id', graph.id)
-    for (const n of nodes || []) addQuestions(n.fields || [])
-  }
-  if (olympiad?.questions) addQuestions(olympiad.questions as any)
-  // v1 olympiads also had registration_fields (text/email/tel/select).
-  // These got merged into custom_answers on submit; we add a column per
-  // field too so v1 registrations show them.
-  if (Array.isArray(olympiad?.registration_fields)) {
-    for (const f of olympiad!.registration_fields as any[]) {
-      const k = f.key || f.id
-      if (!k) continue
-      if (!questionHeaderByKey.has(k)) {
-        questionHeaderByKey.set(k, { header: f.label || k, type: f.type || 'text' })
-      }
+      .from('form_nodes').select('fields, kind').eq('graph_id', graph.id)
+    for (const n of nodes || []) {
+      // Skip identity nodes — their fields aren't exam questions
+      if (IDENTITY_NODE_KINDS.has((n as any).kind)) continue
+      addQuestions(n.fields || [])
     }
   }
 
@@ -104,16 +93,13 @@ export async function GET(_req: NextRequest, ctx: Ctx) {
 
     const questionRow = questionHeaders.map(h => {
       const k = questionKeyByHeader.get(h) || ''
-      // Look in mcq_answers first, then short_answers, then photo_answers,
-      // then custom_answers. For checkbox/multi the value is an array;
-      // we join with | so spreadsheets show something readable.
+      // Check the dedicated columns first (mcq_answers, short_answers,
+      // photo_answers) for backward compatibility, then fall back to
+      // custom_answers for all other field types.
       const v = mcq[k] ?? short[k] ?? custom[k]
       if (v === undefined) {
-        // Photo: count if any of the photo URLs came from this question.
-        // Without per-question keying we can't split photos, so we just
-        // count them per registrant in a single column. To keep headers
-        // simple we only put photo links into the column whose key is
-        // marked as photo type.
+        // Photo: legacy format where photo URLs were stored as an array at
+        // the top level. Check if any of them belong to this question.
         if (questionHeaderByKey.get(k)?.type === 'photo') {
           return photo.join(' | ')
         }

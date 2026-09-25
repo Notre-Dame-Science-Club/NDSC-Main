@@ -31,7 +31,7 @@ function labelFor(block: FormBlock) {
   return (list as any[]).find(t => t.type === block.type)?.label || block.type
 }
 
-export default function FormBlocksBuilder({ blocks, onChange, otherNodes, fieldsOnly }: { blocks: FormBlock[]; onChange: (blocks: FormBlock[]) => void; otherNodes?: { id: string; label: string }[]; fieldsOnly?: boolean }) {
+export default function FormBlocksBuilder({ blocks, onChange, otherNodes, fieldsOnly, subjects }: { blocks: FormBlock[]; onChange: (blocks: FormBlock[]) => void; otherNodes?: { id: string; label: string }[]; fieldsOnly?: boolean; subjects?: { id: string; name: string }[] }) {
   const addBlock = (type: FieldBlockType | ContentBlockType) => onChange([...blocks, blankBlock(type)])
   const removeBlock = (id: string) => onChange(blocks.filter(b => b.id !== id))
   const patchBlock = (id: string, patch: Partial<FormBlock>) => onChange(blocks.map(b => b.id === id ? { ...b, ...patch } : b))
@@ -110,7 +110,7 @@ export default function FormBlocksBuilder({ blocks, onChange, otherNodes, fields
                 </div>
               </div>
               <div className="p-3 space-y-2">
-                <BlockSettings block={block} onPatch={patch => patchBlock(block.id, patch)} otherNodes={otherNodes} />
+                <BlockSettings block={block} onPatch={patch => patchBlock(block.id, patch)} otherNodes={otherNodes} subjects={subjects} />
               </div>
             </div>
           )
@@ -120,7 +120,7 @@ export default function FormBlocksBuilder({ blocks, onChange, otherNodes, fields
   )
 }
 
-function BlockSettings({ block, onPatch, otherNodes }: { block: FormBlock; onPatch: (patch: Partial<FormBlock>) => void; otherNodes?: { id: string; label: string }[] }) {
+function BlockSettings({ block, onPatch, otherNodes, subjects }: { block: FormBlock; onPatch: (patch: Partial<FormBlock>) => void; otherNodes?: { id: string; label: string }[]; subjects?: { id: string; name: string }[] }) {
   if (block.kind === 'field') {
     return (
       <>
@@ -175,6 +175,18 @@ function BlockSettings({ block, onPatch, otherNodes }: { block: FormBlock; onPat
                 value={block.key || ''} onChange={e => onPatch({ key: e.target.value })}
                 className={inputCls} style={inputStyle} />
             </div>
+          </div>
+        )}
+
+        {(block.type === 'mcq' || block.type === 'checkbox' || block.type === 'short_answer') && subjects && subjects.length > 0 && (
+          <div>
+            <label className="block text-xs mb-1" style={{ color: 'var(--warning)' }}>Subject (which team member's question is this?)</label>
+            <select className={inputCls} style={inputStyle} value={block.subject_id || ''} onChange={e => onPatch({ subject_id: e.target.value || undefined })}>
+              <option value="">All subjects / not subject-specific</option>
+              {subjects.map(sub => (
+                <option key={sub.id} value={sub.id}>{sub.name}</option>
+              ))}
+            </select>
           </div>
         )}
 

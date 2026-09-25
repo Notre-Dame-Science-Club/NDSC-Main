@@ -324,8 +324,6 @@ create table if not exists olympiads (
   eligibility            text,
   organizer_password     text,
   organizer_username     text,                            -- paired with organizer_password; NULL = legacy password-only login (see 22_migration_organizer_username.sql)
-  registration_fields    jsonb default '[]',
-  questions              jsonb default '[]',
   relay_mode             boolean default false,
   relay_type             text default 'sequential',
   subjects               jsonb default '[]',
@@ -336,6 +334,10 @@ create table if not exists olympiads (
   -- fields — see 24_migration_consolidate_exam_schedule.sql.)
   scheduled_start_at     timestamptz,
   scheduled_end_at       timestamptz,
+  -- When set, this olympiad is purely informational (part of a larger
+  -- Activity) and shows a "Register for [parent activity]" CTA instead of
+  -- its own registration form. Added in 28_migration_olympiad_parent_activity.sql.
+  parent_activity_session_id uuid references activity_sessions(id) on delete set null,
   theme_bg_color         text,
   theme_bg_image_url     text,
   theme_accent_color     text,
@@ -914,63 +916,6 @@ select
 from chat_rooms r
 left join chat_room_participants p on p.room_id = r.id
 group by r.id;
-
--- ============================================================================
--- MASS-EMAILING SYSTEM (Migration 26)
--- ============================================================================
-
--- ── email_accounts ──────────────────────────────────────────────────────
-create table if not exists email_accounts (
-  id                uuid primary key default gen_random_uuid(),
-  label             text not null,
-  gmail_address     text,
-  sender_name       text not null,
-  sender_email      text not null,
-  api_key_encrypted text not null,
-  daily_limit       int not null default 300,
-  sent_today        int not null default 0,
-  quota_date        date not null default current_date,
-  is_active         boolean not null default true,
-  created_at        timestamptz default now()
-);
-
--- ── email_campaigns ─────────────────────────────────────────────────────
-create table if not exists email_campaigns (
-  id                 uuid primary key default gen_random_uuid(),
-  name               text not null,
-  subject            text not null,
-  body_html          text not null,
-  audience_source    text not null default 'members',
-  audience_filters   jsonb not null default '{}',
-  status             text not null default 'draft',
-  scheduled_at       timestamptz,
-  sent_at            timestamptz,
-  total_recipients   int not null default 0,
-  sent_count         int not null default 0,
-  failed_count       int not null default 0,
-  processing_lock_at timestamptz,
-  created_at         timestamptz default now(),
-  updated_at         timestamptz default now()
-);
-
-create index if not exists email_campaigns_status_idx on email_campaigns (status, scheduled_at);
-
--- ── email_campaign_recipients ───────────────────────────────────────────
-create table if not exists email_campaign_recipients (
-  id               uuid primary key default gen_random_uuid(),
-  campaign_id      uuid not null references email_campaigns(id) on delete cascade,
-  email            text not null,
-  name             text,
-  source           text not null,
-  source_id        uuid,
-  status           text not null default 'pending',
-  email_account_id uuid references email_accounts(id),
-  error            text,
-  sent_at          timestamptz,
-  created_at       timestamptz default now()
-);
-
-create index if not exists email_campaign_recipients_campaign_idx on email_campaign_recipients (campaign_id, status);
 
 -- ============================================================================
 -- NOTES & VERIFICATION

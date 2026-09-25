@@ -37,15 +37,15 @@ export async function GET(_req: NextRequest, ctx: Ctx) {
 
   // Owner's own title/description/cover image — surfaced so the node
   // editor's "Auto-pull from the event" toggles have something to preview.
-  let owner: { title: string | null; description: string | null; cover_image_url: string | null } | null = null
+  let owner: { title: string | null; description: string | null; cover_image_url: string | null; subjects?: { id: string; name: string }[] } | null = null
   if (graph.owner_kind === 'activity') {
     const { data: sess } = await supabaseAdmin
       .from('activity_sessions').select('title, description, cover_image_url').eq('id', graph.owner_id).maybeSingle()
     owner = { title: sess?.title ?? null, description: sess?.description ?? null, cover_image_url: sess?.cover_image_url ?? null }
   } else if (graph.owner_kind === 'olympiad') {
     const { data: oly } = await supabaseAdmin
-      .from('olympiads').select('name, description, cover_image_url').eq('id', graph.owner_id).maybeSingle()
-    owner = { title: oly?.name ?? null, description: oly?.description ?? null, cover_image_url: oly?.cover_image_url ?? null }
+      .from('olympiads').select('name, description, cover_image_url, subjects').eq('id', graph.owner_id).maybeSingle()
+    owner = { title: oly?.name ?? null, description: oly?.description ?? null, cover_image_url: oly?.cover_image_url ?? null, subjects: Array.isArray(oly?.subjects) ? oly.subjects : [] }
   }
 
   return apiOk({ graph, nodes: nodes || [], owner })

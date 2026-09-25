@@ -18,45 +18,81 @@ type QuestionResult = {
 // the already-computed `question_results` (saved at submit time) or, for
 // older registrations that predate that field, derives it live from the
 // raw answer columns + the olympiad's question bank.
+//
+// NEW BEHAVIOR: Handles ALL field types, not just mcq/checkbox/short_answer/photo.
+// For mcq/checkbox, auto-grades by comparing to correct_option_id(s). For all
+// other types, shows the raw answer and lets the organizer manually enter marks.
 function buildResults(reg: any, questions: any[]): QuestionResult[] {
   if (Array.isArray(reg.question_results) && reg.question_results.length) return reg.question_results
 
   return (questions || []).map((q: any): QuestionResult => {
+    const qKey = q.key || q.id
+
+    // MCQ: auto-grade by comparing chosen option to correct_option_id
     if (q.type === 'mcq') {
-      const chosenId = (reg.mcq_answers || {})[q.id]
-      const chosen = (q.options || []).find((o: any) => o.id === chosenId)
-      const correct = (q.options || []).find((o: any) => o.id === q.correct_option_id)
+      const chosenId = (reg.mcq_answers || {})[qKey]
+      const chosen = (q.mcq_options || []).find((o: any) => o.id === chosenId)
+      const correct = (q.mcq_options || []).find((o: any) => o.id === q.correct_option_id)
       const isCorrect = !!chosenId && chosenId === q.correct_option_id
       return {
-        question_id: q.id, question_text: q.text, type: q.type,
+        question_id: qKey, question_text: q.label, type: q.type,
         student_answer: chosen?.text ?? null, correct_answer: correct?.text ?? null,
         is_correct: isCorrect, marks_awarded: isCorrect ? (q.marks || 1) : 0, marks_possible: q.marks || 1,
       }
     }
+
+    // Checkbox (multi-select): auto-grade by comparing chosen set to correct_option_ids
     if (q.type === 'checkbox') {
-      const chosenIds: string[] = Array.isArray((reg.mcq_answers || {})[q.id]) ? (reg.mcq_answers || {})[q.id] : []
+      const chosenIds: string[] = Array.isArray((reg.mcq_answers || {})[qKey]) ? (reg.mcq_answers || {})[qKey] : []
       const correctIds: string[] = q.correct_option_ids || []
       const isCorrect = chosenIds.length > 0 && chosenIds.length === correctIds.length && chosenIds.every(id => correctIds.includes(id))
-      const chosenText = (q.options || []).filter((o: any) => chosenIds.includes(o.id)).map((o: any) => o.text).join(', ')
-      const correctText = (q.options || []).filter((o: any) => correctIds.includes(o.id)).map((o: any) => o.text).join(', ')
+      const chosenText = (q.mcq_options || []).filter((o: any) => chosenIds.includes(o.id)).map((o: any) => o.text).join(', ')
+      const correctText = (q.mcq_options || []).filter((o: any) => correctIds.includes(o.id)).map((o: any) => o.text).join(', ')
       return {
-        question_id: q.id, question_text: q.text, type: q.type,
+        question_id: qKey, question_text: q.label, type: q.type,
         student_answer: chosenText || null, correct_answer: correctText || null,
         is_correct: isCorrect, marks_awarded: isCorrect ? (q.marks || 1) : 0, marks_possible: q.marks || 1,
       }
     }
-    if (q.type === 'short') {
+
+    // Short answer: read from short_answers, no auto-grading
+    if (q.type === 'short_answer') {
       return {
-        question_id: q.id, question_text: q.text, type: q.type,
-        student_answer: (reg.short_answers || {})[q.id] || null, correct_answer: null,
+        question_id: qKey, question_text: q.label, type: q.type,
+        student_answer: (reg.short_answers || {})[qKey] || null, correct_answer: null,
         is_correct: null, marks_awarded: null, marks_possible: q.marks || 1,
       }
     }
-    // photo
-    const photo = (reg.photo_answers || []).find((p: any) => p.question_id === q.id)
+
+    // Photo: read from photo_answers array (legacy format) or custom_answers (new format)
+    if (q.type === 'photo') {
+      const photoFromArray = (reg.photo_answers || []).find((p: any) => p.question_id === qKey)
+      const photoFromCustom = (reg.custom_answers || {})[qKey]
+      const photoUrl = photoFromArray?.url || photoFromCustom || null
+      return {
+        question_id: qKey, question_text: q.label, type: q.type,
+        student_answer: photoUrl, correct_answer: null,
+        is_correct: null, marks_awarded: null, marks_possible: q.marks || 1,
+      }
+    }
+
+    // All other types (text, textarea, number, dropdown, multiple_choice,
+    // checkboxes, date, time, file, etc.): read from custom_answers, no auto-grading.
+    // The organizer manually enters marks_awarded for these.
+    const rawAnswer = (reg.custom_answers || {})[qKey]
+    let displayAnswer: string | null = null
+    if (rawAnswer === undefined || rawAnswer === null) {
+      displayAnswer = null
+    } else if (Array.isArray(rawAnswer)) {
+      // For checkboxes, multiple_choice, or file uploads (arrays)
+      displayAnswer = rawAnswer.join(', ')
+    } else {
+      displayAnswer = String(rawAnswer)
+    }
+
     return {
-      question_id: q.id, question_text: q.text, type: q.type,
-      student_answer: photo?.url || null, correct_answer: null,
+      question_id: qKey, question_text: q.label, type: q.type,
+      student_answer: displayAnswer, correct_answer: null,
       is_correct: null, marks_awarded: null, marks_possible: q.marks || 1,
     }
   })
@@ -96,7 +132,22 @@ export default function ResponseDetailModal({ reg, questions, onClose, onSave }:
     }
   }
 
-  const typeLabel = (t: string) => t === 'mcq' ? 'MCQ' : t === 'checkbox' ? 'Checkboxes' : t === 'short' ? 'Short Answer' : 'Photo Upload'
+  const typeLabel = (t: string) => {
+    if (t === 'mcq') return 'MCQ'
+    if (t === 'checkbox') return 'Multi-select'
+    if (t === 'short_answer') return 'Short Answer'
+    if (t === 'photo') return 'Photo Upload'
+    if (t === 'text') return 'Text'
+    if (t === 'textarea') return 'Long Text'
+    if (t === 'number') return 'Number'
+    if (t === 'dropdown') return 'Dropdown'
+    if (t === 'multiple_choice') return 'Multiple Choice'
+    if (t === 'checkboxes') return 'Checkboxes'
+    if (t === 'date') return 'Date'
+    if (t === 'time') return 'Time'
+    if (t === 'file') return 'File Upload'
+    return t.charAt(0).toUpperCase() + t.slice(1)
+  }
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(2,8,16,0.85)' }}>

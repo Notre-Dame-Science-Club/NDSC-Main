@@ -216,7 +216,10 @@ export interface ActivityUpdateRow {
   created_at: ISODateString
 }
 
-// ── activity_reg_categories (self-referencing tree) ─────────────────────
+// ── activity_reg_categories (LEGACY v1 — removed, table still exists for old data) ───────
+// Types below are kept only for migration scripts and CSV exports with backward compat.
+// All new registration uses form_graphs/form_nodes (v2).
+
 export type CustomFieldType = 'text' | 'number' | 'textarea' | 'photo'
 
 export interface CustomFieldDef {
@@ -225,8 +228,7 @@ export interface CustomFieldDef {
   description?: string
   type: CustomFieldType
   required: boolean
-  unique_field?: boolean // when true, a second registration in the same session with an
-                          // identical value for this field is rejected as a duplicate
+  unique_field?: boolean
 }
 
 export type SubmissionFieldType = 'file' | 'text' | 'textarea'
@@ -259,7 +261,7 @@ export interface ActivityRegCategoryRow {
   payment_label: string | null
   is_online_submission: boolean
   linked_olympiad_id: UUID | null
-  edit_window_hours: number | null // null = unlimited, 0 = immediately locked
+  edit_window_hours: number | null
   schedule_date: ISODateString | null
   schedule_time: string | null
   schedule_room: string | null

@@ -636,6 +636,13 @@ export default function FormRunner({
                 <CheckCircle size={40} className="mx-auto mb-3" style={{ color: 'var(--cat-teal)' }} />
                 <h2 className="text-xl font-black mb-1" style={{ color: 'var(--white)' }}>You're all set!</h2>
                 <p className="text-sm" style={{ color: 'var(--muted)' }}>Your registration has been submitted.</p>
+                {eventSlug && registrationId && (
+                  <a href={`/activities/${eventSlug}/dashboard?reg=${registrationId}`}
+                    className="inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-lg text-sm font-bold mt-4"
+                    style={{ background: 'var(--cat-teal)', color: '#000' }}>
+                    Open my dashboard
+                  </a>
+                )}
               </div>
             ) : (
               <>

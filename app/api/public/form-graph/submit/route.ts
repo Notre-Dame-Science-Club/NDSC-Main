@@ -50,7 +50,9 @@ import { normalizeBlocks, HARD_MINIMUM_KEYS, validateFieldFormat, type FormBlock
 import { validateAndPrepareTeam, isTeamResultOk, type ValidateTeamResult } from '@/lib/teamRegistration'
 import type { FormNode } from '@/lib/formGraph'
 
-const OLYMPIAD_NODE_KINDS = new Set(['preset_olympiad_questions'])
+// Node kinds that contain identity/registration info, NOT exam questions.
+// These are excluded from the timer trigger logic below.
+const IDENTITY_NODE_KINDS = new Set(['preset_common_details', 'preset_team_info'])
 
 // college_roll used to be the one field with a hardcoded format rule
 // ("exactly 8 digits", but only for Notre Dame College students) baked
@@ -512,6 +514,56 @@ export async function POST(req: NextRequest) {
   if (gErr) return apiError(gErr, 400)
   if (!graph) return apiError('Graph not found.', 404)
 
+  // If this is an olympiad graph, check if it requires a parent activity registration
+  if (graph.owner_kind === 'olympiad') {
+    const { data: olympiad } = await supabaseAdmin
+      .from('olympiads')
+      .select('parent_activity_session_id')
+      .eq('id', graph.owner_id)
+      .maybeSingle()
+
+    if (olympiad?.parent_activity_session_id) {
+      // This olympiad requires registration for a parent activity
+      // Check if the user is registered for that activity
+      const userIdentifiers = body.form || {}
+      const email = userIdentifiers.email?.trim().toLowerCase()
+      const phone = userIdentifiers.phone?.trim()
+      const collegeRoll = userIdentifiers.college_roll?.trim()
+
+      if (!email && !phone && !collegeRoll) {
+        return apiError('Cannot verify parent activity registration without user identification (email, phone, or college roll).', 400)
+      }
+
+      let query = supabaseAdmin
+        .from('activity_registrations')
+        .select('id, full_name')
+        .eq('activity_session_id', olympiad.parent_activity_session_id)
+
+      // Build OR conditions for matching
+      const orConditions: string[] = []
+      if (email) orConditions.push(`email.ilike.${email}`)
+      if (phone) orConditions.push(`phone.eq.${phone}`)
+      if (collegeRoll) orConditions.push(`college_roll.eq.${collegeRoll}`)
+
+      if (orConditions.length > 0) {
+        query = query.or(orConditions.join(','))
+      }
+
+      const { data: parentReg } = await query.maybeSingle()
+
+      if (!parentReg) {
+        const { data: activitySession } = await supabaseAdmin
+          .from('activity_sessions')
+          .select('title')
+          .eq('id', olympiad.parent_activity_session_id)
+          .maybeSingle()
+
+        const activityName = activitySession?.title || 'the parent activity'
+        return apiError(`You must be registered for ${activityName} before registering for this olympiad.`, 403)
+      }
+    }
+  }
+
   // Validate the inputs against the node's schema. We never trust the
   // client's claim about which fields are required — we re-derive it
   // from the node's `fields` JSONB.
@@ -952,10 +1004,17 @@ export async function POST(req: NextRequest) {
   })
 }
 
-// Splits a node's olympiad question fields (mcq / checkbox / short_answer /
-// photo) out of the generic custom_answers bag into the dedicated columns
-// on olympiad_registrations. Returns the per-bucket maps / array. We do
-// the split server-side so the client never has to know about it.
+// Splits a node's olympiad answer fields out of the generic custom_answers bag
+// into the dedicated columns on olympiad_registrations. Returns the per-bucket
+// maps / array. We do the split server-side so the client never has to know about it.
+//
+// NEW BEHAVIOR: This still only lifts mcq/checkbox/short_answer/photo into the
+// dedicated columns (mcq_answers / short_answers / photo_answers), because those
+// columns already exist and the grading UI already reads from them. All OTHER
+// field types (text, number, dropdown, date, file, etc.) stay in custom_answers
+// only — ResponseDetailModal and the CSV export now read from custom_answers as
+// a fallback when the dedicated columns don't have the answer, so newly-included
+// types work without a schema migration.
 function splitOlympiadAnswers(node: FormNode, custom: Record<string, any>) {
   const mcq: Record<string, any> = {}
   const short: Record<string, any> = {}
@@ -972,21 +1031,25 @@ function splitOlympiadAnswers(node: FormNode, custom: Record<string, any>) {
       if (Array.isArray(v)) photo.push(...v.filter((x: any) => typeof x === 'string'))
       else if (typeof v === 'string') photo.push(v)
     }
+    // All other types (text, textarea, number, dropdown, date, time, file, etc.)
+    // remain in custom_answers only — the grading UI reads them from there.
   }
   return { mcq, short, photo }
 }
 
-// For olympiad graphs, set exam_started_at the first time the registrant
-// ENTERS the questions node (i.e. on its non-root submit OR — if the
-// root is the questions node — on its root submit). Set exam_submitted_at
-// when the questions node OR a downstream terminal node is submitted.
+// For olympiad graphs, set exam_started_at the first time the registrant submits
+// a node that is NOT an identity/registration node (preset_common_details,
+// preset_team_info). This triggers the timer on the first actual exam content node,
+// regardless of what node kind it is. Set exam_submitted_at when a terminal node
+// is submitted.
 async function maybeMarkOlympiadTimers(table: string, registrationId: string, graph: any, node: FormNode) {
-  const isQuestionsNode = node.kind === 'preset_olympiad_questions' || OLYMPIAD_NODE_KINDS.has(node.kind as any)
-  if (!isQuestionsNode) return
-  // exam_started_at is set the first time we see this node — the runner
-  // doesn't submit a question node on entry, only on submit, so by the
-  // time we get here exam_started_at might still be null. We approximate
-  // "started" as the time of submit, which is the conservative choice.
+  // Skip identity nodes — they don't trigger the timer
+  if (IDENTITY_NODE_KINDS.has(node.kind as any)) return
+
+  // exam_started_at is set the first time we see a non-identity node. The runner
+  // doesn't submit a node on entry, only on submit, so by the time we get here
+  // exam_started_at might still be null. We approximate "started" as the time of
+  // submit, which is the conservative choice.
   const patch: Record<string, any> = { exam_started_at: new Date().toISOString() }
   if (node.is_terminal) patch.exam_submitted_at = new Date().toISOString()
   await supabaseAdmin.from(table).update(patch).eq('id', registrationId)

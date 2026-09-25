@@ -83,10 +83,17 @@ export default function PublicRegisterPage() {
     if (existingDoneId) setAlreadyDone({ registrationId: existingDoneId })
 
     fetch(`/api/public/form-graph?owner_kind=${ownerKind}&owner_id=${ownerId}`)
-      .then(r => r.json().then(j => ({ ok: r.ok, j })))
-      .then(({ ok, j }) => {
+      .then(r => r.json().then(j => ({ ok: r.ok, status: r.status, j })))
+      .then(({ ok, status, j }) => {
         if (cancelled) return
-        if (!ok) throw new Error(j.error || 'Failed to load form.')
+        if (!ok) {
+          // If the olympiad is linked to an activity, redirect to the activity registration
+          if (status === 404 && j.code === 'linked_to_activity' && j.session_slug && j.category_id) {
+            router.replace(`/register/activity/${j.session_slug}?category=${j.category_id}`)
+            return
+          }
+          throw new Error(j.error || 'Failed to load form.')
+        }
         setGraph(j.graph)
         setNodes(j.nodes || [])
         setOwner(j.owner || null)

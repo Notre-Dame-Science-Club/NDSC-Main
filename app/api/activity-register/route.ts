@@ -20,34 +20,15 @@ export async function GET(req: NextRequest) {
     return apiError('Registration not found.', 404)
   }
 
-  const { data: category } = await supabaseAdmin
-    .from('activity_reg_categories')
-    .select('*')
-    .eq('id', registration.category_id)
-    .single()
-
   const { data: session } = await supabaseAdmin
     .from('activity_sessions')
     .select('*')
     .eq('id', registration.activity_session_id)
     .single()
 
-  // Phase 4: when the registration was created through v2 (form-graph),
-  // also fetch the leaf form_node and lift its online-round flags into
-  // the response. The dashboard reads `data.category.is_online_submission`
-  // and `data.category.linked_olympiad_id` to decide whether to show the
-  // exam / relay link. v2 registrations don't have a category_id (Phase
-  // 6 will let us drop the column), but they DO have form_node_id, so we
-  // fetch the node's behavior and surface it the same way the legacy
-  // category object did — so dashboard logic stays unchanged for both.
-  //
-  // Also surface the node's `label` as `node_label` — v2 registrations
-  // have no `category_id`, so `category` (and therefore the segment name
-  // the dashboard used to show under the event title) was always null
-  // for them. The node someone actually finished on IS effectively their
-  // segment ("Science Olympiad", "Quiz Competition", etc.), so its label
-  // is the right stand-in.
-  let nodeBehavior: Record<string, any> | null = null
+  // All registrations are now v2 (form-graph). Fetch the leaf form_node
+  // and surface its behavior for the dashboard.
+  let categoryWithFlags: Record<string, any> | null = null
   let nodeLabel: string | null = null
   if ((registration as any).form_node_id) {
     const { data: fn } = await supabaseAdmin
@@ -58,20 +39,14 @@ export async function GET(req: NextRequest) {
     if (fn) {
       const b: any = (fn as any).behavior || {}
       nodeLabel = (fn as any).label || null
-      nodeBehavior = {
-        // Bug fix: this used to only carry is_online_submission /
-        // linked_olympiad_id. The dashboard also reads submission_config,
-        // submission_who, schedule_* and name off `category` — for a v2
-        // registration those were always silently undefined before,
-        // regardless of what the leaf node's behavior actually said.
-        is_online_submission: !!b.is_online_submission,
+      // Build category-shaped object from node behavior for dashboard compatibility
+      categoryWithFlags = {
+        name: nodeLabel,
         linked_olympiad_id: b.linked_olympiad_id ?? null,
-        submission_config: b.submission_config || [],
-        submission_who: b.submission_who,
+        submission: b.submission || null,
         schedule_date: b.schedule?.date ?? null,
         schedule_time: b.schedule?.time ?? null,
         schedule_room: b.schedule?.room ?? null,
-        name: nodeLabel,
       }
     }
   }
@@ -106,33 +81,14 @@ export async function GET(req: NextRequest) {
         const { data: sibNodes } = await supabaseAdmin.from('form_nodes').select('id, label').in('id', nodeIds)
         for (const n of (sibNodes || [])) labelsByNode.set(n.id, n.label)
       }
-      const categoryIds = [...new Set(sibRows.map((r: any) => r.category_id).filter(Boolean))]
-      const namesByCategory = new Map<string, string>()
-      if (categoryIds.length) {
-        const { data: sibCats } = await supabaseAdmin.from('activity_reg_categories').select('id, name').in('id', categoryIds)
-        for (const c of (sibCats || [])) namesByCategory.set(c.id, c.name)
-      }
+      // v2 only - all registrations now use form_node_id
       siblings = sibRows.map((r: any) => ({
         id: r.id,
-        label: (r.form_node_id && labelsByNode.get(r.form_node_id)) || (r.category_id && namesByCategory.get(r.category_id)) || null,
+        label: (r.form_node_id && labelsByNode.get(r.form_node_id)) || null,
         created_at: r.created_at,
       }))
     }
   }
-
-  // If the legacy v1 path set up the category with online flags, prefer
-  // those — they're the canonical v1 source. v2 paths get nodeBehavior
-  // instead. We merge so callers can read either name uniformly.
-  //
-  // Bug fix: this used to be `category ? {...category, ...nodeBehavior} : null`,
-  // which threw nodeBehavior away entirely whenever `category` was null —
-  // which is EVERY v2 (form-graph) registration, since those never get a
-  // category_id (see form-graph/submit/route.ts). That's why the online-round
-  // link never showed up in the dashboard for any registration made through
-  // the new form builder, no matter what was configured on the leaf node.
-  const categoryWithFlags = category
-    ? { ...category, ...(nodeBehavior || {}) }
-    : nodeBehavior
 
   return apiOk({ registration, category: categoryWithFlags, session, node_label: nodeLabel, siblings })
 }

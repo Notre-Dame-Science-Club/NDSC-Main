@@ -35,8 +35,12 @@ export function apiOk<T>(data: T, init?: { status?: number }) {
   return NextResponse.json(normalizeUploadUrlsDeep(data) as any, { status: init?.status ?? 200 });
 }
 
-export function apiError(message: unknown, status = 400) {
-  return NextResponse.json({ error: messageOf(message, "Something went wrong.") }, { status });
+export function apiError(message: unknown, status = 400, extraPayload?: Record<string, any>) {
+  const payload: any = { error: messageOf(message, "Something went wrong.") };
+  if (extraPayload) {
+    Object.assign(payload, extraPayload);
+  }
+  return NextResponse.json(payload, { status });
 }
 
 export const apiUnauthorized = (message = "Unauthorized") => apiError(message, 401);

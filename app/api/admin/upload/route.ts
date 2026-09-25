@@ -11,8 +11,6 @@ const BUCKET_TO_FOLDER: Record<string, string> = {
   'activity-gallery': 'gallery',
   'activity-pdfs':    'pdfs',
   'executive-photos': 'executives',
-  'legacy-gallery':   'legacy-gallery',
-  'glance-gallery':   'glance-gallery',
   'covers':           'covers',
   'gallery':          'gallery',
   'pdfs':             'pdfs',

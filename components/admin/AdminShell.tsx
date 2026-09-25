@@ -5,7 +5,7 @@ import { usePathname } from 'next/navigation'
 import {
   LayoutDashboard, Users, CalendarDays, BookOpen, UserCog,
   Megaphone, Trophy, Film, Settings, Power, ClipboardList, Palette, Workflow, Menu, X,
-  MessageSquare, FileText, UserPlus, Wrench, Mail,
+  MessageSquare, FileText, UserPlus, Wrench,
 } from 'lucide-react'
 
 const NAV_LINKS = [
@@ -17,7 +17,6 @@ const NAV_LINKS = [
   { href: '/admin/publications', label: 'Publications', icon: BookOpen },
   { href: '/admin/science-media', label: 'Science Media', icon: Film },
   { href: '/admin/announcements', label: 'Announcements', icon: Megaphone },
-  { href: '/admin/emailing', label: 'Emailing', icon: Mail },
   { href: '/admin/form-builder', label: 'Form Builder', icon: Workflow },
   { href: '/admin/forms', label: 'Form Configs', icon: FileText },
   { href: '/admin/surveys', label: 'Surveys', icon: ClipboardList },

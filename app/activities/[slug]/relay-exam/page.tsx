@@ -2,14 +2,21 @@
 import { useEffect, useState, useRef, useCallback } from 'react'
 import { useParams, useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
-import { Clock, ChevronRight, ChevronLeft, CheckCircle, ArrowLeft, Upload, X } from 'lucide-react'
-import MathInputField from '@/components/olympiad/MathInputField'
+import { Clock, ChevronRight, ChevronLeft, CheckCircle, ArrowLeft } from 'lucide-react'
+import MathText from '@/components/olympiad/MathText'
+import FieldsRenderer from '@/components/FieldsRenderer'
 
-type QuestionType = 'mcq' | 'short' | 'photo'
-type McqOption = { id: string; text: string }
+// Matches FormBlock (lib/formBlocks.ts) — questions are now ALL field types
+// on the olympiad's form-graph nodes (except identity nodes), not just a
+// specific 4-type whitelist.
+type QuestionType = string  // any FieldBlockType
 type Question = {
-  id: string; type: QuestionType; text: string; description?: string
-  options?: McqOption[]; correct_option_id?: string; marks?: number; subject_id?: string
+  id: string; type: QuestionType; label: string; description?: string
+  // MCQ-specific
+  mcq_options?: { id: string; text: string }[]; correct_option_id?: string; correct_option_ids?: string[]
+  marks?: number; subject_id?: string
+  // Generic field properties
+  required?: boolean; options?: string[]; key?: string
 }
 type Subject = { id: string; name: string; description?: string }
 type Olympiad = {
@@ -22,7 +29,6 @@ type Olympiad = {
   result_published?: boolean
 }
 
-const inputStyle = { background: 'rgba(255,255,255,0.04)', border: '1px solid var(--border)', color: 'var(--white)' }
 const STORAGE_PREFIX = 'ndsc_relay_exam_'
 
 // Replaces {{chain.memberN.questionId}} tokens in a question's text with
@@ -53,11 +59,8 @@ export default function RelayExamPage() {
 
   const [phase, setPhase] = useState<'loading' | 'waiting_turn' | 'select_subject' | 'intro' | 'exam' | 'done'>('loading')
 
-  const [mcqAnswers, setMcqAnswers] = useState<Record<string, string>>({})
-  const [shortAnswers, setShortAnswers] = useState<Record<string, string>>({})
-  const [photoFiles, setPhotoFiles] = useState<Record<string, File>>({})
-  const [photoUrls, setPhotoUrls] = useState<Record<string, string>>({})
-  const [photoUploading, setPhotoUploading] = useState<Record<string, boolean>>({})
+  // All answers are stored in a single customAnswers object, keyed by question key/id
+  const [customAnswers, setCustomAnswers] = useState<Record<string, any>>({})
   const [currentQ, setCurrentQ] = useState(0)
   const [timeLeft, setTimeLeft] = useState(0)
   const timerRef = useRef<any>(null)
@@ -119,6 +122,16 @@ export default function RelayExamPage() {
     // Already submitted?
     const already = relay?.member_submissions?.find((s: any) => s.member_id === memberIdParam)
     if (already) { setPhase('done'); return }
+
+    // Guard: if the olympiad has 0 questions, don't allow starting at all
+    const questionCount = (oly.questions || []).filter(q => {
+      if (!mySubjectId) return true
+      return !q.subject_id || q.subject_id === mySubjectId
+    }).length
+    if (questionCount === 0) {
+      setError('This exam has no questions configured yet. Please contact the organizer.')
+      return
+    }
 
     // Relay mode: check whose turn it is
     if (oly.relay_mode) {
@@ -201,7 +214,7 @@ export default function RelayExamPage() {
   const chainValues = relayState?.chain_values || {}
   const resolvedQuestion = (q: Question): Question => {
     if (olympiad?.relay_type !== 'chain') return q
-    return { ...q, text: resolveChainText(q.text, chainValues), description: q.description ? resolveChainText(q.description, chainValues) : q.description }
+    return { ...q, label: resolveChainText(q.label, chainValues), description: q.description ? resolveChainText(q.description, chainValues) : q.description }
   }
 
   // ── Submit this member's turn ────────────────────────────────────────────
@@ -210,18 +223,16 @@ export default function RelayExamPage() {
     setSubmitting(true)
     clearInterval(timerRef.current)
     try {
-      // Make sure every selected photo answer actually finished uploading —
-      // if one failed silently while the timer ran out, retry it here.
-      const resolvedPhotoUrls = { ...photoUrls }
-      for (const q of visibleQuestions.filter(q => q.type === 'photo')) {
-        if (photoFiles[q.id] && !resolvedPhotoUrls[q.id]) {
-          try { resolvedPhotoUrls[q.id] = await uploadExamPhoto(photoFiles[q.id]) } catch { /* skip — leaves unanswered */ }
-        }
-      }
-      const answers: Record<string, any> = { ...mcqAnswers, ...shortAnswers, ...resolvedPhotoUrls }
       const res = await fetch('/api/relay-exam', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'submit_member', registration_id: regId, olympiad_id: olympiadId, member_id: memberIdParam, subject_id: mySubjectId, answers }),
+        body: JSON.stringify({
+          action: 'submit_member',
+          registration_id: regId,
+          olympiad_id: olympiadId,
+          member_id: memberIdParam,
+          subject_id: mySubjectId,
+          answers: customAnswers
+        }),
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error)
@@ -233,9 +244,8 @@ export default function RelayExamPage() {
 
   const fmtTime = (s: number) => `${Math.floor(s / 60)}:${(s % 60).toString().padStart(2, '0')}`
 
-  // Photo question upload — same upload endpoint the rest of the activity
-  // flow already uses, so admin file-size/type rules stay consistent.
-  const uploadExamPhoto = (file: File): Promise<string> =>
+  // Upload helper for FieldsRenderer (photo/file fields)
+  const uploadExamFile = (file: File): Promise<string> =>
     new Promise((resolve, reject) => {
       const fd = new FormData()
       fd.append('file', file)
@@ -248,20 +258,9 @@ export default function RelayExamPage() {
         } catch { reject(new Error('Upload failed.')) }
       })
       xhr.addEventListener('error', () => reject(new Error('Network error during upload.')))
-      xhr.open('POST', '/api/activity-upload')
+      xhr.open('POST', '/api/admin/upload')
       xhr.send(fd)
     })
-
-  const handlePhotoAnswer = async (qId: string, file: File | null) => {
-    if (!file) return
-    setPhotoFiles(p => ({ ...p, [qId]: file }))
-    setPhotoUploading(p => ({ ...p, [qId]: true }))
-    try {
-      const url = await uploadExamPhoto(file)
-      setPhotoUrls(p => ({ ...p, [qId]: url }))
-    } catch { /* left unresolved — submitMyTurn retries from photoFiles */ }
-    finally { setPhotoUploading(p => ({ ...p, [qId]: false })) }
-  }
 
   // ─────────────────────────────────────────────────────────────────────────
   if (loading) return <div className="min-h-screen flex items-center justify-center" style={{ background: 'var(--bg)' }}><p style={{ color: 'var(--muted)' }}>Loading exam…</p></div>
@@ -311,14 +310,26 @@ export default function RelayExamPage() {
 
         {phase === 'intro' && (
           <div className="rounded-2xl p-6 border text-center space-y-4" style={{ background: 'var(--bg2)', borderColor: 'var(--border)' }}>
-            <p className="text-sm" style={{ color: 'var(--white)' }}>
-              {visibleQuestions.length} questions · {olympiad?.timer_minutes} minutes
-              {mySubjectId && <><br />Subject: {olympiad?.subjects.find(s => s.id === mySubjectId)?.name}</>}
-            </p>
-            <p className="text-xs" style={{ color: 'var(--muted)' }}>Once you start, the timer begins and cannot be paused.</p>
-            <button onClick={startExam} className="w-full py-3 rounded-xl font-bold text-sm text-black" style={{ background: 'var(--blue)' }}>
-              Start Exam →
-            </button>
+            {visibleQuestions.length === 0 ? (
+              <>
+                <p className="text-sm mb-2" style={{ color: 'var(--danger-soft)' }}>⚠ This exam has no questions configured yet.</p>
+                <p className="text-xs" style={{ color: 'var(--muted)' }}>Please contact the organizer. The exam cannot be started without questions.</p>
+                <Link href={`/activities/${slug}/dashboard?reg=${regId}`} className="inline-block mt-4 text-sm underline" style={{ color: 'var(--blue)' }}>
+                  ← Back to dashboard
+                </Link>
+              </>
+            ) : (
+              <>
+                <p className="text-sm" style={{ color: 'var(--white)' }}>
+                  {visibleQuestions.length} questions · {olympiad?.timer_minutes} minutes
+                  {mySubjectId && <><br />Subject: {olympiad?.subjects.find(s => s.id === mySubjectId)?.name}</>}
+                </p>
+                <p className="text-xs" style={{ color: 'var(--muted)' }}>Once you start, the timer begins and cannot be paused.</p>
+                <button onClick={startExam} className="w-full py-3 rounded-xl font-bold text-sm text-black" style={{ background: 'var(--blue)' }}>
+                  Start Exam →
+                </button>
+              </>
+            )}
           </div>
         )}
 
@@ -331,50 +342,32 @@ export default function RelayExamPage() {
 
             {(() => {
               const q = resolvedQuestion(visibleQuestions[currentQ])
+              // Convert the question into a FormBlock shape that FieldsRenderer expects
+              const asFormBlock: any = {
+                id: q.id,
+                kind: 'field',
+                type: q.type,
+                label: q.label,
+                description: q.description,
+                required: q.required !== false,
+                marks: q.marks,
+                key: q.key || q.id,
+                mcq_options: q.mcq_options,
+                correct_option_id: q.correct_option_id,
+                correct_option_ids: q.correct_option_ids,
+                options: q.options,
+              }
               return (
                 <div className="rounded-xl p-5" style={{ background: 'var(--bg2)', border: '1px solid var(--border)' }}>
-                  <p className="text-sm font-semibold mb-1" style={{ color: 'var(--white)' }}>{q.text}</p>
-                  {q.description && <p className="text-xs mb-3" style={{ color: 'var(--muted)' }}>{q.description}</p>}
-
-                  {q.type === 'mcq' && (
-                    <div className="space-y-2 mt-3">
-                      {(q.options || []).map(opt => (
-                        <button key={opt.id} onClick={() => setMcqAnswers(p => ({ ...p, [q.id]: opt.id }))}
-                          className="w-full text-left p-3 rounded-lg border text-sm transition-all"
-                          style={{
-                            background: mcqAnswers[q.id] === opt.id ? 'rgba(var(--blue-rgb), 0.15)' : 'rgba(255,255,255,0.03)',
-                            borderColor: mcqAnswers[q.id] === opt.id ? 'var(--blue)' : 'var(--border)',
-                            color: 'var(--white)',
-                          }}>
-                          {opt.text}
-                        </button>
-                      ))}
-                    </div>
-                  )}
-
-                  {q.type === 'short' && (
-                    <div className="mt-2">
-                      <MathInputField
-                        multiline rows={4}
-                        value={shortAnswers[q.id] || ''}
-                        onChange={v => setShortAnswers(p => ({ ...p, [q.id]: v }))}
-                        className="w-full px-3 py-2.5 rounded-lg text-sm outline-none resize-none"
-                        style={inputStyle}
-                      />
-                    </div>
-                  )}
-
-                  {q.type === 'photo' && (
-                    <label className="flex flex-col items-center gap-2 py-5 rounded-xl border-2 border-dashed cursor-pointer mt-2"
-                      style={{ borderColor: photoUrls[q.id] ? 'var(--cat-teal)' : photoFiles[q.id] ? 'var(--blue)' : 'var(--border)', color: 'var(--muted)' }}>
-                      <Upload size={18} />
-                      <span className="text-xs inline-flex items-center gap-1">
-                        {photoUploading[q.id] ? 'Uploading…' : photoUrls[q.id] ? <><CheckCircle size={12} /> Uploaded — tap to replace</> : photoFiles[q.id] ? photoFiles[q.id].name : 'Tap to upload your photo answer'}
-                      </span>
-                      <input type="file" accept="image/*" capture="environment" className="hidden"
-                        onChange={e => handlePhotoAnswer(q.id, e.target.files?.[0] || null)} />
-                    </label>
-                  )}
+                  <FieldsRenderer
+                    schema={[asFormBlock]}
+                    form={{}}
+                    onFormChange={() => {}}
+                    customAnswers={customAnswers}
+                    onCustomAnswersChange={setCustomAnswers}
+                    accent="var(--blue)"
+                    upload={uploadExamFile}
+                  />
                 </div>
               )
             })()}
@@ -395,6 +388,16 @@ export default function RelayExamPage() {
                 </button>
               )}
             </div>
+          </div>
+        )}
+
+        {phase === 'exam' && visibleQuestions.length === 0 && (
+          <div className="rounded-2xl p-6 border text-center" style={{ background: 'var(--bg2)', borderColor: 'var(--border)' }}>
+            <p className="text-sm mb-2" style={{ color: 'var(--danger-soft)' }}>⚠ This exam has no questions configured yet.</p>
+            <p className="text-xs mb-4" style={{ color: 'var(--muted)' }}>Please contact the organizer. The exam cannot be completed without questions.</p>
+            <Link href={`/activities/${slug}/dashboard?reg=${regId}`} className="inline-block text-sm underline" style={{ color: 'var(--blue)' }}>
+              ← Back to dashboard
+            </Link>
           </div>
         )}
 
@@ -441,7 +444,7 @@ export default function RelayExamPage() {
                         {!r.is_correct && <p style={{ color: 'var(--muted)' }}>Correct answer: {r.correct_answer}</p>}
                       </div>
                     )}
-                    {r.type === 'short' && (
+                    {r.type === 'short_answer' && (
                       <div className="mt-2 text-xs" style={{ color: 'var(--muted)' }}>
                         Your answer: <span style={{ color: 'var(--white)' }}>{r.student_answer || '(not answered)'}</span>
                       </div>

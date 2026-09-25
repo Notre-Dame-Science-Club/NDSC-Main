@@ -82,7 +82,7 @@ export default function DashboardPage() {
       }
 
       // Load public content (these should work without RLS issues)
-      const [{ data: a }, allActivities, { data: pub }, { data: oly }, settingsRes] = await Promise.all([
+      const [{ data: a }, allActivities, { data: pub }, settingsRes] = await Promise.all([
         supabase.from('announcements').select('*').order('created_at', { ascending: false }).limit(5),
         // NOTE: this previously queried a table literally named `activities`
         // with a `date` column — that table doesn't exist (it's dead/legacy
@@ -93,14 +93,20 @@ export default function DashboardPage() {
         // itself relies on.
         fetch('/api/activity-sessions-public').then(r => r.json()).catch(() => []),
         supabase.from('publications').select('*').eq('is_published', true).order('created_at', { ascending: false }),
-        supabase.from('olympiads').select('*').eq('is_active', true).order('scheduled_start_at', { ascending: true }),
         fetch('/api/admin/homepage-settings').catch(() => null),
       ])
 
       setAnnouncements(a || [])
       setActivities(Array.isArray(allActivities) ? allActivities : [])
       setPublications(pub || [])
-      setOlympiads(oly || [])
+
+      // Load olympiads using the proper API endpoint that respects activity linking
+      // (excludes olympiads linked to activities via v1/v2 systems)
+      fetch('/api/olympiad?listing=1')
+        .then(r => r.json())
+        .then(rows => setOlympiads(Array.isArray(rows) ? rows : []))
+        .catch(() => setOlympiads([]))
+
       if (settingsRes && settingsRes.ok) {
         const settings = await settingsRes.json()
         setMessengerLink(settings.messenger_group_link || '')
@@ -459,7 +465,7 @@ export default function DashboardPage() {
           return (
             <div className="space-y-2 mb-5">
               {live.map(o => (
-                <a key={o.id} href={`/olympiad?id=${o.id}`}
+                <a key={o.id} href={`/register/olympiad/${o.id}`}
                   className="flex items-center justify-between gap-3 rounded-xl p-4 border"
                   style={{ background: 'rgba(var(--success-rgb), 0.08)', borderColor: 'rgba(var(--success-rgb), 0.35)' }}>
                   <div className="min-w-0">
@@ -472,7 +478,7 @@ export default function DashboardPage() {
                 </a>
               ))}
               {upcoming.map(o => (
-                <a key={o.id} href={`/olympiad?id=${o.id}`}
+                <a key={o.id} href={`/register/olympiad/${o.id}`}
                   className="flex items-center justify-between gap-3 rounded-xl p-4 border"
                   style={{ background: 'rgba(var(--blue-rgb), 0.06)', borderColor: 'rgba(var(--blue-rgb), 0.25)' }}>
                   <div className="min-w-0">
@@ -1179,8 +1185,8 @@ export default function DashboardPage() {
                                       )}
                                     </div>
 
-                                    {/* Submission / olympiad status — only shown for online-round segments */}
-                                    {reg.category?.is_online_submission && (
+                                    {/* Submission / olympiad status — only shown when submission is enabled or olympiad is linked */}
+                                    {(reg.category?.submission?.enabled || reg.category?.linked_olympiad_id) && (
                                       <div className="flex items-center gap-2 mt-2 flex-wrap">
                                         {finalSub ? (
                                           <span className="text-xs px-1.5 py-0.5 rounded-full flex items-center gap-1" style={{ background: 'rgba(var(--success-rgb), 0.1)', color: 'var(--success)' }}>
@@ -1196,12 +1202,16 @@ export default function DashboardPage() {
                                             + {draftCount} intermediate {draftCount === 1 ? 'entry' : 'entries'} saved
                                           </span>
                                         )}
-                                        {reg.olympiad && (
-                                          <Link href={`/olympiad?id=${reg.olympiad.id}`}
+                                        {reg.olympiad && reg.session?.slug ? (
+                                          <Link href={`/activities/${reg.session.slug}/dashboard?reg=${reg.id}`}
                                             className="text-xs underline flex items-center gap-1" style={{ color: 'var(--blue)' }}>
                                             <Trophy size={10} /> {reg.olympiad.name} <ExternalLink size={9} />
                                           </Link>
-                                        )}
+                                        ) : reg.olympiad ? (
+                                          <span className="text-xs flex items-center gap-1" style={{ color: 'var(--muted)' }}>
+                                            <Trophy size={10} /> {reg.olympiad.name}
+                                          </span>
+                                        ) : null}
                                       </div>
                                     )}
                                   </div>

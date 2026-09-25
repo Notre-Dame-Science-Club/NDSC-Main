@@ -2,7 +2,7 @@
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useParams, useRouter } from 'next/navigation'
-import { ArrowLeft, Save, Loader2, Trash2, Check, ChevronDown, ChevronRight, Image as ImageIcon, Eye, EyeOff, Info } from 'lucide-react'
+import { ArrowLeft, Save, Loader2, Trash2, Check, ChevronDown, ChevronRight, Image as ImageIcon, Eye, EyeOff, Info, Plus } from 'lucide-react'
 import FormBlocksBuilder, { FieldValidationEditor } from '@/components/admin/FormBlocksBuilder'
 import ContactPersonsEditor from '@/components/admin/ContactPersonsEditor'
 import { FormBlock, normalizeBlocks, builtinFieldDefs } from '@/lib/formBlocks'
@@ -33,7 +33,7 @@ export default function NodeEditorPage() {
   const [otherNodes, setOtherNodes] = useState<{ id: string; label: string }[]>([])
   // The parent activity/olympiad's own title/description/cover image, for
   // the "Auto-pull from the event" toggles below and their live preview.
-  const [owner, setOwner] = useState<{ title: string | null; description: string | null; cover_image_url: string | null } | null>(null)
+  const [owner, setOwner] = useState<{ title: string | null; description: string | null; cover_image_url: string | null; subjects?: { id: string; name: string }[] } | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [saving, setSaving] = useState(false)
@@ -43,6 +43,9 @@ export default function NodeEditorPage() {
   // For the "linked olympiad" picker below — every olympiad in the system,
   // so the admin can select one instead of pasting a raw UUID.
   const [olympiadOptions, setOlympiadOptions] = useState<{ id: string; name: string }[]>([])
+  const [creatingOlympiad, setCreatingOlympiad] = useState(false)
+  // Map olympiad_id → exam_graph_id for the "Add exam questions" link below
+  const [olympiadGraphMap, setOlympiadGraphMap] = useState<Record<string, string>>({})
 
   useEffect(() => {
     (async () => {
@@ -73,11 +76,61 @@ export default function NodeEditorPage() {
         setLoading(false)
       }
     })()
+    // Fetch all olympiads and build a map from olympiad_id → its form_graph id
     fetch('/api/admin/olympiads')
       .then(r => r.json())
-      .then((rows: any[]) => { if (Array.isArray(rows)) setOlympiadOptions(rows.map(o => ({ id: o.id, name: o.name }))) })
+      .then((rows: any[]) => {
+        if (Array.isArray(rows)) {
+          setOlympiadOptions(rows.map(o => ({ id: o.id, name: o.name })))
+        }
+      })
       .catch(() => { /* picker just falls back to showing nothing to choose */ })
+    fetch('/api/admin/form-graphs')
+      .then(r => r.json())
+      .then((data: any) => {
+        const graphs = data.graphs || []
+        const map: Record<string, string> = {}
+        for (const g of graphs) {
+          if (g.owner_kind === 'olympiad') map[g.owner_id] = g.id
+        }
+        setOlympiadGraphMap(map)
+      })
+      .catch(() => {})
   }, [graphId, nodeId])
+
+  const createAndLinkOlympiad = async () => {
+    if (!node) return
+    setCreatingOlympiad(true)
+    setError('')
+    try {
+      const res = await fetch(`/api/admin/form-nodes/${node.id}/link-olympiad`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Failed to create olympiad.')
+
+      // Update the node's behavior with the new olympiad link
+      setNode(prev => prev ? {
+        ...prev,
+        behavior: { ...(prev.behavior || {}), linked_olympiad_id: data.olympiad.id }
+      } : prev)
+
+      // Add the new olympiad to the picker list
+      setOlympiadOptions(prev => [...prev, { id: data.olympiad.id, name: data.olympiad.name }])
+
+      // Add the olympiad → graph mapping for the link below
+      if (data.exam_graph_id) {
+        setOlympiadGraphMap(prev => ({ ...prev, [data.olympiad.id]: data.exam_graph_id }))
+      }
+    } catch (e: any) {
+      setError(e.message || 'Failed to create olympiad.')
+      // Uncheck the box on error
+      patchBehavior({ linked_olympiad_id: null })
+    } finally {
+      setCreatingOlympiad(false)
+    }
+  }
 
   const patch = (changes: Partial<FormNode>) => {
     setNode(prev => prev ? { ...prev, ...changes } : prev)
@@ -193,13 +246,13 @@ export default function NodeEditorPage() {
           <p className="text-xs mb-3" style={{ color: 'var(--muted)' }}>
             What people see and answer on this form. Reorder with the up/down arrows. For the olympiad question fields (MCQ, multi-select, short answer), the correct answer is shown to admins only — visitors see only the question.
           </p>
-          <FormBlocksBuilder blocks={node.fields} onChange={blocks => patch({ fields: blocks })} otherNodes={otherNodes} />
+          <FormBlocksBuilder blocks={node.fields} onChange={blocks => patch({ fields: blocks })} otherNodes={otherNodes} subjects={owner?.subjects} />
 
-          {node.fields.some(f => f.type === 'mcq' || f.type === 'checkbox' || f.type === 'short_answer') && (
+          {graph?.owner_kind === 'olympiad' && node.kind !== 'preset_common_details' && node.kind !== 'preset_team_info' && node.fields.some(f => f.kind === 'field') && (
             <div className="mt-4 rounded-lg p-3 text-xs" style={{ background: 'rgba(var(--accent2-rgb), 0.08)', color: 'var(--accent2)', border: '1px solid rgba(var(--accent2-rgb), 0.3)' }}>
               <p className="font-semibold flex items-center gap-1.5"><Info size={12} /> Olympiad question fields</p>
-              <p className="mt-1">For these fields, the <strong>label</strong> is the question text, and the <strong>key</strong> is what the answer is stored under in the registration row. Marks and correct answers are below each field.</p>
-              <p className="mt-1">When this node has <code>kind = preset_olympiad_questions</code> and is a child of the root, the runner starts the timer when the visitor lands on this form.</p>
+              <p className="mt-1">For exam fields, the <strong>label</strong> is the question text, and the <strong>key</strong> is what the answer is stored under. Marks and correct answers (for MCQ/multi-select) are configured below each field.</p>
+              <p className="mt-1">ALL field types on this node (except those on Common Details or Team Info nodes) are treated as exam questions that the organizer can review and grade.</p>
             </div>
           )}
 
@@ -486,38 +539,227 @@ export default function NodeEditorPage() {
             )}
           </div>
 
-          <label className="flex items-center gap-2 text-sm my-2 cursor-pointer" style={{ color: 'var(--white)' }}>
-            <input type="checkbox" checked={!!node.behavior.is_online_submission} onChange={e => patchBehavior({ is_online_submission: e.target.checked })} />
-            This form includes an online round (link shown in user dashboard)
-          </label>
-
-          {/* Phase 4: pick the olympiad this leaf links to. When
-              is_online_submission is checked, this is what the
-              dashboard uses to fetch /api/olympiad and surface the
-              Start Exam / Take Relay Turn button. Mirrors v1's
-              activity_reg_categories.linked_olympiad_id — we just moved
-              it onto the form node so the form-graph is the source of
-              truth. */}
-          {node.behavior.is_online_submission ? (
-            <Field label="Linked olympiad — shows after 'Online round' is checked">
-              <select
-                value={node.behavior.linked_olympiad_id || ''}
-                onChange={e => patchBehavior({ linked_olympiad_id: e.target.value || null })}
-                className={inputCls} style={inputStyle}
-              >
-                <option value="">— none —</option>
-                {node.behavior.linked_olympiad_id && !olympiadOptions.some(o => o.id === node.behavior.linked_olympiad_id) && (
-                  <option value={node.behavior.linked_olympiad_id}>Unknown olympiad ({node.behavior.linked_olympiad_id})</option>
-                )}
-                {olympiadOptions.map(o => (
-                  <option key={o.id} value={o.id}>{o.name}</option>
+          {/* Submission — lightweight mini-form (video links, file uploads) with own
+              schedule, completely independent from Olympiad. A leaf can have submission
+              fields without an olympiad (pure project submission), or an olympiad without
+              submission fields (live MCQ exam), or both, or neither. */}
+          <div className="rounded-lg p-3 my-2" style={{ background: 'var(--bg2)', border: '1px solid var(--border)' }}>
+            <label className="flex items-center gap-2 text-sm cursor-pointer mb-3" style={{ color: 'var(--white)' }}>
+              <input type="checkbox" checked={!!node.behavior.submission?.enabled}
+                onChange={e => patchBehavior({ submission: e.target.checked ? { enabled: true, fields: [], who: 'leader' } : undefined })} />
+              Enable Submission (file uploads, text responses, etc.)
+            </label>
+            {node.behavior.submission?.enabled && (
+              <div className="space-y-3">
+                <Field label="Submission title (optional)">
+                  <input value={node.behavior.submission?.title || ''}
+                    onChange={e => patchBehavior({ submission: { ...node.behavior.submission, title: e.target.value } })}
+                    placeholder="e.g. Upload your project video"
+                    className={inputCls} style={inputStyle} />
+                </Field>
+                <div className="grid grid-cols-2 gap-2">
+                  <Field label="Opens at (ISO timestamp)">
+                    <input type="datetime-local" value={node.behavior.submission?.opens_at || ''}
+                      onChange={e => patchBehavior({ submission: { ...node.behavior.submission, opens_at: e.target.value || null } })}
+                      className={inputCls} style={inputStyle} />
+                  </Field>
+                  <Field label="Closes at (ISO timestamp)">
+                    <input type="datetime-local" value={node.behavior.submission?.closes_at || ''}
+                      onChange={e => patchBehavior({ submission: { ...node.behavior.submission, closes_at: e.target.value || null } })}
+                      className={inputCls} style={inputStyle} />
+                  </Field>
+                </div>
+                <Field label="Who can submit?">
+                  <select value={node.behavior.submission?.who || 'leader'}
+                    onChange={e => patchBehavior({ submission: { ...node.behavior.submission, who: e.target.value as 'leader' | 'any_member' } })}
+                    className={inputCls} style={inputStyle}>
+                    <option value="leader">Team leader only</option>
+                    <option value="any_member">Any team member</option>
+                  </select>
+                </Field>
+                <p className="text-xs font-bold mt-4 mb-2" style={{ color: 'var(--accent2)' }}>Submission fields</p>
+                {(node.behavior.submission?.fields || []).map((field: any, idx: number) => (
+                  <div key={field.id} className="p-3 rounded-lg mb-2 space-y-2" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+                    <div className="flex gap-2 items-start">
+                      <div className="flex-1 space-y-2">
+                        <input placeholder="Field title (e.g. Answer Sheet, Project Video)" value={field.title}
+                          onChange={e => patchBehavior({
+                            submission: {
+                              ...node.behavior.submission,
+                              fields: (node.behavior.submission?.fields || []).map((f: any, i: number) =>
+                                i === idx ? { ...f, title: e.target.value } : f
+                              )
+                            }
+                          })}
+                          className={inputCls} style={inputStyle} />
+                        <input placeholder="Description (e.g. Upload your answer sheet as PDF, max 6 pages)" value={field.description || ''}
+                          onChange={e => patchBehavior({
+                            submission: {
+                              ...node.behavior.submission,
+                              fields: (node.behavior.submission?.fields || []).map((f: any, i: number) =>
+                                i === idx ? { ...f, description: e.target.value } : f
+                              )
+                            }
+                          })}
+                          className={inputCls} style={inputStyle} />
+                      </div>
+                      <button onClick={() => patchBehavior({
+                        submission: {
+                          ...node.behavior.submission,
+                          fields: (node.behavior.submission?.fields || []).filter((_: any, i: number) => i !== idx)
+                        }
+                      })} style={{ color: 'var(--danger-soft)', marginTop: '4px' }}>
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <label className="block text-xs mb-1" style={{ color: 'var(--muted)' }}>Field type</label>
+                        <select value={field.field_type}
+                          onChange={e => patchBehavior({
+                            submission: {
+                              ...node.behavior.submission,
+                              fields: (node.behavior.submission?.fields || []).map((f: any, i: number) =>
+                                i === idx ? { ...f, field_type: e.target.value as any } : f
+                              )
+                            }
+                          })}
+                          className={inputCls} style={inputStyle}>
+                          <option value="text">Short text</option>
+                          <option value="textarea">Long text / paragraph</option>
+                          <option value="file">File upload</option>
+                        </select>
+                      </div>
+                      {field.field_type === 'file' && (
+                        <>
+                          <div>
+                            <label className="block text-xs mb-1" style={{ color: 'var(--muted)' }}>Allowed file types (comma-separated)</label>
+                            <input placeholder="pdf,jpg,png,mp4" value={(field.file_types || []).join(',')}
+                              onChange={e => patchBehavior({
+                                submission: {
+                                  ...node.behavior.submission,
+                                  fields: (node.behavior.submission?.fields || []).map((f: any, i: number) =>
+                                    i === idx ? { ...f, file_types: e.target.value.split(',').map(s => s.trim()).filter(Boolean) } : f
+                                  )
+                                }
+                              })}
+                              className={inputCls} style={inputStyle} />
+                          </div>
+                          <div>
+                            <label className="block text-xs mb-1" style={{ color: 'var(--muted)' }}>Max file size (MB)</label>
+                            <input type="number" placeholder="5" value={field.max_file_size_mb || ''}
+                              onChange={e => patchBehavior({
+                                submission: {
+                                  ...node.behavior.submission,
+                                  fields: (node.behavior.submission?.fields || []).map((f: any, i: number) =>
+                                    i === idx ? { ...f, max_file_size_mb: Number(e.target.value) } : f
+                                  )
+                                }
+                              })}
+                              className={inputCls} style={inputStyle} />
+                          </div>
+                          <div>
+                            <label className="block text-xs mb-1" style={{ color: 'var(--muted)' }}>Max number of files</label>
+                            <input type="number" placeholder="1" value={field.max_files || ''}
+                              onChange={e => patchBehavior({
+                                submission: {
+                                  ...node.behavior.submission,
+                                  fields: (node.behavior.submission?.fields || []).map((f: any, i: number) =>
+                                    i === idx ? { ...f, max_files: Number(e.target.value) } : f
+                                  )
+                                }
+                              })}
+                              className={inputCls} style={inputStyle} />
+                          </div>
+                        </>
+                      )}
+                    </div>
+                    <label className="flex items-center gap-2 text-xs" style={{ color: 'var(--muted)' }}>
+                      <input type="checkbox" checked={field.required}
+                        onChange={e => patchBehavior({
+                          submission: {
+                            ...node.behavior.submission,
+                            fields: (node.behavior.submission?.fields || []).map((f: any, i: number) =>
+                              i === idx ? { ...f, required: e.target.checked } : f
+                            )
+                          }
+                        })} />
+                      Required
+                    </label>
+                  </div>
                 ))}
-              </select>
-              <p className="text-xs mt-1" style={{ color: 'var(--muted)' }}>
-                The dashboard fetches this olympiad's questions + relay state through this link.
-              </p>
-            </Field>
-          ) : null}
+                <button onClick={() => patchBehavior({
+                  submission: {
+                    ...node.behavior.submission,
+                    fields: [
+                      ...(node.behavior.submission?.fields || []),
+                      { id: Math.random().toString(36).slice(2, 9), title: '', description: '', field_type: 'text', required: false }
+                    ]
+                  }
+                })}
+                  className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm"
+                  style={{ background: 'rgba(var(--blue-rgb), 0.1)', color: 'var(--blue)', border: '1px solid rgba(var(--blue-rgb), 0.3)' }}>
+                  <Plus size={14} /> Add submission field
+                </button>
+              </div>
+            )}
+          </div>
+
+          {/* Olympiad — real scheduled exam (MCQ, timer, subjects, relay). Points to
+              an olympiad row that already exists. Admin explicitly creates the olympiad
+              separately and links it here. Completely independent from Submission. */}
+          <div className="rounded-lg p-3 my-2" style={{ background: 'var(--bg2)', border: '1px solid var(--border)' }}>
+            <label className="flex items-center gap-2 text-sm cursor-pointer" style={{ color: 'var(--white)' }}>
+              <input type="checkbox" checked={!!node.behavior.linked_olympiad_id}
+                disabled={creatingOlympiad}
+                onChange={e => {
+                  if (e.target.checked) {
+                    // If there are no olympiads in the system, auto-create one
+                    if (olympiadOptions.length === 0) {
+                      createAndLinkOlympiad()
+                    } else {
+                      // Otherwise, set to the first available olympiad
+                      patchBehavior({ linked_olympiad_id: olympiadOptions[0]?.id || '' })
+                    }
+                  } else {
+                    // Unchecking clears the link
+                    patchBehavior({ linked_olympiad_id: null })
+                  }
+                }} />
+              Link this leaf to an Olympiad (real exam)
+              {creatingOlympiad && <Loader2 size={12} className="animate-spin" style={{ color: 'var(--muted)' }} />}
+            </label>
+            {node.behavior.linked_olympiad_id && (
+              <div className="mt-3">
+                <Field label="Olympiad">
+                  <select
+                    value={node.behavior.linked_olympiad_id || ''}
+                    onChange={e => patchBehavior({ linked_olympiad_id: e.target.value || null })}
+                    className={inputCls} style={inputStyle}
+                  >
+                    <option value="">— none —</option>
+                    {node.behavior.linked_olympiad_id && !olympiadOptions.some(o => o.id === node.behavior.linked_olympiad_id) && (
+                      <option value={node.behavior.linked_olympiad_id}>Unknown olympiad ({node.behavior.linked_olympiad_id})</option>
+                    )}
+                    {olympiadOptions.map(o => (
+                      <option key={o.id} value={o.id}>{o.name}</option>
+                    ))}
+                  </select>
+                  <p className="text-xs mt-1" style={{ color: 'var(--muted)' }}>
+                    The activity dashboard fetches this olympiad's questions + relay state through this link.
+                  </p>
+                </Field>
+                {olympiadGraphMap[node.behavior.linked_olympiad_id] && (
+                  <a href={`/admin/form-builder/${olympiadGraphMap[node.behavior.linked_olympiad_id]}`}
+                    className="inline-flex items-center gap-1.5 mt-2 text-xs px-2 py-1 rounded"
+                    style={{ background: 'rgba(var(--blue-rgb), 0.1)', color: 'var(--blue)', border: '1px solid rgba(var(--blue-rgb), 0.3)' }}
+                    target="_blank" rel="noopener noreferrer">
+                    <Plus size={12} /> Add exam questions for this Olympiad
+                  </a>
+                )}
+              </div>
+            )}
+          </div>
 
           <div className="rounded-lg p-3 my-2" style={{ background: 'rgba(var(--accent2-rgb), 0.05)', border: '1px solid rgba(var(--accent2-rgb), 0.2)' }}>
             <p className="text-xs font-bold mb-2" style={{ color: 'var(--accent2)' }}>Olympiad / exam options</p>

@@ -2,6 +2,7 @@ import { supabaseAdmin } from '@/lib/supabase'
 import { NextRequest } from 'next/server'
 import { requireAdmin } from '@/lib/api/admin-auth'
 import { apiError, apiOk } from '@/lib/api/response'
+import { getOlympiadQuestionFields } from '@/lib/server/olympiadQuestions'
 
 export async function GET() {
   const unauthorized = await requireAdmin()
@@ -11,7 +12,12 @@ export async function GET() {
     .select('*')
     .order('created_at', { ascending: false })
   if (error) return apiError(error, 400)
-  return apiOk(data)
+  // `questions` no longer lives on this row — it's the fields of the
+  // olympiad's form-graph node of kind preset_olympiad_questions.
+  const withQuestions = await Promise.all((data || []).map(async o => ({
+    ...o, questions: await getOlympiadQuestionFields(o.id),
+  })))
+  return apiOk(withQuestions)
 }
 
 export async function POST(req: NextRequest) {

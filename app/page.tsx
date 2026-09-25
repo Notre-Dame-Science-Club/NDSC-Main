@@ -4,10 +4,7 @@ import "./_components/home2/home2.css";
 import Hero from "./_components/home2/Hero";
 import StatsStrip from "./_components/home2/StatsStrip";
 import LegacySection from "./_components/home2/LegacySection";
-import LegacyGallerySection from "./_components/home2/LegacyGallerySection";
-import FounderSection from "./_components/home2/FounderSection";
 import DepartmentsSection from "./_components/home2/DepartmentsSection";
-import GlanceGallerySection from "./_components/home2/GlanceGallerySection";
 import ActivitiesMarquee from "./_components/home2/ActivitiesMarquee";
 import LeadersSection from "./_components/home2/LeadersSection";
 import MediaSection from "./_components/home2/MediaSection";
@@ -21,13 +18,6 @@ import HomeChrome from "./_components/home2/HomeChrome";
  * any) it reads from, so a future change to "the departments section" or
  * "the activities feed" means opening exactly one file, not searching this
  * one for the right <section>.
- *
- * Two chapters (LegacySection, DepartmentsSection) now have extra content
- * riding along right after them — LegacyGallerySection + FounderSection
- * after the intro, GlanceGallerySection after Departments. None of those
- * extra pieces carry their own data-cosmos-chapter: like StatsStrip, they
- * ride the camera framing of the chapter they sit inside rather than
- * needing the whole rig re-tuned for a new waypoint.
  *
  * The scroll-driven camera in the cosmos backdrop (mounted site-wide by
  * <ThemeProvider>, see components/theme/SiteBackdrop.tsx) flies between
@@ -55,10 +45,7 @@ export default function HomePage() {
       <Hero />
       <StatsStrip />
       <LegacySection />
-      <LegacyGallerySection />
-      <FounderSection />
       <DepartmentsSection />
-      <GlanceGallerySection />
       <ActivitiesMarquee />
       <LeadersSection />
       <MediaSection />

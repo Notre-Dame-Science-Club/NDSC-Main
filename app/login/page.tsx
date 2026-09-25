@@ -139,19 +139,12 @@ export default function LoginPage() {
               )}
             </button>
 
-            <div className="space-y-2">
-              <p className="text-center text-sm" style={{ color: 'var(--muted)' }}>
-                <Link href="/forgot-password" className="font-medium transition-colors hover:underline" style={{ color: 'var(--blue)' }}>
-                  Forgot password?
-                </Link>
-              </p>
-              <p className="text-center text-sm" style={{ color: 'var(--muted)' }}>
-                Don&apos;t have an account?{' '}
-                <Link href="/register" className="font-medium transition-colors hover:underline" style={{ color: 'var(--blue)' }}>
-                  Register
-                </Link>
-              </p>
-            </div>
+            <p className="text-center text-sm" style={{ color: 'var(--muted)' }}>
+              Don&apos;t have an account?{' '}
+              <Link href="/register" className="font-medium transition-colors hover:underline" style={{ color: 'var(--blue)' }}>
+                Register
+              </Link>
+            </p>
 
             {/* This page is a general website login, not a membership gate — anyone
                 who registers can sign in here. Actual NDSC club membership is a

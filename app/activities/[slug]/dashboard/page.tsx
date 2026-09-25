@@ -104,16 +104,12 @@ export default function ActivityDashboardPage() {
         }
       }
 
-      // If online submission → load olympiad + relay state. Reset first: without
-      // this, switching between registrations (e.g. via the sibling-registration
-      // switcher, or a fresh reg id in the URL) left the *previous* olympiad's
-      // countdown target sitting in state, so the exam-starts-in timer could
-      // silently point at a different/older olympiad's schedule than the one
-      // actually being viewed.
+      // Load olympiad + relay state if this leaf has a linked olympiad.
+      // Reset first to avoid stale state when switching between registrations.
       setOlympiad(null)
       setRelayState(null)
       setExamScheduledStart(null)
-      if (data.category?.is_online_submission && data.category?.linked_olympiad_id) {
+      if (data.category?.linked_olympiad_id) {
         const [olyRes, relayRes] = await Promise.all([
           fetch(`/api/olympiad?id=${data.category.linked_olympiad_id}`),
           fetch(`/api/relay-exam?registration_id=${id}&olympiad_id=${data.category.linked_olympiad_id}`),
@@ -327,27 +323,29 @@ export default function ActivityDashboardPage() {
     : null
   const editWindowOpen = isEditWindowOpen()
 
-  // Determine current user's submission
+  // Submission state
+  const submission = category?.submission || null
+  const submissionEnabled = submission?.enabled ?? false
+  const submissionOpen = submission?.opens_at ? new Date(submission.opens_at) <= new Date() : true
+  const submissionClosed = submission?.closes_at ? new Date(submission.closes_at) < new Date() : false
+  const submissionLive = submissionEnabled && submissionOpen && !submissionClosed
+  const hasSubmissionConfig = submissionEnabled && (submission?.fields || []).length > 0
+
   const mySubmittedBy = viewAsTeamMemberId || 'leader'
   const mySubmission = submissions.find(s => s.submitted_by === mySubmittedBy)
-  const submissionConfig: any[] = category?.submission_config || []
-  const hasSubmissionConfig = submissionConfig.length > 0
-  const canSubmit = category?.submission_who === 'any_member' || mySubmittedBy === 'leader'
+  const submissionFields = submission?.fields || []
+  const canSubmit = submission?.who === 'any_member' || mySubmittedBy === 'leader'
 
-  // Relay: can this member go now?
+  // Olympiad state
   const teamMembers: any[] = registration.team_members || []
   const allMembers = [{ id: 'leader', full_name: registration.full_name }, ...teamMembers]
   const relayCurrentIndex = relayState?.current_member_index ?? 0
   const myRelayIndex = allMembers.findIndex(m => m.id === mySubmittedBy)
   const isMyRelayTurn = olympiad?.relay_mode ? myRelayIndex === relayCurrentIndex : true
 
-  // Exam schedule
   const examNotYetStarted = examScheduledStart && new Date(examScheduledStart) > new Date()
   const examEnded = olympiad?.scheduled_end_at && new Date(olympiad.scheduled_end_at) < new Date()
-  // Actually live right now (not just "linked to an online round somewhere
-  // in the future") — this is the spotlight state that earns top billing
-  // on the page, above the registration/segments card.
-  const examLive = !!(category?.is_online_submission && olympiad && !examNotYetStarted && !examEnded)
+  const examLive = !!(olympiad && !examNotYetStarted && !examEnded)
 
   return (
     <div className="min-h-screen py-12 px-4" style={{ background: 'var(--bg)', paddingTop: '88px' }}>
@@ -408,14 +406,114 @@ export default function ActivityDashboardPage() {
           )}
         </div>
 
-        {/* ── Online Submission / Exam Section ─────────────────────────── */}
-        {category?.is_online_submission && (
+        {/* ── Submission Section (independent from Olympiad) ─────────────── */}
+        {submissionEnabled && (
+          <div className="rounded-xl p-5 space-y-4" style={{
+            background: submissionLive ? 'rgba(var(--cat-teal-rgb), 0.08)' : 'rgba(var(--blue-rgb), 0.05)',
+            border: `1px solid ${submissionLive ? 'rgba(var(--cat-teal-rgb), 0.35)' : 'rgba(var(--blue-rgb), 0.25)'}`,
+          }}>
+            <p className="text-sm font-bold flex items-center gap-2" style={{ color: submissionLive ? 'var(--cat-teal)' : 'var(--blue)', fontFamily: 'inherit' }}>
+              <Upload size={14} /> {submission?.title || 'Submission'} {submissionLive && <span className="text-xs px-2 py-0.5 rounded-full" style={{ background: 'rgba(var(--cat-teal-rgb), 0.15)' }}>● Open now</span>}
+            </p>
+
+            {/* Not yet open */}
+            {!submissionOpen && submission?.opens_at && (
+              <div className="text-sm" style={{ color: 'var(--warning)' }}>
+                ⏳ Opens: <strong>{new Date(submission.opens_at).toLocaleString('en-BD', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</strong>
+              </div>
+            )}
+
+            {/* Closed */}
+            {submissionClosed && (
+              <p className="text-sm flex items-center gap-1.5" style={{ color: 'var(--danger-soft)' }}><Ban size={14} /> Submission window has closed.</p>
+            )}
+
+            {/* Submission form (inline, on this same page) */}
+            {submissionLive && canSubmit && submissionFields.length > 0 && (
+              <div className="space-y-4">
+                <p className="text-sm font-semibold flex items-center gap-1.5" style={{ color: 'var(--white)' }}>
+                  {mySubmission?.is_final ? <><CheckCircle size={14} /> Submitted</> : mySubmission ? 'Update Submission' : 'Submit Now'}
+                </p>
+
+                {mySubmission?.is_final ? (
+                  <p className="text-xs" style={{ color: 'var(--cat-teal)' }}>Your submission is finalized and can no longer be changed.</p>
+                ) : (
+                  <>
+                    {submitError && <p className="text-xs" style={{ color: 'var(--danger-soft)' }}>{submitError}</p>}
+                    {submitSuccess && <p className="text-xs" style={{ color: 'var(--cat-teal)' }}>Saved successfully!</p>}
+
+                    {submissionFields.map((field: any) => (
+                      <div key={field.id}>
+                        <label className="block text-sm font-medium mb-1" style={{ color: 'var(--white)' }}>
+                          {field.title} {field.required && <span style={{ color: 'var(--blue)' }}>*</span>}
+                        </label>
+                        {field.description && <p className="text-xs mb-1.5" style={{ color: 'var(--muted)' }}>{field.description}</p>}
+
+                        {field.field_type === 'file' ? (
+                          <div className="space-y-2">
+                            {(Array.isArray(submissionAnswers[field.id]) ? submissionAnswers[field.id] : submissionAnswers[field.id] ? [submissionAnswers[field.id]] : []).map((url: string, idx: number) => (
+                              <div key={idx} className="flex items-center gap-2 text-xs px-3 py-2 rounded-lg" style={{ background: 'rgba(var(--blue-rgb), 0.06)', border: '1px solid rgba(var(--blue-rgb), 0.2)' }}>
+                                <FileText size={12} style={{ color: 'var(--blue)' }} />
+                                <span style={{ color: 'var(--white)', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                  {url.split('/').pop()}
+                                </span>
+                                <a href={url} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--blue)' }}><ExternalLink size={11} /></a>
+                                <button onClick={() => removeFileFromField(field.id, idx)} style={{ color: 'var(--danger-soft)' }}><X size={11} /></button>
+                              </div>
+                            ))}
+                            {(Array.isArray(submissionAnswers[field.id]) ? submissionAnswers[field.id] : [submissionAnswers[field.id]].filter(Boolean)).length < (field.max_files || 1) && (
+                              <label className="flex items-center gap-2 px-3 py-2.5 rounded-lg border cursor-pointer text-sm"
+                                style={{ ...inputStyle, color: uploadingField === field.id ? 'var(--warning)' : 'var(--blue)' }}>
+                                <Upload size={14} />
+                                {uploadingField === field.id ? 'Uploading…' : `Upload ${field.field_type === 'file' ? (field.file_types?.join(', ') || 'file') : 'file'} (max ${field.max_file_size_mb || 5}MB)`}
+                                <input type="file"
+                                  accept={field.file_types?.map((t: string) => `.${t}`).join(',') || undefined}
+                                  className="hidden"
+                                  disabled={uploadingField === field.id}
+                                  onChange={e => handleFileField(field.id, e.target.files?.[0] || null, field.max_files || 1)} />
+                              </label>
+                            )}
+                          </div>
+                        ) : field.field_type === 'textarea' ? (
+                          <textarea rows={4} value={submissionAnswers[field.id] || ''} onChange={e => setSubmissionAnswers(p => ({ ...p, [field.id]: e.target.value }))}
+                            className={inputCls + ' resize-none'} style={inputStyle} />
+                        ) : (
+                          <input value={submissionAnswers[field.id] || ''} onChange={e => setSubmissionAnswers(p => ({ ...p, [field.id]: e.target.value }))}
+                            className={inputCls} style={inputStyle} />
+                        )}
+                      </div>
+                    ))}
+
+                    <div className="flex gap-2 pt-1">
+                      <button onClick={() => submitAnswers(false)} disabled={submitting}
+                        className="flex-1 py-2.5 rounded-xl text-sm font-bold disabled:opacity-60"
+                        style={{ background: 'rgba(var(--blue-rgb), 0.1)', color: 'var(--blue)', border: '1px solid rgba(var(--blue-rgb), 0.3)' }}>
+                        {submitting ? 'Saving…' : 'Save Draft'}
+                      </button>
+                      <button onClick={() => submitAnswers(true)} disabled={submitting}
+                        className="flex-1 py-2.5 rounded-xl text-sm font-bold text-black disabled:opacity-60"
+                        style={{ background: 'var(--blue)', fontFamily: 'inherit' }}>
+                        {submitting ? 'Submitting…' : <>Submit Final <CheckCircle size={13} /></>}
+                      </button>
+                    </div>
+                    <p className="text-xs flex items-start gap-1" style={{ color: 'var(--muted)' }}>
+                      <AlertTriangle size={12} className="shrink-0 mt-0.5" /> Final submission cannot be changed. Save as draft to continue later.
+                    </p>
+                  </>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ── Olympiad Section (independent from Submission) ──────────────── */}
+        {olympiad && (
           <div className="rounded-xl p-5 space-y-4" style={{
             background: examLive ? 'rgba(var(--success-rgb), 0.08)' : 'rgba(var(--blue-rgb), 0.05)',
             border: `1px solid ${examLive ? 'rgba(var(--success-rgb), 0.35)' : 'rgba(var(--blue-rgb), 0.25)'}`,
           }}>
             <p className="text-sm font-bold flex items-center gap-2" style={{ color: examLive ? 'var(--success)' : 'var(--blue)', fontFamily: 'inherit' }}>
-              <ExternalLink size={14} /> Online Round {examLive && <span className="text-xs px-2 py-0.5 rounded-full" style={{ background: 'rgba(var(--success-rgb), 0.15)' }}>● Live now</span>}
+              <ExternalLink size={14} /> Olympiad {examLive && <span className="text-xs px-2 py-0.5 rounded-full" style={{ background: 'rgba(var(--success-rgb), 0.15)' }}>● Live now</span>}
             </p>
 
             {/* Exam scheduled but not started yet */}
@@ -484,20 +582,38 @@ export default function ActivityDashboardPage() {
 
             {/* Relay: start button (only leader can start) */}
             {olympiad?.relay_mode && !relayState && mySubmittedBy === 'leader' && !examNotYetStarted && !examEnded && (
-              <button onClick={startRelay}
-                className="w-full py-3 rounded-xl font-bold text-sm text-black"
-                style={{ background: 'var(--blue)', fontFamily: 'inherit' }}>
-                <Play size={14} className="inline mr-2" />Start Team Relay
-              </button>
+              (olympiad?.questions?.length ?? 0) > 0 ? (
+                <button onClick={startRelay}
+                  className="w-full py-3 rounded-xl font-bold text-sm text-black"
+                  style={{ background: 'var(--blue)', fontFamily: 'inherit' }}>
+                  <Play size={14} className="inline mr-2" />Start Team Relay
+                </button>
+              ) : (
+                <div className="p-3 rounded-xl text-sm" style={{ background: 'rgba(var(--warning-rgb), 0.08)', border: '1px solid rgba(var(--warning-rgb), 0.25)', color: 'var(--warning)' }}>
+                  <p className="font-semibold flex items-center gap-1.5">⚠ This exam has no questions configured yet.</p>
+                  <p className="text-xs mt-1" style={{ color: 'var(--muted)' }}>
+                    If you're the organizer, add questions to this olympiad's exam node in Form Builder.
+                  </p>
+                </div>
+              )
             )}
 
             {/* Live exam button */}
             {olympiad && !hasSubmissionConfig && !examNotYetStarted && !examEnded && isMyRelayTurn && !mySubmission && (
-              <Link href={`/activities/${slug}/relay-exam?reg=${registration.id}&olympiad=${olympiad.id}&member=${mySubmittedBy}`}
-                className="flex items-center justify-center gap-2 w-full py-3 rounded-xl font-bold text-sm text-black"
-                style={{ background: 'var(--blue)', fontFamily: 'inherit' }}>
-                <Play size={14} /> Start Exam →
-              </Link>
+              (olympiad?.questions?.length ?? 0) > 0 ? (
+                <Link href={`/activities/${slug}/relay-exam?reg=${registration.id}&olympiad=${olympiad.id}&member=${mySubmittedBy}`}
+                  className="flex items-center justify-center gap-2 w-full py-3 rounded-xl font-bold text-sm text-black"
+                  style={{ background: 'var(--blue)', fontFamily: 'inherit' }}>
+                  <Play size={14} /> Start Exam →
+                </Link>
+              ) : (
+                <div className="p-3 rounded-xl text-sm" style={{ background: 'rgba(var(--warning-rgb), 0.08)', border: '1px solid rgba(var(--warning-rgb), 0.25)', color: 'var(--warning)' }}>
+                  <p className="font-semibold flex items-center gap-1.5">⚠ This exam has no questions configured yet.</p>
+                  <p className="text-xs mt-1" style={{ color: 'var(--muted)' }}>
+                    If you're the organizer, add questions to this olympiad's exam node in Form Builder.
+                  </p>
+                </div>
+              )
             )}
 
             {/* Already submitted — previously showed nothing here once mySubmission existed,
@@ -601,12 +717,9 @@ export default function ActivityDashboardPage() {
               </div>
             )}
 
-            {/* View olympiad page link */}
-            {olympiad && (
-              <Link href={`/olympiad?id=${olympiad.id}`} className="flex items-center gap-1 text-xs underline" style={{ color: 'var(--muted)' }}>
-                View Olympiad page <ExternalLink size={10} />
-              </Link>
-            )}
+            {/* View olympiad page link -- REMOVED: this linked to the public
+                olympiad directory which never read the id param; the submission
+                form is already rendered inline above (hasSubmissionConfig block). */}
           </div>
         )}
 

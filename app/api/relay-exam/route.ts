@@ -1,6 +1,7 @@
 import { supabaseAdmin } from '@/lib/supabase'
 import { NextRequest, NextResponse } from 'next/server'
 import { apiError, apiOk } from '@/lib/api/response'
+import { getOlympiadQuestionFields } from '@/lib/server/olympiadQuestions'
 
 // GET /api/relay-exam?registration_id=UUID&olympiad_id=UUID
 // Returns current relay state for a team registration
@@ -124,29 +125,30 @@ export async function POST(req: NextRequest) {
     // from once the admin publishes results, so a student sees exactly
     // which questions they got right/wrong, not just a total.
     const subjectId = body.subject_id || null
-    const relevantQuestions = (olympiad.questions || []).filter((q: any) => !subjectId || !q.subject_id || q.subject_id === subjectId)
+    const questionFields = await getOlympiadQuestionFields(olympiad_id)
+    const relevantQuestions = questionFields.filter((q: any) => !subjectId || !q.subject_id || q.subject_id === subjectId)
     let score = 0
     const questionResults = relevantQuestions.map((q: any) => {
       if (q.type === 'mcq') {
         const isCorrect = answers[q.id] === q.correct_option_id
         if (isCorrect) score += (q.marks || 1)
-        const chosen = (q.options || []).find((o: any) => o.id === answers[q.id])
-        const correct = (q.options || []).find((o: any) => o.id === q.correct_option_id)
+        const chosen = (q.mcq_options || []).find((o: any) => o.id === answers[q.id])
+        const correct = (q.mcq_options || []).find((o: any) => o.id === q.correct_option_id)
         return {
-          question_id: q.id, question_text: q.text, type: q.type,
+          question_id: q.id, question_text: q.label, type: q.type,
           student_answer: chosen?.text ?? null, correct_answer: correct?.text ?? null,
           is_correct: isCorrect, marks_awarded: isCorrect ? (q.marks || 1) : 0, marks_possible: q.marks || 1,
         }
       }
       if (q.type === 'photo') {
         return {
-          question_id: q.id, question_text: q.text, type: q.type,
+          question_id: q.id, question_text: q.label, type: q.type,
           student_answer: answers[q.id] || null, correct_answer: null,
           is_correct: null, marks_awarded: null, marks_possible: q.marks || 1,
         }
       }
       return {
-        question_id: q.id, question_text: q.text, type: q.type,
+        question_id: q.id, question_text: q.label, type: q.type,
         student_answer: answers[q.id] || null, correct_answer: null,
         is_correct: null, marks_awarded: null, marks_possible: q.marks || 1,
       }

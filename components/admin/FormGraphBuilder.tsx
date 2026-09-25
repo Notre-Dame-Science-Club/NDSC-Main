@@ -10,7 +10,7 @@ import {
 import '@xyflow/react/dist/style.css'
 import {
   ArrowLeft, Plus, Save, Loader2, Power, PowerOff,
-  FileText, Trophy, Users, Box, Workflow, Pencil, Trash2,
+  FileText, Trophy, Users, Box, Workflow, Pencil, Trash2, Upload,
 } from 'lucide-react'
 import type { FormNode, FormGraph } from '@/lib/formGraph'
 import { FORM_NODE_KIND_LABEL, FORM_NODE_KIND_BADGE } from '@/lib/formGraph'
@@ -29,6 +29,7 @@ const KIND_COLOR: Record<string, { bg: string; fg: string; border: string }> = {
   preset_common_details:  { bg: 'rgba(var(--cat-teal-rgb), 0.15)',fg: 'var(--cat-teal)', border: 'rgba(var(--cat-teal-rgb), 0.4)' },
   preset_olympiad_questions: { bg: 'rgba(var(--accent2-rgb), 0.15)', fg: 'var(--accent2)', border: 'rgba(var(--accent2-rgb), 0.4)' },
   preset_team_info:       { bg: 'rgba(var(--warning-rgb), 0.15)', fg: 'var(--warning)',  border: 'rgba(var(--warning-rgb), 0.4)' },
+  linked_olympiad:        { bg: 'rgba(255, 165, 0, 0.15)', fg: '#ffb347',  border: 'rgba(255, 165, 0, 0.5)' },
 }
 
 type FlowNodeData = { node: FormNode; isRoot: boolean } & Record<string, unknown>
@@ -66,7 +67,70 @@ function FlowNodeCard({ data, selected }: NodeProps) {
   )
 }
 
-const nodeTypes = { form: FlowNodeCard }
+function SubmissionCard({ data }: NodeProps) {
+  const { submissionTitle, opensAt, nodeId, graphId } = data as any
+  const c = { bg: 'rgba(var(--cat-teal-rgb), 0.15)', fg: 'var(--cat-teal)', border: 'rgba(var(--cat-teal-rgb), 0.5)' }
+  const handleClick = () => {
+    if (graphId && nodeId) window.location.href = `/admin/form-builder/${graphId}/node/${nodeId}`
+  }
+  return (
+    <div
+      className="rounded-xl p-3 min-w-[200px] max-w-[260px] shadow-lg transition-all"
+      style={{
+        background: 'var(--surface)',
+        border: `2px solid ${c.border}`,
+        cursor: graphId && nodeId ? 'pointer' : 'default',
+      }}
+      onClick={handleClick}>
+      <Handle type="target" position={Position.Top} style={{ background: c.fg, width: 8, height: 8 }} />
+      <div className="flex items-center justify-between gap-2 mb-1.5">
+        <span className="text-[10px] font-bold tracking-wider px-1.5 py-0.5 rounded"
+          style={{ background: c.bg, color: c.fg, border: `1px solid ${c.border}` }}>
+          SUBMISSION
+        </span>
+        <Upload size={12} style={{ color: c.fg }} />
+      </div>
+      <p className="text-sm font-bold truncate" style={{ color: 'var(--white)' }}>{submissionTitle}</p>
+      <p className="text-[11px] mt-1" style={{ color: 'var(--muted)' }}>
+        {opensAt ? `Opens ${new Date(opensAt).toLocaleDateString()}` : 'Schedule not set'}
+      </p>
+    </div>
+  )
+}
+
+function LinkedOlympiadCard({ data }: NodeProps) {
+  const { olympiadName, graphId, olympiadId } = data as any
+  const c = KIND_COLOR.linked_olympiad
+  const handleClick = () => {
+    if (graphId) window.location.href = `/admin/form-builder/${graphId}`
+  }
+  return (
+    <div
+      className="rounded-xl p-3 min-w-[200px] max-w-[260px] shadow-lg transition-all"
+      style={{
+        background: 'var(--surface)',
+        border: `2px solid ${c.border}`,
+        cursor: graphId ? 'pointer' : 'not-allowed',
+        opacity: graphId ? 1 : 0.6,
+      }}
+      onClick={handleClick}>
+      <Handle type="target" position={Position.Top} style={{ background: c.fg, width: 8, height: 8 }} />
+      <div className="flex items-center justify-between gap-2 mb-1.5">
+        <span className="text-[10px] font-bold tracking-wider px-1.5 py-0.5 rounded"
+          style={{ background: c.bg, color: c.fg, border: `1px solid ${c.border}` }}>
+          OLYMPIAD
+        </span>
+        <Trophy size={12} style={{ color: c.fg }} />
+      </div>
+      <p className="text-sm font-bold truncate" style={{ color: 'var(--white)' }}>{olympiadName || 'Linked Olympiad'}</p>
+      <p className="text-[11px] mt-1" style={{ color: 'var(--muted)' }}>
+        {graphId ? 'Click to view question tree' : 'Not set up yet'}
+      </p>
+    </div>
+  )
+}
+
+const nodeTypes = { form: FlowNodeCard, linkedOlympiad: LinkedOlympiadCard, submission: SubmissionCard }
 
 function DiagramInner({ graphId, showBackLink = true }: { graphId: string; showBackLink?: boolean }) {
   const [graph, setGraph] = useState<FormGraph | null>(null)
@@ -77,6 +141,8 @@ function DiagramInner({ graphId, showBackLink = true }: { graphId: string; showB
   const [savingLayout, setSavingLayout] = useState(false)
   const [actionError, setActionError] = useState('')
   const saveTimer = useRef<any>(null)
+  const [olympiadNames, setOlympiadNames] = useState<Record<string, string>>({})
+  const [formGraphs, setFormGraphs] = useState<any[]>([])
 
   const [rfNodes, setRfNodes, onRfNodesChange] = useNodesState<RFNode>([])
   const [rfEdges, setRfEdges, onRfEdgesChange] = useEdgesState<RFEdge>([])
@@ -84,29 +150,59 @@ function DiagramInner({ graphId, showBackLink = true }: { graphId: string; showB
   const load = async () => {
     setLoading(true)
     setError('')
-    try {
-      const res = await fetch(`/api/admin/form-graphs/${graphId}`)
-      if (!res.ok) {
-        // 404 is expected when a graph doesn't exist yet - don't log it as an error
-        if (res.status === 404) {
-          setError('Form graph not found. This graph may have been deleted.')
-        } else {
-          const data = await res.json()
-          throw new Error(data.error || 'Failed to load.')
+
+    // Retry logic for newly created graphs that might not be committed yet
+    const maxRetries = 3
+    const retryDelay = 200
+
+    for (let attempt = 0; attempt <= maxRetries; attempt++) {
+      try {
+        const res = await fetch(`/api/admin/form-graphs/${graphId}`)
+        if (!res.ok) {
+          if (res.status === 404 && attempt < maxRetries) {
+            // Graph might not be committed yet, wait and retry
+            await new Promise(resolve => setTimeout(resolve, retryDelay))
+            continue
+          }
+          if (res.status === 404) {
+            setError('Form graph not found. The graph failed to create properly. Try refreshing the page or creating a new activity.')
+          } else {
+            const data = await res.json().catch(() => ({ error: 'Failed to load.' }))
+            throw new Error(data.error || 'Failed to load.')
+          }
+          setLoading(false)
+          return
         }
-      } else {
         const data = await res.json()
         setGraph(data.graph)
         setNodes(data.nodes || [])
+        setLoading(false)
+        return
+      } catch (e: any) {
+        if (attempt === maxRetries) {
+          setError(e.message || 'Failed to load.')
+          setLoading(false)
+          return
+        }
+        await new Promise(resolve => setTimeout(resolve, retryDelay))
       }
-    } catch (e: any) {
-      setError(e.message || 'Failed to load.')
-    } finally {
-      setLoading(false)
     }
   }
 
   useEffect(() => { load() }, [graphId])
+
+  // Fetch olympiad names and form graphs once on mount for linked-olympiad rendering
+  useEffect(() => {
+    Promise.all([
+      fetch('/api/admin/olympiads').then(r => r.ok ? r.json() : []).catch(() => []),
+      fetch('/api/admin/form-graphs').then(r => r.ok ? r.json() : { graphs: [] }).catch(() => ({ graphs: [] })),
+    ]).then(([olympiads, graphsData]) => {
+      const nameMap: Record<string, string> = {}
+      for (const o of olympiads || []) nameMap[o.id] = o.name
+      setOlympiadNames(nameMap)
+      setFormGraphs(graphsData.graphs || [])
+    })
+  }, [])
 
   useEffect(() => {
     if (!nodes.length) {
@@ -130,9 +226,82 @@ function DiagramInner({ graphId, showBackLink = true }: { graphId: string; showB
         animated: false,
         style: { stroke: 'var(--muted)', strokeWidth: 1.5 },
       }))
+
+    // Add synthetic nodes and edges for Submission and Olympiad (separate, independent)
+    for (const node of nodes) {
+      // Submission synthetic node
+      if (node.behavior?.submission?.enabled) {
+        const submission = node.behavior.submission
+        const syntheticId = `submission:${node.id}`
+        const basePos = node.position || { x: 100, y: 100 }
+
+        rfnodes.push({
+          id: syntheticId,
+          type: 'submission',
+          position: { x: basePos.x + 280, y: basePos.y },
+          data: {
+            submissionTitle: submission.title || 'Submission',
+            opensAt: submission.opens_at,
+            nodeId: node.id,
+            graphId,
+          } as any,
+        })
+
+        edges.push({
+          id: `${node.id}->submission:${node.id}`,
+          source: node.id,
+          target: syntheticId,
+          type: 'smoothstep',
+          animated: false,
+          style: {
+            stroke: 'var(--cat-teal)',
+            strokeWidth: 2,
+            strokeDasharray: '5,5'
+          },
+        } as any)
+      }
+
+      // Olympiad synthetic node (separate from Submission)
+      if (node.behavior?.linked_olympiad_id) {
+        const olympiadId = node.behavior.linked_olympiad_id
+        const olympiadName = olympiadNames[olympiadId] || olympiadId
+
+        const olympiadGraph = formGraphs.find(
+          (g: any) => g.owner_kind === 'olympiad' && g.owner_id === olympiadId
+        )
+
+        const syntheticId = `olympiad:${node.id}`
+        const basePos = node.position || { x: 100, y: 100 }
+
+        rfnodes.push({
+          id: syntheticId,
+          type: 'linkedOlympiad',
+          position: { x: basePos.x + 280, y: basePos.y + 80 },
+          data: {
+            olympiadName,
+            graphId: olympiadGraph?.id || null,
+            olympiadId,
+          } as any,
+        })
+
+        edges.push({
+          id: `${node.id}->olympiad:${node.id}`,
+          source: node.id,
+          target: syntheticId,
+          type: 'smoothstep',
+          animated: false,
+          style: {
+            stroke: '#ffb347',
+            strokeWidth: 2,
+            strokeDasharray: '5,5'
+          },
+        })
+      }
+    }
+
     setRfNodes(rfnodes)
     setRfEdges(edges)
-  }, [nodes])
+  }, [nodes, olympiadNames, formGraphs])
 
   useEffect(() => {
     if (loading) return
@@ -141,7 +310,12 @@ function DiagramInner({ graphId, showBackLink = true }: { graphId: string; showB
       setSavingLayout(true)
       try {
         const node_positions: Record<string, { x: number; y: number }> = {}
-        for (const n of rfNodes) node_positions[n.id] = { x: n.position.x, y: n.position.y }
+        // Filter out synthetic nodes (submission, olympiad) - they should never be persisted
+        for (const n of rfNodes) {
+          if (!n.id.startsWith('submission:') && !n.id.startsWith('olympiad:')) {
+            node_positions[n.id] = { x: n.position.x, y: n.position.y }
+          }
+        }
         const res = await fetch(`/api/admin/form-graphs/${graphId}`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
@@ -163,6 +337,9 @@ function DiagramInner({ graphId, showBackLink = true }: { graphId: string; showB
   const onConnect = useCallback(async (conn: Connection) => {
     if (!conn.source || !conn.target) return
     if (conn.source === conn.target) return
+    // Reject connections involving synthetic nodes (submission, olympiad)
+    if (conn.source.startsWith('submission:') || conn.target.startsWith('submission:')) return
+    if (conn.source.startsWith('olympiad:') || conn.target.startsWith('olympiad:')) return
     setRfEdges(eds => addEdge({ ...conn, type: 'smoothstep', style: { stroke: 'var(--muted)', strokeWidth: 1.5 } } as any, eds))
     setActionError('')
     try {
@@ -183,7 +360,9 @@ function DiagramInner({ graphId, showBackLink = true }: { graphId: string; showB
   }, [])
 
   const onSelectionChange = useCallback((sel: { nodes: any[]; edges: any[] }) => {
-    setSelectedNodeId(sel.nodes?.[0]?.id || null)
+    // Ignore synthetic submission/olympiad nodes - they're not real form nodes
+    const realNode = sel.nodes?.find((n: any) => !n.id.startsWith('submission:') && !n.id.startsWith('olympiad:'))
+    setSelectedNodeId(realNode?.id || null)
   }, [])
 
   // Toolbar actions
@@ -466,10 +645,26 @@ export function FormGraphBuilderForOwner({ ownerKind, ownerId }: { ownerKind: 'a
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ owner_kind: ownerKind, owner_id: ownerId }),
     })
-      .then(r => r.json())
+      .then(async r => {
+        const data = await r.json()
+        if (!r.ok) {
+          throw new Error(data.error || `Failed to create/get form graph (${r.status})`)
+        }
+        return data
+      })
       .then(data => {
         if (cancelled) return
-        if (!data.graph) throw new Error(data.error || 'Failed to load form builder.')
+        if (!data.graph?.id) throw new Error('Server returned invalid form graph data.')
+        console.log('[FormGraphBuilderForOwner] Got graph ID:', data.graph.id, 'created:', data.created)
+        // If the graph was just created, add a small delay to ensure DB commit completes
+        // before the child component tries to fetch it
+        if (data.created) {
+          return new Promise(resolve => setTimeout(() => resolve(data), 150))
+        }
+        return data
+      })
+      .then(data => {
+        if (cancelled) return
         setGraphId(data.graph.id)
       })
       .catch(e => { if (!cancelled) setError(e.message || 'Failed to load form builder.') })

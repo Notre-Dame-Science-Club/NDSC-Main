@@ -15,6 +15,7 @@ import { supabaseAdmin } from '@/lib/supabase'
 import { NextRequest } from 'next/server'
 import { apiError, apiOk } from '@/lib/api/response'
 import type { FormGraph, FormNode } from '@/lib/formGraph'
+import { getOlympiadActivityLink } from '@/lib/server/olympiadActivityLink'
 
 export async function GET(req: NextRequest) {
   const url = req.nextUrl
@@ -23,6 +24,24 @@ export async function GET(req: NextRequest) {
   if (!ownerKind || !ownerId) return apiError('owner_kind and owner_id are required.', 400)
   if (ownerKind !== 'activity' && ownerKind !== 'olympiad') {
     return apiError("owner_kind must be 'activity' or 'olympiad'.", 400)
+  }
+
+  // If this is an olympiad, check if it's linked to an activity leaf.
+  // Linked olympiads must not be independently registrable — they're gated
+  // behind their parent activity's registration flow.
+  if (ownerKind === 'olympiad') {
+    const link = await getOlympiadActivityLink(ownerId)
+    if (link) {
+      return apiError(
+        `This olympiad is part of "${link.session_title}" and must be registered through that activity.`,
+        404,
+        {
+          code: 'linked_to_activity',
+          session_slug: link.session_slug,
+          category_id: link.category_id,
+        }
+      )
+    }
   }
 
   const { data: graph, error } = await supabaseAdmin

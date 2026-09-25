@@ -40,34 +40,6 @@ export async function GET(req: NextRequest) {
   return apiOk({ registration, olympiad })
 }
 
-export async function POST(req: NextRequest) {
-  const body = await req.json()
-
-  const rollError = validateCollegeRoll(body.college, body.college_roll)
-  if (rollError) return apiError(rollError, 400)
-
-  // Whitelist allowed fields for registration creation
-  const allowedFields = [
-    'olympiad_id', 'full_name', 'phone', 'email', 'college',
-    'college_roll', 'hsc_session', 'batch', 'group_name', 'custom_answers'
-  ]
-
-  const registration: Record<string, any> = {}
-  for (const key of allowedFields) {
-    if (body[key] !== undefined) {
-      registration[key] = body[key]
-    }
-  }
-
-  const { data, error } = await supabaseAdmin
-    .from('olympiad_registrations')
-    .insert(registration)
-    .select('id')
-    .single()
-  if (error) return apiError(error, 400)
-  return apiOk(data)
-}
-
 export async function PUT(req: NextRequest) {
   const body = await req.json()
   const { id, ...rest } = body

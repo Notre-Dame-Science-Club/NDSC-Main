@@ -46,6 +46,14 @@ type Olympiad = {
   theme_header_logo_url?: string | null
   created_at: string
   timer_minutes?: number
+  // Purely informational link to a parent Activity (not a precise leaf-level
+  // link like activity_reg_categories.linked_olympiad_id or form_nodes
+  // behavior.linked_olympiad_id). When set, this olympiad card routes to the
+  // parent activity's main registration page (/activities/[slug]/register)
+  // without deep-linking to a specific segment — the user picks their segment
+  // there. This field is for "billboard" olympiad entries that say "this round
+  // is part of Activity X" without the granular v1/v2 linking infrastructure.
+  parent_activity_session_id?: string | null
 }
 
 type Card = {
@@ -61,6 +69,10 @@ type Card = {
 // disconnected registration on top of whatever the person already has (or
 // will fill out) for the parent Activity. Instead they route straight into
 // that Activity's own registration flow.
+//
+// IMPORTANT: category_id is LEAF-accurate (not top-level), pointing to the
+// specific segment within the activity's registration tree. For v1 leaves
+// this is an activity_reg_categories.id, for v2 it's a form_nodes.id.
 type ActivityCard = {
   category_id: string
   name: string
@@ -69,6 +81,7 @@ type ActivityCard = {
   session_slug?: string
   session_title?: string
   cover_image_url?: string | null
+  is_v2: boolean
 }
 
 const STORAGE_KEY = 'ndsc_olympiad_reg_id'
@@ -86,6 +99,8 @@ export default function OlympiadListPage() {
   const [loading, setLoading] = useState(true)
   const [resuming, setResuming] = useState(true)
   const [resumeTarget, setResumeTarget] = useState<string | null>(null)
+  // Map of activity session IDs to their slug/title for parent activity linking
+  const [activitySessions, setActivitySessions] = useState<Record<string, { slug: string; title: string }>>({})
   // The logged-in visitor's own member record (just the one field we need),
   // used to tell NDC-only olympiad cards apart from ones an external-college
   // visitor genuinely can't take. `undefined` = still checking, `null` =
@@ -130,7 +145,25 @@ export default function OlympiadListPage() {
     fetch('/api/olympiad?listing=1')
       .then(r => r.json())
       .then((rows: any[]) => {
-        if (Array.isArray(rows)) setOlympiads(rows as Olympiad[])
+        if (Array.isArray(rows)) {
+          setOlympiads(rows as Olympiad[])
+          // Collect unique parent activity session IDs to fetch their details
+          const parentIds = [...new Set(rows.filter(o => o.parent_activity_session_id).map(o => o.parent_activity_session_id))]
+          if (parentIds.length > 0) {
+            fetch('/api/admin/activity-sessions')
+              .then(r => r.json())
+              .then((sessions: any[]) => {
+                if (Array.isArray(sessions)) {
+                  const map: Record<string, { slug: string; title: string }> = {}
+                  sessions.forEach(s => {
+                    map[s.id] = { slug: s.slug, title: s.title }
+                  })
+                  setActivitySessions(map)
+                }
+              })
+              .catch(() => {})
+          }
+        }
       })
       .catch(() => {})
       .finally(() => setLoading(false))
@@ -226,7 +259,7 @@ export default function OlympiadListPage() {
             <ActivityOlympiadCard key={c.category_id} card={c} />
           ))}
           {cards.map(c => (
-            <OlympiadCard key={c.olympiad.id} card={c} />
+            <OlympiadCard key={c.olympiad.id} card={c} activitySessions={activitySessions} />
           ))}
         </div>
 
@@ -266,7 +299,7 @@ function ActivityOlympiadCard({ card }: { card: ActivityCard }) {
       </div>
       {card.session_slug ? (
         <Link
-          href={`/activities/${card.session_slug}/register`}
+          href={`/register/activity/${card.session_id}`}
           className="self-center px-5 py-2.5 rounded-xl text-sm font-bold flex-shrink-0 inline-flex items-center gap-1.5"
           style={{ background: accent, color: '#000' }}>
           Register via Activity <ArrowRight size={14} />
@@ -276,11 +309,12 @@ function ActivityOlympiadCard({ card }: { card: ActivityCard }) {
   )
 }
 
-function OlympiadCard({ card }: { card: Card }) {
+function OlympiadCard({ card, activitySessions }: { card: Card; activitySessions: Record<string, { slug: string; title: string }> }) {
   const { olympiad: o, status, reason } = card
   const isOpen = status === 'open'
   const isScheduled = status === 'scheduled'
   const isGreyed = !isOpen
+  const parentActivity = o.parent_activity_session_id ? activitySessions[o.parent_activity_session_id] : null
 
   const accent = o.theme_accent_color || 'var(--blue)'
   const cardStyle: React.CSSProperties = {
@@ -330,14 +364,28 @@ function OlympiadCard({ card }: { card: Card }) {
         </div>
         {reason && <p className="text-xs mt-1" style={{ color: isOpen ? 'var(--muted)' : 'var(--danger-soft)' }}>{reason}</p>}
         {o.eligibility && <p className="text-xs mt-1" style={{ color: 'var(--muted)' }}>{o.eligibility}</p>}
+        {parentActivity && (
+          <p className="text-xs mt-2 inline-flex items-center gap-1" style={{ color: 'var(--cat-teal)' }}>
+            <ArrowRight size={11} /> Register through {parentActivity.title}
+          </p>
+        )}
       </div>
       {isOpen ? (
-        <Link
-          href={`/register/olympiad/${o.id}`}
-          className="self-center px-5 py-2.5 rounded-xl text-sm font-bold flex-shrink-0 inline-flex items-center gap-1.5"
-          style={ctaStyle}>
-          Register <ArrowRight size={14} />
-        </Link>
+        parentActivity ? (
+          <Link
+            href={`/activities/${parentActivity.slug}/register`}
+            className="self-center px-5 py-2.5 rounded-xl text-sm font-bold flex-shrink-0 inline-flex items-center gap-1.5"
+            style={ctaStyle}>
+            Register for {parentActivity.title} <ArrowRight size={14} />
+          </Link>
+        ) : (
+          <Link
+            href={`/register/olympiad/${o.id}`}
+            className="self-center px-5 py-2.5 rounded-xl text-sm font-bold flex-shrink-0 inline-flex items-center gap-1.5"
+            style={ctaStyle}>
+            Register <ArrowRight size={14} />
+          </Link>
+        )
       ) : (
         <button disabled
           className="self-center px-5 py-2.5 rounded-xl text-sm font-bold flex-shrink-0 cursor-not-allowed"

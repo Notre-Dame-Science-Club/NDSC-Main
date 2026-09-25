@@ -46,8 +46,11 @@ export async function POST(req: NextRequest) {
   let submissionWho: 'leader' | 'any_member' | undefined = v1Category?.submission_who || undefined
 
   if (!submissionConfig.length && (reg as any).form_node_id) {
-    // Phase 4: v2 leaf. The leaf node's behavior holds submission_config
-    // (the per-field list) and submission_who (leader-only or anyone).
+    // Phase 4: v2 leaf. The leaf node's behavior holds a nested `submission`
+    // object ({ enabled, title, opens_at, closes_at, fields, who }) — see
+    // the node editor at app/admin/form-builder/[graphId]/node/[nodeId]/page.tsx.
+    // (Not flat `submission_config`/`submission_who` — those are v1-only
+    // column names on activity_reg_categories.)
     const { data: fn } = await supabaseAdmin
       .from('form_nodes')
       .select('behavior')
@@ -55,8 +58,9 @@ export async function POST(req: NextRequest) {
       .maybeSingle()
     if (fn) {
       const b: any = (fn as any).behavior || {}
-      submissionConfig = Array.isArray(b.submission_config) ? b.submission_config : []
-      submissionWho = b.submission_who || submissionWho
+      const sub: any = b.submission || {}
+      submissionConfig = Array.isArray(sub.fields) ? sub.fields : []
+      submissionWho = sub.who || submissionWho
     }
   }
 

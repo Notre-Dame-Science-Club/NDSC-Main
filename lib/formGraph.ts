@@ -102,18 +102,32 @@ export type FormNodeBehavior = {
     amount: number
     label?: string
   }
-  is_online_submission?: boolean
-  // Phase 4: when is_online_submission is true, this points at the
-  // olympiad the registration should expose (exam / relay link in
-  // dashboard). Free-form, but typed here so admins get autocomplete /
-  // future validation. Originally lived on activity_reg_categories
-  // (v1); the migration moved it into the leaf node's behavior jsonb
-  // so form-graph is the single source of truth.
+  // Submission: a lightweight mini-form that opens LATER (separate from olympiad).
+  // E.g. "Tech" lets you register now, but video-link upload opens 5 days from now.
+  // Has its own schedule (opens_at/closes_at), never touches olympiads table.
+  submission?: {
+    enabled: boolean
+    title?: string
+    opens_at?: string | null       // ISO timestamp
+    closes_at?: string | null      // ISO timestamp
+    fields: Array<{
+      id: string
+      title: string
+      description?: string
+      field_type: 'text' | 'textarea' | 'file'
+      required: boolean
+      file_types?: string[]
+      max_file_size_mb?: number
+      max_files?: number
+    }>
+    who: 'leader' | 'any_member'
+  }
+  // Olympiad: real scheduled exam (MCQ, timer, subjects, relay).
+  // Points to an olympiad row that already exists. Admin explicitly creates
+  // the olympiad separately and links it here.
   linked_olympiad_id?: string | null
   schedule?: { date?: string; time?: string; room?: string }
   project_name?: { enabled: boolean; label?: string }
-  submission_config?: any[]      // activity_submissions.answers shape
-  submission_who?: 'leader' | 'any_member'
   // For olympiad question nodes:
   timer_override_minutes?: number
   // Display:

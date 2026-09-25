@@ -124,17 +124,11 @@ export async function GET(req: NextRequest) {
   const nodeIds = [...new Set(entries.map(e => e.reg.form_node_id).filter(Boolean))]
   const regIds = entries.map(e => e.reg.id)
 
-  const [{ data: sessions }, { data: categories }, { data: nodes }, { data: submissions }] = await Promise.all([
+  const [{ data: sessions }, { data: nodes }, { data: submissions }] = await Promise.all([
     supabaseAdmin
       .from('activity_sessions')
       .select('id, title, slug, is_upcoming, cover_image_url, reg_status, reg_deadline')
       .in('id', sessionIds),
-    categoryIds.length
-      ? supabaseAdmin
-          .from('activity_reg_categories')
-          .select('id, name, is_online_submission, linked_olympiad_id, schedule_date, schedule_time, schedule_room, submission_config')
-          .in('id', categoryIds)
-      : Promise.resolve({ data: [] as any[] }),
     nodeIds.length
       ? supabaseAdmin
           .from('form_nodes')
@@ -155,14 +149,10 @@ export async function GET(req: NextRequest) {
   ])
 
   const sessionMap = Object.fromEntries((sessions || []).map(s => [s.id, s]))
-  const categoryMap = Object.fromEntries((categories || []).map(c => [c.id, c]))
   const nodeMap = Object.fromEntries((nodes || []).map(n => [n.id, n]))
 
-  // Any linked_olympiad_id referenced by either a v1 category or a v2
-  // node's behavior — fetched once so registrations tied to an online
-  // round can carry the olympiad's own title/link.
+  // Any linked_olympiad_id referenced by a v2 node's behavior
   const olympiadIds = new Set<string>()
-  for (const c of (categories || [])) if (c.linked_olympiad_id) olympiadIds.add(c.linked_olympiad_id)
   for (const n of (nodes || [])) { const b: any = (n as any).behavior || {}; if (b.linked_olympiad_id) olympiadIds.add(b.linked_olympiad_id) }
   const { data: olympiadRows } = olympiadIds.size
     ? await supabaseAdmin.from('olympiads').select('id, name').in('id', [...olympiadIds])
@@ -197,24 +187,21 @@ export async function GET(req: NextRequest) {
       if (me?.full_name) displayName = me.full_name
     }
 
-    // Resolve the segment/category, v1 or v2. v1 rows already have a
-    // full category row; v2 rows synthesize an equivalent shape from
-    // the leaf form_node's label + behavior so the dashboard can treat
-    // both uniformly.
-    const v1Category = categoryMap[reg.category_id]
+    // Resolve the segment/category from v2 node. v2 rows synthesize a
+    // category-shaped object from the leaf form_node's label + behavior
+    // so the dashboard can access submission and olympiad data.
     const node = reg.form_node_id ? nodeMap[reg.form_node_id] : null
-    let category: any = v1Category || null
-    if (!category && node) {
+    let category: any = null
+    if (node) {
       const b: any = node.behavior || {}
       category = {
         id: node.id,
         name: node.label || null,
-        is_online_submission: !!b.is_online_submission,
+        submission: b.submission || null,
         linked_olympiad_id: b.linked_olympiad_id ?? null,
         schedule_date: b.schedule?.date ?? null,
         schedule_time: b.schedule?.time ?? null,
         schedule_room: b.schedule?.room ?? null,
-        submission_config: b.submission_config || [],
       }
     }
     const olympiad = category?.linked_olympiad_id ? (olympiadMap[category.linked_olympiad_id] || null) : null

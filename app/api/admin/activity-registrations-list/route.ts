@@ -26,31 +26,9 @@ export async function GET(req: NextRequest) {
   const sessionId = req.nextUrl.searchParams.get('sessionId')
   if (!sessionId) return apiError('sessionId is required.', 400)
 
-  const [{ data: categories, error: catError }, { data: graph }] = await Promise.all([
-    supabaseAdmin
-      .from('activity_reg_categories')
-      .select('id, name, parent_id, is_online_submission, is_segment, form_field_schema, team_member_fields')
-      .eq('activity_session_id', sessionId),
-    supabaseAdmin
-      .from('form_graphs').select('id, root_node_id').eq('owner_kind', 'activity').eq('owner_id', sessionId).maybeSingle(),
-  ])
-  if (catError) return apiError(catError, 400)
-
-  const catById = new Map((categories || []).map(c => [c.id, c]))
-  const breadcrumbFor = (categoryId: string) => {
-    const names: string[] = []
-    let node: any = catById.get(categoryId)
-    while (node) { names.unshift(node.name); node = node.parent_id ? catById.get(node.parent_id) : null }
-    return names
-  }
-  // Top-level ancestor id of a v1 category (walks up to the row whose
-  // parent_id is null) — used for segment_id below.
-  const topAncestorFor = (categoryId: string): string | null => {
-    let node: any = catById.get(categoryId)
-    if (!node) return null
-    while (node.parent_id) node = catById.get(node.parent_id) || node
-    return node?.id ?? null
-  }
+  // v2 only - load the form graph for this session
+  const { data: graph } = await supabaseAdmin
+    .from('form_graphs').select('id, root_node_id').eq('owner_kind', 'activity').eq('owner_id', sessionId).maybeSingle()
 
   // v2 nodes for this session's graph, if any. Loaded regardless of
   // whether any registrations exist yet so the segment chips still show
@@ -76,54 +54,31 @@ export async function GET(req: NextRequest) {
   if (regError) return apiError(regError, 400)
 
   const result = (registrations || []).map(r => {
-    const isV2 = !r.category_id && !!r.form_graph_id
-    const lastNodeId = isV2 && Array.isArray(r.submitted_node_ids) && r.submitted_node_ids.length
+    const lastNodeId = Array.isArray(r.submitted_node_ids) && r.submitted_node_ids.length
       ? r.submitted_node_ids[r.submitted_node_ids.length - 1]
       : null
-    // Bug fix: `viewingSegment.form_field_schema` (built below from just the
-    // top-level segment node) only ever labeled fields collected on that one
-    // node. Any field asked on the starter/root node (the "common details"
-    // step everyone passes through) or on an intermediate node between the
-    // segment and wherever this particular registration actually terminated
-    // fell through to the raw-key fallback in the admin UI — unlabeled,
-    // dumped at the end, easy to mistake for "not there". submitted_node_ids
-    // IS the registrant's full root→leaf path (every submit route appends to
-    // it), so walking it and concatenating each node's own `fields` gives an
-    // accurate, per-registration schema regardless of tree depth.
-    const fieldSchema = isV2 && Array.isArray(r.submitted_node_ids)
+
+    const fieldSchema = Array.isArray(r.submitted_node_ids)
       ? (r.submitted_node_ids as string[]).flatMap(id => (nodeById.get(id)?.fields as any[]) || [])
-      : null
-    const teamFieldSchema = isV2 && Array.isArray(r.submitted_node_ids)
+      : []
+    const teamFieldSchema = Array.isArray(r.submitted_node_ids)
       ? (r.submitted_node_ids as string[]).flatMap(id => nodeById.get(id)?.behavior?.require_team?.fields || [])
-      : null
+      : []
+
     return {
       ...r,
       field_schema: fieldSchema,
       team_field_schema: teamFieldSchema,
-      // category_id is only set for registrations from the old segment/
-      // category system. Anything through the Form Builder graph has
-      // category_id = null and form_graph_id set instead.
-      breadcrumb: r.category_id ? breadcrumbFor(r.category_id) : (isV2 ? breadcrumbForPath(r.submitted_node_ids as any) : []),
-      segment_id: r.category_id ? topAncestorFor(r.category_id) : (isV2 && Array.isArray(r.submitted_node_ids) && r.submitted_node_ids.length > 1 ? r.submitted_node_ids[1] : null),
-      is_online_category: catById.get(r.category_id)?.is_online_submission || false,
-      // Whether this row actually finished its path (reached a true leaf)
-      // vs. is still mid-tree / abandoned. Only meaningful for v2 — v1
-      // rows are always "finished" the moment they're created.
-      is_terminal: r.category_id ? true : (lastNodeId ? !!nodeById.get(lastNodeId)?.is_terminal : null),
+      breadcrumb: breadcrumbForPath(r.submitted_node_ids as any),
+      segment_id: Array.isArray(r.submitted_node_ids) && r.submitted_node_ids.length > 1 ? r.submitted_node_ids[1] : null,
+      is_online_category: false, // v2 doesn't use this flag anymore
+      is_terminal: lastNodeId ? !!nodeById.get(lastNodeId)?.is_terminal : null,
       team_size: 1 + ((r.team_members as any[]) || []).length,
     }
   })
 
-  // Top-level is_segment rows (v1) + top-level form_nodes (v2, i.e. the
-  // graph root's direct children), used to build the segment-filter chip
-  // row in the admin Registrants view. Includes form_field_schema so the
-  // detail modal can render answers in the order the user actually filled
-  // them in, and team_member_fields so per-member custom_answers can be
-  // rendered in the modal's TEAM MEMBERS section.
-  const v1Segments = (categories || [])
-    .filter((c: any) => c.is_segment && !c.parent_id)
-    .map((c: any) => ({ id: c.id, name: c.name, form_field_schema: c.form_field_schema || [], team_member_fields: c.team_member_fields || [] }))
-  const v2Segments = graph
+  // v2 segments only - top-level form_nodes (graph root's direct children)
+  const segments = graph
     ? Array.from(nodeById.values())
         .filter((n: any) => n.parent_id === graph.root_node_id)
         .map((n: any) => ({
@@ -133,7 +88,6 @@ export async function GET(req: NextRequest) {
           team_member_fields: n.behavior?.require_team?.fields || [],
         }))
     : []
-  const segments = [...v1Segments, ...v2Segments]
 
   return apiOk({ registrations: result, segments })
 }

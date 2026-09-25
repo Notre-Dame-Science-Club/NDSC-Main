@@ -1,10 +1,8 @@
 'use client'
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
-import { Plus, Trash2, Edit2, ChevronDown, ChevronUp, Eye, EyeOff, X, Megaphone, ArrowRight, Image as ImageIcon, FileText, Clock, AlignLeft, List, Camera, ArrowUp, ArrowDown, Copy, CheckSquare, ClipboardList, Link2, Lightbulb, BookOpen, CheckCircle2, Download, Workflow } from 'lucide-react'
+import { Plus, Trash2, Edit2, ChevronDown, ChevronUp, Eye, EyeOff, X, Megaphone, ArrowRight, Image as ImageIcon, FileText, Clock, ClipboardList, Link2, Lightbulb, BookOpen, CheckCircle2, Download, Workflow } from 'lucide-react'
 import AnnotationViewer, { Annotation } from '@/components/olympiad/AnnotationViewer'
-import MathInputField from '@/components/olympiad/MathInputField'
-import MathText from '@/components/olympiad/MathText'
 import ResponseDetailModal from '@/components/olympiad/ResponseDetailModal'
 import { FormGraphBuilderForOwner } from '@/components/admin/FormGraphBuilder'
 import { normalizeUploadUrl } from '@/lib/uploadUrl'
@@ -29,25 +27,6 @@ function isoToDhakaLocal(value?: string | null): string {
   return new Date(new Date(value).getTime() + DHAKA_OFFSET_MS).toISOString().slice(0, 16)
 }
 
-type FieldType = 'text' | 'textarea' | 'email' | 'tel' | 'select'
-type RegField = { key: string; label: string; type: FieldType; required: boolean; options?: string[] }
-
-type QuestionType = 'mcq' | 'checkbox' | 'short' | 'photo'
-type McqOption = { id: string; text: string }
-type Question = {
-  id: string
-  type: QuestionType
-  text: string
-  description?: string
-  image_url?: string
-  options?: McqOption[]
-  correct_option_id?: string
-  correct_option_ids?: string[]
-  required?: boolean
-  marks?: number
-  subject_id?: string
-}
-
 type Olympiad = {
   id: string
   name: string
@@ -69,8 +48,10 @@ type Olympiad = {
   external_only?: boolean
   organizer_username?: string
   organizer_password?: string
-  registration_fields: RegField[]
-  questions: Question[]
+  parent_activity_session_id?: string | null
+  // Read-only here — computed from the olympiad's form-graph question
+  // node(s). Edited in Form Builder, not on this page.
+  questions: any[]
   created_at: string
   // Appearance — all optional, blank means "use the site default"
   theme_bg_color?: string | null
@@ -84,7 +65,7 @@ type Olympiad = {
 const BLANK: Partial<Olympiad> = {
   name: '', description: '', mode: 'mixed', exam_type: 'mixed', question_display: 'all_at_once',
   timer_minutes: 60, is_active: true, result_published: false, annotations_published: false,
-  external_only: false, registration_fields: [], questions: [],
+  external_only: false,
 }
 
 const MAX_COVER_MB = 10
@@ -108,6 +89,11 @@ export default function AdminOlympiadsPage() {
   // Which olympiads are actually derived from an Activity online leaf, vs
   // legacy freestanding ones created directly here. Keyed by olympiad id.
   const [linkInfo, setLinkInfo] = useState<Record<string, any>>({})
+  // For the form graph and parent activity pickers
+  const [formGraphs, setFormGraphs] = useState<{ id: string; title: string; owner_id: string }[]>([])
+  const [activitySessions, setActivitySessions] = useState<{ id: string; title: string; slug: string }[]>([])
+  const [attachedFormGraph, setAttachedFormGraph] = useState<{ id: string; title: string } | null>(null)
+  const [creatingFormGraph, setCreatingFormGraph] = useState(false)
 
   const h = { fontFamily: 'inherit', color: 'var(--blue)' }
   const s = { background: 'var(--surface-deep)', border: '1px solid var(--border)' }
@@ -128,10 +114,36 @@ export default function AdminOlympiadsPage() {
         setLinkInfo(Object.fromEntries((links || []).map((l: any) => [l.olympiad_id, l])))
       }
     } catch { /* non-critical — falls back to treating everything as standalone */ }
+
+    // Load form graphs and activity sessions for pickers
+    try {
+      const [graphsRes, sessionsRes] = await Promise.all([
+        fetch('/api/admin/form-graphs').then(r => r.json()),
+        fetch('/api/admin/activity-sessions').then(r => r.json()),
+      ])
+      if (graphsRes?.graphs) {
+        setFormGraphs(graphsRes.graphs
+          .filter((g: any) => g.owner_kind === 'olympiad')
+          .map((g: any) => ({ id: g.id, title: g.title, owner_id: g.owner_id })))
+      }
+      if (Array.isArray(sessionsRes)) {
+        setActivitySessions(sessionsRes.map((s: any) => ({ id: s.id, title: s.title, slug: s.slug })))
+      }
+    } catch { /* non-critical */ }
+
     setLoading(false)
   }
 
   useEffect(() => { load() }, [])
+
+  // Load attached form graph when editing modal opens for an existing olympiad
+  useEffect(() => {
+    if (editing?.id) {
+      loadAttachedFormGraph(editing.id)
+    } else {
+      setAttachedFormGraph(null)
+    }
+  }, [editing?.id])
 
   const loadRegistrations = async (olympiadId: string) => {
     const res = await fetch(`/api/admin/olympiad-registrations?olympiad_id=${olympiadId}`)
@@ -143,6 +155,74 @@ export default function AdminOlympiadsPage() {
     if (expandedId === id) { setExpandedId(null); return }
     setExpandedId(id)
     loadRegistrations(id)
+  }
+
+  // Load attached form graph when editing an olympiad
+  const loadAttachedFormGraph = async (olympiadId: string) => {
+    try {
+      const res = await fetch('/api/admin/form-graphs')
+      const data = await res.json()
+      if (data?.graphs) {
+        const attached = data.graphs.find((g: any) =>
+          g.owner_kind === 'olympiad' && g.owner_id === olympiadId
+        )
+        setAttachedFormGraph(attached ? { id: attached.id, title: attached.title } : null)
+      }
+    } catch {
+      setAttachedFormGraph(null)
+    }
+  }
+
+  // Create a form graph for this olympiad
+  const createFormGraph = async (olympiadId: string, olympiadName: string) => {
+    setCreatingFormGraph(true)
+    try {
+      const res = await fetch('/api/admin/form-graphs', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          owner_kind: 'olympiad',
+          owner_id: olympiadId,
+          title: `${olympiadName} Registration & Exam`,
+        }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Failed to create form graph.')
+      setAttachedFormGraph({ id: data.graph.id, title: data.graph.title })
+      // Refresh form graphs list
+      const graphsRes = await fetch('/api/admin/form-graphs').then(r => r.json())
+      if (graphsRes?.graphs) {
+        setFormGraphs(graphsRes.graphs
+          .filter((g: any) => g.owner_kind === 'olympiad')
+          .map((g: any) => ({ id: g.id, title: g.title, owner_id: g.owner_id })))
+      }
+    } catch (e: any) {
+      setPageError(e.message || 'Failed to create form graph.')
+    } finally {
+      setCreatingFormGraph(false)
+    }
+  }
+
+  // Detach (delete) the form graph for this olympiad
+  const detachFormGraph = async (graphId: string) => {
+    if (!confirm('Delete this form graph? All questions and fields will be permanently removed.')) return
+    try {
+      const res = await fetch(`/api/admin/form-graphs/${graphId}`, { method: 'DELETE' })
+      if (!res.ok) {
+        const data = await res.json()
+        throw new Error(data.error || 'Failed to delete.')
+      }
+      setAttachedFormGraph(null)
+      // Refresh form graphs list
+      const graphsRes = await fetch('/api/admin/form-graphs').then(r => r.json())
+      if (graphsRes?.graphs) {
+        setFormGraphs(graphsRes.graphs
+          .filter((g: any) => g.owner_kind === 'olympiad')
+          .map((g: any) => ({ id: g.id, title: g.title, owner_id: g.owner_id })))
+      }
+    } catch (e: any) {
+      setPageError(e.message || 'Failed to delete form graph.')
+    }
   }
 
   // Upload helper
@@ -218,90 +298,6 @@ export default function AdminOlympiadsPage() {
     setUploading(null)
   }
 
-  // Registration fields helpers
-  const addRegField = () => setEditing(p => ({
-    ...p, registration_fields: [...(p?.registration_fields || []), { key: uid(), label: '', type: 'text', required: false }]
-  }))
-  const removeRegField = (key: string) => setEditing(p => ({ ...p, registration_fields: (p?.registration_fields || []).filter(f => f.key !== key) }))
-  const updateRegField = (key: string, patch: Partial<RegField>) => setEditing(p => ({
-    ...p, registration_fields: (p?.registration_fields || []).map(f => f.key === key ? { ...f, ...patch } : f)
-  }))
-
-  // Question helpers
-  const addQuestion = (type: QuestionType) => {
-    const q: Question = { id: uid(), type, text: '', description: '', marks: 1, required: true }
-    if (type === 'mcq') q.options = [{ id: uid(), text: '' }, { id: uid(), text: '' }]
-    if (type === 'checkbox') { q.options = [{ id: uid(), text: '' }, { id: uid(), text: '' }]; q.correct_option_ids = [] }
-    setEditing(p => ({ ...p, questions: [...(p?.questions || []), q] }))
-  }
-  const removeQuestion = (qid: string) => setEditing(p => ({ ...p, questions: (p?.questions || []).filter(q => q.id !== qid) }))
-  const updateQuestion = (qid: string, patch: Partial<Question>) => setEditing(p => ({
-    ...p, questions: (p?.questions || []).map(q => q.id === qid ? { ...q, ...patch } : q)
-  }))
-  const duplicateQuestion = (qid: string) => setEditing(p => {
-    const list = p?.questions || []
-    const idx = list.findIndex(q => q.id === qid)
-    if (idx === -1) return p
-    const orig = list[idx]
-    const copy: Question = {
-      ...orig,
-      id: uid(),
-      options: orig.options?.map(o => ({ ...o, id: uid() })),
-    }
-    // Remap correct-answer references onto the freshly-generated option ids
-    if (orig.type === 'mcq' && orig.correct_option_id) {
-      const origIdx = (orig.options || []).findIndex(o => o.id === orig.correct_option_id)
-      copy.correct_option_id = origIdx >= 0 ? copy.options?.[origIdx]?.id : undefined
-    }
-    if (orig.type === 'checkbox' && orig.correct_option_ids) {
-      copy.correct_option_ids = orig.correct_option_ids
-        .map(cid => (orig.options || []).findIndex(o => o.id === cid))
-        .filter(i => i >= 0)
-        .map(i => copy.options?.[i]?.id)
-        .filter(Boolean) as string[]
-    }
-    const next = [...list]
-    next.splice(idx + 1, 0, copy)
-    return { ...p, questions: next }
-  })
-  const moveQuestion = (qid: string, dir: -1 | 1) => setEditing(p => {
-    const list = [...(p?.questions || [])]
-    const idx = list.findIndex(q => q.id === qid)
-    const swapIdx = idx + dir
-    if (idx === -1 || swapIdx < 0 || swapIdx >= list.length) return p
-    ;[list[idx], list[swapIdx]] = [list[swapIdx], list[idx]]
-    return { ...p, questions: list }
-  })
-  const addOption = (qid: string) => updateQuestion(qid, { options: [...((editing?.questions || []).find(q => q.id === qid)?.options || []), { id: uid(), text: '' }] })
-  const removeOption = (qid: string, oid: string) => {
-    const q = (editing?.questions || []).find(q => q.id === qid)
-    if (!q) return
-    updateQuestion(qid, {
-      options: (q.options || []).filter(o => o.id !== oid),
-      correct_option_ids: (q.correct_option_ids || []).filter(id => id !== oid),
-    })
-  }
-  const updateOption = (qid: string, oid: string, text: string) => {
-    const q = (editing?.questions || []).find(q => q.id === qid)
-    if (!q) return
-    updateQuestion(qid, { options: (q.options || []).map(o => o.id === oid ? { ...o, text } : o) })
-  }
-  const toggleCheckboxCorrect = (qid: string, oid: string) => {
-    const q = (editing?.questions || []).find(q => q.id === qid)
-    if (!q) return
-    const current = q.correct_option_ids || []
-    const next = current.includes(oid) ? current.filter(id => id !== oid) : [...current, oid]
-    updateQuestion(qid, { correct_option_ids: next })
-  }
-  const handleQuestionImageUpload = async (qid: string, file: File | null) => {
-    if (!file) return
-    setUploadError('')
-    try {
-      const url = await uploadFile(file, 'olympiad-question-images', MAX_COVER_MB, ['image/jpeg', 'image/png', 'image/webp'])
-      updateQuestion(qid, { image_url: url })
-    } catch (e: any) { setUploadError(e.message) }
-  }
-
   const save = async () => {
     if (!editing) return
     setSaving(true); setPageError('')
@@ -322,8 +318,6 @@ export default function AdminOlympiadsPage() {
       external_only: editing.external_only ?? false,
       organizer_username: editing.organizer_username || null,
       organizer_password: editing.organizer_password || null,
-      registration_fields: editing.registration_fields || [],
-      questions: editing.questions || [],
       theme_bg_color: editing.theme_bg_color || null,
       theme_bg_image_url: editing.theme_bg_image_url || null,
       theme_accent_color: editing.theme_accent_color || null,
@@ -337,6 +331,7 @@ export default function AdminOlympiadsPage() {
       relay_type: (editing as any).relay_type || 'sequential',
       subjects: (editing as any).subjects || [],
       subject_assignment_mode: (editing as any).subject_assignment_mode || 'self_select',
+      parent_activity_session_id: (editing as any).parent_activity_session_id || null,
     }
     const res = await fetch('/api/admin/olympiads', {
       method: editing.id ? 'PUT' : 'POST',
@@ -403,9 +398,6 @@ export default function AdminOlympiadsPage() {
     if (selectedOlympiadId) loadRegistrations(selectedOlympiadId)
   }
 
-  const qTypeLabel = (t: QuestionType) => t === 'mcq' ? 'MCQ' : t === 'checkbox' ? 'Checkboxes' : t === 'short' ? 'Short Answer' : 'Photo Upload'
-  const qTypeColor = (t: QuestionType) => t === 'mcq' ? 'var(--blue)' : t === 'checkbox' ? 'var(--accent2)' : t === 'short' ? 'var(--success)' : 'var(--warning)'
-  const qTypeIcon = (t: QuestionType) => t === 'mcq' ? <List size={12} /> : t === 'checkbox' ? <CheckSquare size={12} /> : t === 'short' ? <AlignLeft size={12} /> : <Camera size={12} />
 
   // ── Form builder view ────────────────────────────────────────────────────────
   if (tab === 'form-builder' && selectedOlympiadId) {
@@ -586,6 +578,97 @@ export default function AdminOlympiadsPage() {
             </label>
           </div>
 
+          {/* Form & Content Linking */}
+          <div className="rounded-xl p-5 space-y-4" style={s}>
+            <p className="text-xs font-bold tracking-widest inline-flex items-center gap-1.5" style={{ color: 'var(--accent2)' }}>
+              <Lightbulb size={13} /> FORM & CONTENT LINKING
+            </p>
+            <p className="text-xs" style={{ color: 'var(--border-soft)' }}>
+              Attach a registration/exam form to this olympiad, or mark it as purely informational
+              (pointing to a parent Activity registration instead).
+            </p>
+
+            {/* Attached Form Graph Status */}
+            {editing.id ? (
+              <div>
+                <label className="block text-xs mb-2 font-semibold" style={{ color: 'var(--muted)' }}>
+                  Attached Form Graph
+                </label>
+                {attachedFormGraph ? (
+                  <div className="flex items-center gap-3 p-3 rounded-lg" style={{ background: 'rgba(var(--success-rgb), 0.08)', border: '1px solid rgba(var(--success-rgb), 0.2)' }}>
+                    <CheckCircle2 size={16} style={{ color: 'var(--success)' }} />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium" style={{ color: 'var(--white-soft)' }}>
+                        {attachedFormGraph.title}
+                      </p>
+                      <p className="text-xs" style={{ color: 'var(--muted)' }}>
+                        This olympiad has a form graph attached
+                      </p>
+                    </div>
+                    <Link
+                      href={`/admin/form-builder/${attachedFormGraph.id}`}
+                      target="_blank"
+                      className="text-xs px-3 py-1.5 rounded border inline-flex items-center gap-1"
+                      style={{ borderColor: 'rgba(var(--accent2-rgb), 0.3)', color: 'var(--accent2)' }}>
+                      <Workflow size={12} /> Open
+                    </Link>
+                    <button
+                      onClick={() => detachFormGraph(attachedFormGraph.id)}
+                      className="text-xs px-3 py-1.5 rounded border"
+                      style={{ borderColor: 'rgba(var(--danger-rgb), 0.3)', color: 'var(--danger-soft)' }}>
+                      Detach
+                    </button>
+                  </div>
+                ) : (
+                  <div className="p-3 rounded-lg" style={{ background: 'rgba(var(--border-rgb), 0.05)', border: '1px dashed var(--border)' }}>
+                    <p className="text-xs mb-2" style={{ color: 'var(--muted)' }}>
+                      No form attached yet. Create one to enable registration and exam functionality.
+                    </p>
+                    <button
+                      onClick={() => createFormGraph(editing.id!, editing.name || 'Untitled Olympiad')}
+                      disabled={creatingFormGraph}
+                      className="text-xs px-3 py-1.5 rounded inline-flex items-center gap-1.5"
+                      style={{
+                        background: creatingFormGraph ? 'var(--surface-alt)' : 'rgba(var(--accent2-rgb), 0.12)',
+                        color: creatingFormGraph ? 'var(--border-soft)' : 'var(--accent2)',
+                        border: `1px solid ${creatingFormGraph ? 'var(--border)' : 'rgba(var(--accent2-rgb), 0.3)'}`,
+                        cursor: creatingFormGraph ? 'not-allowed' : 'pointer'
+                      }}>
+                      <Plus size={12} /> {creatingFormGraph ? 'Creating...' : 'Create Form Graph'}
+                    </button>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="p-3 rounded-lg" style={{ background: 'rgba(var(--warning-rgb), 0.08)', border: '1px solid rgba(var(--warning-rgb), 0.2)' }}>
+                <p className="text-xs" style={{ color: 'var(--warning)' }}>
+                  Save this olympiad first before attaching a form graph.
+                </p>
+              </div>
+            )}
+
+            {/* Parent Activity Picker */}
+            <div>
+              <label className="block text-xs mb-1" style={{ color: 'var(--muted)' }}>
+                Parent Activity (for informational entries)
+              </label>
+              <select
+                className={inputClass}
+                style={inputStyle}
+                value={(editing as any).parent_activity_session_id || ''}
+                onChange={e => setEditing(p => ({ ...p, parent_activity_session_id: e.target.value || null } as any))}>
+                <option value="">— No parent activity —</option>
+                {activitySessions.map(a => (
+                  <option key={a.id} value={a.id}>{a.title}</option>
+                ))}
+              </select>
+              <p className="text-xs mt-1" style={{ color: 'var(--border-soft)' }}>
+                When set, the public listing shows &quot;Register for [activity]&quot; instead of this olympiad&apos;s own form.
+                Use this for informational olympiad entries that are actually part of a larger Activity event.
+              </p>
+            </div>
+          </div>
+
           {/* Exam settings */}
           <div className="rounded-xl p-5 space-y-4" style={s}>
             <p className="text-xs font-bold tracking-widest" style={{ color: 'var(--blue)' }}>EXAM SETTINGS</p>
@@ -730,7 +813,7 @@ export default function AdminOlympiadsPage() {
             <p className="text-xs font-bold tracking-widest inline-flex items-center gap-1.5" style={{ color: 'var(--warning)' }}><BookOpen size={13} /> SUBJECTS (assign different subjects to different team members)</p>
             <p className="text-xs" style={{ color: 'var(--border-soft)' }}>
               Add subjects here. Members can self-select their subject from the exam dashboard (or you can assign them).
-              Each subject maps to a specific set of questions (set this in the Questions section above).
+              Each subject maps to a specific set of questions (set this per-question in Form Builder).
             </p>
             <div>
               <label className="block text-xs mb-1" style={{ color: 'var(--muted)' }}>Subject assignment mode</label>
@@ -908,199 +991,24 @@ export default function AdminOlympiadsPage() {
             </div>
           </div>
 
-          {/* Registration fields — only editable for standalone olympiads.
-              For Activity-linked ones, the registration structure (fields,
-              team settings, payment) is owned by the Activity category
-              editor, not here — editing it in two places would drift apart. */}
-          {editing.id && linkInfo[editing.id] ? (
-            <div className="rounded-xl p-5 space-y-2" style={s}>
-              <p className="text-xs font-bold tracking-widest" style={{ color: 'var(--blue)' }}>REGISTRATION FIELDS</p>
-              <p className="text-xs" style={{ color: 'var(--muted)' }}>
-                This olympiad's registration form is controlled from its Activity category — editing it here would
-                create two different forms for the same thing. {(linkInfo[editing.id].custom_fields || []).length > 0
-                  ? `Currently has ${linkInfo[editing.id].custom_fields.length} custom field(s), ${linkInfo[editing.id].requires_team ? 'team registration' : 'individual registration'}${linkInfo[editing.id].requires_payment ? ', with payment' : ''}.`
-                  : 'Uses just the standard Name/Phone/Email/College fields right now.'}
-              </p>
-              <Link href={`/admin/activity-registration/${linkInfo[editing.id].session_id}`}
-                className="inline-flex items-center gap-1 text-xs mt-1 px-3 py-1.5 rounded-lg" style={{ background: 'rgba(var(--blue-rgb), 0.1)', color: 'var(--blue)', border: '1px solid rgba(var(--blue-rgb), 0.2)' }}>
-                Edit registration fields in Activity admin <ArrowRight size={11} />
-              </Link>
-            </div>
-          ) : (
-          <div className="rounded-xl p-5 space-y-4" style={s}>
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs font-bold tracking-widest" style={{ color: 'var(--blue)' }}>REGISTRATION FIELDS</p>
-                <p className="text-xs mt-0.5" style={{ color: 'var(--border-soft)' }}>Mandatory: Name, Phone, Email, HSC Session, College, College Roll — always included</p>
-              </div>
-              <button onClick={addRegField} className="text-xs px-3 py-1.5 rounded-lg flex items-center gap-1" style={{ background: 'rgba(var(--blue-rgb), 0.1)', color: 'var(--blue)', border: '1px solid rgba(var(--blue-rgb), 0.2)' }}>
-                <Plus size={12} /> Add field
+          {/* Fields & questions for this olympiad now live in Form Builder —
+              same tree-of-forms editor every Activity uses, so there's one
+              place to build a form instead of two that used to duplicate
+              each other. Use the "Form Builder" button on this olympiad's
+              row in the list to open it. */}
+          <div className="rounded-xl p-5 space-y-2" style={s}>
+            <p className="text-xs font-bold tracking-widest inline-flex items-center gap-1.5" style={{ color: 'var(--accent2)' }}><Workflow size={13} /> FIELDS & QUESTIONS</p>
+            <p className="text-xs" style={{ color: 'var(--border-soft)' }}>
+              Registration fields and exam questions are built in <strong>Form Builder</strong> now — the same
+              flowchart-style form editor used for Activities, so there's one tool for this instead of two.
+              Save this olympiad first if it's new, then open its Form Builder from the list.
+            </p>
+            {editing.id && (
+              <button type="button" onClick={() => { setSelectedOlympiadId(editing.id!); setTab('form-builder') }}
+                className="text-xs px-3 py-1.5 rounded-lg border inline-flex items-center gap-1.5 mt-1" style={{ borderColor: 'rgba(var(--accent2-rgb), 0.3)', color: 'var(--accent2)' }}>
+                <Workflow size={12} /> Open Form Builder
               </button>
-            </div>
-            {(editing.registration_fields || []).map(f => (
-              <div key={f.key} className="flex gap-2 items-start">
-                <input className={inputClass + ' flex-1'} style={inputStyle} placeholder="Field label" value={f.label} onChange={e => updateRegField(f.key, { label: e.target.value })} />
-                <select className="px-2 py-2 rounded-lg text-sm border" style={{ ...inputStyle, width: 130 }} value={f.type} onChange={e => updateRegField(f.key, { type: e.target.value as any })}>
-                  <option value="text">Text</option>
-                  <option value="textarea">Long text</option>
-                  <option value="email">Email</option>
-                  <option value="tel">Phone</option>
-                </select>
-                <label className="flex items-center gap-1 text-xs pt-2.5 whitespace-nowrap cursor-pointer" style={{ color: 'var(--muted)' }}>
-                  <input type="checkbox" checked={f.required} onChange={e => updateRegField(f.key, { required: e.target.checked })} /> Required
-                </label>
-                <button onClick={() => removeRegField(f.key)} className="pt-2" style={{ color: 'var(--danger-soft)' }}><Trash2 size={14} /></button>
-              </div>
-            ))}
-          </div>
-          )}
-
-          {/* Questions */}
-          <div className="rounded-xl p-5 space-y-4" style={s}>
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs font-bold tracking-widest" style={{ color: 'var(--blue)' }}>QUESTIONS</p>
-                <p className="text-xs mt-0.5" style={{ color: 'var(--border-soft)' }}>Mix MCQ, checkboxes, short answer, and photo-submit questions freely — insert equations with the Σ button</p>
-              </div>
-              <div className="flex gap-2">
-                <button onClick={() => addQuestion('mcq')} className="text-xs px-2.5 py-1.5 rounded-lg flex items-center gap-1" style={{ background: 'rgba(var(--blue-rgb), 0.09)', color: 'var(--blue)', border: '1px solid rgba(var(--blue-rgb), 0.2)' }}>
-                  <List size={11} /> MCQ
-                </button>
-                <button onClick={() => addQuestion('checkbox')} className="text-xs px-2.5 py-1.5 rounded-lg flex items-center gap-1" style={{ background: 'rgba(var(--accent2-rgb), 0.09)', color: 'var(--accent2)', border: '1px solid rgba(var(--accent2-rgb), 0.2)' }}>
-                  <CheckSquare size={11} /> Checkboxes
-                </button>
-                <button onClick={() => addQuestion('short')} className="text-xs px-2.5 py-1.5 rounded-lg flex items-center gap-1" style={{ background: 'rgba(var(--success-rgb), 0.09)', color: 'var(--success)', border: '1px solid rgba(var(--success-rgb), 0.2)' }}>
-                  <AlignLeft size={11} /> Short Ans
-                </button>
-                <button onClick={() => addQuestion('photo')} className="text-xs px-2.5 py-1.5 rounded-lg flex items-center gap-1" style={{ background: 'rgba(var(--warning-rgb), 0.09)', color: 'var(--warning)', border: '1px solid rgba(var(--warning-rgb), 0.2)' }}>
-                  <Camera size={11} /> Photo
-                </button>
-              </div>
-            </div>
-            {(editing.questions || []).length === 0 && (
-              <p className="text-xs text-center py-4" style={{ color: 'var(--border-soft)' }}>No questions yet. Add MCQ, short answer, or photo questions above.</p>
             )}
-            {(editing.questions || []).map((q, qi) => (
-              <div key={q.id} className="rounded-lg p-4 space-y-3" style={{ background: 'var(--surface-alt)', border: `1px solid ${qTypeColor(q.type)}33` }}>
-                <div className="flex items-center gap-2">
-                  <span className="text-xs px-2 py-0.5 rounded-full flex items-center gap-1" style={{ background: `${qTypeColor(q.type)}18`, color: qTypeColor(q.type) }}>
-                    {qTypeIcon(q.type)} Q{qi + 1} · {qTypeLabel(q.type)}
-                  </span>
-                  {(editing as any).relay_mode && (editing as any).relay_type === 'chain' && (
-                    <span className="text-xs px-1.5 py-0.5 rounded" style={{ background: 'rgba(var(--accent2-rgb), 0.1)', color: 'var(--accent2)' }} title="Use this as the QUESTION_ID in chain references">
-                      id: {q.id}
-                    </span>
-                  )}
-                  <div className="flex items-center gap-1 ml-auto">
-                    <button onClick={() => moveQuestion(q.id, -1)} disabled={qi === 0} title="Move up" style={{ color: 'var(--muted)', opacity: qi === 0 ? 0.35 : 1 }}><ArrowUp size={13} /></button>
-                    <button onClick={() => moveQuestion(q.id, 1)} disabled={qi === (editing.questions || []).length - 1} title="Move down" style={{ color: 'var(--muted)', opacity: qi === (editing.questions || []).length - 1 ? 0.35 : 1 }}><ArrowDown size={13} /></button>
-                    <button onClick={() => duplicateQuestion(q.id)} title="Duplicate question" style={{ color: 'var(--muted)' }}><Copy size={13} /></button>
-                    <input type="number" min={0} value={q.marks ?? 1} onChange={e => updateQuestion(q.id, { marks: Number(e.target.value) })} className="w-14 px-2 py-1 rounded text-xs border text-right ml-1" style={inputStyle} title="Marks for this question" />
-                    <span className="text-xs" style={{ color: 'var(--border-soft)' }}>marks</span>
-                    <label className="flex items-center gap-1 text-xs pl-2 whitespace-nowrap cursor-pointer" style={{ color: 'var(--muted)' }} title="Whether the student must answer this before continuing">
-                      <input type="checkbox" checked={q.required ?? true} onChange={e => updateQuestion(q.id, { required: e.target.checked })} /> Required
-                    </label>
-                    <button onClick={() => removeQuestion(q.id)} className="ml-2" style={{ color: 'var(--danger-soft)' }}><Trash2 size={14} /></button>
-                  </div>
-                </div>
-                <div>
-                  <label className="block text-xs mb-1" style={{ color: 'var(--muted)' }}>Question text *</label>
-                  <MathInputField multiline rows={2} className={inputClass + ' resize-none'} style={inputStyle} value={q.text} onChange={v => updateQuestion(q.id, { text: v })} placeholder="Enter the question... (use the Σ button for equations)" />
-                  {q.text?.includes('$') && (
-                    <div className="mt-1.5 px-3 py-2 rounded text-sm" style={{ background: 'var(--surface-deep)', border: '1px dashed var(--border)' }}>
-                      <span className="text-[10px] block mb-1" style={{ color: 'var(--border-soft)' }}>PREVIEW</span>
-                      <MathText text={q.text} style={{ color: 'var(--white-soft)' }} />
-                    </div>
-                  )}
-                </div>
-                <div>
-                  <label className="block text-xs mb-1" style={{ color: 'var(--muted)' }}>Description / hint (optional)</label>
-                  <MathInputField className={inputClass} style={inputStyle} value={q.description || ''} onChange={v => updateQuestion(q.id, { description: v })} placeholder="Additional context or instructions for this question" />
-                  {q.description?.includes('$') && (
-                    <div className="mt-1.5 px-3 py-2 rounded text-sm" style={{ background: 'var(--surface-deep)', border: '1px dashed var(--border)' }}>
-                      <span className="text-[10px] block mb-1" style={{ color: 'var(--border-soft)' }}>PREVIEW</span>
-                      <MathText text={q.description} style={{ color: 'var(--white-soft)' }} />
-                    </div>
-                  )}
-                </div>
-                <div>
-                  <label className="block text-xs mb-1" style={{ color: 'var(--muted)' }}>Question image (optional — diagrams, graphs, etc.)</label>
-                  {q.image_url ? (
-                    <div className="relative inline-block">
-                      <img src={q.image_url} alt="" className="h-20 rounded object-cover border" style={{ borderColor: 'var(--border)' }} />
-                      <button onClick={() => updateQuestion(q.id, { image_url: '' })} className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full flex items-center justify-center" style={{ background: 'rgba(var(--danger-rgb), 0.85)', color: 'white' }}><X size={11} /></button>
-                    </div>
-                  ) : (
-                    <label className="text-xs px-3 py-1.5 rounded-lg border cursor-pointer inline-flex items-center gap-1" style={{ borderColor: 'var(--border)', color: 'var(--muted)' }}>
-                      <ImageIcon size={12} /> Upload image
-                      <input type="file" accept="image/jpeg,image/png,image/webp" className="hidden" onChange={e => handleQuestionImageUpload(q.id, e.target.files?.[0] || null)} />
-                    </label>
-                  )}
-                </div>
-                {((editing as any).subjects || []).length > 0 && (
-                  <div>
-                    <label className="block text-xs mb-1" style={{ color: 'var(--warning)' }}>Subject (which team member's question is this?)</label>
-                    <select className={inputClass} style={inputStyle} value={q.subject_id || ''} onChange={e => updateQuestion(q.id, { subject_id: e.target.value || undefined })}>
-                      <option value="">All subjects / not subject-specific</option>
-                      {((editing as any).subjects || []).map((sub: any) => (
-                        <option key={sub.id} value={sub.id}>{sub.name}</option>
-                      ))}
-                    </select>
-                  </div>
-                )}
-                {(editing as any).relay_mode && (editing as any).relay_type === 'chain' && (
-                  <p className="text-xs px-2 py-1.5 rounded flex items-start gap-1.5" style={{ background: 'rgba(var(--accent2-rgb), 0.08)', color: 'var(--accent2)' }}>
-                    <Lightbulb size={13} className="shrink-0 mt-0.5" />
-                    <span>Chain mode: reference a previous member's answer in this question's text using <code>{'{{chain.member1.QUESTION_ID}}'}</code> — question ID is shown below the question text once saved.</span>
-                  </p>
-                )}
-                {q.type === 'mcq' && (
-                  <div className="space-y-2">
-                    <label className="text-xs" style={{ color: 'var(--muted)' }}>Options (click radio to mark correct answer)</label>
-                    {(q.options || []).map(o => (
-                      <div key={o.id} className="space-y-1">
-                        <div className="flex items-center gap-2">
-                          <input type="radio" name={`correct-${q.id}`} checked={q.correct_option_id === o.id} onChange={() => updateQuestion(q.id, { correct_option_id: o.id })} style={{ accentColor: 'var(--success)' }} />
-                          <MathInputField className={inputClass} style={inputStyle} value={o.text} onChange={v => updateOption(q.id, o.id, v)} placeholder="Option text" />
-                          <button onClick={() => removeOption(q.id, o.id)} style={{ color: 'var(--danger-soft)' }}><X size={13} /></button>
-                        </div>
-                        {o.text?.includes('$') && (
-                          <div className="ml-6 px-3 py-1.5 rounded text-sm" style={{ background: 'var(--surface-deep)', border: '1px dashed var(--border)' }}>
-                            <span className="text-[10px] block mb-0.5" style={{ color: 'var(--border-soft)' }}>PREVIEW</span>
-                            <MathText text={o.text} style={{ color: 'var(--white-soft)' }} />
-                          </div>
-                        )}
-                      </div>
-                    ))}
-                    <button onClick={() => addOption(q.id)} className="text-xs flex items-center gap-1" style={{ color: 'var(--blue)' }}><Plus size={11} /> Add option</button>
-                  </div>
-                )}
-                {q.type === 'checkbox' && (
-                  <div className="space-y-2">
-                    <label className="text-xs" style={{ color: 'var(--muted)' }}>Options (check all correct answers — students may select multiple)</label>
-                    {(q.options || []).map(o => (
-                      <div key={o.id} className="space-y-1">
-                        <div className="flex items-center gap-2">
-                          <input type="checkbox" checked={(q.correct_option_ids || []).includes(o.id)} onChange={() => toggleCheckboxCorrect(q.id, o.id)} style={{ accentColor: 'var(--success)' }} />
-                          <MathInputField className={inputClass} style={inputStyle} value={o.text} onChange={v => updateOption(q.id, o.id, v)} placeholder="Option text" />
-                          <button onClick={() => removeOption(q.id, o.id)} style={{ color: 'var(--danger-soft)' }}><X size={13} /></button>
-                        </div>
-                        {o.text?.includes('$') && (
-                          <div className="ml-6 px-3 py-1.5 rounded text-sm" style={{ background: 'var(--surface-deep)', border: '1px dashed var(--border)' }}>
-                            <span className="text-[10px] block mb-0.5" style={{ color: 'var(--border-soft)' }}>PREVIEW</span>
-                            <MathText text={o.text} style={{ color: 'var(--white-soft)' }} />
-                          </div>
-                        )}
-                      </div>
-                    ))}
-                    <button onClick={() => addOption(q.id)} className="text-xs flex items-center gap-1" style={{ color: 'var(--blue)' }}><Plus size={11} /> Add option</button>
-                  </div>
-                )}
-                {q.type === 'photo' && (
-                  <p className="text-xs" style={{ color: 'var(--border-soft)' }}>Student will upload a photo (their handwritten answer) for this question.</p>
-                )}
-              </div>
-            ))}
           </div>
         </div>
       </div>
@@ -1175,7 +1083,10 @@ export default function AdminOlympiadsPage() {
                   </span>
                   {o.result_published && <span className="text-xs px-2 py-0.5 rounded-full" style={{ background: 'rgba(var(--blue-rgb), 0.13)', color: 'var(--blue)' }}>Results Published</span>}
                   {o.timer_minutes && <span className="text-xs flex items-center gap-1" style={{ color: 'var(--border-soft)' }}><Clock size={10} />{o.timer_minutes}min</span>}
-                  <span className="text-xs" style={{ color: 'var(--border-soft)' }}>{(o.questions || []).length} questions</span>
+                  <span className="text-xs flex items-center gap-1" style={{ color: o.is_active && (o.questions || []).length === 0 ? 'var(--warning)' : 'var(--border-soft)' }}>
+                    {o.is_active && (o.questions || []).length === 0 && <span>⚠</span>}
+                    {(o.questions || []).length} questions
+                  </span>
                 </div>
                 {o.description && <p className="text-xs mt-1 truncate" style={{ color: 'var(--border-soft)' }}>{o.description}</p>}
                 {linkInfo[o.id] ? (

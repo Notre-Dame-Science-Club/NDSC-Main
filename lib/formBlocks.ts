@@ -43,6 +43,12 @@ export type FormBlock = {
   // / correct_option_ids are stripped by the public renderer (kept in the DB
   // so the admin doesn't lose them when the same graph is re-rendered).
   marks?: number
+  // Which of the owning olympiad's `subjects` (olympiads.subjects, a plain
+  // string list) this question belongs to. Only meaningful for mcq /
+  // checkbox / short_answer blocks on a relay-mode olympiad's questions
+  // node — the relay runner uses it to hand each team member only their
+  // assigned subject's questions. Unset = question is shown to everyone.
+  subject_id?: string
   mcq_options?: { id: string; text: string }[]
   correct_option_id?: string
   correct_option_ids?: string[]
@@ -235,7 +241,8 @@ export function builtinFieldDefs(ownerKind?: 'olympiad' | 'activity'): FormBlock
 // Server-side hard minimum — the server will reject a registration if any of
 // these are missing from the payload, even if the segment's form_field_schema
 // doesn't include them. This is the backstop for accidental admin deletion.
-export const HARD_MINIMUM_KEYS: BuiltinFieldKey[] = ['full_name', 'phone', 'email', 'college_roll']
+// college_roll removed: it's optional for non-NDC participants
+export const HARD_MINIMUM_KEYS: BuiltinFieldKey[] = ['full_name', 'phone', 'email']
 
 /** Upgrades stored data (old flat field-only shape, olympiad-question shape, or already-new blocks) into FormBlock[]. */
 export function normalizeBlocks(raw: any): FormBlock[] {
