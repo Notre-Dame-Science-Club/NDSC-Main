@@ -407,11 +407,16 @@ function FieldInput({ field, value, onChange, onBlur, formatError, accent, isUpl
   }
   if (field.type === 'photo' || field.type === 'file') {
     const maxFiles = (field as any).max_files && (field as any).max_files > 1 ? (field as any).max_files : 1
+    const maxSizeMb = (field as any).max_file_size_mb
     const urls: string[] = Array.isArray(value) ? value : (value ? [value] : [])
     const atCap = urls.length >= maxFiles
+    const countNote = maxFiles > 1 ? `up to ${maxFiles} files` : ''
+    const sizeNote = maxSizeMb ? `max ${maxSizeMb}MB${maxFiles > 1 ? ' each' : ''}` : ''
+    const limitNote = [countNote, sizeNote].filter(Boolean).join(' · ')
     return (
       <div>
         {labelEl}{descEl}
+        {limitNote && <p className="text-xs mb-1.5" style={{ color: 'var(--muted)' }}>{limitNote}</p>}
         <div className="space-y-2">
           {urls.length > 0 && (
             <div className="flex flex-wrap gap-2">
@@ -426,7 +431,7 @@ function FieldInput({ field, value, onChange, onBlur, formatError, accent, isUpl
           {!atCap && (
             <label className="flex items-center gap-2 px-3 py-2.5 rounded-lg border cursor-pointer text-sm" style={{ ...inputStyle, color: accent }}>
               <Upload size={14} />
-              {isUploading ? 'Uploading…' : `Upload ${field.label}${(field as any).max_file_size_mb ? ` (max ${(field as any).max_file_size_mb}MB${maxFiles > 1 ? ` each, up to ${maxFiles} files` : ''})` : maxFiles > 1 ? ` (up to ${maxFiles} files)` : ''}`}
+              {isUploading ? 'Uploading…' : `Upload ${field.label}${maxFiles > 1 ? ` (${urls.length}/${maxFiles})` : ''}`}
               <input type="file" multiple={maxFiles > 1} accept={field.type === 'photo' ? 'image/*' : undefined} className="hidden"
                 onChange={e => { onFileSelect(e.target.files); e.target.value = '' }} />
             </label>

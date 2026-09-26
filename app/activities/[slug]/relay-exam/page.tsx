@@ -18,6 +18,10 @@ type Question = {
   marks?: number; subject_id?: string
   // Generic field properties
   required?: boolean; options?: string[]; key?: string
+  // Photo/file question limits — how many files, and max size each, the
+  // exam-taker may upload for this question (see FieldsRenderer's
+  // photo/file field, which gates the "Upload" control on these).
+  max_files?: number; max_file_size_mb?: number
 }
 type Subject = { id: string; name: string; description?: string }
 type Olympiad = {
@@ -376,6 +380,8 @@ export default function RelayExamPage() {
                 correct_option_id: q.correct_option_id,
                 correct_option_ids: q.correct_option_ids,
                 options: q.options,
+                max_files: q.max_files,
+                max_file_size_mb: q.max_file_size_mb,
               }
               return (
                 <div className="rounded-xl p-5" style={{ background: 'var(--bg2)', border: '1px solid var(--border)' }}>

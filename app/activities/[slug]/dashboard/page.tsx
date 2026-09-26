@@ -463,9 +463,17 @@ export default function ActivityDashboardPage() {
                         </label>
                         {field.description && <p className="text-xs mb-1.5" style={{ color: 'var(--muted)' }}>{field.description}</p>}
 
-                        {field.field_type === 'file' ? (
+                        {field.field_type === 'file' ? (() => {
+                          const urls: string[] = Array.isArray(submissionAnswers[field.id]) ? submissionAnswers[field.id] : (submissionAnswers[field.id] ? [submissionAnswers[field.id]] : [])
+                          const maxFiles = field.max_files || 1
+                          const typeNote = field.file_types?.length ? field.file_types.join(', ').toUpperCase() : ''
+                          const sizeNote = `max ${field.max_file_size_mb || 5}MB${maxFiles > 1 ? ' each' : ''}`
+                          const countNote = maxFiles > 1 ? `up to ${maxFiles} files` : ''
+                          const limitNote = [typeNote, sizeNote, countNote].filter(Boolean).join(' · ')
+                          return (
                           <div className="space-y-2">
-                            {(Array.isArray(submissionAnswers[field.id]) ? submissionAnswers[field.id] : submissionAnswers[field.id] ? [submissionAnswers[field.id]] : []).map((url: string, idx: number) => (
+                            {limitNote && <p className="text-xs" style={{ color: 'var(--muted)' }}>{limitNote}</p>}
+                            {urls.map((url: string, idx: number) => (
                               <div key={idx} className="flex items-center gap-2 text-xs px-3 py-2 rounded-lg" style={{ background: 'rgba(var(--blue-rgb), 0.06)', border: '1px solid rgba(var(--blue-rgb), 0.2)' }}>
                                 <FileText size={12} style={{ color: 'var(--blue)' }} />
                                 <span style={{ color: 'var(--white)', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
@@ -475,20 +483,21 @@ export default function ActivityDashboardPage() {
                                 <button onClick={() => removeFileFromField(field.id, idx)} style={{ color: 'var(--danger-soft)' }}><X size={11} /></button>
                               </div>
                             ))}
-                            {(Array.isArray(submissionAnswers[field.id]) ? submissionAnswers[field.id] : [submissionAnswers[field.id]].filter(Boolean)).length < (field.max_files || 1) && (
+                            {urls.length < maxFiles && (
                               <label className="flex items-center gap-2 px-3 py-2.5 rounded-lg border cursor-pointer text-sm"
                                 style={{ ...inputStyle, color: uploadingField === field.id ? 'var(--warning)' : 'var(--blue)' }}>
                                 <Upload size={14} />
-                                {uploadingField === field.id ? 'Uploading…' : `Upload ${field.field_type === 'file' ? (field.file_types?.join(', ') || 'file') : 'file'} (max ${field.max_file_size_mb || 5}MB)`}
+                                {uploadingField === field.id ? 'Uploading…' : `Upload ${typeNote || 'file'}${maxFiles > 1 ? ` (${urls.length}/${maxFiles})` : ''}`}
                                 <input type="file"
                                   accept={field.file_types?.map((t: string) => `.${t}`).join(',') || undefined}
                                   className="hidden"
                                   disabled={uploadingField === field.id}
-                                  onChange={e => handleFileField(field.id, e.target.files?.[0] || null, field.max_files || 1)} />
+                                  onChange={e => { handleFileField(field.id, e.target.files?.[0] || null, maxFiles); e.target.value = '' }} />
                               </label>
                             )}
                           </div>
-                        ) : field.field_type === 'textarea' ? (
+                          )
+                        })() : field.field_type === 'textarea' ? (
                           <textarea rows={4} value={submissionAnswers[field.id] || ''} onChange={e => setSubmissionAnswers(p => ({ ...p, [field.id]: e.target.value }))}
                             className={inputCls + ' resize-none'} style={inputStyle} />
                         ) : (
@@ -692,10 +701,18 @@ export default function ActivityDashboardPage() {
                         </label>
                         {field.description && <p className="text-xs mb-1.5" style={{ color: 'var(--muted)' }}>{field.description}</p>}
 
-                        {field.field_type === 'file' ? (
+                        {field.field_type === 'file' ? (() => {
+                          const urls: string[] = Array.isArray(submissionAnswers[field.id]) ? submissionAnswers[field.id] : (submissionAnswers[field.id] ? [submissionAnswers[field.id]] : [])
+                          const maxFiles = field.max_files || 1
+                          const typeNote = field.file_types?.length ? field.file_types.join(', ').toUpperCase() : ''
+                          const sizeNote = `max ${field.max_file_size_mb || 5}MB${maxFiles > 1 ? ' each' : ''}`
+                          const countNote = maxFiles > 1 ? `up to ${maxFiles} files` : ''
+                          const limitNote = [typeNote, sizeNote, countNote].filter(Boolean).join(' · ')
+                          return (
                           <div className="space-y-2">
+                            {limitNote && <p className="text-xs" style={{ color: 'var(--muted)' }}>{limitNote}</p>}
                             {/* Existing uploaded files */}
-                            {(Array.isArray(submissionAnswers[field.id]) ? submissionAnswers[field.id] : submissionAnswers[field.id] ? [submissionAnswers[field.id]] : []).map((url: string, idx: number) => (
+                            {urls.map((url: string, idx: number) => (
                               <div key={idx} className="flex items-center gap-2 text-xs px-3 py-2 rounded-lg" style={{ background: 'rgba(var(--blue-rgb), 0.06)', border: '1px solid rgba(var(--blue-rgb), 0.2)' }}>
                                 <FileText size={12} style={{ color: 'var(--blue)' }} />
                                 <span style={{ color: 'var(--white)', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
@@ -706,20 +723,21 @@ export default function ActivityDashboardPage() {
                               </div>
                             ))}
                             {/* Upload button */}
-                            {(Array.isArray(submissionAnswers[field.id]) ? submissionAnswers[field.id] : [submissionAnswers[field.id]].filter(Boolean)).length < (field.max_files || 1) && (
+                            {urls.length < maxFiles && (
                               <label className="flex items-center gap-2 px-3 py-2.5 rounded-lg border cursor-pointer text-sm"
                                 style={{ ...inputStyle, color: uploadingField === field.id ? 'var(--warning)' : 'var(--blue)' }}>
                                 <Upload size={14} />
-                                {uploadingField === field.id ? 'Uploading…' : `Upload ${field.field_type === 'file' ? (field.file_types?.join(', ') || 'file') : 'file'} (max ${field.max_file_size_mb || 5}MB)`}
+                                {uploadingField === field.id ? 'Uploading…' : `Upload ${typeNote || 'file'}${maxFiles > 1 ? ` (${urls.length}/${maxFiles})` : ''}`}
                                 <input type="file"
                                   accept={field.file_types?.map((t: string) => `.${t}`).join(',') || undefined}
                                   className="hidden"
                                   disabled={uploadingField === field.id}
-                                  onChange={e => handleFileField(field.id, e.target.files?.[0] || null, field.max_files || 1)} />
+                                  onChange={e => { handleFileField(field.id, e.target.files?.[0] || null, maxFiles); e.target.value = '' }} />
                               </label>
                             )}
                           </div>
-                        ) : field.field_type === 'textarea' ? (
+                          )
+                        })() : field.field_type === 'textarea' ? (
                           <textarea rows={4} value={submissionAnswers[field.id] || ''} onChange={e => setSubmissionAnswers(p => ({ ...p, [field.id]: e.target.value }))}
                             className={inputCls + ' resize-none'} style={inputStyle} />
                         ) : (
