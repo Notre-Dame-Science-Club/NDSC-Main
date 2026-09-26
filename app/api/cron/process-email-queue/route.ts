@@ -1,6 +1,11 @@
 import { apiError, apiOk } from '@/lib/api/response'
 import { processAllCampaigns } from '@/lib/email/campaign-runner'
 
+// Multiple campaigns can be in 'sending' state at once, and each can run up
+// to campaign-runner's TIME_BUDGET_MS (45s). Give this route enough room to
+// awaited-process all of them in one invocation. Hobby's ceiling is 300s.
+export const maxDuration = 300
+
 /**
  * GET /api/cron/process-email-queue — Optional cron job handler
  *

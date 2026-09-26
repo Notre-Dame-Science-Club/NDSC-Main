@@ -21,6 +21,7 @@ type ActivitySession = {
   event_dates?: string[]; image_display_mode?: string;
   reg_status?: string; reg_deadline?: string;
   notify_publicly?: boolean;
+  welcome_email_enabled?: boolean; welcome_email_subject?: string; welcome_email_body?: string;
 };
 
 const S = { background: "var(--bg2)", border: "var(--border)", card: "var(--surface-deep)",
@@ -260,6 +261,9 @@ function SessionForm({ typeId, versionId, versions, initial, onSave, onClose }: 
     reg_status: initial?.reg_status || "",
     reg_deadline: initial?.reg_deadline ? initial.reg_deadline.slice(0, 16) : "",
     notify_publicly: initial?.notify_publicly ?? false,
+    welcome_email_enabled: initial?.welcome_email_enabled ?? false,
+    welcome_email_subject: initial?.welcome_email_subject || "",
+    welcome_email_body: initial?.welcome_email_body || "",
   });
   const [newEventDate, setNewEventDate] = useState("");
   const [uploading, setUploading] = useState("");
@@ -310,6 +314,9 @@ function SessionForm({ typeId, versionId, versions, initial, onSave, onClose }: 
         reg_status: form.reg_status || null,
         reg_deadline: form.reg_deadline ? new Date(form.reg_deadline).toISOString() : null,
         notify_publicly: form.is_published ? form.notify_publicly : false,
+        welcome_email_enabled: form.registration_enabled ? form.welcome_email_enabled : false,
+        welcome_email_subject: form.welcome_email_subject,
+        welcome_email_body: form.welcome_email_body,
       };
       // only send version if selected
       if (form.activity_version_id) {
@@ -526,6 +533,34 @@ function SessionForm({ typeId, versionId, versions, initial, onSave, onClose }: 
         <p className="text-xs mb-3" style={{ color: S.danger }}>
           "Upcoming event" is off — registration will save as disabled. Check "This is an upcoming event" below to keep it on.
         </p>
+      )}
+
+      {form.registration_enabled && (
+        <div className="rounded-lg p-3 mb-3" style={{ background: "rgba(var(--blue-rgb), 0.04)", border: `1px solid ${S.border}` }}>
+          <label className="flex items-center gap-2 cursor-pointer mb-2">
+            <input type="checkbox" checked={form.welcome_email_enabled}
+              onChange={e => setForm(p => ({ ...p, welcome_email_enabled: e.target.checked }))} />
+            <span className="text-sm font-medium" style={{ color: S.accent }}>Send a welcome email on registration</span>
+          </label>
+          <p className="text-xs mb-2" style={{ color: S.muted }}>
+            Sent once, right when someone's registration is complete. Placeholders:{' '}
+            <code>{'{{full_name}}'}</code> <code>{'{{email}}'}</code> <code>{'{{event_name}}'}</code>{' '}
+            <code>{'{{college}}'}</code>
+          </p>
+          {form.welcome_email_enabled && (
+            <>
+              <Field label="Subject">
+                <input className={inputCls} style={inputStyle} placeholder="You're registered — {{event_name}}"
+                  value={form.welcome_email_subject} onChange={e => setForm(p => ({ ...p, welcome_email_subject: e.target.value }))} />
+              </Field>
+              <Field label="Body">
+                <textarea rows={5} className={inputCls + " resize-none"} style={inputStyle}
+                  placeholder={"Hi {{full_name}},\n\nWelcome! Your registration for {{event_name}} is confirmed.\n\nSee you there!"}
+                  value={form.welcome_email_body} onChange={e => setForm(p => ({ ...p, welcome_email_body: e.target.value }))} />
+              </Field>
+            </>
+          )}
+        </div>
       )}
 
       {err && <p className="text-xs mb-3" style={{ color: S.danger }}>{err}</p>}

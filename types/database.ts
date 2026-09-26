@@ -204,6 +204,9 @@ export interface ActivitySessionRow {
   image_display_mode?: ActivityImageDisplayMode // 'cover' (default, events) | 'native' (statement sites/posters)
   reg_status?: string | null       // admin-defined label, e.g. Open | Closed | Judging | Results Out
   reg_deadline?: ISODateString | null
+  welcome_email_enabled?: boolean          // off by default — see migration 33
+  welcome_email_subject?: string | null    // supports {{full_name}} {{email}} {{event_name}} {{college}}
+  welcome_email_body?: string | null
 }
 
 // ── activity_updates — per-event admin updates/announcements feed ────────
@@ -308,6 +311,8 @@ export interface ActivityRegistrationRow {
   edit_locked_at: ISODateString | null
   project_name: string | null
   division: string | null
+  welcome_email_sent_at: ISODateString | null // set once, by lib/email/welcome.ts — makes the send idempotent
+  welcome_email_error: string | null
   created_at: ISODateString
 }
 
@@ -442,6 +447,9 @@ export interface OlympiadRow {
   scheduled_start_at: ISODateString | null
   scheduled_end_at: ISODateString | null
   created_at: ISODateString
+  welcome_email_enabled?: boolean          // off by default — see migration 33
+  welcome_email_subject?: string | null    // supports {{full_name}} {{email}} {{event_name}} {{college}}
+  welcome_email_body?: string | null
 }
 
 // ── olympiad_registrations ──────────────────────────────────────────────
@@ -492,6 +500,8 @@ export interface OlympiadRegistrationRow {
   annotations: OlympiadAnnotation[]
   organizer_note: string
   review_status: string
+  welcome_email_sent_at: ISODateString | null // set once, by lib/email/welcome.ts — makes the send idempotent
+  welcome_email_error: string | null
   created_at: ISODateString
 }
 

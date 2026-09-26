@@ -125,6 +125,9 @@ export async function POST(req: NextRequest) {
     reg_status: body.reg_status || null,
     reg_deadline: body.reg_deadline || null,
     notify_publicly: body.notify_publicly ?? false,
+    welcome_email_enabled: body.welcome_email_enabled ?? false,
+    welcome_email_subject: body.welcome_email_subject || null,
+    welcome_email_body: body.welcome_email_body || null,
   }
 
   // activity_type_id — সবসময় required

@@ -33,12 +33,18 @@ Add this to your Vercel project settings:
 CRON_SECRET=<any secure random string, e.g., a UUID>
 ```
 
-**Optional but Recommended:**
+**Required in production:**
 ```
 EMAIL_ENCRYPTION_KEY=<32-byte base64 key, generate with: openssl rand -base64 32>
 ```
 
-**Note:** The system includes a hardcoded fallback encryption key, so it will work even if `EMAIL_ENCRYPTION_KEY` is not set. However, for maximum security in production, you should set your own `EMAIL_ENCRYPTION_KEY` to override the fallback.
+**Note:** The system includes a hardcoded fallback encryption key so it still runs if `EMAIL_ENCRYPTION_KEY` is unset — but that means anyone with the source code can decrypt every stored Brevo API key. Treat `EMAIL_ENCRYPTION_KEY` as required, not optional, before adding real accounts.
+
+If accounts were already added before this env var was set (so their `api_key_encrypted` values were written under the fallback key), setting `EMAIL_ENCRYPTION_KEY` alone will make those accounts unreadable — the app will try to decrypt them with the new key and fail. Run the one-time migration first:
+```
+node scripts/reencrypt-email-api-keys.mjs            # dry run — shows what would change
+node scripts/reencrypt-email-api-keys.mjs --commit    # actually re-encrypts under the new key
+```
 
 ### 3. Apply Database Migration
 
@@ -168,14 +174,14 @@ Account 3: "Gmail #3 - Outreach"    → 0/300 sent today (just added)
 #### Schedule
 
 **Option 1: Send Now**
-- Campaign starts immediately
-- Processes in batches (max 300 per cron run)
-- Large campaigns continue across multiple cron cycles
+- Campaign starts immediately, driven by `after()` (not the cron) for the first invocation
+- Processes in rounds of up to 300 recipients each within that invocation, until done or a ~45s time budget runs out
+- Very large campaigns that exceed the time budget continue via the cron/external-pinger backup (see "Cron Job")
 
 **Option 2: Schedule for Later**
 - Pick date/time (your local timezone)
 - Campaign stays "scheduled" until that time
-- Cron job picks it up and starts sending
+- The cron/external-pinger backup picks it up and starts sending once due
 
 ---
 
@@ -226,14 +232,15 @@ Recipients:
 
 1. Campaign created with status `sending`
 2. Recipients inserted as `pending`
-3. First batch processed synchronously (up to 300 recipients)
-4. Remaining recipients processed by cron job every 5 minutes
+3. The API route kicks off `processCampaignBatch()` wrapped in Next's `after()`, which keeps the invocation alive past the returned response (see `lib/email/campaign-runner.ts`'s file-level comment)
+4. That invocation loops internally, sending round after round, until the campaign is fully sent, no account has remaining daily quota, or it hits its own ~45s time budget (`TIME_BUDGET_MS`) — most campaigns finish in that single invocation
+5. If a campaign is too large to finish within the time budget, it's left in `sending` with recipients still `pending`. Picking it back up needs something to call `/api/cron/process-email-queue` again — see "Cron Job" below, since Vercel's own Cron can't be relied on alone on the Hobby plan
 
 ### Scheduled Send
 
 1. Campaign created with status `scheduled`
 2. Recipients inserted as `pending`
-3. Cron job checks every 5 minutes
+3. Something needs to poll `/api/cron/process-email-queue` (or otherwise call `processAllCampaigns()`) for `scheduled_at` to actually be noticed — see "Cron Job" below
 4. When `scheduled_at` time arrives, status changes to `sending`
 5. Processing begins as above
 
@@ -318,19 +325,26 @@ db/
 
 ### Cron Job
 
+**This is a backup, not the primary mechanism** — normal "send now" sends are driven by `after()` (see "How Sending Works" above), not by this cron. It exists to catch campaigns that are still `sending` with pending recipients: a scheduled campaign whose time hasn't been noticed yet, or a "send now" campaign too large to finish within one invocation's time budget.
+
 **Vercel Cron Configuration** (`vercel.json`):
 ```json
 {
   "crons": [
     {
       "path": "/api/cron/process-email-queue",
-      "schedule": "*/5 * * * *"
+      "schedule": "0 0 * * *"
     }
   ]
 }
 ```
 
-Runs every 5 minutes, processes all active campaigns.
+Runs once a day. **This is deliberately the Hobby (free) plan's ceiling** — Vercel rejects any more-frequent schedule at deploy time on Hobby ("Hobby accounts are limited to daily Cron Jobs"). Once a day is not frequent enough to be the sole safety net for time-sensitive sends, so pair it with an external, plan-agnostic pinger that just makes an ordinary HTTP GET to the same endpoint every few minutes — this isn't Vercel's Cron product, so it isn't subject to that cap:
+
+- A free external scheduler: [cron-job.org](https://cron-job.org), EasyCron, UptimeRobot, etc. — point it at `https://<your-domain>/api/cron/process-email-queue` with header `Authorization: Bearer <CRON_SECRET>` if `CRON_SECRET` is set.
+- Or the `.github/workflows/email-queue-ping.yml` workflow included in this repo, which does the same thing via GitHub Actions (needs `EMAIL_QUEUE_URL` and `CRON_SECRET` added as repo secrets). Note GitHub's own scheduled-workflow caveats: runs can be delayed a few minutes under load, and GitHub auto-disables a scheduled workflow after 60 days with no repo activity — check it's still enabled if sends seem to stop being picked up.
+
+If you upgrade to Vercel Pro later, per-minute Cron schedules become available and you can drop the external pinger in favor of tightening `vercel.json`.
 
 ---
 
@@ -522,13 +536,14 @@ WHERE is_active = true;
 ## ✅ Quick Start Checklist
 
 - [ ] Set `CRON_SECRET` env var in Vercel (required)
-- [ ] Optionally set `EMAIL_ENCRYPTION_KEY` in Vercel (recommended for production)
+- [ ] Set `EMAIL_ENCRYPTION_KEY` in Vercel (required — see fallback-key warning above; run the re-encryption script if accounts predate this)
 - [ ] Applied database migration (`26_migration_emailing_system.sql`)
 - [ ] Registered at least 1 Brevo account
 - [ ] Verified sender email in Brevo
 - [ ] Got API key from Brevo settings
 - [ ] Added account in admin panel (`/admin/emailing`)
 - [ ] Tested with small campaign to yourself
+- [ ] On Vercel Hobby: set up an external pinger (cron-job.org, EasyCron, or the included `.github/workflows/email-queue-ping.yml`) hitting `/api/cron/process-email-queue` every few minutes — the once-daily Vercel Cron backup alone is too infrequent
 - [ ] Verified cron is running (check Vercel logs)
 
 ---

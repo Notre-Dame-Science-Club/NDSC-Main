@@ -26,6 +26,48 @@ function getKey(): Buffer {
   return Buffer.from(key, 'base64')
 }
 
+function decryptWithKeyBuffer(ciphertext: string, key: Buffer): string {
+  const parts = ciphertext.split(':')
+  if (parts.length !== 3) {
+    throw new Error('Invalid ciphertext format.')
+  }
+
+  const iv = Buffer.from(parts[0], 'base64')
+  const authTag = Buffer.from(parts[1], 'base64')
+  const encrypted = parts[2]
+
+  const decipher = createDecipheriv(ALGORITHM, key, iv)
+  decipher.setAuthTag(authTag)
+
+  let decrypted = decipher.update(encrypted, 'base64', 'utf8')
+  decrypted += decipher.final('utf8')
+
+  return decrypted
+}
+
+/**
+ * Decrypts a ciphertext that was written under the hardcoded FALLBACK_KEY,
+ * regardless of what EMAIL_ENCRYPTION_KEY is currently set to.
+ *
+ * Only used by the one-time re-encryption migration
+ * (scripts/reencrypt-email-api-keys.mjs) when rotating accounts off the
+ * fallback key onto a real EMAIL_ENCRYPTION_KEY. Never used by normal
+ * request-time encrypt/decrypt, so the fallback key's usage stays
+ * auditable to that one path.
+ */
+export function decryptWithFallbackKey(ciphertext: string): string {
+  return decryptWithKeyBuffer(ciphertext, Buffer.from(FALLBACK_KEY, 'base64'))
+}
+
+/**
+ * Reports whether the app is currently running WITHOUT a real
+ * EMAIL_ENCRYPTION_KEY set, i.e. every encrypt()/decrypt() call is silently
+ * falling back to the hardcoded key. Use this for a startup/health check.
+ */
+export function isUsingFallbackEncryptionKey(): boolean {
+  return !process.env.EMAIL_ENCRYPTION_KEY
+}
+
 /**
  * Encrypts plaintext and returns a base64-encoded string in the format:
  * iv:authTag:ciphertext (all base64, colon-separated for easy splitting)

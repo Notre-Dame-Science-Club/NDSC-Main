@@ -61,6 +61,9 @@ type Olympiad = {
   theme_header_title?: string | null
   theme_header_subtitle?: string | null
   theme_header_logo_url?: string | null
+  welcome_email_enabled?: boolean
+  welcome_email_subject?: string | null
+  welcome_email_body?: string | null
 }
 
 const BLANK: Partial<Olympiad> = {
@@ -334,6 +337,9 @@ export default function AdminOlympiadsPage() {
       subjects: (editing as any).subjects || [],
       subject_assignment_mode: (editing as any).subject_assignment_mode || 'self_select',
       parent_activity_session_id: (editing as any).parent_activity_session_id || null,
+      welcome_email_enabled: editing.welcome_email_enabled ?? false,
+      welcome_email_subject: editing.welcome_email_subject || null,
+      welcome_email_body: editing.welcome_email_body || null,
     }
     const res = await fetch('/api/admin/olympiads', {
       method: editing.id ? 'PUT' : 'POST',
@@ -578,6 +584,37 @@ export default function AdminOlympiadsPage() {
               <input type="checkbox" checked={editing.external_only || false} onChange={e => setEditing(p => ({ ...p, external_only: e.target.checked }))} />
               Open to external colleges
             </label>
+          </div>
+
+          {/* Welcome Email */}
+          <div className="rounded-xl p-5 space-y-3" style={s}>
+            <p className="text-xs font-bold tracking-widest inline-flex items-center gap-1.5" style={{ color: 'var(--accent2)' }}>
+              <Megaphone size={13} /> WELCOME EMAIL
+            </p>
+            <label className="flex items-center gap-2 text-sm cursor-pointer" style={{ color: 'var(--muted)' }}>
+              <input type="checkbox" checked={editing.welcome_email_enabled || false} onChange={e => setEditing(p => ({ ...p, welcome_email_enabled: e.target.checked }))} />
+              Send a welcome email on registration
+            </label>
+            <p className="text-xs" style={{ color: 'var(--border-soft)' }}>
+              Sent once, right when someone's registration is complete. Placeholders:{' '}
+              <code>{'{{full_name}}'}</code> <code>{'{{email}}'}</code> <code>{'{{event_name}}'}</code>{' '}
+              <code>{'{{college}}'}</code>
+            </p>
+            {editing.welcome_email_enabled && (
+              <>
+                <div>
+                  <label className="block text-xs mb-1" style={{ color: 'var(--muted)' }}>Subject</label>
+                  <input className={inputClass} style={inputStyle} placeholder="You're registered — {{event_name}}"
+                    value={editing.welcome_email_subject || ''} onChange={e => setEditing(p => ({ ...p, welcome_email_subject: e.target.value }))} />
+                </div>
+                <div>
+                  <label className="block text-xs mb-1" style={{ color: 'var(--muted)' }}>Body</label>
+                  <textarea rows={5} className={inputClass + ' resize-none'} style={inputStyle}
+                    placeholder={'Hi {{full_name}},\n\nWelcome! Your registration for {{event_name}} is confirmed.\n\nSee you there!'}
+                    value={editing.welcome_email_body || ''} onChange={e => setEditing(p => ({ ...p, welcome_email_body: e.target.value }))} />
+                </div>
+              </>
+            )}
           </div>
 
           {/* Form & Content Linking */}

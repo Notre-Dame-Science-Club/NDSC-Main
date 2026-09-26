@@ -49,6 +49,7 @@ import { apiError, apiOk } from '@/lib/api/response'
 import { normalizeBlocks, HARD_MINIMUM_KEYS, validateFieldFormat, type FormBlock } from '@/lib/formBlocks'
 import { validateAndPrepareTeam, isTeamResultOk, type ValidateTeamResult } from '@/lib/teamRegistration'
 import type { FormNode } from '@/lib/formGraph'
+import { sendWelcomeEmailIfEnabled } from '@/lib/email/welcome'
 
 // Node kinds that contain identity/registration info, NOT exam questions.
 // These are excluded from the timer trigger logic below.
@@ -1043,6 +1044,18 @@ export async function POST(req: NextRequest) {
   // when its form is submitted (or the terminal node is submitted).
   if (isOlympiad) {
     await maybeMarkOlympiadTimers(table as any, registrationId, graph, node as any)
+  }
+
+  // Per-event welcome email (migration 33) — fires the moment this
+  // registration's path is fully complete, regardless of payment status.
+  // No-op unless the event has it turned on; never throws, so a send
+  // failure can't turn a successful registration into an error response.
+  // Awaited (not fire-and-forget) since this route runs as an ordinary
+  // request/response cycle with no background-task runner behind it — an
+  // un-awaited call here could be cut off before it finishes once the
+  // response is sent.
+  if (isDone && registrationId) {
+    await sendWelcomeEmailIfEnabled(table as any, registrationId)
   }
 
   return apiOk({
