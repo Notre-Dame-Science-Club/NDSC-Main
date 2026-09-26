@@ -264,6 +264,12 @@ export default function FormRunner({
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState('')
   const [duplicateRegId, setDuplicateRegId] = useState<string | null>(null)
+  // Set when a submit comes back 401 because the session isn't (or is no
+  // longer) logged in — the page-level login gate should normally prevent
+  // this, but a session can still expire mid-flow (a long timed exam,
+  // e.g.). Drives a "Log in to continue" link alongside the generic error
+  // instead of leaving the person to guess why "Submit failed."
+  const [authRequired, setAuthRequired] = useState(false)
   const [done, setDone] = useState(false)
   // Whether the active node's fields currently all pass their own
   // format-validation rules (FormBlock.validation — see
@@ -338,12 +344,27 @@ export default function FormRunner({
   // registration list (and anything built on top of it) silently never
   // matched activities registered this way.
   const [memberId, setMemberId] = useState<string | null>(null)
+  // The access token goes on every submit call as a Bearer header — the
+  // submit route now requires it to create a new registration (see
+  // /api/public/form-graph/submit's getAuthedMemberId). We read it via
+  // getSession() rather than getUser() specifically because getSession()
+  // is the call that actually returns the token itself.
+  const [accessToken, setAccessToken] = useState<string | null>(null)
+  // Whether we've finished the initial "is anyone logged in at all"
+  // check. The root-node login gate below (see the `!memberId &&
+  // !checkingAuth && !registrationId` branch) needs to wait for this —
+  // otherwise every visitor, logged in or not, would flash the "log in
+  // to register" gate for a frame while getSession() is still pending.
+  const [checkingAuth, setCheckingAuth] = useState(true)
   useEffect(() => {
     let cancelled = false
-    supabase.auth.getUser().then(async ({ data }) => {
+    supabase.auth.getSession().then(async ({ data }) => {
       if (cancelled) return
-      const uid = data.user?.id || null
+      const session = data.session
+      setAccessToken(session?.access_token || null)
+      const uid = session?.user?.id || null
       setMemberId(uid)
+      setCheckingAuth(false)
       if (!uid) return
       // Prefill from the member's own account so they don't have to retype
       // identity details the site already has for them — in particular
@@ -364,7 +385,9 @@ export default function FormRunner({
         college_roll: f.college_roll || m.college_roll || '',
         batch: f.batch || m.batch || '',
       }))
-    }).catch(() => { /* not logged in / session hiccup — submit as anonymous */ })
+    }).catch(() => {
+      if (!cancelled) setCheckingAuth(false)
+    })
     return () => { cancelled = true }
   }, [])
 
@@ -504,10 +527,14 @@ export default function FormRunner({
     }
 
     setSubmitting(true)
+    setAuthRequired(false)
     try {
       const res = await fetch('/api/public/form-graph/submit', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+        },
         body: JSON.stringify({
           graph_id: graph.id,
           node_id: activeNode.id,
@@ -520,6 +547,7 @@ export default function FormRunner({
       })
       const data = await res.json().catch(() => ({}))
       if (!res.ok) {
+        if (res.status === 401) setAuthRequired(true)
         if (data.existing_registration_id) setDuplicateRegId(data.existing_registration_id)
         throw new Error(data.error || 'Submit failed.')
       }
@@ -530,7 +558,7 @@ export default function FormRunner({
     } finally {
       setSubmitting(false)
     }
-  }, [activeNode, graph.id, form, custom, teamMembers, teamName, registrationId, submittedIds, onDone, memberId, answersByNode, fieldsValid, teamValid, rootId])
+  }, [activeNode, graph.id, form, custom, teamMembers, teamName, registrationId, submittedIds, onDone, memberId, accessToken, answersByNode, fieldsValid, teamValid, rootId])
 
   // Anti-cheat timer auto-submit. When the timer hits 0, the provider
   // calls onExpire, which we wire to the same advance handler — it acts
@@ -590,6 +618,35 @@ export default function FormRunner({
     )
   }
 
+  // Login gate. Registering — for an activity OR an olympiad — requires a
+  // logged-in website account (the server enforces this too, on the root
+  // submit — see getAuthedMemberId in form-graph/submit/route.ts — but
+  // previously nothing on the client stopped an anonymous visitor from
+  // filling out the entire form first and only discovering they needed to
+  // log in after clicking Submit on the root node, or partway into a long
+  // flow). We only show this in place of the ROOT node — resuming an
+  // already-created registration (registrationId set) never needs it,
+  // since creating that registration already proved they were logged in.
+  // Wait for the initial session check (checkingAuth) so a logged-in
+  // visitor doesn't see a flash of the gate before their session loads.
+  if (!registrationId && !memberId && !checkingAuth && activeNode.id === rootId) {
+    const redirectTo = typeof window !== 'undefined' ? window.location.pathname + window.location.search : '/'
+    return (
+      <div className="rounded-xl p-6 text-center" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+        <AlertTriangle size={24} className="mx-auto mb-3" style={{ color: accent }} />
+        <h2 className="text-lg font-black mb-1.5" style={{ color: 'var(--white)' }}>Log in to register</h2>
+        <p className="text-sm mb-4" style={{ color: 'var(--muted)' }}>
+          You'll need a website account to register for this event — it's how we tie your registration to your dashboard.
+        </p>
+        <a href={`/login?redirect=${encodeURIComponent(redirectTo)}`}
+          className="inline-flex items-center justify-center gap-1.5 px-5 py-2.5 rounded-lg text-sm font-bold"
+          style={{ background: accent, color: '#08131f' }}>
+          Log in to register <ChevronRight size={14} />
+        </a>
+      </div>
+    )
+  }
+
   const appearance = resolveAppearance(activeNode, graph, owner)
   const timerSeconds = resolveTimerSeconds(activeNode, graph)
   const directChildren = childrenOf(activeNode.id)
@@ -636,11 +693,61 @@ export default function FormRunner({
                 <CheckCircle size={40} className="mx-auto mb-3" style={{ color: 'var(--cat-teal)' }} />
                 <h2 className="text-xl font-black mb-1" style={{ color: 'var(--white)' }}>You're all set!</h2>
                 <p className="text-sm" style={{ color: 'var(--muted)' }}>Your registration has been submitted.</p>
-                {eventSlug && registrationId && (
+
+                {/* Submission-window callout. A leaf can carry its own
+                    separate "submission" (behavior.submission — an online
+                    round / project upload that opens LATER, independent of
+                    the registration itself; see FormNodeBehavior in
+                    lib/formGraph.ts). Previously this confirmation screen
+                    said nothing about it at all, so someone could register
+                    for a leaf with an already-open submission window and
+                    have no idea until they happened to check their
+                    dashboard later. Surface it right here instead. */}
+                {(() => {
+                  const sub = (activeNode.behavior as any)?.submission
+                  if (!sub?.enabled) return null
+                  const opensAt = sub.opens_at ? new Date(sub.opens_at) : null
+                  const closesAt = sub.closes_at ? new Date(sub.closes_at) : null
+                  const now = new Date()
+                  const isClosed = !!closesAt && closesAt < now
+                  const isOpen = !isClosed && (!opensAt || opensAt <= now)
+                  const label = sub.title || 'Your submission'
+                  return (
+                    <div className="mt-4 p-3 rounded-lg text-sm text-left flex items-start gap-2" style={{
+                      background: isOpen ? 'rgba(var(--cat-teal-rgb), 0.1)' : isClosed ? 'rgba(var(--danger-rgb), 0.08)' : 'rgba(var(--warning-rgb), 0.08)',
+                      border: `1px solid ${isOpen ? 'rgba(var(--cat-teal-rgb), 0.35)' : isClosed ? 'rgba(var(--danger-rgb), 0.3)' : 'rgba(var(--warning-rgb), 0.3)'}`,
+                      color: isOpen ? 'var(--cat-teal)' : isClosed ? 'var(--danger-soft)' : 'var(--warning)',
+                    }}>
+                      <span className="mt-0.5 shrink-0">{isOpen ? '●' : <AlertTriangle size={14} />}</span>
+                      <span>
+                        {isOpen && <><strong>{label} is open now.</strong> Head to your dashboard to submit it.</>}
+                        {!isOpen && !isClosed && opensAt && <><strong>{label}</strong> opens {opensAt.toLocaleString('en-BD', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })} — we'll be waiting on your dashboard.</>}
+                        {isClosed && <><strong>{label}</strong>'s window has already closed.</>}
+                      </span>
+                    </div>
+                  )
+                })()}
+
+                {/* Where to go next. Prefer the event-specific dashboard
+                    (activities have one, keyed by ?reg=). When there isn't
+                    one — every olympiad registration, or an activity whose
+                    slug failed to resolve — fall back to the member's own
+                    dashboard rather than leaving this as a dead end with
+                    nothing to click but the page's "Home" link. Registering
+                    now requires being logged in (see the page-level login
+                    gate this pairs with), so a dashboard link is always
+                    something the person can actually use at this point. */}
+                {eventSlug && registrationId ? (
                   <a href={`/activities/${eventSlug}/dashboard?reg=${registrationId}`}
                     className="inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-lg text-sm font-bold mt-4"
                     style={{ background: 'var(--cat-teal)', color: '#000' }}>
                     Open my dashboard
+                  </a>
+                ) : (
+                  <a href="/dashboard"
+                    className="inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-lg text-sm font-bold mt-4"
+                    style={{ background: 'var(--cat-teal)', color: '#000' }}>
+                    Go to my dashboard
                   </a>
                 )}
               </div>
@@ -721,6 +828,12 @@ export default function FormRunner({
                   <div className="text-sm p-2.5 rounded-lg mt-3"
                     style={{ background: 'rgba(var(--danger-rgb), 0.1)', color: 'var(--danger-soft)', border: '1px solid rgba(var(--danger-rgb), 0.3)' }}>
                     <p>{error}</p>
+                    {authRequired && (
+                      <a href={`/login?redirect=${encodeURIComponent(typeof window !== 'undefined' ? window.location.pathname + window.location.search : '/')}`}
+                        className="inline-flex items-center gap-1 mt-1.5 font-semibold underline">
+                        Log in to continue
+                      </a>
+                    )}
                     {duplicateRegId && eventSlug && (
                       <a href={`/activities/${eventSlug}/dashboard?reg=${duplicateRegId}`}
                         className="inline-flex items-center gap-1 mt-1.5 font-semibold underline">

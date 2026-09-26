@@ -37,6 +37,7 @@ type Olympiad = {
   exam_type: 'photo_only' | 'live_only' | 'mixed'
   question_display: 'one_by_one' | 'all_at_once'
   timer_minutes: number
+  is_just_a_submission?: boolean
   is_active: boolean
   result_published: boolean
   annotations_published: boolean
@@ -65,7 +66,7 @@ type Olympiad = {
 const BLANK: Partial<Olympiad> = {
   name: '', description: '', mode: 'mixed', exam_type: 'mixed', question_display: 'all_at_once',
   timer_minutes: 60, is_active: true, result_published: false, annotations_published: false,
-  external_only: false,
+  external_only: false, is_just_a_submission: false,
 }
 
 const MAX_COVER_MB = 10
@@ -310,6 +311,7 @@ export default function AdminOlympiadsPage() {
       exam_type: editing.exam_type || 'mixed',
       question_display: editing.question_display || 'all_at_once',
       timer_minutes: editing.timer_minutes ?? 60,
+      is_just_a_submission: editing.is_just_a_submission ?? false,
       is_active: editing.is_active ?? true,
       result_published: editing.result_published ?? false,
       annotations_published: editing.annotations_published ?? false,
@@ -697,6 +699,15 @@ export default function AdminOlympiadsPage() {
                 </>
               )}
             </div>
+            <label className="flex items-center gap-2 text-sm cursor-pointer" style={{ color: 'var(--muted)' }}>
+              <input type="checkbox" checked={editing.is_just_a_submission || false}
+                onChange={e => setEditing(p => ({ ...p, is_just_a_submission: e.target.checked }))} />
+              Just a submission (no timer, doesn&apos;t say &quot;Start Exam&quot;)
+            </label>
+            <p className="text-xs -mt-2" style={{ color: 'var(--border-soft)' }}>
+              When on, students see a plain &quot;Submit&quot; entry point with no countdown or auto-submit —
+              everything else (questions, subjects, relay mode, scheduling, grading) works exactly the same.
+            </p>
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="block text-xs mb-1" style={{ color: 'var(--muted)' }}>Question Display</label>
@@ -707,7 +718,12 @@ export default function AdminOlympiadsPage() {
               </div>
               <div>
                 <label className="block text-xs mb-1" style={{ color: 'var(--muted)' }}>Timer (minutes)</label>
-                <input type="number" min={1} max={300} className={inputClass} style={inputStyle} value={editing.timer_minutes ?? 60} onChange={e => setEditing(p => ({ ...p, timer_minutes: Number(e.target.value) }))} />
+                <input type="number" min={1} max={300} className={inputClass} style={inputStyle} value={editing.timer_minutes ?? 60}
+                  disabled={!!editing.is_just_a_submission}
+                  onChange={e => setEditing(p => ({ ...p, timer_minutes: Number(e.target.value) }))} />
+                {editing.is_just_a_submission && (
+                  <p className="text-xs mt-1" style={{ color: 'var(--border-soft)' }}>Ignored — this olympiad is set to "just a submission".</p>
+                )}
               </div>
             </div>
 

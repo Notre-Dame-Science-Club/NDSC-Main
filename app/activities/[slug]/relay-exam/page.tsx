@@ -23,6 +23,7 @@ type Subject = { id: string; name: string; description?: string }
 type Olympiad = {
   id: string; name: string; exam_type: 'photo_only' | 'live_only' | 'mixed'
   question_display: 'one_by_one' | 'all_at_once'; timer_minutes: number
+  is_just_a_submission?: boolean
   questions: Question[]
   relay_mode: boolean; relay_type: 'sequential' | 'chain'
   subjects: Subject[]; subject_assignment_mode: 'self_select' | 'admin_assign' | 'auto'
@@ -204,7 +205,9 @@ export default function RelayExamPage() {
     }
     setCurrentQ(0)
     setPhase('exam')
-    startTimer(olympiad?.timer_minutes || 60)
+    // "Just a submission" olympiads skip the countdown entirely — no timer,
+    // no auto-submit on expiry. Everything else about the flow is unchanged.
+    if (!olympiad?.is_just_a_submission) startTimer(olympiad?.timer_minutes || 60)
   }
 
   const startTimer = (minutes: number) => {
@@ -341,7 +344,7 @@ export default function RelayExamPage() {
             </div>
           ) : (
             <div className="min-h-screen flex items-center justify-center">
-              <p style={{ color: 'var(--muted)' }}>Starting exam…</p>
+              <p style={{ color: 'var(--muted)' }}>{olympiad?.is_just_a_submission ? 'Loading…' : 'Starting exam…'}</p>
             </div>
           )
         )}
@@ -349,7 +352,11 @@ export default function RelayExamPage() {
         {phase === 'exam' && visibleQuestions.length > 0 && (
           <div className="space-y-4">
             <div className="flex items-center justify-between p-3 rounded-xl" style={{ background: 'rgba(var(--warning-rgb), 0.08)', border: '1px solid rgba(var(--warning-rgb), 0.25)' }}>
-              <span className="text-sm font-bold flex items-center gap-2" style={{ color: 'var(--warning)' }}><Clock size={14} /> {fmtTime(timeLeft)}</span>
+              {olympiad?.is_just_a_submission ? (
+                <span />
+              ) : (
+                <span className="text-sm font-bold flex items-center gap-2" style={{ color: 'var(--warning)' }}><Clock size={14} /> {fmtTime(timeLeft)}</span>
+              )}
               <span className="text-xs" style={{ color: 'var(--muted)' }}>Question {currentQ + 1} / {visibleQuestions.length}</span>
             </div>
 

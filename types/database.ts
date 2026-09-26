@@ -418,6 +418,10 @@ export interface OlympiadRow {
   exam_mode: string
   question_display: OlympiadQuestionDisplay
   timer_minutes: number
+  /** When true, the exam-taking flow behaves like a plain submission: no
+   *  countdown timer, and the entry point doesn't call it an "exam" — the
+   *  student can fill it in and submit whenever, no different otherwise. */
+  is_just_a_submission?: boolean
   is_active: boolean
   external_only: boolean
   result_published: boolean

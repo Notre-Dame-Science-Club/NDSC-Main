@@ -47,7 +47,17 @@ type EmailAudienceFilters = {
   college?: 'any' | 'notre_dame_only' | 'excluding_notre_dame'
   active_only?: boolean
   custom_ids?: string[]
+  custom_emails?: string[]
+  activity_session_ids?: string[]
+  category_ids?: string[]
+  form_node_ids?: string[]
+  submitted_only?: boolean
+  olympiad_ids?: string[]
 }
+
+type EventSession = { id: string; title: string; date?: string }
+type EventOlympiad = { id: string; name: string; is_child: boolean; parent_title?: string | null }
+type EventCategory = { id: string; name: string; parent_id?: string | null }
 
 const DEPARTMENTS = ['Administration', 'Project', 'Publication', 'ICT', 'LWS', 'Quiz', 'R&D']
 
@@ -333,6 +343,16 @@ function NewCampaignTab() {
 
   const [availableBatches, setAvailableBatches] = useState<string[]>([])
 
+  // Specific recipients (typed-in emails, OR'd in regardless of source/filters)
+  const [emailInput, setEmailInput] = useState('')
+
+  // Event / olympiad participants
+  const [eventSessions, setEventSessions] = useState<EventSession[]>([])
+  const [eventOlympiads, setEventOlympiads] = useState<EventOlympiad[]>([])
+  const [sessionCategories, setSessionCategories] = useState<EventCategory[]>([])
+  const [sessionSegments, setSessionSegments] = useState<{ id: string; name: string }[]>([])
+  const [categoriesLoading, setCategoriesLoading] = useState(false)
+
   useEffect(() => {
     // Load distinct batches
     fetch('/api/admin/members').then(res => res.json()).then(data => {
@@ -340,7 +360,32 @@ function NewCampaignTab() {
       data.members?.forEach((m: any) => { if (m.batch) batches.add(m.batch) })
       setAvailableBatches(Array.from(batches).sort())
     })
+    // Load activity sessions + olympiads for the participants picker
+    fetch('/api/admin/emailing/event-options').then(res => res.json()).then(data => {
+      setEventSessions(data.sessions || [])
+      setEventOlympiads(data.olympiads || [])
+    })
   }, [])
+
+  useEffect(() => {
+    // When the chosen activity session(s) change to exactly one, load its
+    // categories/segments so the admin can narrow to a single submission bucket.
+    const ids = filters.activity_session_ids || []
+    if (ids.length !== 1) {
+      setSessionCategories([])
+      setSessionSegments([])
+      return
+    }
+    setCategoriesLoading(true)
+    fetch(`/api/admin/emailing/event-options?sessionId=${ids[0]}`)
+      .then(res => res.json())
+      .then(data => {
+        setSessionCategories(data.categories || [])
+        setSessionSegments(data.segments || [])
+      })
+      .finally(() => setCategoriesLoading(false))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [JSON.stringify(filters.activity_session_ids)])
 
   useEffect(() => {
     // Debounced preview
@@ -550,6 +595,184 @@ function NewCampaignTab() {
                 {previewCount} recipient{previewCount !== 1 ? 's' : ''} match
               </p>
             )}
+          </div>
+        </div>
+
+        <div className="p-4 rounded-lg" style={s}>
+          <h3 className="font-semibold mb-3" style={h}>Specific Recipients</h3>
+          <p className="text-xs mb-2" style={{ color: 'var(--muted)' }}>
+            Add one or a few exact email addresses — these are included in addition to whatever's matched above.
+          </p>
+          <div className="flex gap-2 mb-2">
+            <input
+              type="email"
+              placeholder="name@example.com"
+              value={emailInput}
+              onChange={e => setEmailInput(e.target.value)}
+              onKeyDown={e => {
+                if (e.key === 'Enter' || e.key === ',') {
+                  e.preventDefault()
+                  const email = emailInput.trim().replace(/,$/, '')
+                  if (email && !(filters.custom_emails || []).includes(email)) {
+                    setFilters({ ...filters, custom_emails: [...(filters.custom_emails || []), email] })
+                  }
+                  setEmailInput('')
+                }
+              }}
+              className="flex-1 px-3 py-2 rounded-lg text-sm"
+              style={{ background: 'var(--bg3)', border: '1px solid var(--border)', color: 'var(--white)' }}
+            />
+            <button
+              onClick={() => {
+                const email = emailInput.trim().replace(/,$/, '')
+                if (email && !(filters.custom_emails || []).includes(email)) {
+                  setFilters({ ...filters, custom_emails: [...(filters.custom_emails || []), email] })
+                }
+                setEmailInput('')
+              }}
+              className="px-3 py-2 text-sm rounded-lg"
+              style={{ background: 'var(--bg3)', color: 'var(--muted)' }}
+            >
+              Add
+            </button>
+          </div>
+          {(filters.custom_emails || []).length > 0 && (
+            <div className="flex flex-wrap gap-2">
+              {(filters.custom_emails || []).map(email => (
+                <span
+                  key={email}
+                  className="px-2 py-1 text-xs rounded flex items-center gap-2"
+                  style={{ background: 'var(--bg3)', color: 'var(--white)' }}
+                >
+                  {email}
+                  <button
+                    onClick={() => setFilters({ ...filters, custom_emails: (filters.custom_emails || []).filter(e => e !== email) })}
+                    style={{ color: 'var(--danger)' }}
+                  >
+                    ×
+                  </button>
+                </span>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div className="p-4 rounded-lg" style={s}>
+          <h3 className="font-semibold mb-3" style={h}>Event &amp; Olympiad Participants</h3>
+          <p className="text-xs mb-3" style={{ color: 'var(--muted)' }}>
+            Pull in everyone registered for an activity event, a specific category/submission within it, or an olympiad
+            (standalone or a "child" olympiad linked to an activity) — included in addition to everything else above.
+          </p>
+
+          <div className="mb-3">
+            <label className="text-sm mb-1 block" style={{ color: 'var(--muted)' }}>Activity events</label>
+            <div className="flex flex-wrap gap-2 max-h-32 overflow-y-auto p-2 rounded-lg" style={{ background: 'var(--bg3)' }}>
+              {eventSessions.map(sess => (
+                <label key={sess.id} className="flex items-center gap-1 text-xs">
+                  <input
+                    type="checkbox"
+                    checked={(filters.activity_session_ids || []).includes(sess.id)}
+                    onChange={e => {
+                      const current = filters.activity_session_ids || []
+                      setFilters({
+                        ...filters,
+                        activity_session_ids: e.target.checked ? [...current, sess.id] : current.filter(id => id !== sess.id),
+                        // Selecting a different set of sessions invalidates any
+                        // category/segment picked for the previous session.
+                        category_ids: [],
+                        form_node_ids: [],
+                      })
+                    }}
+                  />
+                  <span style={{ color: 'var(--muted)' }}>{sess.title}</span>
+                </label>
+              ))}
+              {eventSessions.length === 0 && <span className="text-xs" style={{ color: 'var(--muted)' }}>No activity events found</span>}
+            </div>
+          </div>
+
+          {(filters.activity_session_ids || []).length === 1 && (sessionCategories.length > 0 || sessionSegments.length > 0 || categoriesLoading) && (
+            <div className="mb-3">
+              <label className="text-sm mb-1 block" style={{ color: 'var(--muted)' }}>
+                Narrow to a category / submission (optional — leave empty for everyone in the event)
+              </label>
+              {categoriesLoading ? (
+                <p className="text-xs" style={{ color: 'var(--muted)' }}>Loading…</p>
+              ) : (
+                <div className="flex flex-wrap gap-2 max-h-32 overflow-y-auto p-2 rounded-lg" style={{ background: 'var(--bg3)' }}>
+                  {sessionCategories.map(cat => (
+                    <label key={cat.id} className="flex items-center gap-1 text-xs">
+                      <input
+                        type="checkbox"
+                        checked={(filters.category_ids || []).includes(cat.id)}
+                        onChange={e => {
+                          const current = filters.category_ids || []
+                          setFilters({
+                            ...filters,
+                            category_ids: e.target.checked ? [...current, cat.id] : current.filter(id => id !== cat.id),
+                          })
+                        }}
+                      />
+                      <span style={{ color: 'var(--muted)' }}>{cat.name}</span>
+                    </label>
+                  ))}
+                  {sessionSegments.map(seg => (
+                    <label key={seg.id} className="flex items-center gap-1 text-xs">
+                      <input
+                        type="checkbox"
+                        checked={(filters.form_node_ids || []).includes(seg.id)}
+                        onChange={e => {
+                          const current = filters.form_node_ids || []
+                          setFilters({
+                            ...filters,
+                            form_node_ids: e.target.checked ? [...current, seg.id] : current.filter(id => id !== seg.id),
+                          })
+                        }}
+                      />
+                      <span style={{ color: 'var(--muted)' }}>{seg.name}</span>
+                    </label>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {((filters.activity_session_ids || []).length > 0 || (filters.category_ids || []).length > 0 || (filters.form_node_ids || []).length > 0) && (
+            <div className="mb-3">
+              <label className="flex items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  checked={filters.submitted_only || false}
+                  onChange={e => setFilters({ ...filters, submitted_only: e.target.checked })}
+                />
+                <span style={{ color: 'var(--muted)' }}>Only those who actually submitted (not just registered)</span>
+              </label>
+            </div>
+          )}
+
+          <div>
+            <label className="text-sm mb-1 block" style={{ color: 'var(--muted)' }}>Olympiads</label>
+            <div className="flex flex-wrap gap-2 max-h-32 overflow-y-auto p-2 rounded-lg" style={{ background: 'var(--bg3)' }}>
+              {eventOlympiads.map(oly => (
+                <label key={oly.id} className="flex items-center gap-1 text-xs">
+                  <input
+                    type="checkbox"
+                    checked={(filters.olympiad_ids || []).includes(oly.id)}
+                    onChange={e => {
+                      const current = filters.olympiad_ids || []
+                      setFilters({
+                        ...filters,
+                        olympiad_ids: e.target.checked ? [...current, oly.id] : current.filter(id => id !== oly.id),
+                      })
+                    }}
+                  />
+                  <span style={{ color: 'var(--muted)' }}>
+                    {oly.name}{oly.is_child ? ` (child of ${oly.parent_title || 'an activity'})` : ''}
+                  </span>
+                </label>
+              ))}
+              {eventOlympiads.length === 0 && <span className="text-xs" style={{ color: 'var(--muted)' }}>No olympiads found</span>}
+            </div>
           </div>
         </div>
 

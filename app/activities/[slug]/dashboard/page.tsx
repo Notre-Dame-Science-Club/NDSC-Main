@@ -618,7 +618,7 @@ export default function ActivityDashboardPage() {
                 <Link href={`/activities/${slug}/relay-exam?reg=${registration.id}&olympiad=${olympiad.id}&member=${mySubmittedBy}`}
                   className="flex items-center justify-center gap-2 w-full py-3 rounded-xl font-bold text-sm text-black"
                   style={{ background: 'var(--blue)', fontFamily: 'inherit' }}>
-                  <Play size={14} /> Start Exam →
+                  {olympiad?.is_just_a_submission ? <>Submit →</> : <><Play size={14} /> Start Exam →</>}
                 </Link>
               ) : (
                 <div className="p-3 rounded-xl text-sm" style={{ background: 'rgba(var(--warning-rgb), 0.08)', border: '1px solid rgba(var(--warning-rgb), 0.25)', color: 'var(--warning)' }}>

@@ -8,7 +8,7 @@
 //   - custom_answers
 //   - team_members
 //   - olympiad answers (mcq, short, photo) — only used when the graph
-//     owner_kind is 'olympiad'
+//                 owner_kind is 'olympiad'
 //
 // The server decides what to do based on the node's role in the graph:
 //
@@ -97,11 +97,33 @@ type SubmitBody = {
   // this from the current Supabase session). Only meaningful for
   // activities — activity_registrations.member_id is a real FK column;
   // olympiad_registrations has no equivalent column, so this is ignored
-  // for olympiad graphs.
+  // for olympiad graphs. NOTE: this client-supplied value is only ever
+  // used as a fallback — see getAuthedMemberId() below, which overrides
+  // it with the verified id from the request's own bearer token.
   member_id?: string | null
   // olympiad question fields are merged into custom_answers by the client
   // (using `key` or `id`); the server lifts them to mcq_answers /
   // short_answers / photo_answers at the terminal submit.
+}
+
+// Registering — for an activity OR an olympiad — now requires a logged-in
+// website account (see RegistrationCTA and the /register/[ownerKind]/
+// [ownerId] login gate on the client, which normally stop an anonymous
+// visitor from ever reaching this endpoint in the first place). We check
+// again here so the requirement actually holds even if someone calls this
+// route directly, and so we never trust a client-claimed `member_id` —
+// same Bearer-token pattern already used by /api/member-profile,
+// /api/member-achievements, etc. The session lives in browser
+// localStorage, not a cookie the server sees automatically, so the client
+// has to hand us the access token explicitly (FormRunner does this on
+// every submit call).
+async function getAuthedMemberId(req: NextRequest): Promise<string | null> {
+  const authHeader = req.headers.get('authorization') || ''
+  const token = authHeader.replace(/^Bearer\s+/i, '')
+  if (!token) return null
+  const { data, error } = await supabaseAdmin.auth.getUser(token)
+  if (error || !data.user) return null
+  return data.user.id
 }
 
 function validateRequiredFields(node: FormNode, form: Record<string, any>, customAnswers: Record<string, any>) {
@@ -498,6 +520,14 @@ export async function POST(req: NextRequest) {
     return apiError('graph_id and node_id are required.', 400)
   }
 
+  // Resolve who's actually making this request from their own session —
+  // never from the body they sent. Overrides whatever `member_id` the
+  // client claimed, closing off a spot where anyone could previously
+  // attribute a registration to any member id just by putting it in the
+  // request body.
+  const authedMemberId = await getAuthedMemberId(req)
+  body.member_id = authedMemberId
+
   // Load the node + graph together so we know the owner's kind and the
   // node's place in the tree.
   const { data: node, error: nErr } = await supabaseAdmin
@@ -656,6 +686,13 @@ export async function POST(req: NextRequest) {
 
   if (isRoot) {
     if (registrationId) return apiError("Can't supply a registration id for the root submit.", 400)
+    // Starting a brand-new registration requires a logged-in account.
+    // Continuing an existing one (non-root submits, below) doesn't need
+    // to re-check this — the registration itself couldn't have been
+    // created without passing this same gate.
+    if (!authedMemberId) {
+      return apiError('Please log in to register for this event.', 401)
+    }
     if (isDone) {
       const missing = missingHardMinimum(newBuiltins)
       if (missing.length) return apiError(`Missing required field(s): ${missing.join(', ')}`, 400)
