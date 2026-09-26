@@ -335,6 +335,7 @@ function NewCampaignTab() {
   const [audienceSource, setAudienceSource] = useState<'members' | 'users' | 'both'>('members')
   const [filters, setFilters] = useState<EmailAudienceFilters>({})
   const [previewCount, setPreviewCount] = useState<number | null>(null)
+  const [previewError, setPreviewError] = useState('')
   const [scheduledAt, setScheduledAt] = useState('')
   const [sendNow, setSendNow] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -395,9 +396,24 @@ function NewCampaignTab() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ audience_source: audienceSource, audience_filters: filters }),
       })
-        .then(res => res.json())
-        .then(data => setPreviewCount(data.count || 0))
-        .catch(() => setPreviewCount(null))
+        .then(async res => {
+          const data = await res.json().catch(() => ({}))
+          // A failed request (expired session, a bad filter combo, a 500,
+          // etc.) still parses as JSON but has no `count` field. Treat that
+          // as "unknown", not "zero recipients" — falling back to 0 here
+          // used to silently disable the send button with no explanation.
+          if (!res.ok || typeof data.count !== 'number') {
+            setPreviewCount(null)
+            setPreviewError(data.error || 'Could not load recipient count.')
+            return
+          }
+          setPreviewError('')
+          setPreviewCount(data.count)
+        })
+        .catch(() => {
+          setPreviewCount(null)
+          setPreviewError('Could not load recipient count.')
+        })
     }, 500)
     return () => clearTimeout(timer)
   }, [audienceSource, filters])
@@ -801,16 +817,30 @@ function NewCampaignTab() {
 
         {error && <p className="text-sm" style={{ color: 'var(--danger)' }}>{error}</p>}
         {success && <p className="text-sm" style={{ color: 'var(--success)' }}>{success}</p>}
+        {previewError && <p className="text-sm" style={{ color: 'var(--danger)' }}>{previewError}</p>}
+        {previewCount === 0 && !previewError && (
+          <p className="text-sm" style={{ color: 'var(--danger)' }}>No recipients match this audience — adjust the filters above.</p>
+        )}
 
-        <button
-          onClick={handleSubmit}
-          disabled={saving || !name || !subject || !bodyHtml || previewCount === 0}
-          className="px-4 py-2 rounded-lg flex items-center gap-2"
-          style={{ background: 'var(--blue)', color: 'var(--white)' }}
-        >
-          <Send size={16} />
-          {saving ? 'Creating...' : sendNow ? 'Create & Send Now' : 'Schedule Campaign'}
-        </button>
+        {(() => {
+          const isDisabled = saving || !name || !subject || !bodyHtml || previewCount === 0
+          return (
+            <button
+              onClick={handleSubmit}
+              disabled={isDisabled}
+              className="px-4 py-2 rounded-lg flex items-center gap-2"
+              style={{
+                background: 'var(--blue)',
+                color: 'var(--white)',
+                opacity: isDisabled ? 0.5 : 1,
+                cursor: isDisabled ? 'not-allowed' : 'pointer',
+              }}
+            >
+              <Send size={16} />
+              {saving ? 'Creating...' : sendNow ? 'Create & Send Now' : 'Schedule Campaign'}
+            </button>
+          )
+        })()}
       </div>
     </div>
   )

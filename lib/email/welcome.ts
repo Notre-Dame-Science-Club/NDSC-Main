@@ -97,9 +97,14 @@ export async function sendWelcomeEmailIfEnabled(table: WelcomeTable, registratio
     const eventId = isOlympiad ? (reg as any).olympiad_id : (reg as any).activity_session_id
     if (!eventId) return
 
+    // activity_sessions has a `title` column; olympiads has `name` instead —
+    // neither table has both, so the column to select has to be picked per
+    // table. Selecting a column that doesn't exist on the target table makes
+    // PostgREST error the whole query (data comes back null), which was
+    // silently no-op'ing every welcome email regardless of event config.
     const { data: event } = await supabaseAdmin
       .from(eventTable)
-      .select('welcome_email_enabled, welcome_email_subject, welcome_email_body, title, name')
+      .select(`welcome_email_enabled, welcome_email_subject, welcome_email_body, ${isOlympiad ? 'name' : 'title'}`)
       .eq('id', eventId)
       .maybeSingle()
 
@@ -108,7 +113,7 @@ export async function sendWelcomeEmailIfEnabled(table: WelcomeTable, registratio
     const bodyTpl = (event as any).welcome_email_body as string | null
     if (!subjectTpl || !bodyTpl) return // enabled but not filled in yet — nothing to send
 
-    const eventName = (event as any).title || (event as any).name || 'the event'
+    const eventName = (isOlympiad ? (event as any).name : (event as any).title) || 'the event'
     const vars = {
       full_name: reg.full_name || '',
       email: reg.email || '',
