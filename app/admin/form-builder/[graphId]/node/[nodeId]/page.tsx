@@ -388,6 +388,23 @@ export default function NodeEditorPage() {
             What this form does beyond collecting answers: team info, payment, schedule, project name, olympiad timer.
           </p>
 
+          {graph?.owner_kind === 'activity' && node.parent_id === null && (
+            <div className="rounded-lg p-3 mb-3" style={{ background: 'var(--bg2)', border: '1px solid var(--border)' }}>
+              <label className="flex items-center gap-2 text-sm cursor-pointer" style={{ color: 'var(--white)' }}>
+                <input type="checkbox" checked={!!node.behavior.disable_multi_segment_enroll}
+                  onChange={e => patchBehavior({ disable_multi_segment_enroll: e.target.checked || undefined })} />
+                Disable multiple segment enrollment
+              </label>
+              <p className="text-[11px] mt-1.5" style={{ color: 'var(--muted)' }}>
+                When on, a person can register for this event only once, no matter how many
+                segments it has — reaching any one segment's finish line blocks every other
+                segment too. Registrants also won't be offered "Register for another segment"
+                on the registration page or their dashboard. Leave off (the default) to let
+                someone register separately for each segment.
+              </p>
+            </div>
+          )}
+
           <Field label="Schedule (date / time / room) — shown above the form">
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
               <input type="date" value={node.behavior.schedule?.date || ''} onChange={e => patchBehavior({ schedule: { ...(node.behavior.schedule || {}), date: e.target.value } })}

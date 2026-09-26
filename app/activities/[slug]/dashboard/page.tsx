@@ -38,6 +38,11 @@ export default function ActivityDashboardPage() {
   const [session, setSession] = useState<any>(null)
   const [nodeLabel, setNodeLabel] = useState<string | null>(null)
   const [siblingRegs, setSiblingRegs] = useState<{ id: string; label: string | null; created_at: string }[]>([])
+  // Root-node-only "disable multiple segment enroll" flag (see
+  // FormNodeBehavior in lib/formGraph.ts) — hides the "Register for
+  // another segment" door below when the organizer wants one
+  // registration per person for this event, period.
+  const [disableMultiSegmentEnroll, setDisableMultiSegmentEnroll] = useState(false)
   const [viewAsTeamMemberId, setViewAsTeamMemberId] = useState<string | null>(null)
 
   // Team member login
@@ -81,6 +86,7 @@ export default function ActivityDashboardPage() {
       setSession(data.session)
       setNodeLabel(data.node_label || null)
       setSiblingRegs(data.siblings || [])
+      setDisableMultiSegmentEnroll(!!data.disable_multi_segment_enroll)
       setEditForm({
         full_name: data.registration.full_name, phone: data.registration.phone,
         email: data.registration.email, college: data.registration.college,
@@ -343,6 +349,14 @@ export default function ActivityDashboardPage() {
   const myRelayIndex = allMembers.findIndex(m => m.id === mySubmittedBy)
   const isMyRelayTurn = olympiad?.relay_mode ? myRelayIndex === relayCurrentIndex : true
 
+  // The linked-olympiad exam (relay OR solo) is taken via /relay-exam and its
+  // completion lives in relay_exam_state.member_submissions — NOT in
+  // `submissions`/`mySubmission` above, which is the unrelated generic
+  // project-submission feature (activity_submissions). Without this, the
+  // "Start Exam" button/link never noticed the exam was already done and
+  // kept showing on every dashboard visit.
+  const myRelaySubmission = (relayState?.member_submissions || []).find((s: any) => s.member_id === mySubmittedBy)
+
   const examNotYetStarted = examScheduledStart && new Date(examScheduledStart) > new Date()
   const examEnded = olympiad?.scheduled_end_at && new Date(olympiad.scheduled_end_at) < new Date()
   const examLive = !!(olympiad && !examNotYetStarted && !examEnded)
@@ -599,7 +613,7 @@ export default function ActivityDashboardPage() {
             )}
 
             {/* Live exam button */}
-            {olympiad && !hasSubmissionConfig && !examNotYetStarted && !examEnded && isMyRelayTurn && !mySubmission && (
+            {olympiad && !hasSubmissionConfig && !examNotYetStarted && !examEnded && isMyRelayTurn && !mySubmission && !myRelaySubmission && (
               (olympiad?.questions?.length ?? 0) > 0 ? (
                 <Link href={`/activities/${slug}/relay-exam?reg=${registration.id}&olympiad=${olympiad.id}&member=${mySubmittedBy}`}
                   className="flex items-center justify-center gap-2 w-full py-3 rounded-xl font-bold text-sm text-black"
@@ -636,6 +650,24 @@ export default function ActivityDashboardPage() {
                 ) : (
                   <p className="text-xs" style={{ color: 'var(--muted)' }}>The submission window has since closed.</p>
                 )}
+              </div>
+            )}
+
+            {/* Same "already done" confirmation for the relay/solo exam
+                (/relay-exam) — its own flow, so it never touches `mySubmission`
+                above. Unlike the generic submission feature, the exam never
+                allows resubmission (the server always rejects a second
+                attempt), so this just links to the results/breakdown view
+                instead of offering to resubmit. */}
+            {olympiad && !hasSubmissionConfig && !mySubmission && myRelaySubmission && (
+              <div className="text-sm space-y-2">
+                <p className="font-semibold flex items-center gap-1.5" style={{ color: 'var(--cat-teal)' }}>
+                  <CheckCircle size={14} /> Submitted
+                </p>
+                <Link href={`/activities/${slug}/relay-exam?reg=${registration.id}&olympiad=${olympiad.id}&member=${mySubmittedBy}`}
+                  className="inline-flex items-center gap-1.5 text-xs underline" style={{ color: 'var(--blue)' }}>
+                  View your submission <ExternalLink size={10} />
+                </Link>
               </div>
             )}
 
@@ -723,8 +755,23 @@ export default function ActivityDashboardPage() {
           </div>
         )}
 
+        {/* ── Certificate, if the organizer has uploaded one for this event ── */}
+        {session?.certificate_pdf_url && (
+          <div className="rounded-2xl border p-4 flex items-center justify-between gap-3 flex-wrap" style={{ background: 'var(--card)', borderColor: 'var(--border)' }}>
+            <div className="flex items-center gap-2">
+              <FileText size={16} style={{ color: 'var(--cat-teal)' }} />
+              <p className="text-sm font-semibold" style={{ color: 'var(--white)' }}>Your certificate is ready</p>
+            </div>
+            <a href={session.certificate_pdf_url} target="_blank" rel="noreferrer"
+              className="px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-1.5"
+              style={{ background: 'var(--cat-teal)', color: '#000' }}>
+              Download Certificate <ExternalLink size={13} />
+            </a>
+          </div>
+        )}
+
         {/* ── Other segments of this event ─────────────────────────────── */}
-        {session?.id && (
+        {session?.id && (siblingRegs.length > 0 || !disableMultiSegmentEnroll) && (
           <div className="rounded-2xl border p-4" style={{ background: 'var(--card)', borderColor: 'var(--border)' }}>
             {siblingRegs.length > 0 && (
               <>
@@ -746,11 +793,17 @@ export default function ActivityDashboardPage() {
                 </div>
               </>
             )}
-            <Link href={`/register/activity/${session.id}`}
-              className="inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-lg text-sm font-bold w-full"
-              style={{ background: 'var(--cat-teal)', color: '#000' }}>
-              Register for another segment →
-            </Link>
+            {/* Only offered when the organizer hasn't locked this event down
+                to one registration per person (disable_multi_segment_enroll) —
+                siblings can still exist from before that setting was turned
+                on, which is why the card above can still show even then. */}
+            {!disableMultiSegmentEnroll && (
+              <Link href={`/register/activity/${session.id}?newSegment=1`}
+                className="inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-lg text-sm font-bold w-full"
+                style={{ background: 'var(--cat-teal)', color: '#000' }}>
+                Register for another segment →
+              </Link>
+            )}
           </div>
         )}
 

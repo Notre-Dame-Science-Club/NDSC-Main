@@ -659,6 +659,7 @@ async function uploadSessionFile(file: File, folder: string): Promise<string> {
 function FilesPanel({ sessionId, session, onSaved }: { sessionId: string; session: any; onSaved: (s: any) => void }) {
   const [coverUrl, setCoverUrl] = useState(session?.cover_image_url || '')
   const [pdfUrl, setPdfUrl] = useState(session?.pdf_url || '')
+  const [certificateUrl, setCertificateUrl] = useState(session?.certificate_pdf_url || '')
   const [youtubeUrl, setYoutubeUrl] = useState(session?.youtube_url || '')
   const [galleryUrls, setGalleryUrls] = useState<string[]>(session?.gallery_urls || [])
   const [uploading, setUploading] = useState('')
@@ -669,18 +670,19 @@ function FilesPanel({ sessionId, session, onSaved }: { sessionId: string; sessio
   useEffect(() => {
     setCoverUrl(session?.cover_image_url || '')
     setPdfUrl(session?.pdf_url || '')
+    setCertificateUrl(session?.certificate_pdf_url || '')
     setYoutubeUrl(session?.youtube_url || '')
     setGalleryUrls(session?.gallery_urls || [])
   }, [session?.id])
 
-  const handleSingleUpload = async (e: React.ChangeEvent<HTMLInputElement>, field: 'cover' | 'pdf', folder: string) => {
+  const handleSingleUpload = async (e: React.ChangeEvent<HTMLInputElement>, field: 'cover' | 'pdf' | 'certificate', folder: string) => {
     const file = e.target.files?.[0]
     if (!file) return
     setUploading(field)
     setError('')
     try {
       const url = await uploadSessionFile(file, folder)
-      if (field === 'cover') setCoverUrl(url); else setPdfUrl(url)
+      if (field === 'cover') setCoverUrl(url); else if (field === 'pdf') setPdfUrl(url); else setCertificateUrl(url)
     } catch (ex: any) {
       setError(ex.message || 'Upload failed.')
     } finally {
@@ -717,6 +719,7 @@ function FilesPanel({ sessionId, session, onSaved }: { sessionId: string; sessio
           id: sessionId,
           cover_image_url: coverUrl,
           pdf_url: pdfUrl,
+          certificate_pdf_url: certificateUrl,
           youtube_url: youtubeUrl,
           gallery_urls: galleryUrls,
         }),
@@ -801,6 +804,24 @@ function FilesPanel({ sessionId, session, onSaved }: { sessionId: string; sessio
           </label>
           {pdfUrl && (
             <button onClick={() => setPdfUrl('')} className="text-xs" style={{ color: 'var(--danger-soft)' }}>Remove</button>
+          )}
+        </div>
+      </div>
+
+      <hr style={{ borderColor: 'var(--border)' }} />
+
+      <div>
+        <label className="flex items-center gap-1.5 text-xs font-bold mb-2" style={{ color: 'var(--warning)' }}>
+          <FileText size={13} /> CERTIFICATE PDF
+        </label>
+        <div className="flex items-center gap-3">
+          {certificateUrl && <a href={certificateUrl} target="_blank" rel="noreferrer" className="text-xs underline" style={{ color: 'var(--warning)' }}>View current PDF</a>}
+          <label className="text-xs px-3 py-2 rounded-lg cursor-pointer" style={{ background: 'rgba(var(--warning-rgb), 0.1)', color: 'var(--warning)', border: '1px solid rgba(var(--warning-rgb), 0.3)' }}>
+            {uploading === 'certificate' ? 'Uploading…' : certificateUrl ? 'Replace PDF' : 'Upload PDF'}
+            <input type="file" accept=".pdf" className="hidden" onChange={e => handleSingleUpload(e, 'certificate', 'certificates')} />
+          </label>
+          {certificateUrl && (
+            <button onClick={() => setCertificateUrl('')} className="text-xs" style={{ color: 'var(--danger-soft)' }}>Remove</button>
           )}
         </div>
       </div>

@@ -231,6 +231,13 @@ do $$ begin
   end if;
 end $$;
 
+-- Add certificate_pdf_url column if not exists (from 31_migration_certificate_pdf.sql)
+do $$ begin
+  if not exists (select 1 from information_schema.columns where table_name='activity_sessions' and column_name='certificate_pdf_url') then
+    alter table activity_sessions add column certificate_pdf_url text;
+  end if;
+end $$;
+
 -- ── activity_updates — per-event admin updates/announcements feed ───────
 create table if not exists activity_updates (
   id                    uuid primary key default gen_random_uuid(),

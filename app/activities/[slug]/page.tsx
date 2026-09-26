@@ -90,6 +90,21 @@ export default async function SessionDetailPage({
     .maybeSingle()
   const hasFormGraph = !!graphRow?.root_node_id
 
+  // Root-node-only "disable multiple segment enroll" flag (see
+  // FormNodeBehavior in lib/formGraph.ts) — tells RegistrationCTA to stop
+  // offering "Register for another segment" once someone's already
+  // registered, for events where the organizer wants one registration
+  // per person, period.
+  let disableMultiSegmentEnroll = false
+  if (graphRow?.root_node_id) {
+    const { data: rootNode } = await supabaseAdmin
+      .from('form_nodes')
+      .select('behavior')
+      .eq('id', graphRow.root_node_id)
+      .maybeSingle()
+    disableMultiSegmentEnroll = !!(rootNode as any)?.behavior?.disable_multi_segment_enroll
+  }
+
   return (
     <div className="min-h-screen" style={{ paddingTop: '72px', background: 'var(--bg)' }}>
 
@@ -176,7 +191,7 @@ export default async function SessionDetailPage({
             marker as a fallback for anonymous visitors) instead of always
             offering "Register Now" regardless of whether they already are. */}
         {session.is_upcoming && session.registration_enabled && hasFormGraph && (
-          <RegistrationCTA sessionId={session.id} slug={session.slug} registrationNote={session.registration_note} />
+          <RegistrationCTA sessionId={session.id} slug={session.slug} registrationNote={session.registration_note} disableMultiSegmentEnroll={disableMultiSegmentEnroll} />
         )}
 
         {/* Registration is turned on but nobody's built the form graph yet

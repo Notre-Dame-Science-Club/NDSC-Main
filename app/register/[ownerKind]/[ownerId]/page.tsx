@@ -1,5 +1,5 @@
 'use client'
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useMemo } from 'react'
 import { useParams, useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { ArrowLeft, Loader2, AlertTriangle, CheckCircle2 } from 'lucide-react'
@@ -63,6 +63,27 @@ export default function PublicRegisterPage() {
   const [eventSlug, setEventSlug] = useState<string | undefined>(undefined)
   const [alreadyDone, setAlreadyDone] = useState<{ registrationId: string } | null>(null)
   const [proceedAnyway, setProceedAnyway] = useState(false)
+
+  // Root-node-only flag (see FormNodeBehavior.disable_multi_segment_enroll
+  // in lib/formGraph.ts) — when on, this activity doesn't want segments
+  // treated as independent registration slots, so the "isNewSegment"
+  // bypass above shouldn't apply here either.
+  const disableMultiSegmentEnroll = useMemo(
+    () => !!nodes.find(n => n.parent_id === null)?.behavior?.disable_multi_segment_enroll,
+    [nodes]
+  )
+
+  // The isNewSegment bypass (above) runs before we know whether this
+  // graph disables multi-segment enrollment — nodes haven't loaded yet
+  // at that point. Once they have, if it turns out segments are locked
+  // down, re-apply the durable "done" marker we skipped the first time.
+  useEffect(() => {
+    if (!isNewSegment || !disableMultiSegmentEnroll || alreadyDone) return
+    const existingDoneId = getCookie(doneKey(ownerKind, ownerId)) || (() => {
+      try { return localStorage.getItem(doneKey(ownerKind, ownerId)) } catch { return null }
+    })()
+    if (existingDoneId) setAlreadyDone({ registrationId: existingDoneId })
+  }, [isNewSegment, disableMultiSegmentEnroll, alreadyDone, ownerKind, ownerId])
 
   // Load the graph.
   useEffect(() => {
@@ -197,7 +218,9 @@ export default function PublicRegisterPage() {
               </Link>
             )}
             <p className="text-xs mt-4" style={{ color: 'var(--muted)' }}>
-              Registering for a different segment of this event, or need to submit a different registration anyway?{' '}
+              {disableMultiSegmentEnroll
+                ? <>Need to submit a different registration anyway?{' '}</>
+                : <>Registering for a different segment of this event, or need to submit a different registration anyway?{' '}</>}
               <button type="button" onClick={() => setProceedAnyway(true)}
                 className="underline font-semibold" style={{ color: 'var(--muted)' }}>
                 Continue anyway

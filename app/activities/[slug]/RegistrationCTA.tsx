@@ -24,10 +24,15 @@ export default function RegistrationCTA({
   sessionId,
   slug,
   registrationNote,
+  disableMultiSegmentEnroll,
 }: {
   sessionId: string
   slug: string
   registrationNote?: string | null
+  // Root-node-only flag (lib/formGraph.ts FormNodeBehavior). When set,
+  // this activity treats itself as one registration per person overall,
+  // so the "Register for another segment" door below should stay shut.
+  disableMultiSegmentEnroll?: boolean
 }) {
   const { isMember, loading, getRegistrationForSession } = useMyActivityRegistrations()
   const [deviceRegId, setDeviceRegId] = useState<string | null>(null)
@@ -76,13 +81,18 @@ export default function RegistrationCTA({
             is exactly what someone in this state usually wants next. The
             submit route itself already knows the difference (segmented
             activities skip the single-registration block) — this just
-            stops hiding the door. */}
+            stops hiding the door. Unless the organizer has explicitly
+            turned that back off via "disable multiple segment enroll" on
+            the event's root form node — then there's only ever one
+            registration per person, and this stays a single button. */}
         <div className="flex items-center gap-3 flex-wrap">
-          <Link href={`/register/activity/${sessionId}`}
-            className="px-6 py-3 rounded-xl font-bold text-sm flex-shrink-0 transition-all hover:-translate-y-0.5"
-            style={{ background: 'transparent', color: 'var(--cat-teal)', border: '1px solid var(--cat-teal)', fontFamily: 'inherit' }}>
-            Register for another segment →
-          </Link>
+          {!disableMultiSegmentEnroll && (
+            <Link href={`/register/activity/${sessionId}?newSegment=1`}
+              className="px-6 py-3 rounded-xl font-bold text-sm flex-shrink-0 transition-all hover:-translate-y-0.5"
+              style={{ background: 'transparent', color: 'var(--cat-teal)', border: '1px solid var(--cat-teal)', fontFamily: 'inherit' }}>
+              Register for another segment →
+            </Link>
+          )}
           <Link href={dashboardRegId ? `/activities/${slug}/dashboard?reg=${dashboardRegId}` : `/activities/${slug}/dashboard`}
             className="px-6 py-3 rounded-xl font-bold text-sm flex-shrink-0 transition-all hover:-translate-y-0.5"
             style={{ background: 'var(--cat-teal)', color: '#000', fontFamily: 'inherit' }}>

@@ -514,6 +514,21 @@ export async function POST(req: NextRequest) {
   if (gErr) return apiError(gErr, 400)
   if (!graph) return apiError('Graph not found.', 404)
 
+  // "Disable multiple segment enroll" — a root-node-only flag (see
+  // FormNodeBehavior in lib/formGraph.ts). When set, this activity's
+  // segments no longer act as independent registration slots: reaching
+  // ANY segment's terminal should block every other segment's terminal
+  // too, so we widen the duplicate checks below to span the whole
+  // session (segmentNodeId forced to null) instead of just the terminal
+  // being submitted. Only meaningful for activities; irrelevant (and a
+  // no-op) for olympiad graphs, which have no segment concept.
+  let disableMultiSegmentEnroll = false
+  if (graph.owner_kind === 'activity' && graph.root_node_id) {
+    const { data: rootNode } = await supabaseAdmin
+      .from('form_nodes').select('behavior').eq('id', graph.root_node_id).maybeSingle()
+    disableMultiSegmentEnroll = !!(rootNode as any)?.behavior?.disable_multi_segment_enroll
+  }
+
   // If this is an olympiad graph, check if it requires a parent activity registration
   if (graph.owner_kind === 'olympiad') {
     const { data: olympiad } = await supabaseAdmin
@@ -835,7 +850,10 @@ export async function POST(req: NextRequest) {
     // terminal — a segment's leaf, or a leaf under a subsegment several
     // levels deep — its own independent registration slot, regardless of
     // how many branch points (segments, subsegments, ...) sit above it.
-    const segmentNodeId: string | null = isDone ? node.id : null
+    // Overridden to null (whole-session scope) when the graph's root has
+    // "disable multiple segment enroll" on — see disableMultiSegmentEnroll
+    // above.
+    const segmentNodeId: string | null = (isDone && !disableMultiSegmentEnroll) ? node.id : null
 
     // Whatever's already on the row, topped up with anything new from this
     // node — this is what we check the hard minimum against, and it's also

@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { Clock, ChevronRight, ChevronLeft, CheckCircle, ArrowLeft, X } from 'lucide-react'
 import MathText from '@/components/olympiad/MathText'
 import FieldsRenderer from '@/components/FieldsRenderer'
+import AnnotationViewer, { Annotation } from '@/components/olympiad/AnnotationViewer'
 
 // Matches FormBlock (lib/formBlocks.ts) — questions are now ALL field types
 // on the olympiad's form-graph nodes (except identity nodes), not just a
@@ -27,6 +28,17 @@ type Olympiad = {
   subjects: Subject[]; subject_assignment_mode: 'self_select' | 'admin_assign' | 'auto'
   scheduled_start_at: string | null; scheduled_end_at: string | null
   result_published?: boolean
+  annotations_published?: boolean
+}
+
+// relay_exam_state.annotations can be a flat array (legacy single-answer-
+// sheet shape) or an object keyed by question id (multi-photo-question
+// shape, one mark set per photo) — same convention the organizer panel
+// already uses (see annotationsFor() in app/organizer/page.tsx).
+function annotationsForQuestion(annotations: Annotation[] | Record<string, Annotation[]> | null | undefined, questionId: string): Annotation[] {
+  if (!annotations) return []
+  if (Array.isArray(annotations)) return []
+  return annotations[questionId] || []
 }
 
 const STORAGE_PREFIX = 'ndsc_relay_exam_'
@@ -65,6 +77,7 @@ export default function RelayExamPage() {
   const [timeLeft, setTimeLeft] = useState(0)
   const timerRef = useRef<any>(null)
   const [submitting, setSubmitting] = useState(false)
+  const [viewingAnnotatedQuestionId, setViewingAnnotatedQuestionId] = useState<string | null>(null)
 
   const allMembers = registration
     ? [{ id: 'leader', full_name: registration.full_name }, ...(registration.team_members || [])]
@@ -421,17 +434,31 @@ export default function RelayExamPage() {
           const results: any[] = mySubmission.question_results
           const totalAwarded = results.reduce((sum, r) => sum + (r.marks_awarded || 0), 0)
           const totalPossible = results.reduce((sum, r) => sum + (r.marks_possible || 0), 0)
+          const allMarked = results.length > 0 && results.every(r => r.marks_awarded != null)
+          // Prefer an actual reviewed score over the raw auto-grade: the
+          // organizer's overall score (relay_exam_state.organizer_score, set
+          // via the simple /organizer scoring form) takes precedence when
+          // present; otherwise use the sum of per-question marks once every
+          // question has actually been marked; otherwise this is still the
+          // provisional auto-graded score from submit time.
+          const displayScore = relayState?.organizer_score ?? (allMarked ? totalAwarded : (mySubmission.score ?? totalAwarded))
+          const isReviewed = relayState?.review_status === 'reviewed' || relayState?.organizer_score != null || allMarked
           return (
             <div className="space-y-4">
               <div className="rounded-2xl p-6 border text-center" style={{ background: 'var(--bg2)', borderColor: 'var(--border)' }}>
                 <p className="text-sm font-bold mb-1" style={{ color: 'var(--white)' }}>Your Result</p>
                 <p className="text-3xl font-black mt-2" style={{ color: 'var(--cat-teal)' }}>
-                  {mySubmission.score ?? totalAwarded}{totalPossible > 0 ? ` / ${totalPossible}` : ''}
+                  {displayScore}{totalPossible > 0 ? ` / ${totalPossible}` : ''}
                 </p>
+                {!isReviewed && (
+                  <p className="text-xs mt-1" style={{ color: 'var(--muted)' }}>Provisional — some answers are still pending review.</p>
+                )}
               </div>
               <div className="space-y-3">
                 <h3 className="text-sm font-bold px-1" style={{ color: 'var(--muted)' }}>QUESTION BREAKDOWN</h3>
-                {results.map((r, i) => (
+                {results.map((r, i) => {
+                  const markedAnnotations = annotationsForQuestion(relayState?.annotations, r.question_id)
+                  return (
                   <div key={r.question_id || i} className="p-4 rounded-xl" style={{ background: 'var(--bg2)', border: `1px solid ${r.is_correct === true ? 'rgba(var(--cat-teal-rgb), 0.3)' : r.is_correct === false ? 'rgba(255,77,77,0.3)' : 'var(--border)'}` }}>
                     <div className="flex items-start justify-between gap-3">
                       <p className="text-sm font-medium flex-1" style={{ color: 'var(--white)' }}>Q{i + 1}. {r.question_text}</p>
@@ -450,19 +477,44 @@ export default function RelayExamPage() {
                       </div>
                     )}
                     {r.type === 'photo' && r.student_answer && (
-                      <a href={r.student_answer} target="_blank" rel="noopener noreferrer" className="mt-2 text-xs underline inline-block" style={{ color: 'var(--blue)' }}>
-                        View your uploaded photo answer
-                      </a>
+                      <div className="mt-2 flex flex-wrap items-center gap-3">
+                        <a href={r.student_answer} target="_blank" rel="noopener noreferrer" className="text-xs underline inline-block" style={{ color: 'var(--blue)' }}>
+                          View your uploaded photo answer
+                        </a>
+                        {/* Organizer's choice — only shown once they've turned this on for the olympiad */}
+                        {olympiad?.annotations_published && markedAnnotations.length > 0 && (
+                          <button onClick={() => setViewingAnnotatedQuestionId(r.question_id)}
+                            className="text-xs px-2.5 py-1 rounded inline-flex items-center gap-1.5 font-medium"
+                            style={{ background: 'rgba(var(--blue-rgb), 0.1)', color: 'var(--blue)', border: '1px solid rgba(var(--blue-rgb), 0.25)' }}>
+                            View marked answer sheet
+                          </button>
+                        )}
+                      </div>
                     )}
                     <p className="text-xs mt-2" style={{ color: 'var(--muted)' }}>
                       {r.marks_awarded != null ? `${r.marks_awarded} / ${r.marks_possible} marks` : `Out of ${r.marks_possible} marks — pending review`}
                     </p>
                   </div>
-                ))}
+                  )
+                })}
               </div>
               <Link href={`/activities/${slug}/dashboard?reg=${regId}`} className="block text-center text-sm underline py-2" style={{ color: 'var(--blue)' }}>
                 ← Back to dashboard
               </Link>
+
+              {viewingAnnotatedQuestionId && (() => {
+                const viewedResult = results.find(r => r.question_id === viewingAnnotatedQuestionId)
+                if (!viewedResult?.student_answer) return null
+                return (
+                  <AnnotationViewer
+                    imageUrl={viewedResult.student_answer}
+                    initialAnnotations={annotationsForQuestion(relayState?.annotations, viewingAnnotatedQuestionId)}
+                    initialScore={viewedResult.marks_awarded ?? ''}
+                    readOnly
+                    onClose={() => setViewingAnnotatedQuestionId(null)}
+                  />
+                )
+              })()}
             </div>
           )
         })()}

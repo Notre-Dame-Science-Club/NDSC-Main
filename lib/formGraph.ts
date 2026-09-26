@@ -133,6 +133,15 @@ export type FormNodeBehavior = {
   // Display:
   show_progress_bar?: boolean
   hide_next_button?: boolean
+  // Root-node-only setting (meaningless anywhere else in the tree): when
+  // true, a person may hold only ONE registration for this whole activity,
+  // full stop — reaching any segment's terminal blocks every other
+  // segment's terminal too, instead of each terminal being its own
+  // independent slot (see inSameSegment() in the submit route). Also
+  // tells the public-facing "Register for another segment" links
+  // (RegistrationCTA, the activity dashboard, the register page's
+  // duplicate-registration screen) to stop offering that path.
+  disable_multi_segment_enroll?: boolean
   // Free-form bag for admin extensions:
   [k: string]: any
 }

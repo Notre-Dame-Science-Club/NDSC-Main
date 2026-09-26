@@ -90,7 +90,37 @@ export async function GET(req: NextRequest) {
     }
   }
 
-  return apiOk({ registration, category: categoryWithFlags, session, node_label: nodeLabel, siblings })
+  // Root-node-only "disable multiple segment enroll" flag (see
+  // FormNodeBehavior in lib/formGraph.ts) — same lookup as
+  // app/activities/[slug]/page.tsx: find this activity's form_graphs row,
+  // then the behavior jsonb on its root_node_id. The dashboard uses this
+  // to hide its own "Register for another segment" button.
+  let disableMultiSegmentEnroll = false
+  if (registration.activity_session_id) {
+    const { data: graphRow } = await supabaseAdmin
+      .from('form_graphs')
+      .select('root_node_id')
+      .eq('owner_kind', 'activity')
+      .eq('owner_id', registration.activity_session_id)
+      .maybeSingle()
+    if (graphRow?.root_node_id) {
+      const { data: rootNode } = await supabaseAdmin
+        .from('form_nodes')
+        .select('behavior')
+        .eq('id', graphRow.root_node_id)
+        .maybeSingle()
+      disableMultiSegmentEnroll = !!(rootNode as any)?.behavior?.disable_multi_segment_enroll
+    }
+  }
+
+  return apiOk({
+    registration,
+    category: categoryWithFlags,
+    session,
+    node_label: nodeLabel,
+    siblings,
+    disable_multi_segment_enroll: disableMultiSegmentEnroll,
+  })
 }
 
 // Lets a registrant edit their own basic info, but only while their edit

@@ -39,6 +39,7 @@ Format: `XX_descriptive_name.sql`
 - `22_migration_organizer_username.sql` - Organizer login username (paired with organizer_password, set from Admin → Olympiads)
 - `23_migration_backfill_oauth_institution.sql` - Backfill oauth institution data
 - `24_migration_consolidate_exam_schedule.sql` - Collapses `exam_date` + `scheduled_start_at`/`scheduled_end_at` + the unused `auto_start` flag into a single `scheduled_start_at`/`scheduled_end_at` pair (same day = one-day exam)
+- `31_migration_certificate_pdf.sql` - Per-event certificate PDF (`activity_sessions.certificate_pdf_url`), uploaded by the organizer and shown to registrants on their dashboard
 
 ### Data Seeds
 - `98_seed_local.sql` - Local development seed data
