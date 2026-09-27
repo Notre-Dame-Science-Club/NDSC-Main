@@ -10,7 +10,7 @@
  */
 import { supabaseAdmin } from '@/lib/supabase'
 import { NextRequest } from 'next/server'
-import { normalizeUploadUrl, normalizeUploadUrls } from '@/lib/uploadUrl'
+import { normalizeUploadUrl, normalizeUploadUrls, normalizeUploadUrlsDeep } from '@/lib/uploadUrl'
 import { requireAdmin } from '@/lib/api/admin-auth'
 import { apiOk } from '@/lib/api/response'
 
@@ -34,6 +34,23 @@ const TARGETS: Target[] = [
   { table: 'surveys', columns: ['cover_image_url'] },
   { table: 'members', columns: ['payment_slip_url'] },
   { table: 'science_media', columns: ['thumbnail_url'] },
+]
+
+// The flat-column TARGETS above only cover plain top-level URL columns.
+// The newer form-graph/exam system stores upload URLs nested inside JSON
+// blobs with dynamic per-question keys (custom_answers, member_submissions,
+// etc.), which can't use the columns/arrayColumns shape above since the
+// keys aren't known ahead of time. This second pass deep-walks those
+// columns generically with normalizeUploadUrlsDeep.
+type JsonBlobTarget = {
+  table: string
+  jsonColumns: string[]        // top-level jsonb columns to deep-walk (objects or arrays)
+}
+
+const JSON_BLOB_TARGETS: JsonBlobTarget[] = [
+  { table: 'activity_registrations', jsonColumns: ['custom_answers', 'team_members'] },
+  { table: 'activity_submissions', jsonColumns: ['answers'] },
+  { table: 'relay_exam_state', jsonColumns: ['member_submissions', 'annotations'] },
 ]
 
 function needsFix(url: string | null | undefined): boolean {
@@ -82,6 +99,46 @@ export async function POST(req: NextRequest) {
       }
       for (const col of arrayColumns) {
         if (needsFixArray(row[col])) update[col] = normalizeUploadUrls(row[col])
+      }
+
+      if (Object.keys(update).length === 0) continue
+
+      report[table].fixed++
+      if (!dryRun) {
+        const { error: upErr } = await supabaseAdmin.from(table).update(update).eq('id', row.id)
+        if (upErr) report[table].errors.push(`id=${row.id}: ${upErr.message}`)
+      }
+    }
+  }
+
+  for (const { table, jsonColumns } of JSON_BLOB_TARGETS) {
+    if (!report[table]) report[table] = { scanned: 0, fixed: 0, errors: [] }
+
+    const select = ['id', ...jsonColumns].join(', ')
+    const { data: rows, error } = await supabaseAdmin.from(table).select(select)
+
+    if (error) {
+      // Table/column may not exist in this environment — skip instead of
+      // failing the whole run. Only drop the report entry if the flat-column
+      // pass didn't already populate it for this table.
+      if (report[table].scanned === 0 && report[table].fixed === 0 && report[table].errors.length === 0) {
+        delete report[table]
+      }
+      continue
+    }
+
+    report[table].scanned += rows?.length ?? 0
+
+    for (const row of (rows ?? []) as any[]) {
+      const update: Record<string, unknown> = {}
+
+      for (const col of jsonColumns) {
+        const original = row[col]
+        if (original == null) continue
+        const corrected = normalizeUploadUrlsDeep(original)
+        if (JSON.stringify(corrected) !== JSON.stringify(original)) {
+          update[col] = corrected
+        }
       }
 
       if (Object.keys(update).length === 0) continue

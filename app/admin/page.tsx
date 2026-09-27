@@ -1,6 +1,6 @@
-import { cookies } from 'next/headers'
 import { redirect } from 'next/navigation'
 import { authCookies } from '@/lib/config/site'
+import { readSessionCookie } from '@/lib/api/session-cookie'
 import { Users, CalendarDays, BookOpen, UserCog, Trophy, Megaphone, Wrench, Bot, MessageSquare, FileText, UserPlus, ClipboardList, Workflow, Film } from 'lucide-react'
 
 const DASHBOARD_CARDS = [
@@ -21,14 +21,10 @@ const DASHBOARD_CARDS = [
 ]
 
 export default async function AdminDashboard() {
-  const cookieStore = await cookies()
-  const session = cookieStore.get(authCookies.admin)
+  const session = await readSessionCookie<{ email?: string }>(authCookies.admin)
   if (!session) redirect('/admin/login')
 
-  let adminEmail = 'Admin'
-  try {
-    adminEmail = JSON.parse(session.value).email || 'Admin'
-  } catch {}
+  const adminEmail = session.email || 'Admin'
 
   return (
     <div>

@@ -15,6 +15,7 @@ import { apiError } from '@/lib/api/response'
 import { normalizeBlocks } from '@/lib/formBlocks'
 import { rowsToCsv, dedupHeaders } from '@/lib/csv'
 import { getOlympiadActivityLink } from '@/lib/server/olympiadActivityLink'
+import { normalizeUploadUrlsDeep } from '@/lib/uploadUrl'
 
 type Ctx = { params: Promise<{ olympiadId: string }> }
 
@@ -126,6 +127,12 @@ export async function GET(_req: NextRequest, ctx: Ctx) {
   }
 
   if (rErr) return apiError(rErr, 400)
+
+  // Every other API response gets a normalizeUploadUrlsDeep pass for free
+  // via apiOk (lib/api/response.ts) — this route builds a raw text/csv
+  // response instead, so it has to run the same safety net explicitly,
+  // before any CSV-row-building logic runs.
+  regs = normalizeUploadUrlsDeep(regs)
 
   // Derive question columns from ALL fields on the form graph (except those on
   // identity nodes: preset_common_details and preset_team_info). We use a Map<key,

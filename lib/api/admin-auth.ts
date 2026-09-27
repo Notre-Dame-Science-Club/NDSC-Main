@@ -1,11 +1,12 @@
-import { cookies } from "next/headers";
 import { authCookies } from "@/lib/config/site";
 import { apiUnauthorized } from "@/lib/api/response";
+import { readSessionCookie } from "@/lib/api/session-cookie";
+import type { AdminSession } from "@/types/auth";
 
-/** Whether the current request carries a valid admin session cookie. */
+/** Whether the current request carries a valid, signature-verified admin session cookie. */
 export async function isAdmin(): Promise<boolean> {
-  const cookieStore = await cookies();
-  return !!cookieStore.get(authCookies.admin);
+  const session = await readSessionCookie<AdminSession>(authCookies.admin);
+  return !!session && typeof session.email === "string";
 }
 
 /**

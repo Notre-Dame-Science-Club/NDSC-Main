@@ -6,6 +6,7 @@ import { Clock, ChevronRight, ChevronLeft, CheckCircle, ArrowLeft, X } from 'luc
 import MathText from '@/components/olympiad/MathText'
 import FieldsRenderer from '@/components/FieldsRenderer'
 import AnnotationViewer, { Annotation } from '@/components/olympiad/AnnotationViewer'
+import { toAnswerUrls } from '@/lib/photoAnswer'
 
 // Matches FormBlock (lib/formBlocks.ts) — questions are now ALL field types
 // on the olympiad's form-graph nodes (except identity nodes), not just a
@@ -489,11 +490,13 @@ export default function RelayExamPage() {
                         Your answer: <span style={{ color: 'var(--white)' }}>{r.student_answer || '(not answered)'}</span>
                       </div>
                     )}
-                    {r.type === 'photo' && r.student_answer && (
+                    {r.type === 'photo' && toAnswerUrls(r.student_answer).length > 0 && (
                       <div className="mt-2 flex flex-wrap items-center gap-3">
-                        <a href={r.student_answer} target="_blank" rel="noopener noreferrer" className="text-xs underline inline-block" style={{ color: 'var(--blue)' }}>
-                          View your uploaded photo answer
-                        </a>
+                        {toAnswerUrls(r.student_answer).map((u, idx) => (
+                          <a key={u + idx} href={u} target="_blank" rel="noopener noreferrer" className="text-xs underline inline-block" style={{ color: 'var(--blue)' }}>
+                            View your uploaded photo{toAnswerUrls(r.student_answer).length > 1 ? ` #${idx + 1}` : ' answer'}
+                          </a>
+                        ))}
                         {/* Organizer's choice — only shown once they've turned this on for the olympiad */}
                         {olympiad?.annotations_published && markedAnnotations.length > 0 && (
                           <button onClick={() => setViewingAnnotatedQuestionId(r.question_id)}

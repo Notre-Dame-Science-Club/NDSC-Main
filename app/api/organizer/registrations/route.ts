@@ -43,7 +43,7 @@ export async function GET(req: NextRequest) {
   // for a child olympiad's registrants beyond full_name.
   const { data: activityRegs, error: regError } = await supabaseAdmin
     .from('activity_registrations')
-    .select('id, full_name, phone, email, college, college_roll, hsc_session, team_name, team_members, custom_answers, created_at')
+    .select('id, full_name, phone, email, college, college_roll, hsc_session, team_name, team_members, custom_answers, submitted_node_ids, created_at')
     .eq('form_node_id', link.category_id)
     .order('created_at', { ascending: false })
 
@@ -52,6 +52,20 @@ export async function GET(req: NextRequest) {
   }
 
   const regIds = (activityRegs || []).map(r => r.id)
+
+  // Load the form graph's nodes so labeledAnswers() (app/organizer/page.tsx)
+  // can map a stored answer key (e.g. 4cv27bi) to its actual question label.
+  // This olympiad's questions live on the activity session's v2 form graph
+  // (owner_kind: 'activity', owner_id: the session id) — see
+  // getOlympiadActivityLink, which resolves link.session_id the same way.
+  const { data: graph } = await supabaseAdmin
+    .from('form_graphs').select('id').eq('owner_kind', 'activity').eq('owner_id', link.session_id).maybeSingle()
+  let nodeById = new Map<string, any>()
+  if (graph) {
+    const { data: nodes } = await supabaseAdmin
+      .from('form_nodes').select('id, fields, behavior').eq('graph_id', graph.id)
+    nodeById = new Map((nodes || []).map(n => [n.id, n]))
+  }
 
   // Query relay_exam_state for these registrations
   const { data: relayStates } = await supabaseAdmin
@@ -86,6 +100,13 @@ export async function GET(req: NextRequest) {
     const regSubmissions = submissionsByRegId.get(reg.id) || []
     const teamMembers = (reg.team_members || []).map((m: any) => ({ ...m, custom_answers: { ...(m.custom_answers || {}) } }))
     const teamMemberById = new Map<string, any>(teamMembers.map((m: any): [string, any] => [m.id, m]))
+
+    const fieldSchema = Array.isArray(reg.submitted_node_ids)
+      ? (reg.submitted_node_ids as string[]).flatMap(id => (nodeById.get(id)?.fields as any[]) || [])
+      : []
+    const teamFieldSchema = Array.isArray(reg.submitted_node_ids)
+      ? (reg.submitted_node_ids as string[]).flatMap(id => nodeById.get(id)?.behavior?.require_team?.fields || [])
+      : []
 
     // Start with registration-time custom_answers (the leader's own, collected
     // at the linking node itself — usually empty beyond identity fields).
@@ -155,6 +176,8 @@ export async function GET(req: NextRequest) {
       hsc_session: reg.hsc_session,
       team_members: teamMembers,
       custom_answers,
+      field_schema: fieldSchema,
+      team_field_schema: teamFieldSchema,
       final_score,
       review_status,
       annotations,

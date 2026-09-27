@@ -48,6 +48,14 @@ function labeledAnswers(answers: Record<string, any> | undefined, schema: any[] 
 function isImageUrl(v: unknown): v is string {
   return typeof v === 'string' && /^https?:\/\//i.test(v) && /\.(png|jpe?g|webp|gif|heic)(\?|$)/i.test(v)
 }
+function hasImageUrl(v: unknown): boolean {
+  if (Array.isArray(v)) return v.some(isImageUrl)
+  return isImageUrl(v)
+}
+function imageUrlsOf(v: unknown): string[] {
+  if (Array.isArray(v)) return v.filter(isImageUrl)
+  return isImageUrl(v) ? [v] : []
+}
 function annotationsFor(annotations: Reg['annotations'], field: string | null): Annotation[] {
   if (!annotations) return []
   if (Array.isArray(annotations)) return field ? [] : annotations // legacy single-sheet shape
@@ -367,36 +375,59 @@ export default function OrganizerPage() {
 
                 {r.custom_answers && Object.keys(r.custom_answers).length > 0 && (() => {
                   const labeled = labeledAnswers(r.custom_answers, r.field_schema)
-                  const textAnswers = labeled.filter(a => a.value && !isImageUrl(a.value))
-                  const photoAnswers = labeled.filter(a => isImageUrl(a.value))
+                  const textAnswers = labeled.filter(a => a.value && !hasImageUrl(a.value))
+                  const photoAnswers = labeled.filter(a => hasImageUrl(a.value))
                   return (
                     <div className="mt-2 p-2 rounded-lg text-xs space-y-2" style={{ background: 'var(--bg3)' }}>
                       {/* Plain typed answers stay as text, labeled with the question
                           text the admin configured — not the raw storage key, which
-                          is often just a random id until someone renames it. */}
-                      {textAnswers.map(a => (
-                        <div key={a.key}><span style={{ color: 'var(--muted)' }}>{a.label}: </span><span style={{ color: 'var(--white)' }}>{Array.isArray(a.value) ? a.value.join(', ') : a.value}</span></div>
-                      ))}
+                          is often just a random id until someone renames it. Any
+                          http(s) value (image or not — PDFs, docs, etc.) is opened
+                          as a real link instead of dumped as inert text. */}
+                      {textAnswers.map(a => {
+                        const values = Array.isArray(a.value) ? a.value : [a.value]
+                        return (
+                          <div key={a.key}>
+                            <span style={{ color: 'var(--muted)' }}>{a.label}: </span>
+                            <span style={{ color: 'var(--white)' }}>
+                              {values.map((v, idx) => {
+                                const isLink = typeof v === 'string' && /^https?:\/\//i.test(v)
+                                return (
+                                  <span key={idx}>
+                                    {idx > 0 && ', '}
+                                    {isLink ? <a href={v} target="_blank" rel="noreferrer" className="underline" style={{ color: 'var(--blue)' }}>{v.length > 40 ? 'View file' : v}</a> : String(v ?? '—')}
+                                  </span>
+                                )
+                              })}
+                            </span>
+                          </div>
+                        )
+                      })}
                       {/* Uploaded photo answers (e.g. multiple answer-sheet pages: gp1, gp2, gp3…)
                           get a clickable thumbnail straight into the annotation tool, instead of
-                          a bare link the organizer has to copy into a new tab. */}
+                          a bare link the organizer has to copy into a new tab. Multi-file (array)
+                          answers get one thumbnail per uploaded photo. */}
                       {photoAnswers.length > 0 && (
                         <div className="flex flex-wrap gap-2">
-                          {photoAnswers.map(a => {
-                            const marks = annotationsFor(r.annotations, a.key).length
-                            return (
-                              <button key={a.key} onClick={() => setViewingPhoto({ reg: r, field: a.key, url: a.value as string })}
-                                className="relative w-16 h-16 rounded-lg overflow-hidden border flex-shrink-0"
-                                style={{ borderColor: 'var(--border)' }} title={`Annotate ${a.label}`}>
-                                <img src={a.value as string} alt={a.label} className="w-full h-full object-cover" />
-                                <span className="absolute bottom-0 inset-x-0 text-[9px] px-1 py-0.5 text-center truncate"
-                                  style={{ background: 'rgba(0,0,0,0.6)', color: '#fff' }}>{a.label}</span>
-                                {marks > 0 && (
-                                  <span className="absolute top-0.5 right-0.5 text-[9px] px-1 rounded-full font-bold"
-                                    style={{ background: 'var(--blue)', color: '#001018' }}>{marks}</span>
-                                )}
-                              </button>
-                            )
+                          {photoAnswers.flatMap(a => {
+                            const urls = imageUrlsOf(a.value)
+                            return urls.map((u, idx) => {
+                              const photoKey = urls.length > 1 ? `${a.key}#${idx}` : a.key
+                              const marks = annotationsFor(r.annotations, photoKey).length
+                              return (
+                                <button key={photoKey} onClick={() => setViewingPhoto({ reg: r, field: photoKey, url: u })}
+                                  className="relative w-16 h-16 rounded-lg overflow-hidden border flex-shrink-0"
+                                  style={{ borderColor: 'var(--border)' }} title={`Annotate ${a.label}${urls.length > 1 ? ` (${idx + 1})` : ''}`}>
+                                  <img src={u} alt={a.label} className="w-full h-full object-cover" />
+                                  <span className="absolute bottom-0 inset-x-0 text-[9px] px-1 py-0.5 text-center truncate"
+                                    style={{ background: 'rgba(0,0,0,0.6)', color: '#fff' }}>{a.label}{urls.length > 1 ? ` ${idx + 1}` : ''}</span>
+                                  {marks > 0 && (
+                                    <span className="absolute top-0.5 right-0.5 text-[9px] px-1 rounded-full font-bold"
+                                      style={{ background: 'var(--blue)', color: '#001018' }}>{marks}</span>
+                                  )}
+                                </button>
+                              )
+                            })
                           })}
                         </div>
                       )}
@@ -479,7 +510,7 @@ export default function OrganizerPage() {
       )}
 
       {/* Simple score-only modal for submissions with no photo to annotate (e.g. pure online MCQ) */}
-      {viewingReg && !viewingReg.answer_sheet_url && Object.entries(viewingReg.custom_answers || {}).filter(([, v]) => isImageUrl(v)).length === 0 && (
+      {viewingReg && !viewingReg.answer_sheet_url && Object.entries(viewingReg.custom_answers || {}).filter(([, v]) => hasImageUrl(v)).length === 0 && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(2,8,16,0.85)' }}>
           <div className="w-full max-w-sm rounded-2xl border p-6" style={{ background: 'var(--bg2)', borderColor: 'var(--border)' }}>
             <h2 className="font-bold text-sm mb-4" style={{ color: 'var(--blue)', fontFamily: 'inherit' }}>
