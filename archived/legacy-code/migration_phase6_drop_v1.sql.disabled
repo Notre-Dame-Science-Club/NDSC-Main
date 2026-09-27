@@ -1,0 +1,38 @@
+-- Phase 6: drop the v1 activity_reg_categories system + the v1-only
+-- olympiads columns, since the form-graph model is now the only path.
+--
+-- Idempotent: re-runs are no-ops (DROP IF EXISTS / DROP COLUMN IF EXISTS).
+-- Foreign-key constraints on activity_reg_categories are dropped along
+-- with the table. activity_registrations.category_id was the only FK
+-- pointing at it, and nothing in the live surface references it anymore.
+
+-- ── 1. Drop the column linking activity_registrations to the old
+--    category tree. Live dashboards/admin UIs already handle null
+--    category_id (they fall through to the v2 form_node backref); no
+--    foreign-key constraint to worry about since we're also dropping
+--    the table in step 2.
+alter table activity_registrations
+  drop column if exists category_id;
+
+-- ── 2. Drop the activity_reg_categories table. The form_graphs +
+--    form_nodes tables (created by migration_form_graphs.sql) are the
+--    new source of truth — the migration that file runs (PART 2)
+--    copied every category + leaf field + behavior into form_nodes.
+drop table if exists activity_reg_categories cascade;
+
+-- ── 3. Drop the legacy olympiads columns that the form-graph model
+--    replaced. olympiads.registration_fields was a free-form array of
+--    registration form fields, now stored on the graph's root node.
+--    olympiads.questions was the live question list for the exam, now
+--    stored on the preset_olympiad_questions child node. The migration
+--    moved both into form_nodes.fields jsonb.
+alter table olympiads
+  drop column if exists registration_fields;
+
+alter table olympiads
+  drop column if exists questions;
+
+-- ── 4. activity_submissions also referenced activity_reg_categories
+--    via category_id. With the parent table gone, drop the column.
+alter table activity_submissions
+  drop column if exists category_id;

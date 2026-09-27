@@ -1,0 +1,34 @@
+name: Email queue backup ping
+
+# Optional. Vercel's Hobby (free) plan caps its own Cron product at once per
+# day, which isn't frequent enough as a *reliable* backup for in-flight
+# campaigns (see lib/email/campaign-runner.ts's file-level comment). This
+# workflow is a plan-agnostic substitute: it just makes an ordinary HTTP GET
+# to the cron endpoint every few minutes, same as any external scheduler
+# (cron-job.org, EasyCron, UptimeRobot, etc.) would. Delete this file and use
+# one of those instead if you'd rather not use GitHub Actions, or if this
+# repo isn't the one deployed to Vercel.
+#
+# Setup:
+#   1. Add repo secrets: EMAIL_QUEUE_URL (e.g. https://your-domain.com/api/cron/process-email-queue)
+#      and, if CRON_SECRET is set in Vercel, CRON_SECRET (same value).
+#   2. That's it — this runs on GitHub's free tier for public repos, and
+#      private repos get a monthly free minutes allowance that this trivially
+#      fits within.
+
+on:
+  schedule:
+    - cron: '*/5 * * * *'
+  workflow_dispatch: {}
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Hit process-email-queue
+        run: |
+          if [ -n "${{ secrets.CRON_SECRET }}" ]; then
+            curl -sS -f -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" "${{ secrets.EMAIL_QUEUE_URL }}"
+          else
+            curl -sS -f "${{ secrets.EMAIL_QUEUE_URL }}"
+          fi

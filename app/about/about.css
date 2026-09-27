@@ -1,0 +1,265 @@
+/* ═══════════════════════════════════════════════════════════════════════
+   app/about/about.css
+   About page — locked to the dark "cosmos" palette regardless of the
+   site-wide light/dark toggle. Every var(--bg)/--white/--muted/--blue/etc.
+   already used throughout about/page.tsx is re-declared here on `.ab-page`
+   with fixed dark values. A custom property set directly on an element
+   always wins over one it would otherwise inherit, so this single wrapper
+   makes the *entire* page render dark and legible — including the many
+   sections in page.tsx that don't hardcode a background — without having
+   to touch each one individually.
+
+   Component classes below (ab-plate / ab-plates / ab-quote / ab-hero) give
+   the page the same visual language as the homepage's "cosmos" chapters
+   (see app/_components/home2/home2.css: .ch-plate, .ch-head): thin
+   hairline borders, mono kicker labels, single accent bar on hover —
+   so About reads as part of the same site instead of a different template.
+═══════════════════════════════════════════════════════════════════════ */
+
+.ab-page {
+  /* Surfaces (dark-theme values, pinned) */
+  --bg: #020810;
+  --bg2: #050d1a;
+  --bg2-rgb: 5, 13, 26;
+  --bg3: #030a12;
+  --surface: #0a1628;
+  --surface-alt: #0a1f35;
+  --surface-deep: #061420;
+  --card: #0a162899;
+  --border: #14304f;
+  --border-soft: #23425f;
+
+  /* Text */
+  --white: #e8f4ff;
+  --white-soft: #e0f0ff;
+  --white-rgb: 232, 244, 255;
+  --muted: #93b8d6;
+  --muted-rgb: 147, 184, 214;
+
+  /* Brand + status */
+  --blue: #00d4ff;
+  --blue2: #0077ff;
+  --blue-rgb: 0, 212, 255;
+  --blue2-rgb: 0, 119, 255;
+  --glow: #00d4ff55;
+  --accent: #ff6b35;
+  --accent2: #a78bfa;
+  --accent2-rgb: 167, 139, 250;
+  --success: #00ff80;
+  --success-rgb: 0, 255, 128;
+  --danger: #ff5050;
+  --danger-rgb: 255, 80, 80;
+  --warning: #ffb347;
+  --info: #60a5fa;
+  --info-rgb: 96, 165, 250;
+
+  --cat-teal: #34d399;
+  --cat-teal-rgb: 52, 211, 153;
+  --cat-purple: #a78bfa;
+  --cat-red: #f87171;
+  --cat-red-rgb: 248, 113, 113;
+  --cat-amber: #f59e0b;
+  --cat-amber-rgb: 245, 158, 11;
+  --cat-blue: #60a5fa;
+  --cat-orange: #fb923c;
+  --cat-orange-rgb: 251, 146, 60;
+
+  background: var(--bg);
+  color: var(--white);
+  color-scheme: dark;
+  position: relative;
+  isolation: isolate;
+}
+
+/* ── ambient depth — a faint fixed glow so flat dark sections (the ones
+   that previously relied on the surrounding theme for contrast) still
+   feel "detailed" instead of a flat block of a single hex value ────── */
+.ab-page::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    radial-gradient(60% 40% at 15% 0%, rgba(0, 212, 255, 0.05), transparent 60%),
+    radial-gradient(50% 35% at 100% 30%, rgba(167, 139, 250, 0.04), transparent 65%);
+}
+
+/* ── department plates — mirrors the homepage's .ch-plates grid ─────── */
+.ab-plates {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1px;
+  background: var(--border-soft);
+  border: 1px solid var(--border-soft);
+  border-radius: 16px;
+  overflow: hidden;
+}
+.ab-plate {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  min-height: 236px;
+  padding: 24px;
+  gap: 10px;
+  background: var(--bg2);
+  overflow: hidden;
+  cursor: default;
+  transition: padding 0.5s cubic-bezier(0.22, 0.61, 0.36, 1), background 0.4s;
+}
+.ab-plate::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.55s ease;
+  background: linear-gradient(150deg, var(--tint), transparent 62%);
+}
+.ab-plate:hover::before,
+.ab-plate:focus-within::before {
+  opacity: 1;
+}
+.ab-plate:hover,
+.ab-plate:focus-within {
+  padding-left: 30px;
+}
+.ab-plate .orb {
+  position: absolute;
+  top: -38px;
+  right: -38px;
+  width: 140px;
+  height: 140px;
+  border-radius: 50%;
+  pointer-events: none;
+  background: radial-gradient(circle, var(--tint), transparent 70%);
+  filter: blur(6px);
+  opacity: 0.85;
+}
+.ab-plate .num {
+  position: relative;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.16em;
+  color: var(--muted);
+  transition: color 0.4s;
+}
+.ab-plate:hover .num,
+.ab-plate:focus-within .num {
+  color: var(--accent);
+}
+.ab-plate .icon-wrap {
+  position: relative;
+  width: 42px;
+  height: 42px;
+  margin-top: 2px;
+  transition: transform 0.5s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.ab-plate:hover .icon-wrap,
+.ab-plate:focus-within .icon-wrap {
+  transform: scale(1.08) rotate(2deg);
+}
+.ab-plate h3 {
+  position: relative;
+  margin: 0;
+  font-family: inherit;
+  font-weight: 900;
+  font-size: 13.5px;
+  letter-spacing: 0.08em;
+  color: var(--accent);
+}
+.ab-plate p {
+  position: relative;
+  margin: 0;
+  max-width: 34ch;
+  font-size: 12.5px;
+  line-height: 1.62;
+  color: var(--muted);
+}
+.ab-plate .bar {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  height: 2px;
+  width: 100%;
+  background: var(--accent);
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform 0.7s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.ab-plate:hover .bar,
+.ab-plate:focus-within .bar {
+  transform: scaleX(1);
+}
+@media (max-width: 1080px) {
+  .ab-plates { grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-width: 560px) {
+  .ab-plates { grid-template-columns: 1fr; }
+  .ab-plate { min-height: 0; padding: 20px; }
+  .ab-plate:hover, .ab-plate:focus-within { padding-left: 20px; }
+}
+
+/* ── quote / message cards — a touch more depth than a flat tint fill ── */
+.ab-quote {
+  position: relative;
+  overflow: hidden;
+  border-radius: 20px;
+  background: linear-gradient(165deg, var(--bg2) 0%, var(--bg) 78%);
+}
+.ab-quote::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: radial-gradient(60% 80% at 100% 0%, var(--tint, transparent), transparent 60%);
+}
+
+/* ── panel — the "Who We Are" article shell, same treatment ──────────── */
+.ab-panel {
+  position: relative;
+  overflow: hidden;
+  border-radius: 20px;
+  background: linear-gradient(165deg, var(--bg2) 0%, var(--bg) 82%);
+}
+.ab-panel::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: radial-gradient(55% 70% at 0% 0%, rgba(0, 212, 255, 0.07), transparent 62%);
+}
+
+/* ── hero video — bigger, more cinematic ratio + a colour grade so the
+   footage's own colours sit inside the site's navy/cyan palette instead
+   of clashing against it ─────────────────────────────────────────────── */
+.ab-hero {
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg);
+}
+.ab-hero video {
+  filter: saturate(0.72) brightness(0.6) contrast(1.12) hue-rotate(-8deg);
+}
+.ab-hero .ab-hero-grade {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  pointer-events: none;
+  mix-blend-mode: color;
+  background: linear-gradient(175deg, var(--bg2) 0%, var(--blue2) 55%, var(--bg) 100%);
+  opacity: 0.6;
+}
+.ab-hero .ab-hero-vignette {
+  position: absolute;
+  inset: 0;
+  z-index: 6;
+  pointer-events: none;
+  background:
+    radial-gradient(120% 85% at 50% 32%, transparent 28%, var(--bg) 102%),
+    linear-gradient(180deg, rgba(2, 8, 16, 0.75) 0%, rgba(2, 8, 16, 0.25) 42%, rgba(2, 8, 16, 0.88) 100%);
+}
