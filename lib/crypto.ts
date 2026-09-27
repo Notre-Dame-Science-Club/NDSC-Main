@@ -8,7 +8,7 @@
  * For production security, always set EMAIL_ENCRYPTION_KEY in your environment.
  */
 
-import { createCipheriv, createDecipheriv, randomBytes } from 'crypto'
+import { createCipheriv, createDecipheriv, createHmac, randomBytes, timingSafeEqual } from 'crypto'
 
 const ALGORITHM = 'aes-256-gcm'
 
@@ -107,6 +107,54 @@ export function decrypt(ciphertext: string): string {
   decrypted += decipher.final('utf8')
 
   return decrypted
+}
+
+// --- Certificate download tokens -------------------------------------------
+//
+// Short-lived, single-purpose signed tokens used by the certificates system
+// (see lib/certificate.ts and app/api/certificate/[slug]/*) so the public
+// download link needs no Authorization header (a plain <a>/new-tab open
+// can't carry one) while still proving "this specific recipient, right
+// now" without a guessable ID or a long-lived link. Not encryption — just
+// an HMAC over `${recipientId}.${expiresAt}`, verified with a
+// constant-time comparison. Reuses the same key material as encrypt()/
+// decrypt() above rather than introducing a second secret to configure.
+
+function getDownloadTokenSecret(): string {
+  return process.env.EMAIL_ENCRYPTION_KEY || FALLBACK_KEY
+}
+
+export function signCertificateDownloadToken(recipientId: string, expiresAtMs: number): string {
+  const payload = `${recipientId}.${expiresAtMs}`
+  const sig = createHmac('sha256', getDownloadTokenSecret()).update(payload).digest('base64url')
+  return `${Buffer.from(payload, 'utf8').toString('base64url')}.${sig}`
+}
+
+/** Verifies a token from signCertificateDownloadToken(); null if invalid, tampered, or expired. */
+export function verifyCertificateDownloadToken(token: string): { recipientId: string } | null {
+  const parts = token.split('.')
+  if (parts.length !== 2) return null
+  const [payloadB64, sig] = parts
+
+  let payload: string
+  try {
+    payload = Buffer.from(payloadB64, 'base64url').toString('utf8')
+  } catch {
+    return null
+  }
+
+  const expectedSig = createHmac('sha256', getDownloadTokenSecret()).update(payload).digest('base64url')
+  const sigBuf = Buffer.from(sig)
+  const expectedBuf = Buffer.from(expectedSig)
+  if (sigBuf.length !== expectedBuf.length || !timingSafeEqual(sigBuf, expectedBuf)) return null
+
+  const dot = payload.lastIndexOf('.')
+  if (dot === -1) return null
+  const recipientId = payload.slice(0, dot)
+  const expiresAtMs = Number(payload.slice(dot + 1))
+  if (!recipientId || !Number.isFinite(expiresAtMs) || Date.now() > expiresAtMs) return null
+
+  return { recipientId }
 }
 
 /**

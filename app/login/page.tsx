@@ -1,6 +1,6 @@
 'use client'
-import { useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { Suspense, useState } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import Link from 'next/link'
 import Image from 'next/image'
@@ -10,7 +10,20 @@ import OAuthButton from '@/components/auth/OAuthButton'
 import { isOAuthEnabled } from '@/lib/authConfig'
 
 export default function LoginPage() {
+  return (
+    <Suspense fallback={null}>
+      <LoginPageInner />
+    </Suspense>
+  )
+}
+
+function LoginPageInner() {
   const router = useRouter()
+  const searchParams = useSearchParams()
+  // Lets other pages (e.g. /certificate/[slug]) send a logged-out visitor
+  // to /login?redirect=/wherever and get them bounced straight back after
+  // a successful sign-in, instead of always landing on /dashboard.
+  const redirect = searchParams.get('redirect')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
@@ -36,7 +49,10 @@ export default function LoginPage() {
         return setError(signInError?.message || 'Login failed.')
       }
 
-      router.push('/dashboard')
+      // Only ever redirect to a same-site path (never an absolute/external
+      // URL) so this query param can't be turned into an open redirect.
+      const safeRedirect = redirect && redirect.startsWith('/') && !redirect.startsWith('//') ? redirect : '/dashboard'
+      router.push(safeRedirect)
       router.refresh()
     } catch {
       setLoading(false)
