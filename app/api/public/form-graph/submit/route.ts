@@ -139,6 +139,9 @@ function validateRequiredFields(node: FormNode, form: Record<string, any>, custo
   for (const f of normalizeBlocks(node.fields)) {
     if (f.kind !== 'field') continue
     if (!f.required) continue
+    // Unlabeled blocks are hidden on the public form (see FormRunner), so they
+    // can't be answered — don't let them block submission.
+    if (!(f as any).is_builtin && !(typeof f.label === 'string' && f.label.trim())) continue
     const v = (f as any).is_builtin
       ? form?.[(f as any).is_builtin]
       : customAnswers?.[f.key || f.id]

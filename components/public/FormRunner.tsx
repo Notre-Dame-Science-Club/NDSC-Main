@@ -7,6 +7,7 @@ import AntiCheatProvider from '@/components/olympiad/AntiCheatProvider'
 import TeamMembersEditor, { defaultTeamMembers, type TeamMemberDraft } from '@/components/public/TeamMembersEditor'
 import { supabase } from '@/lib/supabase'
 import type { FormGraph, FormNode, FormNodeAppearance } from '@/lib/formGraph'
+import { normalizeBlocks } from '@/lib/formBlocks'
 
 // The public form runner. Renders the user's path down the graph as a
 // single growing column:
@@ -656,7 +657,7 @@ export default function FormRunner({
   const directChildren = childrenOf(activeNode.id)
   // Skip unlabeled field blocks (blank blocks left over from the builder) so the
   // renderer doesn't fall back to showing their random id as the label.
-  const visibleFields = (activeNode.fields || []).filter((f: any) =>
+  const visibleFields = normalizeBlocks(activeNode.fields || []).filter((f: any) =>
     f.kind !== 'field' || f.is_builtin || (typeof f.label === 'string' && f.label.trim() !== '')
   )
   const hasFields = visibleFields.length > 0
