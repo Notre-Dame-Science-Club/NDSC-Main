@@ -43,6 +43,17 @@ export default function FormBlocksBuilder({ blocks, onChange, otherNodes, fields
     onChange(next)
   }
 
+  // Blank field blocks (a field added but never given a label). They're hidden
+  // on the public form, so they only clutter the builder — one click removes
+  // them all. Built-in fields and content blocks are never touched.
+  const isUnlabeledField = (b: FormBlock) =>
+    b.kind === 'field' && !b.is_builtin && !(typeof b.label === 'string' && b.label.trim() !== '')
+  const unlabeledCount = blocks.filter(isUnlabeledField).length
+  const cleanUnlabeled = () => {
+    if (!window.confirm(`Remove ${unlabeledCount} unlabeled field${unlabeledCount === 1 ? '' : 's'}? This can't be undone once you save.`)) return
+    onChange(blocks.filter(b => !isUnlabeledField(b)))
+  }
+
   return (
     <div className="space-y-4">
       {/* Palette. Content blocks (header/paragraph/image/etc.) only make
@@ -87,6 +98,20 @@ export default function FormBlocksBuilder({ blocks, onChange, otherNodes, fields
           </div>
         </div>
       </div>
+
+      {unlabeledCount > 0 && (
+        <div className="flex items-center gap-2 flex-wrap text-xs px-3 py-2 rounded-lg"
+          style={{ background: 'rgba(var(--warning-rgb), 0.08)', border: '1px solid rgba(var(--warning-rgb), 0.3)', color: 'var(--warning)' }}>
+          <span className="flex-1 min-w-0">
+            {unlabeledCount} unlabeled field{unlabeledCount === 1 ? '' : 's'} — not shown on the public form.
+          </span>
+          <button type="button" onClick={cleanUnlabeled}
+            className="flex items-center gap-1 font-bold px-2.5 py-1 rounded-md shrink-0"
+            style={{ background: 'var(--warning)', color: '#000' }}>
+            <Trash2 size={12} /> Clean up unlabeled fields
+          </button>
+        </div>
+      )}
 
       {/* Block list */}
       {blocks.length === 0 && (
