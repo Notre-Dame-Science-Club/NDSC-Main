@@ -69,7 +69,15 @@ export default function FieldsRenderer({
   accent = 'var(--blue)', upload, sessionId, eventSlug, segmentNodeId, onUniqueMatch, onUniqueBlock,
   onValidityChange, forceShowErrors,
 }: FieldsRendererProps) {
-  const safeSchema = normalizeBlocks(schema)
+  // Only real, labeled question fields are ever rendered here. Content blocks
+  // (header / paragraph / image / divider / spacer / link / video) are drawn by
+  // the caller, and blank field blocks left over from the builder have nothing
+  // to ask. Without this, both fell through to the default text input and
+  // showed their random internal id (e.g. "jb4eamf") as the label.
+  const safeSchema = normalizeBlocks(schema).filter(f =>
+    f.kind === 'field' &&
+    (!!(f as any).is_builtin || (typeof f.label === 'string' && f.label.trim() !== ''))
+  )
   const [uploading, setUploading] = useState<Record<string, boolean>>({})
   const hardMinSet = new Set<string>(HARD_MINIMUM_KEYS)
   // Which fields the visitor has already left at least once — format
@@ -344,7 +352,7 @@ function FieldInput({ field, value, onChange, onBlur, formatError, accent, isUpl
 }) {
   const labelEl = (
     <label className="block text-sm font-medium mb-1" style={{ color: 'var(--white)' }}>
-      {field.label || field.key || field.id}
+      {field.label}
       {field.required && <span style={{ color: accent }}> *</span>}
       {field.unique_field && (
         <span className="text-[10px] uppercase tracking-wide ml-2 px-1.5 py-0.5 rounded" style={{ background: 'rgba(var(--blue-rgb), 0.1)', color: 'var(--blue)' }}>unique</span>
@@ -354,7 +362,7 @@ function FieldInput({ field, value, onChange, onBlur, formatError, accent, isUpl
   const descEl = field.description
     ? <p className="text-xs mb-1.5" style={{ color: 'var(--muted)' }}>{field.description}</p>
     : null
-  const badgeEl = <UniqueStateBadge state={uniqueState} fieldLabel={field.label || field.key || field.id} eventSlug={eventSlug} />
+  const badgeEl = <UniqueStateBadge state={uniqueState} fieldLabel={field.label || ''} eventSlug={eventSlug} />
 
   if (field.type === 'textarea') {
     return <div>{labelEl}{descEl}<textarea rows={3} value={value || ''} onChange={e => onChange(e.target.value)} onBlur={onBlur} className={inputCls + ' resize-none'} style={formatError ? { ...inputStyle, borderColor: 'var(--danger-soft)' } : inputStyle} placeholder={(field as any).placeholder} /><FormatErrorNote message={formatError} />{badgeEl}</div>
