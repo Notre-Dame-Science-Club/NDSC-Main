@@ -654,7 +654,12 @@ export default function FormRunner({
   const appearance = resolveAppearance(activeNode, graph, owner)
   const timerSeconds = resolveTimerSeconds(activeNode, graph)
   const directChildren = childrenOf(activeNode.id)
-  const hasFields = (activeNode.fields || []).length > 0
+  // Skip unlabeled field blocks (blank blocks left over from the builder) so the
+  // renderer doesn't fall back to showing their random id as the label.
+  const visibleFields = (activeNode.fields || []).filter((f: any) =>
+    f.kind !== 'field' || f.is_builtin || (typeof f.label === 'string' && f.label.trim() !== '')
+  )
+  const hasFields = visibleFields.length > 0
   const hasChildren = directChildren.length > 0
 
   const currentStep = path.length
@@ -776,7 +781,7 @@ export default function FormRunner({
                 {hasFields && (
                   <div className={hasChildren ? 'mt-3' : ''}>
                     <FieldsRenderer
-                      schema={activeNode.fields || []}
+                      schema={visibleFields}
                       form={form}
                       onFormChange={setForm}
                       customAnswers={custom}
