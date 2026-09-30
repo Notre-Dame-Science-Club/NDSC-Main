@@ -20,6 +20,7 @@ import { supabaseAdmin } from '@/lib/supabase'
 import { NextRequest } from 'next/server'
 import { requireAdmin } from '@/lib/api/admin-auth'
 import { apiError, apiOk } from '@/lib/api/response'
+import { recomputeSlotGroups } from '@/lib/server/slotGroups'
 
 type Ctx = { params: Promise<{ id: string }> }
 
@@ -99,5 +100,8 @@ export async function POST(req: NextRequest, ctx: Ctx) {
   const { data, error } = await supabaseAdmin
     .from('form_nodes').update(patch).eq('id', id).select().single()
   if (error) return apiError(error, 400)
-  return apiOk({ node: data })
+  // A moved segment can inherit a different group from its new ancestors.
+  let group_recompute: any = null
+  if (newParentId !== undefined) group_recompute = await recomputeSlotGroups((data as any)?.graph_id)
+  return apiOk({ node: data, group_recompute })
 }

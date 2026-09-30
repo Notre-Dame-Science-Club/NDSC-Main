@@ -1,6 +1,7 @@
 'use client'
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
+import { segmentAuthHeaders } from '@/lib/clientAuthHeaders'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { MessageCircle, Award, Plus, Upload, X, Home, CalendarDays, BookOpen, Trophy, User, Megaphone, Ticket, Link2, CheckCircle, FileText, CalendarCheck, CreditCard, ClipboardList, ArrowRight, IdCard, Clock, Zap, Sparkles, PenLine, ExternalLink } from 'lucide-react'
@@ -74,7 +75,8 @@ export default function DashboardPage() {
       // Load member's event registrations
       if (m?.id) {
         setRegsLoading(true)
-        fetch(`/api/member-activity-registrations?member_id=${m.id}`)
+        segmentAuthHeaders()
+          .then(h => fetch('/api/member-activity-registrations', { headers: h }))
           .then(r => r.json())
           .then(d => setMyRegistrations(d.registrations || []))
           .catch(() => {})

@@ -52,6 +52,7 @@ export async function GET(_req: NextRequest, ctx: Ctx) {
     supabaseAdmin.from('activity_registrations')
       .select('id, form_node_id, form_graph_id, submitted_node_ids, category_id, full_name, phone, email, college, college_roll, hsc_session, division, project_name, custom_answers, team_members, team_name, payment_status, created_at')
       .eq('activity_session_id', sessionId)
+      .not('completed_at', 'is', null)   // B2
       .order('created_at', { ascending: false }),
   ])
   if (rErr) return apiError(rErr, 400)

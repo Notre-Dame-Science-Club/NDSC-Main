@@ -66,6 +66,7 @@ export async function GET(req: NextRequest) {
       .from('activity_registrations')
       .select('id')
       .eq('member_id', memberId)
+      .not('completed_at', 'is', null)   // B2
 
     let paymentHistory = []
     if (!regError && registrations && registrations.length > 0) {

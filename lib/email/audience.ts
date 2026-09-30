@@ -170,6 +170,7 @@ export async function resolveAudience(
     let regQuery = supabaseAdmin
       .from('activity_registrations')
       .select('id, email, full_name, category_id, activity_session_id, submitted_node_ids')
+      .not('completed_at', 'is', null)   // B2: don't email people with abandoned drafts
     if (orClauses.length > 0) {
       regQuery = regQuery.or(orClauses.join(','))
     }

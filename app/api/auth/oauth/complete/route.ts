@@ -16,6 +16,7 @@ import { supabaseAdmin } from '@/lib/supabase'
 import { validateCollegeRoll } from '@/lib/validation'
 import { apiError, apiOk } from '@/lib/api/response'
 import { getBearerFromAuthHeader } from '@/lib/localAuth'
+import { claimTeamRegistrations } from '@/lib/server/claimRegistrations'
 
 export async function POST(req: NextRequest) {
   try {
@@ -105,6 +106,8 @@ export async function POST(req: NextRequest) {
       }
       return apiError(insertError.message || 'Failed to complete registration.', 400)
     }
+
+    await claimTeamRegistrations(created.id, userEmail)   // auto-enroll into teams that already list this e-mail
 
     return apiOk({
       success: true,

@@ -1,8 +1,10 @@
 import { supabaseAdmin } from '@/lib/supabase'
 import { NextRequest } from 'next/server'
 import { apiError, apiOk } from '@/lib/api/response'
+import { getMemberFromRequest } from '@/lib/auth'
+import { claimTeamRegistrations } from '@/lib/server/claimRegistrations'
 
-// GET /api/member-activity-registrations?member_id=UUID
+// GET /api/member-activity-registrations   (Authorization: Bearer <token>)
 // Returns all activity registrations for a member, with session + category info.
 // Used by the member dashboard to show enrolled events list.
 //
@@ -19,8 +21,11 @@ import { apiError, apiOk } from '@/lib/api/response'
 // accurate for registrations created before the bridge was added,
 // without requiring a backfill migration.
 export async function GET(req: NextRequest) {
-  const memberId = req.nextUrl.searchParams.get('member_id')
-  if (!memberId) return apiOk({ registrations: [] })
+  // B6: identity comes from the verified bearer token only. A client-supplied
+  // ?member_id= is ignored, so nobody can enumerate another person's registrations.
+  const authed = await getMemberFromRequest(req)
+  if (!authed) return apiError('Please log in.', 401)
+  const memberId = authed.id
 
   // Fetch this member's email once (used for the read-time fallback scan).
   const { data: memberRow } = await supabaseAdmin
@@ -30,6 +35,10 @@ export async function GET(req: NextRequest) {
     .maybeSingle()
   const memberEmail = (memberRow?.email || '').trim().toLowerCase()
 
+  // Auto-enroll: link any team this person was added to by e-mail before/without an
+  // account (idempotent, never throws). Runs before the reads below so they include it.
+  await claimTeamRegistrations(memberId, memberRow?.email)
+
   // Two parallel fetches: leader rows + team_member_links rows.
   // Done concurrently so the dashboard doesn't pay double latency.
   const [leaderRes, linksRes] = await Promise.all([
@@ -37,6 +46,7 @@ export async function GET(req: NextRequest) {
       .from('activity_registrations')
       .select('id, category_id, activity_session_id, full_name, payment_status, created_at, project_name, member_id, team_members, form_node_id')
       .eq('member_id', memberId)
+      .not('completed_at', 'is', null)   // B2
       .order('created_at', { ascending: false }),
     supabaseAdmin
       .from('team_member_links')
@@ -68,6 +78,7 @@ export async function GET(req: NextRequest) {
       .from('activity_registrations')
       .select('id, category_id, activity_session_id, full_name, payment_status, created_at, project_name, member_id, team_members, form_node_id')
       .in('id', linkRegIds)
+      .not('completed_at', 'is', null)   // B2
     if (lerr) return apiError(lerr, 400)
     for (const r of (linkRegBodies || [])) {
       if (seen.has(r.id)) continue
@@ -83,7 +94,7 @@ export async function GET(req: NextRequest) {
   // member's email — otherwise we can't match.
   if (memberEmail) {
     const candidateIds = Array.from(seen)
-    let q = supabaseAdmin
+    let q: any = supabaseAdmin
       .from('activity_registrations')
       .select('id, category_id, activity_session_id, full_name, payment_status, created_at, project_name, member_id, team_members, form_node_id')
       // The JSONB contains a row with the matching email. PostgREST
@@ -94,6 +105,7 @@ export async function GET(req: NextRequest) {
       // enough — the user's email is what they typed when they
       // registered as a team member, modulo trim.
       .contains('team_members', JSON.stringify([{ email: memberEmail }]))
+      .not('completed_at', 'is', null)   // B2
       // Don't accidentally surface rows where the leader is the member
       // themselves — those came back via the leader-rows path already.
       // We use is.null to ALSO match legacy rows whose member_id is

@@ -55,6 +55,7 @@ export async function GET(_req: NextRequest, ctx: Ctx) {
       .from('activity_registrations')
       .select('id, full_name, team_name, team_members, created_at')
       .eq('form_node_id', link.category_id)
+      .not('completed_at', 'is', null)   // B2
       .order('created_at', { ascending: false })
 
     if (regError) {

@@ -39,8 +39,13 @@ export function packFormConfigBody(body: Record<string, any>) {
     if (col === 'contact_persons') continue // handled below
     if (body[col] !== undefined) packed[col] = body[col]
   }
-  packed.contact_persons = body.use_ec_page
-    ? { use_ec_page: true, ec_ids: Array.isArray(body.ec_ids) ? body.ec_ids : [] }
-    : (Array.isArray(body.contact_persons) ? body.contact_persons : [])
+  // Only touch contact_persons when the caller actually sent contact data;
+  // otherwise a partial save would silently reset it to [].
+  const touchesContacts = body.use_ec_page !== undefined || body.ec_ids !== undefined || body.contact_persons !== undefined
+  if (touchesContacts) {
+    packed.contact_persons = body.use_ec_page
+      ? { use_ec_page: true, ec_ids: Array.isArray(body.ec_ids) ? body.ec_ids : [] }
+      : (Array.isArray(body.contact_persons) ? body.contact_persons : [])
+  }
   return packed
 }

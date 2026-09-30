@@ -50,6 +50,7 @@ export async function GET(req: NextRequest) {
     .select('id, category_id, form_graph_id, form_node_id, submitted_node_ids, full_name, phone, email, college, college_roll, hsc_session, project_name, custom_answers, team_members, team_name, payment_status, created_at')
     .eq('activity_session_id', sessionId)
     .order('created_at', { ascending: false })
+      .not('completed_at', 'is', null)   // B2: only completed registrations count
 
   if (regError) return apiError(regError, 400)
 

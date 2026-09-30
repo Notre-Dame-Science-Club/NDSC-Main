@@ -45,6 +45,7 @@ export async function GET(req: NextRequest) {
     .from('activity_registrations')
     .select('id, full_name, phone, email, college, college_roll, hsc_session, team_name, team_members, custom_answers, submitted_node_ids, created_at')
     .eq('form_node_id', link.category_id)
+    .not('completed_at', 'is', null)   // B2
     .order('created_at', { ascending: false })
 
   if (regError) {

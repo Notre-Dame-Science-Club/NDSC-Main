@@ -2,6 +2,7 @@
 import { useEffect, useState, useRef } from 'react'
 import { useParams, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
+import { segmentAuthHeaders } from '@/lib/clientAuthHeaders'
 import { ArrowLeft, Calendar, MapPin, Clock, Edit2, Save, Users, Upload, CheckCircle, FileText, ExternalLink, BookOpen, Play, XCircle, AlertTriangle, CreditCard, Ban, Pause, X, Hourglass, Microscope } from 'lucide-react'
 
 const inputStyle = { background: 'rgba(255,255,255,0.04)', border: '1px solid var(--border)', color: 'var(--white)' }
@@ -78,9 +79,14 @@ export default function ActivityDashboardPage() {
     setLoading(true)
     setError('')
     try {
-      const res = await fetch(`/api/activity-register?id=${id}`)
+      const res = await fetch(`/api/activity-register?id=${id}&slug=${encodeURIComponent(slug)}`, { headers: await segmentAuthHeaders(id) })
       const data = await res.json()
-      if (!res.ok) { setError(data.error || 'Registration not found.'); setLoading(false); return }
+      if (!res.ok) {
+        // B12: a stale/foreign id must not stay pinned in storage.
+        if (res.status === 404 || data.code === 'wrong_event') { try { localStorage.removeItem(STORAGE_KEY) } catch { /* ignore */ } }
+        setError(res.status === 401 ? 'Please log in (or use team member login below) to view this registration.' : (data.error || 'Registration not found.'))
+        setLoading(false); return
+      }
       setRegistration(data.registration)
       setCategory(data.category)
       setSession(data.session)
@@ -101,7 +107,8 @@ export default function ActivityDashboardPage() {
       }
 
       // Load submissions
-      const subRes = await fetch(`/api/activity-submission?registration_id=${id}`)
+      const authH = await segmentAuthHeaders(id)
+      const subRes = await fetch(`/api/activity-submission?registration_id=${id}`, { headers: authH })
       if (subRes.ok) {
         const subData = await subRes.json()
         setSubmissions(subData.submissions || [])
@@ -117,8 +124,8 @@ export default function ActivityDashboardPage() {
       setExamScheduledStart(null)
       if (data.category?.linked_olympiad_id) {
         const [olyRes, relayRes] = await Promise.all([
-          fetch(`/api/olympiad?id=${data.category.linked_olympiad_id}`),
-          fetch(`/api/relay-exam?registration_id=${id}&olympiad_id=${data.category.linked_olympiad_id}`),
+          fetch(`/api/olympiad?id=${data.category.linked_olympiad_id}&registration_id=${id}`, { headers: authH }),
+          fetch(`/api/relay-exam?registration_id=${id}&olympiad_id=${data.category.linked_olympiad_id}`, { headers: authH }),
         ])
         if (olyRes.ok) {
           const olyData = await olyRes.json()
@@ -138,9 +145,25 @@ export default function ActivityDashboardPage() {
   }
 
   useEffect(() => {
-    const regId = searchParams.get('reg') || localStorage.getItem(STORAGE_KEY)
-    if (regId) loadRegistration(regId)
-    else setLoading(false)
+    // B12: prefer an explicit ?reg=; otherwise resolve the person's registration for
+    // THIS event from the server (newest first) instead of trusting the single global
+    // localStorage key, which may point at a different event.
+    ;(async () => {
+      let regId = searchParams.get('reg')
+      if (!regId) {
+        try {
+          const res = await fetch('/api/member-activity-registrations', { headers: await segmentAuthHeaders() })
+          if (res.ok) {
+            const d = await res.json()
+            const mine = (d.registrations || []).find((r: any) => r.session?.slug === slug)
+            if (mine) regId = mine.id
+          }
+        } catch { /* fall back to storage */ }
+      }
+      if (!regId) { try { regId = localStorage.getItem(STORAGE_KEY) } catch { /* ignore */ } }
+      if (regId) loadRegistration(regId)
+      else setLoading(false)
+    })()
   }, [])
 
   const paymentRedirectStatus = searchParams.get('payment')
@@ -156,6 +179,7 @@ export default function ActivityDashboardPage() {
       })
       const data = await res.json()
       if (!res.ok) { setTeamLoginError(data.error || 'Login failed.'); setTeamLoginLoading(false); return }
+      try { if (data.team_token) sessionStorage.setItem(`ndsc_team_token:${data.registration_id}`, data.team_token) } catch { /* ignore */ }
       setViewAsTeamMemberId(data.team_member_id)
       await loadRegistration(data.registration_id)
     } catch { setTeamLoginError('Network error. Please try again.') }
@@ -171,7 +195,7 @@ export default function ActivityDashboardPage() {
     setSaving(true)
     try {
       const res = await fetch('/api/activity-register', {
-        method: 'PUT', headers: { 'Content-Type': 'application/json' },
+        method: 'PUT', headers: { 'Content-Type': 'application/json', ...(await segmentAuthHeaders(registration.id)) },
         body: JSON.stringify({ id: registration.id, ...editForm }),
       })
       const data = await res.json()
@@ -183,11 +207,13 @@ export default function ActivityDashboardPage() {
   }
 
   // ── File upload for submission fields ────────────────────────────────────
-  const uploadFile = (file: File, allowedTypes?: string[], maxSizeMb?: number): Promise<string> => new Promise((resolve, reject) => {
+  const uploadFile = (file: File, fieldId: string): Promise<string> => new Promise(async (resolve, reject) => {
     const fd = new FormData()
     fd.append('file', file)
-    if (allowedTypes?.length) fd.append('allowed_types', allowedTypes.join(','))
-    if (maxSizeMb) fd.append('max_size_mb', String(maxSizeMb))
+    // S5: the server derives type/size limits from the segment's field config.
+    fd.append('registration_id', registration.id)
+    fd.append('field_id', fieldId)
+    const authH = await segmentAuthHeaders(registration.id)
     const xhr = new XMLHttpRequest()
     xhr.addEventListener('load', () => {
       try {
@@ -198,6 +224,7 @@ export default function ActivityDashboardPage() {
     })
     xhr.addEventListener('error', () => reject(new Error('Network error during upload.')))
     xhr.open('POST', '/api/activity-upload')
+    for (const [k, v] of Object.entries(authH)) xhr.setRequestHeader(k, v)
     xhr.send(fd)
   })
 
@@ -207,7 +234,7 @@ export default function ActivityDashboardPage() {
     setUploadingField(fieldId)
     setSubmitError('')
     try {
-      const url = await uploadFile(file, field?.file_types, field?.max_file_size_mb)
+      const url = await uploadFile(file, fieldId)
       setSubmissionAnswers(prev => {
         const existing: string[] = Array.isArray(prev[fieldId]) ? prev[fieldId] : (prev[fieldId] ? [prev[fieldId]] : [])
         const updated = maxFiles === 1 ? [url] : [...existing, url].slice(0, maxFiles)
@@ -232,7 +259,7 @@ export default function ActivityDashboardPage() {
     const submittedBy = viewAsTeamMemberId || 'leader'
     try {
       const res = await fetch('/api/activity-submission', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        method: 'POST', headers: { 'Content-Type': 'application/json', ...(await segmentAuthHeaders(registration.id)) },
         body: JSON.stringify({
           registration_id: registration.id,
           submitted_by: submittedBy,
@@ -244,7 +271,7 @@ export default function ActivityDashboardPage() {
       if (!res.ok) throw new Error(data.error || 'Submission failed.')
       setSubmitSuccess(true)
       setSubmissions(prev => {
-        const idx = prev.findIndex(s => s.submitted_by === submittedBy)
+        const idx = prev.findIndex(s => s.submitted_by === data.submission?.submitted_by)
         if (idx >= 0) { const n = [...prev]; n[idx] = data.submission; return n }
         return [data.submission, ...prev]
       })
@@ -258,7 +285,7 @@ export default function ActivityDashboardPage() {
     const memberId = viewAsTeamMemberId || 'leader'
     try {
       const res = await fetch('/api/relay-exam', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        method: 'POST', headers: { 'Content-Type': 'application/json', ...(await segmentAuthHeaders(registration.id)) },
         body: JSON.stringify({
           action: 'assign_subject',
           registration_id: registration.id,
@@ -278,7 +305,7 @@ export default function ActivityDashboardPage() {
     if (!olympiad || !registration) return
     try {
       const res = await fetch('/api/relay-exam', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        method: 'POST', headers: { 'Content-Type': 'application/json', ...(await segmentAuthHeaders(registration.id)) },
         body: JSON.stringify({ action: 'start', registration_id: registration.id, olympiad_id: olympiad.id }),
       })
       const data = await res.json()

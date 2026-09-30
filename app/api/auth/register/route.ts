@@ -2,6 +2,7 @@ import { supabaseAdmin } from '@/lib/supabase'
 import { NextRequest } from 'next/server'
 import { apiError, apiOk } from '@/lib/api/response'
 import { createHash, randomBytes, randomUUID } from 'crypto'
+import { claimTeamRegistrations } from '@/lib/server/claimRegistrations'
 
 // Member registration.
 //
@@ -75,6 +76,7 @@ export async function POST(req: NextRequest) {
         .select('id')
         .single()
       if (dbError) return apiError(dbError.message || 'Failed to register.', 400)
+      await claimTeamRegistrations(created.id, email)   // auto-enroll into teams that already list this e-mail
       return apiOk({
         success: true,
         member_id: created.id,
@@ -112,6 +114,8 @@ export async function POST(req: NextRequest) {
       await supabaseAdmin.auth.admin.deleteUser(authData.user.id)
       return apiError(dbError.message, 400)
     }
+
+    await claimTeamRegistrations(authData.user.id, email)   // auto-enroll into teams that already list this e-mail
 
     return apiOk({
       success: true,

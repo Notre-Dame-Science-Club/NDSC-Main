@@ -405,6 +405,31 @@ export default function NodeEditorPage() {
             </div>
           )}
 
+          {graph?.owner_kind === 'activity' && node.parent_id !== null && (() => {
+            const groups: Array<{ id: string; name: string }> = Array.isArray(graph.settings?.segment_groups) ? graph.settings.segment_groups : []
+            const current = node.behavior.segment_group_id && groups.some(g => g.id === node.behavior.segment_group_id) ? node.behavior.segment_group_id : ''
+            return (
+              <div className="rounded-lg p-3 mb-3" style={{ background: 'var(--bg2)', border: '1px solid var(--border)' }}>
+                <label className="block text-sm font-semibold mb-1.5" style={{ color: 'var(--white)' }}>Segment group</label>
+                {groups.length === 0 ? (
+                  <p className="text-[11px]" style={{ color: 'var(--muted)' }}>
+                    No groups yet. Create one from the "Segment groups" panel on this event's form diagram, then come back to put this segment in it.
+                  </p>
+                ) : (
+                  <select value={current} onChange={e => patchBehavior({ segment_group_id: e.target.value || undefined })}
+                    className={inputCls} style={inputStyle}>
+                    <option value="">No group (independent)</option>
+                    {groups.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
+                  </select>
+                )}
+                <p className="text-[11px] mt-1.5" style={{ color: 'var(--muted)' }}>
+                  A person can register in only ONE segment of a group. This applies to every segment inside this one too,
+                  unless a nested segment is put in a different group. Click "Save" for it to take effect.
+                </p>
+              </div>
+            )
+          })()}
+
           <Field label="Schedule (date / time / room) — shown above the form">
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
               <input type="date" value={node.behavior.schedule?.date || ''} onChange={e => patchBehavior({ schedule: { ...(node.behavior.schedule || {}), date: e.target.value } })}

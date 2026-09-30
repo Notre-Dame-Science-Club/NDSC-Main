@@ -3,6 +3,8 @@ import { NextRequest } from 'next/server'
 import { apiError, apiOk } from '@/lib/api/response'
 import { getOlympiadQuestionFields } from '@/lib/server/olympiadQuestions'
 import { getOlympiadActivityLink } from '@/lib/server/olympiadActivityLink'
+import { stripAnswerKeysFromBlocks } from '@/lib/server/stripAnswerKeys'
+import { authorizeSegmentAccess } from '@/lib/server/registrationAccess'
 
 // Public route — no auth required.
 // Uses supabaseAdmin so it bypasses RLS (which restricts anon reads).
@@ -32,7 +34,20 @@ export async function GET(req: NextRequest) {
     if (error || !data) return apiError('Olympiad not found.', 404)
     // `questions` no longer lives on this row — it's the fields of the
     // olympiad's form-graph node of kind preset_olympiad_questions.
-    const questions = await getOlympiadQuestionFields(id)
+    // S4: questions are returned ONLY to a caller authorized for this
+    // olympiad through a complete registration in the segment it is linked
+    // to, inside the exam window, after the relay has started. Answer keys
+    // are never returned to anyone.
+    let questions: any[] = []
+    const regId = req.nextUrl.searchParams.get('registration_id')
+    if (regId) {
+      const access = await authorizeSegmentAccess(req, regId, { need: 'olympiad', requestedOlympiadId: id })
+      if (access.ok) {
+        const { data: started } = await supabaseAdmin.from('relay_exam_state')
+          .select('id').eq('registration_id', regId).eq('olympiad_id', id).maybeSingle()
+        if (started) questions = stripAnswerKeysFromBlocks(await getOlympiadQuestionFields(id))
+      }
+    }
     return apiOk({ olympiad: { ...data, questions } })
   }
 

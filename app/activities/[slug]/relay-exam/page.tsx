@@ -7,6 +7,7 @@ import MathText from '@/components/olympiad/MathText'
 import FieldsRenderer from '@/components/FieldsRenderer'
 import AnnotationViewer, { Annotation } from '@/components/olympiad/AnnotationViewer'
 import { toAnswerUrls } from '@/lib/photoAnswer'
+import { segmentAuthHeaders } from '@/lib/clientAuthHeaders'
 
 // Matches FormBlock (lib/formBlocks.ts) — questions are now ALL field types
 // on the olympiad's form-graph nodes (except identity nodes), not just a
@@ -95,15 +96,17 @@ export default function RelayExamPage() {
     setLoading(true)
     setError('')
     try {
+      const authH = await segmentAuthHeaders(regId)
       const [olyRes, regRes, relayRes] = await Promise.all([
-        fetch(`/api/olympiad?id=${olympiadId}`),
-        fetch(`/api/activity-register?id=${regId}`),
-        fetch(`/api/relay-exam?registration_id=${regId}&olympiad_id=${olympiadId}`),
+        fetch(`/api/olympiad?id=${olympiadId}&registration_id=${regId}`, { headers: authH }),
+        fetch(`/api/activity-register?id=${regId}`, { headers: authH }),
+        fetch(`/api/relay-exam?registration_id=${regId}&olympiad_id=${olympiadId}`, { headers: authH }),
       ])
       const olyData = await olyRes.json()
       const regData = await regRes.json()
       const relayData = await relayRes.json()
 
+      if (!relayRes.ok) throw new Error(relayData.error || 'You can\'t open this exam.')
       if (!olyRes.ok) throw new Error(olyData.error || 'Olympiad not found.')
       if (!regRes.ok) throw new Error(regData.error || 'Registration not found.')
 
@@ -184,7 +187,7 @@ export default function RelayExamPage() {
   const pickSubject = async (subjectId: string) => {
     try {
       const res = await fetch('/api/relay-exam', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        method: 'POST', headers: { 'Content-Type': 'application/json', ...(await segmentAuthHeaders(regId)) },
         body: JSON.stringify({ action: 'assign_subject', registration_id: regId, olympiad_id: olympiadId, member_id: memberIdParam, subject_id: subjectId }),
       })
       const data = await res.json()
@@ -202,7 +205,7 @@ export default function RelayExamPage() {
     // fail at submit time with "Relay not started yet."
     if (!relayState) {
       const res = await fetch('/api/relay-exam', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        method: 'POST', headers: { 'Content-Type': 'application/json', ...(await segmentAuthHeaders(regId)) },
         body: JSON.stringify({ action: 'start', registration_id: regId, olympiad_id: olympiadId }),
       })
       const data = await res.json()
@@ -254,7 +257,7 @@ export default function RelayExamPage() {
     clearInterval(timerRef.current)
     try {
       const res = await fetch('/api/relay-exam', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        method: 'POST', headers: { 'Content-Type': 'application/json', ...(await segmentAuthHeaders(regId)) },
         body: JSON.stringify({
           action: 'submit_member',
           registration_id: regId,

@@ -2,6 +2,8 @@ import { supabaseAdmin } from '@/lib/supabase'
 import { NextRequest } from 'next/server'
 import { verifyPassword } from '@/lib/password'
 import { apiError, apiOk } from '@/lib/api/response'
+import { issueTeamToken } from '@/lib/api/teamToken'
+import { normalizeEmail } from '@/lib/identity'
 
 // Team members aren't real Supabase Auth users — their credentials live
 // inside their leader's registration row (team_members jsonb array), set by
@@ -26,25 +28,37 @@ export async function POST(req: NextRequest) {
   // millions), it's simpler and more reliably correct to just fetch
   // everything with a non-null team_members column and filter precisely in
   // application code below.
-  const { data: registrations, error } = await supabaseAdmin
+  // Only COMPLETE registrations can be logged into; optionally scoped to one
+  // event so a person on several teams isn't stuck with the first match.
+  let q = supabaseAdmin
     .from('activity_registrations')
     .select('id, category_id, activity_session_id, team_members')
     .not('team_members', 'is', null)
-
+    .not('completed_at', 'is', null)
+  const scopeSession = typeof body?.activity_session_id === 'string' ? body.activity_session_id : null
+  if (scopeSession) q = q.eq('activity_session_id', scopeSession)
+  const { data: registrations, error } = await q
   if (error) return apiError(error, 400)
 
+  const wanted = normalizeEmail(email)
+  const matches: any[] = []
   for (const reg of registrations || []) {
     const members = (reg.team_members || []) as any[]
-    if (members.length === 0) continue
-    const match = members.find(m => m.email?.toLowerCase() === email.toLowerCase())
-    if (match && verifyPassword(password, match.password_hash)) {
-      return apiOk({
-        registration_id: reg.id,
-        category_id: reg.category_id,
-        activity_session_id: reg.activity_session_id,
-        team_member_id: match.id,
-      })
+    for (const m of members) {
+      if (normalizeEmail(m?.email) === wanted && m?.password_hash && verifyPassword(password, m.password_hash)) {
+        let team_token: string
+        try { team_token = issueTeamToken(reg.id, m.id) }
+        catch { return apiError('Team login is temporarily unavailable.', 503) }
+        matches.push({
+          registration_id: reg.id, category_id: reg.category_id,
+          activity_session_id: reg.activity_session_id, team_member_id: m.id, team_token,
+        })
+      }
     }
+  }
+  if (matches.length) {
+    // First match keeps the legacy top-level shape; `matches` lists all.
+    return apiOk({ ...matches[0], matches })
   }
 
   return apiError('Incorrect email or password.', 401)

@@ -26,7 +26,7 @@
 //
 // The response always tells the runner what's next:
 //   { registration_id, next_node_id, done, node } where
-//   - next_node_id is the FIRST child of the just-submitted node
+//   - next_node_id is the FIRST child of the just-submitted node  (or the child named by body.next_node_id)
 //   - done = true when the submitted node is terminal OR the graph has
 //     no further enabled children
 //
@@ -41,6 +41,7 @@
 // full unique_field check (leader + team_members), now live here too —
 // see validateAndPrepareTeam and findUniqueFieldDuplicates below.
 
+import { evaluateStep } from '@/lib/registrationPath'
 import { NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase'
 import { NextRequest } from 'next/server'
@@ -50,6 +51,11 @@ import { normalizeBlocks, HARD_MINIMUM_KEYS, validateFieldFormat, type FormBlock
 import { validateAndPrepareTeam, isTeamResultOk, type ValidateTeamResult } from '@/lib/teamRegistration'
 import type { FormNode } from '@/lib/formGraph'
 import { sendWelcomeEmailIfEnabled } from '@/lib/email/welcome'
+import { computePathFee } from '@/lib/paymentFee'
+import { checkWindow } from '@/lib/segmentAccess'
+import { groupKeyFor } from '@/lib/segmentGroups'
+import { buildSlotIdentities } from '@/lib/identity'
+import { activityRegistrationOpen, olympiadRegistrationOpen } from '@/lib/registrationWindow'
 
 // Node kinds that contain identity/registration info, NOT exam questions.
 // These are excluded from the timer trigger logic below.
@@ -91,6 +97,7 @@ type SubmitBody = {
   graph_id?: string
   node_id?: string
   registration_id?: string         // set on every non-root submit
+  next_node_id?: string | null    // B10: the child the registrant picked (validated server-side)
   form?: Record<string, any>       // built-in values
   custom_answers?: Record<string, any>
   team_members?: any[]
@@ -222,6 +229,7 @@ async function findDuplicateLeader(
       .from('activity_registrations')
       .select('id, full_name, email, phone, college_roll, member_id, submitted_node_ids')
       .eq(ownerCol, ownerId)
+      .not('completed_at', 'is', null)   // B2: drafts never count as a registration
     if (excludeId) query = query.neq('id', excludeId)
     const res = await query
     data = res.data
@@ -296,6 +304,7 @@ async function findUniqueFieldDuplicates(
     .from('activity_registrations')
     .select('id, full_name, email, phone, college_roll, custom_answers, team_members, submitted_node_ids')
     .eq('activity_session_id', activitySessionId)
+    .not('completed_at', 'is', null)   // B2
   if (excludeId) query = query.neq('id', excludeId)
   const { data: allExistingRegs } = await query
   const existingRegs = (allExistingRegs || []).filter(r => inSameSegment(r as any, segmentNodeId))
@@ -668,6 +677,7 @@ export async function POST(req: NextRequest) {
   const isOlympiad = graph.owner_kind === 'olympiad'
   const table = isOlympiad ? 'olympiad_registrations' : 'activity_registrations'
   const isRoot = node.parent_id === null
+  let registrationFee = 0   // B4: >0 only when this submit completed a payable registration
 
   // Figure out up front whether this submit finishes the user's path — we
   // need this before writing anything, because the identity-field hard
@@ -680,8 +690,47 @@ export async function POST(req: NextRequest) {
     .eq('parent_id', node.id)
     .eq('enabled', true)
     .order('display_order', { ascending: true })
-  const nextNodeId = (children && children.length) ? children[0].id : null
+  // B10: honor the child the person actually picked. It must be one of this
+  // node's enabled children; otherwise fall back to the first child.
+  let nextNodeId: string | null = (children && children.length) ? children[0].id : null
+  if (body.next_node_id !== undefined && body.next_node_id !== null) {
+    const picked = (children || []).find((c: any) => c.id === body.next_node_id)
+    if (!picked) return apiError('That option is not available.', 400)
+    nextNodeId = picked.id
+  }
   const isDone = !!node.is_terminal || !nextNodeId
+
+  // S9: registration deadlines/flags are enforced HERE, not just in the UI.
+  // Starting a NEW registration (root submit) requires the event to be open.
+  // In-flight registrations may finish their path after the deadline.
+  if (isRoot) {
+    if (isOlympiad) {
+      const { data: oly } = await supabaseAdmin.from('olympiads')
+        .select('is_active, registration_deadline').eq('id', graph.owner_id).maybeSingle()
+      const r = olympiadRegistrationOpen(oly)
+      if (r.open === false) return apiError(r.reason, 403, { code: 'registration_closed' })
+    } else {
+      const { data: sess } = await supabaseAdmin.from('activity_sessions')
+        .select('is_upcoming, registration_enabled, reg_deadline').eq('id', graph.owner_id).maybeSingle()
+      const r = activityRegistrationOpen(sess)
+      if (r.open === false) return apiError(r.reason, 403, { code: 'registration_closed' })
+    }
+  }
+
+  // B8: olympiad exam-content submits respect the exam window and
+  // allow_resubmission (previously only olympiad-register PUT / relay-exam did).
+  if (isOlympiad && !IDENTITY_NODE_KINDS.has(node.kind as any)) {
+    const { data: oly } = await supabaseAdmin.from('olympiads')
+      .select('scheduled_start_at, scheduled_end_at, allow_resubmission').eq('id', graph.owner_id).maybeSingle()
+    const w = checkWindow(new Date(), { opens_at: oly?.scheduled_start_at, closes_at: oly?.scheduled_end_at })
+    if (w === 'not_open') return apiError('The exam has not started yet.', 403, { code: 'not_open', scheduled_start_at: oly?.scheduled_start_at })
+    if (w === 'closed') return apiError('Exam time is over.', 403, { code: 'closed' })
+    if (registrationId && oly?.allow_resubmission === false) {
+      const { data: prev } = await supabaseAdmin.from('olympiad_registrations')
+        .select('exam_submitted_at').eq('id', registrationId).maybeSingle()
+      if (prev?.exam_submitted_at) return apiError('This olympiad does not allow resubmission.', 409, { code: 'resubmission_blocked' })
+    }
+  }
 
   const newBuiltins = nonEmptyBuiltins(form)
 
@@ -840,20 +889,18 @@ export async function POST(req: NextRequest) {
           return apiError('Team name is required for team events.', 400)
         }
       }
-      // Phase 3: payment. Mirror v1's activity-register behavior — when
-      // the active root node declares a payment amount, stamp
-      // payment_status='pending' + payment_amount on the new row, and
-      // tell the client (via the response below) to kick off
-      // /api/payment/init so it can redirect to the SSLCommerz gateway.
-      // We only do this when the root submit IS DONE — a payment-required
-      // intermediate node that still has children to visit wouldn't make
-      // sense as a payment trigger. (Same shape as v1: payment fires
-      // only at final registration submit.)
-      const payCfg = (node as any).behavior?.requires_payment
-      if (payCfg && typeof payCfg.amount === 'number' && payCfg.amount > 0) {
-        insert.payment_status = 'pending'
-        insert.payment_amount = payCfg.amount
+      // B4: payment is stamped once, at completion, from the whole path's fees
+      // (root + segment). Never at an intermediate step.
+      if (isDone && !isOlympiad) {
+        const fee = computePathFee([node])
+        if (fee > 0) {
+          insert.payment_status = 'pending'
+          insert.payment_amount = fee
+          registrationFee = fee
+        }
       }
+      // Completion (completed_at / terminal_node_id) is stamped atomically with the
+      // registration_slots rows by finalizeCompletion() below.
       const { data, error } = await supabaseAdmin.from(table).insert(insert).select('id').single()
       if (error) return apiError(error, 400)
       registrationId = data.id
@@ -878,6 +925,35 @@ export async function POST(req: NextRequest) {
     if (!existing) return apiError('Registration not found.', 404)
     if (existing.form_graph_id !== graph.id) {
       return apiError("Registration isn't on this form graph.", 400)
+    }
+
+    // B3: path integrity. A registration can only move forward along the
+    // tree (or re-submit a node it already passed, which truncates the
+    // path there). It can never jump to a sibling/unrelated node, and a
+    // completed activity registration can't be re-routed at all.
+    if (!isOlympiad && (existing as any).completed_at) {
+      return apiError('This registration is already complete.', 409)
+    }
+    const step = evaluateStep({ priorPath: existing.submitted_node_ids, rootId: graph.root_node_id, node })
+    if (step.ok === false) {
+      return apiError("That step doesn't follow from where this registration is.", 409)
+    }
+    const newPath: string[] = step.newPath
+    // B15: every ancestor must exist in this graph and be enabled.
+    {
+      const { data: graphNodes, error: gnErr } = await supabaseAdmin
+        .from('form_nodes').select('id, parent_id, enabled').eq('graph_id', graph.id)
+      if (gnErr) return apiError(gnErr, 400)
+      const byId = new Map<string, { id: string; parent_id: string | null; enabled: boolean }>(
+        (graphNodes || []).map((n: any) => [n.id, n]))
+      let cur: string | null = node.parent_id
+      let guard = 0
+      while (cur && guard++ < 100) {
+        const anc = byId.get(cur)
+        if (!anc) return apiError('This form is misconfigured (broken path).', 409)
+        if (!anc.enabled) return apiError('This form is currently disabled.', 403)
+        cur = anc.parent_id
+      }
     }
 
     // The terminal this registration is heading to, for scoping the
@@ -986,32 +1062,57 @@ export async function POST(req: NextRequest) {
       : (({ batch, ...rest }) => rest)(newBuiltins)
     const patch: Record<string, any> = {
       form_node_id: node.id,
-      submitted_node_ids: [...(existing.submitted_node_ids || []), node.id],
+      submitted_node_ids: newPath,
       ...filteredBuiltins,
     }
+    // B7: answers are stored per node with REPLACE semantics. Keys owned by
+    // this node (re-submit) and by nodes that fell off the path (branch
+    // switch / going back) are removed before the new answers are merged, so
+    // nothing is duplicated and nothing from an abandoned branch survives.
+    const ownKeys = (fields: any): string[] => normalizeBlocks(fields || [])
+      .filter((f: any) => f.kind === 'field' && !f.is_builtin)
+      .map((f: any) => f.key || f.id)
+    const droppedIds = new Set<string>(step.dropped)
+    const removeKeys = new Set<string>(ownKeys(node.fields))
+    if (step.dropped.length) {
+      const { data: droppedNodes } = await supabaseAdmin
+        .from('form_nodes').select('id, fields').in('id', step.dropped)
+      for (const dn of (droppedNodes || [])) for (const k of ownKeys((dn as any).fields)) removeKeys.add(k)
+    }
+    const baseCustom: Record<string, any> = {}
+    for (const [k, v] of Object.entries((existing.custom_answers || {}) as Record<string, any>)) {
+      if (!removeKeys.has(k)) baseCustom[k] = v
+    }
+    const mergedCustom = { ...baseCustom, ...custom }
+    patch.custom_answers = mergedCustom
     if (isOlympiad) {
-      // Lift olympiad question fields into the dedicated columns.
-      const { mcq, short, photo } = splitOlympiadAnswers(node as any, custom)
-      patch.custom_answers = { ...(existing.custom_answers || {}), ...custom }
-      patch.mcq_answers = { ...(existing.mcq_answers || {}), ...mcq }
-      patch.short_answers = { ...(existing.short_answers || {}), ...short }
-      patch.photo_answers = [...(existing.photo_answers || []), ...photo]
+      // mcq/short/photo are DERIVED from custom_answers over the surviving
+      // path (never appended), so re-submits can't duplicate photos.
+      const { data: pathNodes } = await supabaseAdmin
+        .from('form_nodes').select('id, fields').in('id', newPath)
+      const mcq: Record<string, any> = {}
+      const short: Record<string, any> = {}
+      const photo: string[] = []
+      for (const pn of (pathNodes || [])) {
+        const part = splitOlympiadAnswers((pn.id === node.id ? node : pn) as any, mergedCustom)
+        Object.assign(mcq, part.mcq); Object.assign(short, part.short); photo.push(...part.photo)
+      }
+      patch.mcq_answers = mcq
+      patch.short_answers = short
+      patch.photo_answers = photo
     } else {
-      patch.custom_answers = { ...(existing.custom_answers || {}), ...custom }
-      // Phase 2: append the freshly-validated + hashed members to the
-      // existing team_members list. preparedTeamMembers is the
-      // client-supplied body.team_members after validation + hashing,
-      // so we never write a password field through to the row.
-      if (preparedTeamMembers.length) {
-        patch.team_members = [...(existing.team_members || []), ...preparedTeamMembers]
-      } else if (body.team_members && body.team_members.length) {
-        // Defensive: a team_members array arriving at a node whose
-        // behavior.require_team is NOT set means the client is
-        // resubmitting the form on a non-team step. Preserve whatever
-        // was already persisted — don't clobber, don't append raw.
-        // (The phase-1 validateAndPrepareTeam above already skipped
-        // this case because teamCfg was null, so we just keep what we
-        // have.)
+      // Team members are tagged with the node that collected them. On a
+      // re-submit of this node, or when their node fell off the path, they
+      // are dropped and replaced. Untagged (pre-fix) members are kept
+      // unless this very node is being re-submitted with a team config
+      // (they'd otherwise be duplicated).
+      const prior: any[] = Array.isArray(existing.team_members) ? existing.team_members : []
+      const revisitedThisNode = droppedIds.has(node.id)
+      const kept = prior.filter((m: any) => m && (m.node_id
+        ? (m.node_id !== node.id && !droppedIds.has(m.node_id))
+        : !(teamCfg && revisitedThisNode)))
+      if (preparedTeamMembers.length || kept.length !== prior.length) {
+        patch.team_members = [...kept, ...preparedTeamMembers.map((m: any) => ({ ...m, node_id: node.id }))]
       }
       // Task 1 (non-root branch): for team-required graphs where the
       // team_name is collected on a leaf node rather than the root,
@@ -1026,6 +1127,23 @@ export async function POST(req: NextRequest) {
         }
       }
     }
+    if (isDone && !isOlympiad) {
+      // completed_at / terminal_node_id: see finalizeCompletion().
+      // B4: fee = sum over the completed path; never touch an already-paid row.
+      if (existing.payment_status !== 'paid') {
+        const { data: feeNodes } = await supabaseAdmin
+          .from('form_nodes').select('id, behavior').in('id', newPath)
+        const fee = computePathFee(feeNodes || [])
+        if (fee > 0) {
+          patch.payment_status = 'pending'
+          patch.payment_amount = fee
+          registrationFee = fee
+        } else {
+          patch.payment_status = 'not_required'
+          patch.payment_amount = null
+        }
+      }
+    }
     const { error: uErr } = await supabaseAdmin.from(table).update(patch).eq('id', registrationId)
     if (uErr) return apiError(uErr, 400)
     // Task 5: bridge on the non-root path too. Re-link when team
@@ -1037,6 +1155,14 @@ export async function POST(req: NextRequest) {
     } else if (body.member_id) {
       await linkTeamMembersToAccounts(registrationId, body.member_id, [])
     }
+  }
+
+  // B9 / Part 3: complete the registration and claim its slots in ONE transaction.
+  // A unique-index conflict (same person already holds this segment, or another
+  // segment of the same group) becomes a 409 and the row stays an incomplete draft.
+  if (isDone && !isOlympiad && registrationId) {
+    const blocked = await finalizeCompletion(registrationId, node.id, graph, disableMultiSegmentEnroll)
+    if (blocked) return blocked
   }
 
   // Figure out the next step. For an olympiad, the questions node sets
@@ -1068,7 +1194,8 @@ export async function POST(req: NextRequest) {
     // flag to immediately POST /api/payment/init and redirect to the
     // gateway. Only meaningful on activities — olympiad graphs have no
     // payment hook.
-    requires_payment_init: !isOlympiad && !!(node as any).behavior?.requires_payment?.amount,
+    requires_payment_init: !isOlympiad && isDone && registrationFee > 0,
+    payment_amount: registrationFee || null,
   })
 }
 
@@ -1114,11 +1241,89 @@ async function maybeMarkOlympiadTimers(table: string, registrationId: string, gr
   // Skip identity nodes — they don't trigger the timer
   if (IDENTITY_NODE_KINDS.has(node.kind as any)) return
 
-  // exam_started_at is set the first time we see a non-identity node. The runner
-  // doesn't submit a node on entry, only on submit, so by the time we get here
-  // exam_started_at might still be null. We approximate "started" as the time of
-  // submit, which is the conservative choice.
-  const patch: Record<string, any> = { exam_started_at: new Date().toISOString() }
+  // B8: exam_started_at is stamped ONLY the first time (never overwritten), using
+  // the server clock. exam_submitted_at is stamped when a terminal node is submitted.
+  const { data: cur } = await supabaseAdmin.from(table).select('exam_started_at').eq('id', registrationId).maybeSingle()
+  const patch: Record<string, any> = {}
+  if (!cur?.exam_started_at) patch.exam_started_at = new Date().toISOString()
   if (node.is_terminal) patch.exam_submitted_at = new Date().toISOString()
-  await supabaseAdmin.from(table).update(patch).eq('id', registrationId)
+  if (Object.keys(patch).length) await supabaseAdmin.from(table).update(patch).eq('id', registrationId)
+}
+
+
+// Completes a registration and writes its slots atomically (db/36 complete_registration).
+// Returns a NextResponse to send back on conflict/error, or null on success.
+// If migration 36 has not been applied yet, falls back to the old direct stamp so a
+// deploy that lands before the migration does not break registrations.
+async function finalizeCompletion(
+  registrationId: string,
+  terminalId: string,
+  graph: any,
+  disableMultiSegmentEnroll: boolean,
+): Promise<NextResponse | null> {
+  const { data: reg } = await supabaseAdmin.from('activity_registrations')
+    .select('activity_session_id, member_id, email, phone, college_roll, team_members')
+    .eq('id', registrationId).maybeSingle()
+  if (!reg) return apiError('Registration not found.', 404)
+  const { data: links } = await supabaseAdmin.from('team_member_links')
+    .select('member_id, role').eq('registration_id', registrationId)
+  const { data: nodeRows } = await supabaseAdmin.from('form_nodes')
+    .select('id, parent_id, is_terminal, enabled, behavior').eq('graph_id', graph.id)
+  const byId = new Map<string, any>((nodeRows || []).map((n: any) => [n.id, n]))
+  const groups = Array.isArray(graph.settings?.segment_groups) ? graph.settings.segment_groups : []
+  const groupKey = groupKeyFor(terminalId, byId, groups, disableMultiSegmentEnroll)
+
+  const identities = buildSlotIdentities({
+    leader: reg as any,
+    team: Array.isArray(reg.team_members) ? reg.team_members : [],
+    teamMemberAccountIds: (links || []).filter((l: any) => l.role !== 'leader').map((l: any) => l.member_id),
+  })
+
+  const { data, error } = await supabaseAdmin.rpc('complete_registration', {
+    p_registration_id: registrationId,
+    p_session_id: reg.activity_session_id,
+    p_terminal_id: terminalId,
+    p_group_key: groupKey,
+    p_identities: identities,
+  })
+  if (error) {
+    const missing = (error as any).code === 'PGRST202' || (error as any).code === '42883'
+    if (missing) {
+      console.warn('complete_registration() missing; apply db/36 migration. Falling back to direct stamp.')
+      const { error: e2 } = await supabaseAdmin.from('activity_registrations')
+        .update({ completed_at: new Date().toISOString(), terminal_node_id: terminalId }).eq('id', registrationId)
+      return e2 ? apiError(e2, 400) : null
+    }
+    return apiError(error, 400)
+  }
+  const res: any = data
+  if (res?.ok) return null
+
+  const c = res?.conflict || {}
+  if (c.self) return apiError('Some identifiers (email, phone or roll) are repeated within your own registration.', 400)
+  let segLabel: string | null = null
+  if (c.terminal_node_id) {
+    segLabel = (byId.get(c.terminal_node_id) as any)?.label ?? null
+    if (!segLabel) {
+      const { data: n } = await supabaseAdmin.from('form_nodes').select('label').eq('id', c.terminal_node_id).maybeSingle()
+      segLabel = (n as any)?.label ?? null
+    }
+  }
+  const groupName = c.group_key && c.group_key !== '__all__'
+    ? (groups.find((g: any) => g.id === c.group_key)?.name ?? null) : null
+  const who = c.role === 'leader' ? 'registered as a leader' : 'on a team'
+  const message = c.same_terminal
+    ? `This ${c.kind === 'member' ? 'account' : c.kind} is already registered in this segment${segLabel ? ` (${segLabel})` : ''}.`
+    : `This ${c.kind === 'member' ? 'account' : c.kind} is already ${who} in ${segLabel ? `"${segLabel}"` : 'another segment'}. `
+      + (groupName ? `You can register in only one segment of "${groupName}".` : 'You can register in only one segment of this event.')
+  return NextResponse.json({
+    error: message,
+    code: c.same_terminal ? 'duplicate_registration' : 'segment_group_conflict',
+    group_id: c.group_key ?? null,
+    group_name: groupName,
+    conflicting_node_id: c.terminal_node_id ?? null,
+    conflicting_segment_label: segLabel,
+    existing_registration_id: c.registration_id ?? null,
+    who: c.role ?? null,
+  }, { status: 409 })
 }
