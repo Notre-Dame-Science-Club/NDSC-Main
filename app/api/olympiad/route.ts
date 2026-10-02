@@ -39,16 +39,23 @@ export async function GET(req: NextRequest) {
     // to, inside the exam window, after the relay has started. Answer keys
     // are never returned to anyone.
     let questions: any[] = []
+    // question_count is safe to reveal to an authorized registrant before the
+    // exam starts. Without it the UI sees questions=[] until the relay_exam_state
+    // row exists, but that row is only created when the user clicks Start —
+    // and Start is hidden when there are "no questions". Deadlock.
+    let question_count = 0
     const regId = req.nextUrl.searchParams.get('registration_id')
     if (regId) {
       const access = await authorizeSegmentAccess(req, regId, { need: 'olympiad', requestedOlympiadId: id })
       if (access.ok) {
+        const allQuestions = await getOlympiadQuestionFields(id)
+        question_count = allQuestions.length
         const { data: started } = await supabaseAdmin.from('relay_exam_state')
           .select('id').eq('registration_id', regId).eq('olympiad_id', id).maybeSingle()
-        if (started) questions = stripAnswerKeysFromBlocks(await getOlympiadQuestionFields(id))
+        if (started) questions = stripAnswerKeysFromBlocks(allQuestions)
       }
     }
-    return apiOk({ olympiad: { ...data, questions } })
+    return apiOk({ olympiad: { ...data, questions, question_count } })
   }
 
   if (listing) {

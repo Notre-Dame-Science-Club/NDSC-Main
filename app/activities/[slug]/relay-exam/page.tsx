@@ -31,6 +31,7 @@ type Olympiad = {
   question_display: 'one_by_one' | 'all_at_once'; timer_minutes: number
   is_just_a_submission?: boolean
   questions: Question[]
+  question_count?: number
   relay_mode: boolean; relay_type: 'sequential' | 'chain'
   subjects: Subject[]; subject_assignment_mode: 'self_select' | 'admin_assign' | 'auto'
   scheduled_start_at: string | null; scheduled_end_at: string | null
@@ -83,6 +84,7 @@ export default function RelayExamPage() {
   const [currentQ, setCurrentQ] = useState(0)
   const [timeLeft, setTimeLeft] = useState(0)
   const timerRef = useRef<any>(null)
+  const autoStartedRef = useRef(false)
   const [submitting, setSubmitting] = useState(false)
   const [viewingAnnotatedQuestionId, setViewingAnnotatedQuestionId] = useState<string | null>(null)
 
@@ -146,10 +148,14 @@ export default function RelayExamPage() {
     if (already) { setPhase('done'); return }
 
     // Guard: if the olympiad has 0 questions, don't allow starting at all
-    const questionCount = (oly.questions || []).filter(q => {
-      if (!mySubjectId) return true
-      return !q.subject_id || q.subject_id === mySubjectId
-    }).length
+    // Questions are only sent once the exam state row exists, so before that
+    // rely on the server-provided question_count.
+    const questionCount = (oly.questions && oly.questions.length > 0)
+      ? oly.questions.filter(q => {
+          if (!mySubjectId) return true
+          return !q.subject_id || q.subject_id === mySubjectId
+        }).length
+      : (oly.question_count ?? 0)
     if (questionCount === 0) {
       setError('This exam has no questions configured yet. Please contact the organizer.')
       return
@@ -210,6 +216,12 @@ export default function RelayExamPage() {
       })
       const data = await res.json()
       if (res.ok) setRelayState(data.state)
+      // Questions are only returned after the state row exists — reload them now.
+      try {
+        const oRes = await fetch(`/api/olympiad?id=${olympiadId}&registration_id=${regId}`, { headers: await segmentAuthHeaders(regId) })
+        const oData = await oRes.json()
+        if (oRes.ok && oData.olympiad) setOlympiad(oData.olympiad)
+      } catch { /* ignore */ }
     }
     setCurrentQ(0)
     setPhase('exam')
@@ -239,10 +251,13 @@ export default function RelayExamPage() {
   // the user confirm a second time on this page. Auto-start the moment we land on
   // 'intro' with valid questions for this subject.
   useEffect(() => {
-    if (phase === 'intro' && visibleQuestions.length > 0) {
+    // question_count covers the pre-start case, where questions are withheld
+    // by the server until the exam state row exists.
+    if (phase === 'intro' && (visibleQuestions.length > 0 || (olympiad?.question_count ?? 0) > 0) && !autoStartedRef.current) {
+      autoStartedRef.current = true
       startExam()
     }
-  }, [phase, visibleQuestions.length])
+  }, [phase, visibleQuestions.length, olympiad?.question_count])
 
   const chainValues = relayState?.chain_values || {}
   const resolvedQuestion = (q: Question): Question => {
@@ -342,7 +357,7 @@ export default function RelayExamPage() {
         )}
 
         {phase === 'intro' && (
-          visibleQuestions.length === 0 ? (
+          (visibleQuestions.length === 0 && !(olympiad?.question_count)) ? (
             <div className="rounded-2xl p-6 border text-center space-y-4" style={{ background: 'var(--bg2)', borderColor: 'var(--border)' }}>
               <p className="text-sm mb-2" style={{ color: 'var(--danger-soft)' }}>⚠ This exam has no questions configured yet.</p>
               <p className="text-xs" style={{ color: 'var(--muted)' }}>Please contact the organizer. The exam cannot be started without questions.</p>

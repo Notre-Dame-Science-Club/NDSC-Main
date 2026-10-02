@@ -632,7 +632,7 @@ export default function ActivityDashboardPage() {
 
             {/* Relay: start button (only leader can start) */}
             {olympiad?.relay_mode && !relayState && mySubmittedBy === 'leader' && !examNotYetStarted && !examEnded && (
-              (olympiad?.questions?.length ?? 0) > 0 ? (
+              ((olympiad?.question_count ?? olympiad?.questions?.length ?? 0) > 0) ? (
                 <button onClick={startRelay}
                   className="w-full py-3 rounded-xl font-bold text-sm text-black"
                   style={{ background: 'var(--blue)', fontFamily: 'inherit' }}>
@@ -650,7 +650,7 @@ export default function ActivityDashboardPage() {
 
             {/* Live exam button */}
             {olympiad && !hasSubmissionConfig && !examNotYetStarted && !examEnded && isMyRelayTurn && !mySubmission && !myRelaySubmission && (
-              (olympiad?.questions?.length ?? 0) > 0 ? (
+              ((olympiad?.question_count ?? olympiad?.questions?.length ?? 0) > 0) ? (
                 <Link href={`/activities/${slug}/relay-exam?reg=${registration.id}&olympiad=${olympiad.id}&member=${mySubmittedBy}`}
                   className="flex items-center justify-center gap-2 w-full py-3 rounded-xl font-bold text-sm text-black"
                   style={{ background: 'var(--blue)', fontFamily: 'inherit' }}>
