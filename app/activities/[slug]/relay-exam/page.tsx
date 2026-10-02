@@ -157,7 +157,9 @@ export default function RelayExamPage() {
         }).length
       : (oly.question_count ?? 0)
     if (questionCount === 0) {
-      setError('This exam has no questions configured yet. Please contact the organizer.')
+      setError(oly.is_just_a_submission
+        ? 'This submission form has no fields configured yet. Please contact the organizer.'
+        : 'This exam has no questions configured yet. Please contact the organizer.')
       return
     }
 
@@ -265,6 +267,24 @@ export default function RelayExamPage() {
     return { ...q, label: resolveChainText(q.label, chainValues), description: q.description ? resolveChainText(q.description, chainValues) : q.description }
   }
 
+  // Convert a question into the FormBlock shape FieldsRenderer expects
+  const toFormBlock = (q: Question): any => ({
+    id: q.id,
+    kind: 'field',
+    type: q.type,
+    label: q.label,
+    description: q.description,
+    required: q.required !== false,
+    marks: q.marks,
+    key: q.key || q.id,
+    mcq_options: q.mcq_options,
+    correct_option_id: q.correct_option_id,
+    correct_option_ids: q.correct_option_ids,
+    options: q.options,
+    max_files: q.max_files,
+    max_file_size_mb: q.max_file_size_mb,
+  })
+
   // ── Submit this member's turn ────────────────────────────────────────────
   const submitMyTurn = async () => {
     if (submitting) return
@@ -311,7 +331,7 @@ export default function RelayExamPage() {
     })
 
   // ─────────────────────────────────────────────────────────────────────────
-  if (loading) return <div className="min-h-screen flex items-center justify-center" style={{ background: 'var(--bg)' }}><p style={{ color: 'var(--muted)' }}>Loading exam…</p></div>
+  if (loading) return <div className="min-h-screen flex items-center justify-center" style={{ background: 'var(--bg)' }}><div className="w-8 h-8 rounded-full border-2 animate-spin" style={{ borderColor: 'var(--border)', borderTopColor: 'var(--blue)' }} aria-label="Loading" /></div>
 
   if (error) return (
     <div className="min-h-screen flex items-center justify-center px-4 text-center" style={{ background: 'var(--bg)' }}>
@@ -359,20 +379,43 @@ export default function RelayExamPage() {
         {phase === 'intro' && (
           (visibleQuestions.length === 0 && !(olympiad?.question_count)) ? (
             <div className="rounded-2xl p-6 border text-center space-y-4" style={{ background: 'var(--bg2)', borderColor: 'var(--border)' }}>
-              <p className="text-sm mb-2" style={{ color: 'var(--danger-soft)' }}>⚠ This exam has no questions configured yet.</p>
-              <p className="text-xs" style={{ color: 'var(--muted)' }}>Please contact the organizer. The exam cannot be started without questions.</p>
+              <p className="text-sm mb-2" style={{ color: 'var(--danger-soft)' }}>⚠ {olympiad?.is_just_a_submission ? 'This submission form has no fields configured yet.' : 'This exam has no questions configured yet.'}</p>
+              <p className="text-xs" style={{ color: 'var(--muted)' }}>Please contact the organizer.</p>
               <Link href={`/activities/${slug}/dashboard?reg=${regId}`} className="inline-block mt-4 text-sm underline" style={{ color: 'var(--blue)' }}>
                 ← Back to dashboard
               </Link>
             </div>
           ) : (
             <div className="min-h-screen flex items-center justify-center">
-              <p style={{ color: 'var(--muted)' }}>{olympiad?.is_just_a_submission ? 'Loading…' : 'Starting exam…'}</p>
+              {olympiad?.is_just_a_submission
+                ? <div className="w-8 h-8 rounded-full border-2 animate-spin" style={{ borderColor: 'var(--border)', borderTopColor: 'var(--blue)' }} aria-label="Loading" />
+                : <p style={{ color: 'var(--muted)' }}>Starting exam…</p>}
             </div>
           )
         )}
 
-        {phase === 'exam' && visibleQuestions.length > 0 && (
+        {/* "Just a submission": a plain form — all fields on one page, no timer,
+            no "Question x / y" counter, no Previous/Next. */}
+        {phase === 'exam' && visibleQuestions.length > 0 && olympiad?.is_just_a_submission && (
+          <div className="space-y-4">
+            <div className="rounded-xl p-5" style={{ background: 'var(--bg2)', border: '1px solid var(--border)' }}>
+              <FieldsRenderer
+                schema={visibleQuestions.map(q => toFormBlock(resolvedQuestion(q)))}
+                form={{}}
+                onFormChange={() => {}}
+                customAnswers={customAnswers}
+                onCustomAnswersChange={setCustomAnswers}
+                accent="var(--blue)"
+                upload={uploadExamFile}
+              />
+            </div>
+            <button onClick={submitMyTurn} disabled={submitting} className="w-full py-2.5 rounded-lg text-sm font-bold text-black disabled:opacity-60 flex items-center justify-center gap-1.5" style={{ background: 'var(--cat-teal)' }}>
+              {submitting ? 'Submitting…' : <>Submit <CheckCircle size={14} /></>}
+            </button>
+          </div>
+        )}
+
+        {phase === 'exam' && visibleQuestions.length > 0 && !olympiad?.is_just_a_submission && (
           <div className="space-y-4">
             <div className="flex items-center justify-between p-3 rounded-xl" style={{ background: 'rgba(var(--warning-rgb), 0.08)', border: '1px solid rgba(var(--warning-rgb), 0.25)' }}>
               {olympiad?.is_just_a_submission ? (
@@ -438,8 +481,8 @@ export default function RelayExamPage() {
 
         {phase === 'exam' && visibleQuestions.length === 0 && (
           <div className="rounded-2xl p-6 border text-center" style={{ background: 'var(--bg2)', borderColor: 'var(--border)' }}>
-            <p className="text-sm mb-2" style={{ color: 'var(--danger-soft)' }}>⚠ This exam has no questions configured yet.</p>
-            <p className="text-xs mb-4" style={{ color: 'var(--muted)' }}>Please contact the organizer. The exam cannot be completed without questions.</p>
+            <p className="text-sm mb-2" style={{ color: 'var(--danger-soft)' }}>⚠ {olympiad?.is_just_a_submission ? 'This submission form has no fields configured yet.' : 'This exam has no questions configured yet.'}</p>
+            <p className="text-xs mb-4" style={{ color: 'var(--muted)' }}>Please contact the organizer.</p>
             <Link href={`/activities/${slug}/dashboard?reg=${regId}`} className="inline-block text-sm underline" style={{ color: 'var(--blue)' }}>
               ← Back to dashboard
             </Link>
@@ -448,7 +491,7 @@ export default function RelayExamPage() {
 
         {phase === 'done' && (() => {
           const mySubmission = (relayState?.member_submissions || []).find((s: any) => s.member_id === memberIdParam)
-          const showResults = !!olympiad?.result_published && mySubmission?.question_results?.length > 0
+          const showResults = !olympiad?.is_just_a_submission && !!olympiad?.result_published && mySubmission?.question_results?.length > 0
           if (!showResults) {
             return (
               <div className="rounded-2xl p-6 border text-center" style={{ background: 'rgba(var(--cat-teal-rgb), 0.08)', borderColor: 'rgba(var(--cat-teal-rgb), 0.25)' }}>

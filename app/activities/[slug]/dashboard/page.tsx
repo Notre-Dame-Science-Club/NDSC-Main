@@ -563,7 +563,7 @@ export default function ActivityDashboardPage() {
             border: `1px solid ${examLive ? 'rgba(var(--success-rgb), 0.35)' : 'rgba(var(--blue-rgb), 0.25)'}`,
           }}>
             <p className="text-sm font-bold flex items-center gap-2" style={{ color: examLive ? 'var(--success)' : 'var(--blue)', fontFamily: 'inherit' }}>
-              <ExternalLink size={14} /> Olympiad {examLive && <span className="text-xs px-2 py-0.5 rounded-full" style={{ background: 'rgba(var(--success-rgb), 0.15)' }}>● Live now</span>}
+              <ExternalLink size={14} /> {olympiad?.is_just_a_submission ? 'Submission' : 'Olympiad'} {examLive && <span className="text-xs px-2 py-0.5 rounded-full" style={{ background: 'rgba(var(--success-rgb), 0.15)' }}>● Live now</span>}
             </p>
 
             {/* Exam scheduled but not started yet */}
@@ -640,9 +640,9 @@ export default function ActivityDashboardPage() {
                 </button>
               ) : (
                 <div className="p-3 rounded-xl text-sm" style={{ background: 'rgba(var(--warning-rgb), 0.08)', border: '1px solid rgba(var(--warning-rgb), 0.25)', color: 'var(--warning)' }}>
-                  <p className="font-semibold flex items-center gap-1.5">⚠ This exam has no questions configured yet.</p>
+                  <p className="font-semibold flex items-center gap-1.5">⚠ {olympiad?.is_just_a_submission ? 'This submission form has no fields configured yet.' : 'This exam has no questions configured yet.'}</p>
                   <p className="text-xs mt-1" style={{ color: 'var(--muted)' }}>
-                    If you're the organizer, add questions to this olympiad's exam node in Form Builder.
+                    If you're the organizer, add {olympiad?.is_just_a_submission ? 'fields' : 'questions'} to this olympiad's node in Form Builder.
                   </p>
                 </div>
               )
@@ -658,9 +658,9 @@ export default function ActivityDashboardPage() {
                 </Link>
               ) : (
                 <div className="p-3 rounded-xl text-sm" style={{ background: 'rgba(var(--warning-rgb), 0.08)', border: '1px solid rgba(var(--warning-rgb), 0.25)', color: 'var(--warning)' }}>
-                  <p className="font-semibold flex items-center gap-1.5">⚠ This exam has no questions configured yet.</p>
+                  <p className="font-semibold flex items-center gap-1.5">⚠ {olympiad?.is_just_a_submission ? 'This submission form has no fields configured yet.' : 'This exam has no questions configured yet.'}</p>
                   <p className="text-xs mt-1" style={{ color: 'var(--muted)' }}>
-                    If you're the organizer, add questions to this olympiad's exam node in Form Builder.
+                    If you're the organizer, add {olympiad?.is_just_a_submission ? 'fields' : 'questions'} to this olympiad's node in Form Builder.
                   </p>
                 </div>
               )
