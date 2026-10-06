@@ -19,7 +19,7 @@ export default function LegacySection() {
 
       <div className="ch-story-grid">
         <h2 className="ch-display ch-sec" data-rv="up" style={{ maxWidth: "13ch" }}>
-          Indian Subcontinent&apos;s pioneer science club.
+          South Asia&apos;s pioneer science club.
         </h2>
         <div className="ch-story-copy">
           <p className="ch-body-lg" data-rv="up">
@@ -27,7 +27,7 @@ export default function LegacySection() {
             versatile and eminent co-curricular club of Notre Dame College, Dhaka. It began its
             inception in <strong className="c">1955</strong> with a singular mission — to ignite a
             passion for science among students. It holds the proud distinction of being the pioneer
-            science club of the Indian Subcontinent.
+            science club of South Asia.
           </p>
           <Link className="ch-arrowlink" href="#ch-depts" data-rv="fade" data-cursor>
             <span>See how we are built</span>

@@ -159,7 +159,7 @@ const DEPTS = [
     color: "var(--accent2)",
     bg: "rgba(var(--accent2-rgb), 0.08)",
     border: "rgba(var(--accent2-rgb), 0.3)",
-    desc: "Handles graphics, publishes wall magazines, journals and the annual AUDRI publication. Promotes scientific writing, knowledge sharing, and creative expression. Manages STEM Insights — the monthly digital science magazine.",
+    desc: "Handles graphics, publishes wall magazines and the annual AUDRI magazine. Promotes scientific writing, knowledge sharing, and creative expression. Manages STEM Insights — the monthly digital science magazine.",
   },
   {
     name: "ICT",
@@ -489,7 +489,7 @@ export default function AboutPage() {
             <CollapsibleText previewLines={5}>
               <div className="space-y-4 text-sm leading-[1.9]" style={{ color: "var(--muted)" }}>
                 <p>
-                  Notre Dame Science Club, also known as <strong style={{ color: "var(--white)" }}>NDSC</strong>, is the most promising, versatile, and eminent co-curricular activities club of Notre Dame College, Dhaka. It began its inception in <strong style={{ color: "var(--blue)" }}>1955</strong> with a singular mission — to ignite a passion for science among students. It holds the proud distinction of being the <strong style={{ color: "var(--blue)" }}>pioneer science club of the Indian Subcontinent</strong>. Holding the noble motto &ldquo;Science in Human Welfare,&rdquo; the eminent scientist <strong style={{ color: "var(--white)" }}>Fr. Richard William Timm, C.S.C.</strong> inaugurated the flag of NDSC on September 18, 1955, alongside 19 founding student members.
+                  Notre Dame Science Club, also known as <strong style={{ color: "var(--white)" }}>NDSC</strong>, is the most promising, versatile, and eminent co-curricular activities club of Notre Dame College, Dhaka. It began its inception in <strong style={{ color: "var(--blue)" }}>1955</strong> with a singular mission — to ignite a passion for science among students. It holds the proud distinction of being the <strong style={{ color: "var(--blue)" }}>pioneer science club of South Asia</strong>. Holding the noble motto &ldquo;Science in Human Welfare,&rdquo; the eminent scientist <strong style={{ color: "var(--white)" }}>Fr. Richard William Timm, C.S.C.</strong> inaugurated the flag of NDSC on September 18, 1955, alongside 19 founding student members.
                 </p>
                 <p>
                   The NDSC has a long history of inspiring its followers to rediscover their innate passion for science by serving as the country&apos;s <strong style={{ color: "var(--white)" }}>oldest and most prestigious scientific club</strong>. NDSC provides necessary guidelines to budding scientists and is the trailblazer in spreading scientific awareness among the people. We foster a love of science and an eagerness to learn more about the world&apos;s mysteries, touch the untouched, and see the unseen. For the last few decades, NDSC has turned into the most prominent club to organize numerous <strong style={{ color: "var(--white)" }}>science fairs</strong> — the ultimate platform for student project demonstrations across the nation.
@@ -525,7 +525,7 @@ export default function AboutPage() {
           {/* Pull quote */}
           <div className="reveal relative pl-5 mb-8 border-l-2" style={{ borderColor: "var(--blue)" }}>
             <p className="text-base sm:text-lg font-semibold italic leading-relaxed" style={{ color: "var(--white)" }}>
-              &ldquo;The pioneer science club of the Indian Subcontinent — 70 years of igniting curiosity, innovation, and scientific excellence.&rdquo;
+              &ldquo;The pioneer science club of South Asia — 70 years of igniting curiosity, innovation, and scientific excellence.&rdquo;
             </p>
           </div>
 
@@ -647,7 +647,7 @@ export default function AboutPage() {
             <CollapsibleText previewLines={5}>
               <div className="space-y-4 text-sm leading-relaxed" style={{ color: "var(--muted)" }}>
                 <p>&ldquo;Notre Dame Science Club has always been more than just a club — it is a family, a community of dreamers and doers. As your General Secretary, I am committed to taking NDSC to new heights, fostering innovation, scientific thinking, and brotherhood among our members. Together, we will uphold our 70-year legacy and write new chapters of excellence.</p>
-                <p>Notre Dame Science Club (NDSC) is a pioneer in the Indian Subcontinent for organizing its annual and government-supported science festivals. With strong global alumni connections and exceptional professionalism, NDSC offers a perfect family environment for science enthusiasts.</p>
+                <p>Notre Dame Science Club (NDSC) is a pioneer in South Asia for organizing its annual and government-supported science festivals. With strong global alumni connections and exceptional professionalism, NDSC offers a perfect family environment for science enthusiasts.</p>
                 <p>Science is not confined to textbooks; it lives in every experiment we conduct, every question we ask, and every problem we dare to solve. I invite every student of Notre Dame College to be part of this magnificent journey. Whether you are passionate about physics, chemistry, biology, technology, or simply curious about the world — NDSC is your home.</p>
                 <p>Let us carry forward the noble motto of our founders: <em style={{ color: "var(--blue)" }}>Science in Human Welfare</em>. Together, we will make NDSC not just the oldest, but the greatest science club in Bangladesh.&rdquo;</p>
               </div>

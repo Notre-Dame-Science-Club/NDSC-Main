@@ -13,7 +13,7 @@ export const site = {
   shortName: "NDSC",
   url: "https://ndscbd.net",
   foundedYear: 1955,
-  tagline: "Pioneer science club of the Indian Subcontinent since 1955",
+  tagline: "Pioneer science club of South Asia since 1955",
   logo: "https://ndscbd.net/images/cropped-logo.png",
   favicon: "/favicon.png",
 } as const;
@@ -21,7 +21,7 @@ export const site = {
 export const seo = {
   title: `${site.name} (${site.shortName}) | ndscbd.net — Official Website`,
   description:
-    "Official website of Notre Dame Science Club (NDSC) — the pioneer science club of the Indian Subcontinent, founded in 1955 at Notre Dame College, Dhaka. Join Science Sunday, Elucidation Hour, workshops, sessions, national science festival, intra science festival, and more.",
+    "Official website of Notre Dame Science Club (NDSC) — the pioneer science club of South Asia, founded in 1955 at Notre Dame College, Dhaka. Join Science Sunday, Elucidation Hour, workshops, sessions, national science festival, intra science festival, and more.",
   keywords: [
     "Notre Dame Science Club",
     "NDSC",
