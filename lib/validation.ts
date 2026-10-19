@@ -1,3 +1,5 @@
+import { isNDCName } from './college.ts'
+
 // Shared validation for the site-wide identity rule: a college roll number
 // is required for every registrant everywhere (members, olympiad
 // registrants, activity registrants) — but the "exactly 8 digits" rule only
@@ -9,7 +11,7 @@ export function validateCollegeRoll(college: string | undefined | null, roll: st
   if (!trimmedRoll) return 'College roll is required.'
   if (!/^\d+$/.test(trimmedRoll)) return 'College roll number must contain digits only.'
 
-  const isNDC = (college || 'Notre Dame College').trim().toLowerCase() === 'notre dame college'
+  const isNDC = !(college || '').trim() || isNDCName(college)
   if (isNDC && trimmedRoll.length !== 8) {
     return 'Notre Dame College roll numbers are exactly 8 digits.'
   }

@@ -79,6 +79,8 @@ export type FormNodeAppearance = {
  *  top-level columns on activity_reg_categories and olympiads. Everything
  *  is optional; an empty object means "no special behavior". */
 export type FormNodeBehavior = {
+  /** Segment group this node (and, by inheritance, its subtree) belongs to. */
+  segment_group_id?: string | null
   // For activity registration nodes:
   require_team?: {
     min?: number
@@ -153,6 +155,8 @@ export type FormGraphSettings = {
   anti_cheat?: AntiCheatMode
   timer_minutes?: number        // default timer for olympiad question nodes
   default_appearance?: FormNodeAppearance
+  /** Segment groups (activities only): a person may hold a complete registration in at most one terminal per group. */
+  segment_groups?: Array<{ id: string; name: string; description?: string }>
   [k: string]: any
 }
 
@@ -213,6 +217,50 @@ export function packFormNodeBody(body: Record<string, any>) {
   if (typeof out.enabled !== 'boolean') out.enabled = true
   if (typeof out.is_terminal !== 'boolean') out.is_terminal = false
   if (typeof out.display_order !== 'number') out.display_order = 0
+  return out
+}
+
+/** PARTIAL update: emits only the columns actually present in the body, with
+ *  light type validation. Use for PUT/PATCH. `packFormNodeBody` fills
+ *  defaults for missing keys and is for INSERTS only (see B1). */
+export function packFormNodeUpdate(body: Record<string, any>) {
+  const out: Record<string, any> = {}
+  for (const col of FORM_NODE_COLUMNS) {
+    if (body[col] === undefined) continue
+    const v = body[col]
+    switch (col) {
+      case 'position': case 'appearance': case 'behavior':
+        if (typeof v === 'object' && v !== null && !Array.isArray(v)) out[col] = v
+        break
+      case 'fields':
+        if (Array.isArray(v)) out[col] = v
+        break
+      case 'label': case 'kind':
+        if (typeof v === 'string') out[col] = v
+        break
+      case 'enabled': case 'is_terminal':
+        if (typeof v === 'boolean') out[col] = v
+        break
+      case 'display_order':
+        if (typeof v === 'number' && Number.isFinite(v)) out[col] = v
+        break
+      default:
+        out[col] = v
+    }
+  }
+  return out
+}
+
+/** PARTIAL update for form_graphs; never resets title/settings when absent. */
+export function packFormGraphUpdate(body: Record<string, any>) {
+  const out: Record<string, any> = {}
+  for (const col of FORM_GRAPH_COLUMNS) {
+    if (body[col] === undefined) continue
+    const v = body[col]
+    if (col === 'settings') { if (typeof v === 'object' && v !== null && !Array.isArray(v)) out[col] = v }
+    else if (col === 'title') { if (typeof v === 'string') out[col] = v }
+    else out[col] = v
+  }
   return out
 }
 

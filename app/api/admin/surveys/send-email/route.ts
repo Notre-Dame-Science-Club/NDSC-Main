@@ -27,7 +27,7 @@ export async function POST(req: NextRequest) {
   if (!s.send_email) return apiError('This survey has "Send email" turned off.', 400)
 
   const { data: members, error: memberError } = await supabaseAdmin
-    .from('members')
+    .from('users')
     .select('id, email, full_name, batch, stage')
     .eq('is_verified', true)
   if (memberError) return apiError(memberError, 400)

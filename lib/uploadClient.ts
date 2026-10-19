@@ -17,6 +17,7 @@ const BUCKET_TO_FOLDER: Record<string, string> = {
   "executive-photos": "executives",
   "legacy-gallery": "legacy-gallery",
   "glance-gallery": "glance-gallery",
+  "certificate-templates": "certificate-templates",
   covers: "covers",
   gallery: "gallery",
   pdfs: "pdfs",

@@ -20,6 +20,7 @@ import { requireAdmin } from '@/lib/api/admin-auth'
 import { apiError } from '@/lib/api/response'
 import { normalizeBlocks, BuiltinFieldKey, HARD_MINIMUM_KEYS } from '@/lib/formBlocks'
 import { rowsToCsv, dedupHeaders } from '@/lib/csv'
+import { normalizeUploadUrlsDeep } from '@/lib/uploadUrl'
 
 type Ctx = { params: Promise<{ sessionId: string }> }
 
@@ -51,9 +52,15 @@ export async function GET(_req: NextRequest, ctx: Ctx) {
     supabaseAdmin.from('activity_registrations')
       .select('id, form_node_id, form_graph_id, submitted_node_ids, category_id, full_name, phone, email, college, college_roll, hsc_session, division, project_name, custom_answers, team_members, team_name, payment_status, created_at')
       .eq('activity_session_id', sessionId)
+      .not('completed_at', 'is', null)   // B2
       .order('created_at', { ascending: false }),
   ])
   if (rErr) return apiError(rErr, 400)
+
+  // Every other API response gets a normalizeUploadUrlsDeep pass for free
+  // via apiOk (lib/api/response.ts) — this route builds a raw text/csv
+  // response instead, so it has to run the same safety net explicitly.
+  const regsNormalized = normalizeUploadUrlsDeep(regs)
 
   // Build a map of node id → its label + is_terminal flag (used for the
   // "Form Path" and "Is Terminal" columns when a v2 graph is in play).
@@ -153,7 +160,7 @@ export async function GET(_req: NextRequest, ctx: Ctx) {
     return names.join(' > ')
   }
 
-  const rows = (regs || []).map((r: any) => {
+  const rows = (regsNormalized || []).map((r: any) => {
     const builtins: Record<string, any> = {
       full_name: r.full_name, phone: r.phone, email: r.email,
       college: r.college, college_roll: r.college_roll,

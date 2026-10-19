@@ -6,6 +6,8 @@ import { Clock, ChevronRight, ChevronLeft, CheckCircle, ArrowLeft, X } from 'luc
 import MathText from '@/components/olympiad/MathText'
 import FieldsRenderer from '@/components/FieldsRenderer'
 import AnnotationViewer, { Annotation } from '@/components/olympiad/AnnotationViewer'
+import { toAnswerUrls } from '@/lib/photoAnswer'
+import { segmentAuthHeaders } from '@/lib/clientAuthHeaders'
 
 // Matches FormBlock (lib/formBlocks.ts) — questions are now ALL field types
 // on the olympiad's form-graph nodes (except identity nodes), not just a
@@ -29,6 +31,7 @@ type Olympiad = {
   question_display: 'one_by_one' | 'all_at_once'; timer_minutes: number
   is_just_a_submission?: boolean
   questions: Question[]
+  question_count?: number
   relay_mode: boolean; relay_type: 'sequential' | 'chain'
   subjects: Subject[]; subject_assignment_mode: 'self_select' | 'admin_assign' | 'auto'
   scheduled_start_at: string | null; scheduled_end_at: string | null
@@ -81,6 +84,7 @@ export default function RelayExamPage() {
   const [currentQ, setCurrentQ] = useState(0)
   const [timeLeft, setTimeLeft] = useState(0)
   const timerRef = useRef<any>(null)
+  const autoStartedRef = useRef(false)
   const [submitting, setSubmitting] = useState(false)
   const [viewingAnnotatedQuestionId, setViewingAnnotatedQuestionId] = useState<string | null>(null)
 
@@ -94,15 +98,17 @@ export default function RelayExamPage() {
     setLoading(true)
     setError('')
     try {
+      const authH = await segmentAuthHeaders(regId)
       const [olyRes, regRes, relayRes] = await Promise.all([
-        fetch(`/api/olympiad?id=${olympiadId}`),
-        fetch(`/api/activity-register?id=${regId}`),
-        fetch(`/api/relay-exam?registration_id=${regId}&olympiad_id=${olympiadId}`),
+        fetch(`/api/olympiad?id=${olympiadId}&registration_id=${regId}`, { headers: authH }),
+        fetch(`/api/activity-register?id=${regId}`, { headers: authH }),
+        fetch(`/api/relay-exam?registration_id=${regId}&olympiad_id=${olympiadId}`, { headers: authH }),
       ])
       const olyData = await olyRes.json()
       const regData = await regRes.json()
       const relayData = await relayRes.json()
 
+      if (!relayRes.ok) throw new Error(relayData.error || 'You can\'t open this exam.')
       if (!olyRes.ok) throw new Error(olyData.error || 'Olympiad not found.')
       if (!regRes.ok) throw new Error(regData.error || 'Registration not found.')
 
@@ -142,12 +148,18 @@ export default function RelayExamPage() {
     if (already) { setPhase('done'); return }
 
     // Guard: if the olympiad has 0 questions, don't allow starting at all
-    const questionCount = (oly.questions || []).filter(q => {
-      if (!mySubjectId) return true
-      return !q.subject_id || q.subject_id === mySubjectId
-    }).length
+    // Questions are only sent once the exam state row exists, so before that
+    // rely on the server-provided question_count.
+    const questionCount = (oly.questions && oly.questions.length > 0)
+      ? oly.questions.filter(q => {
+          if (!mySubjectId) return true
+          return !q.subject_id || q.subject_id === mySubjectId
+        }).length
+      : (oly.question_count ?? 0)
     if (questionCount === 0) {
-      setError('This exam has no questions configured yet. Please contact the organizer.')
+      setError(oly.is_just_a_submission
+        ? 'This submission form has no fields configured yet. Please contact the organizer.'
+        : 'This exam has no questions configured yet. Please contact the organizer.')
       return
     }
 
@@ -183,7 +195,7 @@ export default function RelayExamPage() {
   const pickSubject = async (subjectId: string) => {
     try {
       const res = await fetch('/api/relay-exam', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        method: 'POST', headers: { 'Content-Type': 'application/json', ...(await segmentAuthHeaders(regId)) },
         body: JSON.stringify({ action: 'assign_subject', registration_id: regId, olympiad_id: olympiadId, member_id: memberIdParam, subject_id: subjectId }),
       })
       const data = await res.json()
@@ -201,11 +213,17 @@ export default function RelayExamPage() {
     // fail at submit time with "Relay not started yet."
     if (!relayState) {
       const res = await fetch('/api/relay-exam', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        method: 'POST', headers: { 'Content-Type': 'application/json', ...(await segmentAuthHeaders(regId)) },
         body: JSON.stringify({ action: 'start', registration_id: regId, olympiad_id: olympiadId }),
       })
       const data = await res.json()
       if (res.ok) setRelayState(data.state)
+      // Questions are only returned after the state row exists — reload them now.
+      try {
+        const oRes = await fetch(`/api/olympiad?id=${olympiadId}&registration_id=${regId}`, { headers: await segmentAuthHeaders(regId) })
+        const oData = await oRes.json()
+        if (oRes.ok && oData.olympiad) setOlympiad(oData.olympiad)
+      } catch { /* ignore */ }
     }
     setCurrentQ(0)
     setPhase('exam')
@@ -235,16 +253,37 @@ export default function RelayExamPage() {
   // the user confirm a second time on this page. Auto-start the moment we land on
   // 'intro' with valid questions for this subject.
   useEffect(() => {
-    if (phase === 'intro' && visibleQuestions.length > 0) {
+    // question_count covers the pre-start case, where questions are withheld
+    // by the server until the exam state row exists.
+    if (phase === 'intro' && (visibleQuestions.length > 0 || (olympiad?.question_count ?? 0) > 0) && !autoStartedRef.current) {
+      autoStartedRef.current = true
       startExam()
     }
-  }, [phase, visibleQuestions.length])
+  }, [phase, visibleQuestions.length, olympiad?.question_count])
 
   const chainValues = relayState?.chain_values || {}
   const resolvedQuestion = (q: Question): Question => {
     if (olympiad?.relay_type !== 'chain') return q
     return { ...q, label: resolveChainText(q.label, chainValues), description: q.description ? resolveChainText(q.description, chainValues) : q.description }
   }
+
+  // Convert a question into the FormBlock shape FieldsRenderer expects
+  const toFormBlock = (q: Question): any => ({
+    id: q.id,
+    kind: 'field',
+    type: q.type,
+    label: q.label,
+    description: q.description,
+    required: q.required !== false,
+    marks: q.marks,
+    key: q.key || q.id,
+    mcq_options: q.mcq_options,
+    correct_option_id: q.correct_option_id,
+    correct_option_ids: q.correct_option_ids,
+    options: q.options,
+    max_files: q.max_files,
+    max_file_size_mb: q.max_file_size_mb,
+  })
 
   // ── Submit this member's turn ────────────────────────────────────────────
   const submitMyTurn = async () => {
@@ -253,7 +292,7 @@ export default function RelayExamPage() {
     clearInterval(timerRef.current)
     try {
       const res = await fetch('/api/relay-exam', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        method: 'POST', headers: { 'Content-Type': 'application/json', ...(await segmentAuthHeaders(regId)) },
         body: JSON.stringify({
           action: 'submit_member',
           registration_id: regId,
@@ -292,7 +331,7 @@ export default function RelayExamPage() {
     })
 
   // ─────────────────────────────────────────────────────────────────────────
-  if (loading) return <div className="min-h-screen flex items-center justify-center" style={{ background: 'var(--bg)' }}><p style={{ color: 'var(--muted)' }}>Loading exam…</p></div>
+  if (loading) return <div className="min-h-screen flex items-center justify-center" style={{ background: 'var(--bg)' }}><div className="w-8 h-8 rounded-full border-2 animate-spin" style={{ borderColor: 'var(--border)', borderTopColor: 'var(--blue)' }} aria-label="Loading" /></div>
 
   if (error) return (
     <div className="min-h-screen flex items-center justify-center px-4 text-center" style={{ background: 'var(--bg)' }}>
@@ -338,22 +377,45 @@ export default function RelayExamPage() {
         )}
 
         {phase === 'intro' && (
-          visibleQuestions.length === 0 ? (
+          (visibleQuestions.length === 0 && !(olympiad?.question_count)) ? (
             <div className="rounded-2xl p-6 border text-center space-y-4" style={{ background: 'var(--bg2)', borderColor: 'var(--border)' }}>
-              <p className="text-sm mb-2" style={{ color: 'var(--danger-soft)' }}>⚠ This exam has no questions configured yet.</p>
-              <p className="text-xs" style={{ color: 'var(--muted)' }}>Please contact the organizer. The exam cannot be started without questions.</p>
+              <p className="text-sm mb-2" style={{ color: 'var(--danger-soft)' }}>⚠ {olympiad?.is_just_a_submission ? 'This submission form has no fields configured yet.' : 'This exam has no questions configured yet.'}</p>
+              <p className="text-xs" style={{ color: 'var(--muted)' }}>Please contact the organizer.</p>
               <Link href={`/activities/${slug}/dashboard?reg=${regId}`} className="inline-block mt-4 text-sm underline" style={{ color: 'var(--blue)' }}>
                 ← Back to dashboard
               </Link>
             </div>
           ) : (
             <div className="min-h-screen flex items-center justify-center">
-              <p style={{ color: 'var(--muted)' }}>{olympiad?.is_just_a_submission ? 'Loading…' : 'Starting exam…'}</p>
+              {olympiad?.is_just_a_submission
+                ? <div className="w-8 h-8 rounded-full border-2 animate-spin" style={{ borderColor: 'var(--border)', borderTopColor: 'var(--blue)' }} aria-label="Loading" />
+                : <p style={{ color: 'var(--muted)' }}>Starting exam…</p>}
             </div>
           )
         )}
 
-        {phase === 'exam' && visibleQuestions.length > 0 && (
+        {/* "Just a submission": a plain form — all fields on one page, no timer,
+            no "Question x / y" counter, no Previous/Next. */}
+        {phase === 'exam' && visibleQuestions.length > 0 && olympiad?.is_just_a_submission && (
+          <div className="space-y-4">
+            <div className="rounded-xl p-5" style={{ background: 'var(--bg2)', border: '1px solid var(--border)' }}>
+              <FieldsRenderer
+                schema={visibleQuestions.map(q => toFormBlock(resolvedQuestion(q)))}
+                form={{}}
+                onFormChange={() => {}}
+                customAnswers={customAnswers}
+                onCustomAnswersChange={setCustomAnswers}
+                accent="var(--blue)"
+                upload={uploadExamFile}
+              />
+            </div>
+            <button onClick={submitMyTurn} disabled={submitting} className="w-full py-2.5 rounded-lg text-sm font-bold text-black disabled:opacity-60 flex items-center justify-center gap-1.5" style={{ background: 'var(--cat-teal)' }}>
+              {submitting ? 'Submitting…' : <>Submit <CheckCircle size={14} /></>}
+            </button>
+          </div>
+        )}
+
+        {phase === 'exam' && visibleQuestions.length > 0 && !olympiad?.is_just_a_submission && (
           <div className="space-y-4">
             <div className="flex items-center justify-between p-3 rounded-xl" style={{ background: 'rgba(var(--warning-rgb), 0.08)', border: '1px solid rgba(var(--warning-rgb), 0.25)' }}>
               {olympiad?.is_just_a_submission ? (
@@ -419,8 +481,8 @@ export default function RelayExamPage() {
 
         {phase === 'exam' && visibleQuestions.length === 0 && (
           <div className="rounded-2xl p-6 border text-center" style={{ background: 'var(--bg2)', borderColor: 'var(--border)' }}>
-            <p className="text-sm mb-2" style={{ color: 'var(--danger-soft)' }}>⚠ This exam has no questions configured yet.</p>
-            <p className="text-xs mb-4" style={{ color: 'var(--muted)' }}>Please contact the organizer. The exam cannot be completed without questions.</p>
+            <p className="text-sm mb-2" style={{ color: 'var(--danger-soft)' }}>⚠ {olympiad?.is_just_a_submission ? 'This submission form has no fields configured yet.' : 'This exam has no questions configured yet.'}</p>
+            <p className="text-xs mb-4" style={{ color: 'var(--muted)' }}>Please contact the organizer.</p>
             <Link href={`/activities/${slug}/dashboard?reg=${regId}`} className="inline-block text-sm underline" style={{ color: 'var(--blue)' }}>
               ← Back to dashboard
             </Link>
@@ -429,7 +491,7 @@ export default function RelayExamPage() {
 
         {phase === 'done' && (() => {
           const mySubmission = (relayState?.member_submissions || []).find((s: any) => s.member_id === memberIdParam)
-          const showResults = !!olympiad?.result_published && mySubmission?.question_results?.length > 0
+          const showResults = !olympiad?.is_just_a_submission && !!olympiad?.result_published && mySubmission?.question_results?.length > 0
           if (!showResults) {
             return (
               <div className="rounded-2xl p-6 border text-center" style={{ background: 'rgba(var(--cat-teal-rgb), 0.08)', borderColor: 'rgba(var(--cat-teal-rgb), 0.25)' }}>
@@ -489,11 +551,13 @@ export default function RelayExamPage() {
                         Your answer: <span style={{ color: 'var(--white)' }}>{r.student_answer || '(not answered)'}</span>
                       </div>
                     )}
-                    {r.type === 'photo' && r.student_answer && (
+                    {r.type === 'photo' && toAnswerUrls(r.student_answer).length > 0 && (
                       <div className="mt-2 flex flex-wrap items-center gap-3">
-                        <a href={r.student_answer} target="_blank" rel="noopener noreferrer" className="text-xs underline inline-block" style={{ color: 'var(--blue)' }}>
-                          View your uploaded photo answer
-                        </a>
+                        {toAnswerUrls(r.student_answer).map((u, idx) => (
+                          <a key={u + idx} href={u} target="_blank" rel="noopener noreferrer" className="text-xs underline inline-block" style={{ color: 'var(--blue)' }}>
+                            View your uploaded photo{toAnswerUrls(r.student_answer).length > 1 ? ` #${idx + 1}` : ' answer'}
+                          </a>
+                        ))}
                         {/* Organizer's choice — only shown once they've turned this on for the olympiad */}
                         {olympiad?.annotations_published && markedAnnotations.length > 0 && (
                           <button onClick={() => setViewingAnnotatedQuestionId(r.question_id)}

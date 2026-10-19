@@ -1,7 +1,9 @@
 // app/api/auth/oauth/complete/route.ts
 //
-// Creates the `members` row for a user who signed in via OAuth (Google) and
-// therefore has a Supabase Auth identity but no membership record yet.
+// Creates the `users` row (the website account) for a user who signed in via OAuth
+// (Google) and therefore has a Supabase Auth identity but no account record yet.
+// If they attached a membership-form photo, a pending membership application is
+// created too; they only enter the `members` table once an admin approves it.
 //
 // Security: the caller must present a valid Bearer token for the OAuth
 // session. The row's id is pinned to that user (auth.users.id), so a
@@ -16,6 +18,7 @@ import { supabaseAdmin } from '@/lib/supabase'
 import { validateCollegeRoll } from '@/lib/validation'
 import { apiError, apiOk } from '@/lib/api/response'
 import { getBearerFromAuthHeader } from '@/lib/localAuth'
+import { claimTeamRegistrations } from '@/lib/server/claimRegistrations'
 
 export async function POST(req: NextRequest) {
   try {
@@ -51,7 +54,7 @@ export async function POST(req: NextRequest) {
 
     // ── Idempotency: row already exists for this auth user ────────────
     const { data: existing } = await supabaseAdmin
-      .from('members')
+      .from('users')
       .select('id')
       .eq('id', userId)
       .maybeSingle()
@@ -61,13 +64,13 @@ export async function POST(req: NextRequest) {
         success: true,
         member_id: existing.id,
         already: true,
-        message: 'Your membership record already exists.',
+        message: 'Your account already exists.',
       })
     }
 
     // ── Insert ────────────────────────────────────────────────────────
     const { data: created, error: insertError } = await supabaseAdmin
-      .from('members')
+      .from('users')
       .insert({
         id: userId,
         email: userEmail || null,
@@ -106,10 +109,31 @@ export async function POST(req: NextRequest) {
       return apiError(insertError.message || 'Failed to complete registration.', 400)
     }
 
+    // A membership-form photo was attached at sign-up -> open a pending application
+    // (the DB marks the account `pending`; admin approval adds them to `members`).
+    if (payment_slip_url) {
+      const { error: applyError } = await supabaseAdmin
+        .from('membership_applications')
+        .insert({
+          user_id: created.id,
+          college_roll,
+          batch,
+          payment_slip_url,
+          status: 'pending',
+        })
+      if (applyError) {
+        process.stderr.write(`[oauth/complete] application insert failed: ${applyError.message}\n`)
+      }
+    }
+
+    await claimTeamRegistrations(created.id, userEmail)   // auto-enroll into teams that already list this e-mail
+
     return apiOk({
       success: true,
       member_id: created.id,
-      message: 'Welcome to NDSC! Your membership will be reviewed by an admin shortly.',
+      message: payment_slip_url
+        ? 'Welcome to NDSC! Your membership application will be reviewed by an admin shortly.'
+        : 'Welcome to NDSC! Your account is ready.',
     })
   } catch (err) {
     return apiError('Server error. Please try again.', 500)

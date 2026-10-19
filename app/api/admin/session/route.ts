@@ -4,19 +4,19 @@
 // ============================================================================
 
 import { NextRequest, NextResponse } from "next/server";
-import { cookies } from "next/headers";
+import { authCookies } from "@/lib/config/site";
+import { readSessionCookie } from "@/lib/api/session-cookie";
+import type { AdminSession } from "@/types/auth";
 
 export async function GET(req: NextRequest) {
   try {
-    const cookieStore = await cookies();
-    const sessionCookie = cookieStore.get("admin_session");
+    const session = await readSessionCookie<AdminSession>(authCookies.admin);
 
-    if (!sessionCookie?.value) {
+    if (!session) {
       return NextResponse.json({ admin: null }, { status: 401 });
     }
 
-    const session = JSON.parse(sessionCookie.value);
-    return NextResponse.json({ admin: session.admin });
+    return NextResponse.json({ admin: (session as any).admin });
   } catch (error) {
     return NextResponse.json({ admin: null }, { status: 401 });
   }

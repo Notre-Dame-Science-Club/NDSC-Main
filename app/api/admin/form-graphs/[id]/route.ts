@@ -9,7 +9,8 @@ import { supabaseAdmin } from '@/lib/supabase'
 import { NextRequest } from 'next/server'
 import { requireAdmin } from '@/lib/api/admin-auth'
 import { apiError, apiOk } from '@/lib/api/response'
-import { packFormGraphBody } from '@/lib/formGraph'
+import { packFormGraphUpdate } from '@/lib/formGraph'
+import { recomputeSlotGroups } from '@/lib/server/slotGroups'
 
 type Ctx = { params: Promise<{ id: string }> }
 
@@ -74,7 +75,7 @@ export async function PUT(req: NextRequest, ctx: Ctx) {
   }
 
   // Plain graph-level update: title, settings, root_node_id, etc.
-  const packed = packFormGraphBody(body)
+  const packed = packFormGraphUpdate(body)
   packed.updated_at = new Date().toISOString()
   const { data, error } = await supabaseAdmin
     .from('form_graphs')
@@ -83,7 +84,9 @@ export async function PUT(req: NextRequest, ctx: Ctx) {
     .select()
     .single()
   if (error) return apiError(error, 400)
-  return apiOk({ graph: data })
+  // Groups live in settings.segment_groups: re-key existing registrations' slots.
+  const group_recompute = packed.settings !== undefined ? await recomputeSlotGroups(id) : null
+  return apiOk({ graph: data, group_recompute })
 }
 
 export async function DELETE(_req: NextRequest, ctx: Ctx) {

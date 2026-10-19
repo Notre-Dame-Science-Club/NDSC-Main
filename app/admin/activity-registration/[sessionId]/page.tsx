@@ -10,6 +10,7 @@ import ContactPersonsEditor from '@/components/admin/ContactPersonsEditor'
 import { FormGraphBuilderForOwner } from '@/components/admin/FormGraphBuilder'
 import { THEME_PRESETS, FONT_OPTIONS, COVER_RATIO_OPTIONS } from '@/lib/appearancePresets'
 import { resolveAccent, resolveFont } from '@/lib/appearance'
+import ActivityImportModal from '@/components/admin/ActivityImportModal'
 
 const uid = () => Math.random().toString(36).slice(2, 9)
 
@@ -132,6 +133,8 @@ function RegistrantsPanel({ sessionId }: { sessionId: string }) {
   const [search, setSearch] = useState('')
   const [segmentFilter, setSegmentFilter] = useState<string>('all')
   const [viewing, setViewing] = useState<any | null>(null)
+  const [showImport, setShowImport] = useState(false)
+  const [reloadKey, setReloadKey] = useState(0)
 
   useEffect(() => {
     fetch(`/api/admin/activity-registrations-list?sessionId=${sessionId}`)
@@ -145,7 +148,7 @@ function RegistrantsPanel({ sessionId }: { sessionId: string }) {
       })
       .catch(() => setError('Could not load registrants.'))
       .finally(() => setLoading(false))
-  }, [sessionId])
+  }, [sessionId, reloadKey])
 
   const filtered = registrations.filter(r => {
     // Segment chip filter — restrict to a single top-level bucket.
@@ -210,6 +213,11 @@ function RegistrantsPanel({ sessionId }: { sessionId: string }) {
           style={{ background: 'var(--surface-alt)', borderColor: 'var(--border)', color: 'var(--white-soft)' }} />
         <div className="flex items-center gap-3 ml-auto">
           <span className="text-xs whitespace-nowrap" style={{ color: 'var(--border-soft)' }}>{filtered.length} of {registrations.length} registrant(s)</span>
+          <button onClick={() => setShowImport(true)} className="text-xs px-3 py-1.5 rounded-lg flex-shrink-0 flex items-center gap-1.5"
+            style={{ background: 'rgba(var(--blue-rgb), 0.1)', color: 'var(--blue)', border: '1px solid rgba(var(--blue-rgb), 0.25)' }}
+            title="Register many participants at once from a CSV (creates website accounts for anyone who doesn't have one).">
+            <Upload size={12} /> Import CSV
+          </button>
           <button onClick={exportCsv} disabled={filtered.length === 0} className="text-xs px-3 py-1.5 rounded-lg flex-shrink-0 flex items-center gap-1.5 disabled:opacity-40"
             style={{ background: 'rgba(var(--accent2-rgb), 0.1)', color: 'var(--accent2)', border: '1px solid rgba(var(--accent2-rgb), 0.25)' }}>
             <Upload size={12} style={{ transform: 'rotate(180deg)' }} /> Export CSV
@@ -434,6 +442,10 @@ function RegistrantsPanel({ sessionId }: { sessionId: string }) {
         </div>
         )
       })()}
+
+      {showImport && (
+        <ActivityImportModal sessionId={sessionId} onClose={() => setShowImport(false)} onDone={() => setReloadKey(k => k + 1)} />
+      )}
     </div>
   )
 }

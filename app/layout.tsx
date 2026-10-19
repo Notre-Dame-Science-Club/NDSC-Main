@@ -19,7 +19,7 @@ import { resolveAppearance, THEME_STORAGE_KEY } from "@/lib/themes";
 export const metadata: Metadata = {
   title: "Notre Dame Science Club (NDSC) | ndscbd.net — Official Website",
   description:
-    "Official website of Notre Dame Science Club (NDSC) — the pioneer science club of the Indian Subcontinent, founded in 1955 at Notre Dame College, Dhaka. Join Science Sunday, Elucidation Hour, workshops, sessions, national science festival, intra science festival, and more.",
+    "Official website of Notre Dame Science Club (NDSC) — the pioneer science club of South Asia, founded in 1955 at Notre Dame College, Dhaka. Join Science Sunday, Elucidation Hour, workshops, sessions, national science festival, intra science festival, and more.",
   keywords: [
     "Notre Dame Science Club",
     "NDSC",
@@ -62,7 +62,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: "Notre Dame Science Club (NDSC) | Official Website",
     description:
-      "The first college-level science club of the Indian Subcontinent — promoting science, innovation, and curiosity since 1955. Science Sunday, Elucidation Hour, national festivals, workshops & more.",
+      "The first college-level science club of South Asia — promoting science, innovation, and curiosity since 1955. Science Sunday, Elucidation Hour, national festivals, workshops & more.",
     url: "https://ndscbd.net",
     siteName: "Notre Dame Science Club",
     locale: "en_BD",
@@ -80,7 +80,7 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: "Notre Dame Science Club (NDSC)",
     description:
-      "Pioneer science club of the Indian Subcontinent since 1955 — ndscbd.net",
+      "Pioneer science club of South Asia since 1955 — ndscbd.net",
     images: ["https://ndscbd.net/images/cropped-logo.png"],
   },
   robots: {

@@ -52,7 +52,7 @@ export function bootCosmos(opts: EngineOptions): EngineHandle {
 
   const low = intensity === "dim";
   const wantPost = true;
-  const dprCap = opts.dprCap ?? (low ? 1.6 : 1.9);
+  const dprCap = opts.dprCap ?? (low ? 1.25 : 1.5);
 
   const vpW = () => document.documentElement.clientWidth || window.innerWidth;
   const vpH = () => document.documentElement.clientHeight || window.innerHeight;
@@ -71,9 +71,9 @@ export function bootCosmos(opts: EngineOptions): EngineHandle {
   const W: World = { rings: [], electrons: [], layers: [] };
   const T = { value: 0 };
 
-  buildSky(scene, renderer, W);
+  buildSky(scene, renderer, W, T);
   buildField(scene, renderer, W, T, low);
-  buildLights(scene, renderer, W);
+  buildLights(scene, renderer, W, T);
   if (!low) {
     buildPlanet(scene, renderer, W);
     buildCore(scene, renderer, W, T);
@@ -109,8 +109,9 @@ export function bootCosmos(opts: EngineOptions): EngineHandle {
     camera.updateProjectionMatrix();
     const pw = renderer.domElement.width, ph = renderer.domElement.height;
     resizePost(renderer, post, pw, ph);
-    W.layers.forEach((p) => { (p.material as THREE.ShaderMaterial).uniforms.uSize.value = h * renderer.getPixelRatio() * 1.3; });
-    if (W.dust) (W.dust.material as THREE.ShaderMaterial).uniforms.uSize.value = h * renderer.getPixelRatio() * 2.4;
+    W.layers.forEach((p) => { (p.material as THREE.ShaderMaterial).uniforms.uSize.value = h * renderer.getPixelRatio() * 0.6; });
+    if (W.glints) (W.glints.material as THREE.ShaderMaterial).uniforms.uPR.value = renderer.getPixelRatio();
+    if (W.dust) (W.dust.material as THREE.ShaderMaterial).uniforms.uSize.value = h * renderer.getPixelRatio() * 1.6;
     scrollMap?.measure();
   }
 
@@ -175,8 +176,8 @@ export function bootCosmos(opts: EngineOptions): EngineHandle {
         const avg = perf.acc / perf.n;
         perf.acc = 0;
         perf.n = 0;
-        if (avg > 0.023 && perf.scale > 0.55) {
-          perf.scale = Math.max(0.55, perf.scale * (avg > 0.05 ? 0.64 : 0.85));
+        if (avg > 0.020 && perf.scale > 0.5) {
+          perf.scale = Math.max(0.5, perf.scale * (avg > 0.05 ? 0.64 : 0.85));
           resize();
         } else if (avg < 0.0138 && perf.scale < 1) {
           perf.scale = Math.min(1, perf.scale + 0.08);

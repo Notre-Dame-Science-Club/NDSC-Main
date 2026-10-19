@@ -43,50 +43,64 @@ export async function POST(req: NextRequest) {
     return apiError('Payment slip URL is required.', 400)
   }
 
-  // Fetch member record
-  const { data: member, error: fetchError } = await supabaseAdmin
-    .from('members')
+  // Fetch the user's account
+  const { data: account, error: fetchError } = await supabaseAdmin
+    .from('users')
     .select('*')
     .eq('id', user.id)
     .single()
 
-  if (fetchError || !member) {
-    return apiError('Member record not found.', 404)
+  if (fetchError || !account) {
+    return apiError('Account record not found.', 404)
   }
 
-  // Check if member is an NDC student
-  if (!isNDCStudent(member)) {
+  // Only Notre Dame College students can apply
+  if (!isNDCStudent(account)) {
     return apiError('Only Notre Dame College students can apply for club membership.', 403)
   }
 
-  // Check membership status
-  if (
-    member.membership_status !== 'none' &&
-    member.membership_status !== 'rejected' &&
-    member.membership_status !== null
-  ) {
+  // Already a member, or an application is already waiting for review?
+  if (account.membership_status === 'approved' || account.membership_status === 'pending') {
     return apiError(
-      `Cannot apply for membership. Current status: ${member.membership_status}.`,
+      `Cannot apply for membership. Current status: ${account.membership_status}.`,
       400
     )
   }
 
-  // Update member record
-  const { data: updatedMember, error: updateError } = await supabaseAdmin
-    .from('members')
+  // 1. Record the application (the DB keeps users.membership_status in sync via a trigger,
+  //    and allows only one pending application per user).
+  const { error: applyError } = await supabaseAdmin
+    .from('membership_applications')
+    .insert({
+      user_id: user.id,
+      college_roll,
+      batch: trimmedBatch,
+      department: department || null,
+      payment_slip_url: trimmedSlipUrl,
+      status: 'pending',
+    })
+
+  if (applyError) return apiError(applyError, 400)
+
+  // 2. Keep the submitted details on the profile too (dashboard + registrations read them)
+  const { error: updateError } = await supabaseAdmin
+    .from('users')
     .update({
       college_roll,
       batch: trimmedBatch,
       department: department || null,
       payment_slip_url: trimmedSlipUrl,
-      membership_status: 'pending',
-      is_verified: false,
     })
     .eq('id', user.id)
-    .select()
-    .single()
 
   if (updateError) return apiError(updateError, 400)
 
-  return apiOk({ member: updatedMember })
+  const { data: updatedUser } = await supabaseAdmin
+    .from('users')
+    .select('*')
+    .eq('id', user.id)
+    .single()
+
+  // `member` key kept so the existing dashboard code keeps working
+  return apiOk({ member: updatedUser })
 }

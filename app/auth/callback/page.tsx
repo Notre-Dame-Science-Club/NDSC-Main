@@ -69,7 +69,7 @@ export default function AuthCallbackPage() {
         // (college roll, batch, …). Reading `members` here mirrors what the
         // dashboard already does with the same client + RLS.
         const { data: member } = await supabase
-          .from('members')
+          .from('users')
           .select('id')
           .eq('id', user.id)
           .maybeSingle()

@@ -50,7 +50,7 @@ export async function POST(req: NextRequest) {
   if (error) {
     // Fallback: if RPC doesn't exist, do a direct update
     const { data: member, error: memberError } = await supabaseAdmin
-      .from('members')
+      .from('users')
       .select('id, achievements')
       .eq('id', user.id)
       .single()
@@ -61,7 +61,7 @@ export async function POST(req: NextRequest) {
 
     const achievements = [...(member.achievements || []), newAchievement]
     const { error: updateError } = await supabaseAdmin
-      .from('members')
+      .from('users')
       .update({ achievements })
       .eq('id', user.id)
 

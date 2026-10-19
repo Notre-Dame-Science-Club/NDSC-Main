@@ -1,198 +1,24 @@
 "use client";
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, type ReactNode } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { Landmark, Microscope, Globe2, Trophy, Newspaper, Globe, Sparkles } from "lucide-react";
-
-/* ═══════════════════════════════════════════
-   DEPARTMENT CARD — Enhanced with tilt, glow, staggered reveal
-═══════════════════════════════════════════ */
-function DepartmentCard({ dept, index, delay }: { dept: typeof DEPTS[0]; index: number; delay: number }) {
-  const [hovered, setHovered] = useState(false);
-  const [tilt, setTilt] = useState({ x: 0, y: 0 });
-  const cardRef = useRef<HTMLDivElement>(null);
-  const isTouch = typeof window !== 'undefined' && ('ontouchstart' in window || navigator.maxTouchPoints > 0);
-
-  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (isTouch) return;
-    const rect = cardRef.current?.getBoundingClientRect();
-    if (!rect) return;
-    const centerX = rect.left + rect.width / 2;
-    const centerY = rect.top + rect.height / 2;
-    const rotateX = ((e.clientY - centerY) / (rect.height / 2)) * 4;
-    const rotateY = ((e.clientX - centerX) / (rect.width / 2)) * -4;
-    setTilt({ x: rotateX, y: rotateY });
-  };
-
-  const handleMouseLeave = () => setTilt({ x: 0, y: 0 });
-
-  return (
-    <div
-      ref={cardRef}
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={handleMouseLeave}
-      onMouseMove={handleMouseMove}
-      className="group relative rounded-2xl overflow-hidden cursor-default"
-      style={{
-        background: dept.bg,
-        border: `1px solid ${dept.border}`,
-        transition: "transform 0.4s cubic-bezier(0.22,1,0.36,1), box-shadow 0.4s cubic-bezier(0.22,1,0.36,1), border-color 0.3s",
-        transform: `perspective(1000px) rotateX(${tilt.x}deg) rotateY(${tilt.y}deg) translateY(${hovered ? '-12px' : '0'})`,
-        boxShadow: hovered
-          ? `0 24px 48px rgba(0,0,0,0.4), 0 0 0 1px ${dept.color}44, 0 0 32px ${dept.color}22`
-          : `0 0 0 0 ${dept.color}00`,
-        animationDelay: `${delay}s`,
-        animationFillMode: 'both',
-        animationDuration: '0.7s',
-        animationTimingFunction: 'cubic-bezier(0.22,1,0.36,1)',
-      }}
-      role="listitem"
-      tabIndex={0}
-      onFocus={() => setHovered(true)}
-      onBlur={() => setHovered(false)}
-    >
-      {/* Animated gradient border on hover */}
-      <div
-        className="absolute inset-0 rounded-2xl pointer-events-none"
-        style={{
-          opacity: hovered ? 1 : 0,
-          transition: 'opacity 0.3s ease',
-          background: `conic-gradient(from 0deg, transparent 0deg, ${dept.color}66 120deg, transparent 240deg, ${dept.color}66 360deg)`,
-          mask: 'linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0)',
-          WebkitMask: 'linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0)',
-          maskComposite: 'exclude',
-          WebkitMaskComposite: 'xor',
-          padding: '1px',
-        }}
-      />
-      
-      {/* Glow corner accent */}
-      <div
-        className="absolute top-0 right-0 w-24 h-24 rounded-full pointer-events-none transition-all duration-500"
-        style={{ 
-          background: `radial-gradient(circle at top right, ${dept.color}33, transparent 70%)`,
-          opacity: hovered ? 1 : 0.6,
-          transform: hovered ? 'scale(1.3)' : 'scale(1)',
-        }}
-      />
-      
-      {/* Number badge */}
-      <div
-        className="absolute top-4 right-4 text-xs font-black opacity-20 pointer-events-none transition-all duration-300"
-        style={{ 
-          fontFamily: 'inherit', 
-          color: dept.color, 
-          fontSize: "2rem", 
-          lineHeight: 1,
-          transform: hovered ? 'scale(1.15)' : 'scale(1)',
-        }}
-      >
-        {String(index + 1).padStart(2, "0")}
-      </div>
-
-      <div className="relative p-6 h-full flex flex-col">
-        {/* Icon with animation */}
-        <div className="relative w-14 h-14 mb-5 transition-all duration-500" style={{ transform: hovered ? 'scale(1.1) rotate(3deg)' : 'scale(1)' }}>
-          <Image
-            src={dept.icon}
-            alt={dept.name}
-            fill
-            className="object-contain transition-all duration-500"
-            style={{ 
-              filter: `drop-shadow(0 0 ${hovered ? '20px' : '10px'} ${dept.color})`,
-            }}
-          />
-        </div>
-        
-        <h3 className="font-black text-sm tracking-wider mb-3 transition-all duration-300" style={{ 
-          fontFamily: 'inherit', 
-          color: dept.color,
-          textShadow: hovered ? `0 0 12px ${dept.color}88` : 'none',
-        }}>
-          {dept.name}
-        </h3>
-        
-        <p className="text-xs leading-relaxed flex-1 mb-4 transition-all duration-300" style={{ 
-          color: "var(--muted)",
-          opacity: hovered ? 0.9 : 0.8,
-        }}>
-          {dept.desc}
-        </p>
-        
-        {/* Bottom color bar — animates width */}
-        <div
-          className="absolute bottom-0 left-0 h-0.5 transition-all duration-500"
-          style={{ 
-            background: `linear-gradient(90deg, transparent, ${dept.color}, transparent)`,
-            width: hovered ? '100%' : '0%',
-            opacity: hovered ? 1 : 0,
-          }}
-        />
-      </div>
-    </div>
-  );
-}
+import "../_components/home2/home2.css"; // shared .ch-* design (departments + leaders match the homepage)
+import "./about.css";
 
 /* ═══════════════════════════════════════════
    DATA
 ═══════════════════════════════════════════ */
-const DEPTS = [
-  {
-    name: "Administration",
-    icon: "/images/admininstration-icon.svg",
-    color: "var(--blue)",
-    bg: "rgba(var(--blue-rgb), 0.08)",
-    border: "rgba(var(--blue-rgb), 0.3)",
-    desc: "Ensures smooth operation and management of club activities. Coordinates planning, logistics and execution of all events and programs. Maintains the official records, communication, and institutional memory of NDSC.",
-  },
-  {
-    name: "Project",
-    icon: "/images/project-icon.svg",
-    color: "var(--cat-teal)",
-    bg: "rgba(var(--cat-teal-rgb), 0.08)",
-    border: "rgba(var(--cat-teal-rgb), 0.3)",
-    desc: "Conducts scientific research and innovation-based projects. Encourages experimentation, analytical development, and student-led innovation. Organizes the Annual Science Festival — the biggest science fair platform in Bangladesh.",
-  },
-  {
-    name: "Publication",
-    icon: "/images/publication-icon.svg",
-    color: "var(--accent2)",
-    bg: "rgba(var(--accent2-rgb), 0.08)",
-    border: "rgba(var(--accent2-rgb), 0.3)",
-    desc: "Handles graphics, publishes wall magazines, journals and the annual AUDRI publication. Promotes scientific writing, knowledge sharing, and creative expression. Manages STEM Insights — the monthly digital science magazine.",
-  },
-  {
-    name: "ICT",
-    icon: "/images/ict-icon.svg",
-    color: "var(--cat-red)",
-    bg: "rgba(var(--cat-red-rgb), 0.08)",
-    border: "rgba(var(--cat-red-rgb), 0.3)",
-    desc: "Handles digital media, website management, and tech support. Maintains digital infrastructure and online presence of the club. Organizes national ICT fairs and workshops on programming, AI, robotics, and emerging technology.",
-  },
-  {
-    name: "LWS",
-    icon: "/images/lws-icon.svg",
-    color: "var(--cat-amber)",
-    bg: "rgba(var(--cat-amber-rgb), 0.08)",
-    border: "rgba(var(--cat-amber-rgb), 0.3)",
-    desc: "Library, Workshop & Seminar — the club's academics department. Manages the club library, organizes academic workshops, and hosts seminars bridging theoretical knowledge with practical learning.",
-  },
-  {
-    name: "Quiz",
-    icon: "/images/quiz-icon.svg",
-    color: "var(--info)",
-    bg: "rgba(var(--info-rgb), 0.08)",
-    border: "rgba(var(--info-rgb), 0.3)",
-    desc: "Hosts Q-League, BrainRain, and Scienceophile — premier national quiz competitions. NDC Blue, NDC Green & NDC Gold are NDSC's prestigious national quiz teams. Prepares members for national and international science olympiads.",
-  },
-  {
-    name: "R&D",
-    icon: "/images/r&d-icon.svg",
-    color: "var(--cat-orange)",
-    bg: "rgba(var(--cat-orange-rgb), 0.08)",
-    border: "rgba(var(--cat-orange-rgb), 0.3)",
-    desc: "Research & Development — drives olympiad preparation, academic seminars, and student-led scientific innovation programs. Coordinates with national and international academic bodies for research collaboration and student recognition.",
-  },
+/* Copied verbatim from the homepage Departments chapter
+   (app/_components/home2/DepartmentsSection.tsx) — keep the two in sync. R&D is a
+   team, not a department, so it is not listed here. */
+const DEPT_PLATES = [
+  { n: "01", name: "Administration", tint: "rgba(90,216,255,.13)", accent: "#5ad8ff", desc: "Oversees and coordinates all departments, ensuring smooth operations, effective planning, and execution across the organization. Leads field operations, outreach activities, sponsorship dealings, and overall organizational initiatives." },
+  { n: "02", name: "Project", tint: "rgba(52,211,153,.13)", accent: "#34d399", desc: "Leads scientific research, experimentation, and innovation-based projects while encouraging members to explore ideas, develop practical solutions, and turn scientific concepts into impactful projects." },
+  { n: "03", name: "Publication", tint: "rgba(167,139,250,.13)", accent: "#a78bfa", desc: "Manages all visual assets and event layouts. Designs official club materials, wall magazines, and the annual publication, AUDRI, to promote scientific writing." },
+  { n: "04", name: "LWS", tint: "rgba(245,158,11,.13)", accent: "#f59e0b", desc: "Library, Workshop & Seminar (LWS) oversees academic initiatives, develops competition question papers, and coordinates workshops, training, and brainstorming sessions. It also prepares members for Olympiads and fosters scientific knowledge, academic excellence, and intellectual growth." },
+  { n: "05", name: "ICT", tint: "rgba(248,113,113,.13)", accent: "#f87171", desc: "Drives NDSC’s digital initiatives by managing web development, website maintenance, technical infrastructure, and digital solutions. It leverages technology to enhance organizational efficiency, streamline operations, and strengthen the club’s digital presence." },
+  { n: "06", name: "Quiz", tint: "rgba(96,165,250,.13)", accent: "#60a5fa", desc: "Selects dedicated teams (NDC Gold, NDC Red, NDC Green, NDC Blue) through Q-League to represent NDSC in the General Knowledge Competition, featuring diverse topics such as pop culture, sports, manga, movies, Nobel Prizes, history, and culture." },
 ];
 
 const GOALS = [
@@ -294,6 +120,174 @@ const ERAS = [
   },
 ];
 
+/* Fade-out for collapsed text via a mask, so it works over any background. */
+const FADE_MASK = {
+  WebkitMaskImage: "linear-gradient(to bottom, #000 55%, transparent 100%)",
+  maskImage: "linear-gradient(to bottom, #000 55%, transparent 100%)",
+} as const;
+
+/* `ERAS[].color` is a CSS variable ("var(--blue)"), so the old `color + "55"`
+   hex-alpha trick produced invalid CSS (`var(--blue)55`) and silently dropped
+   the borders/backgrounds. color-mix works with var() colours. */
+const tint = (c: string, pct: number) => `color-mix(in srgb, ${c} ${pct}%, transparent)`;
+
+/* ═══════════════════════════════════════════
+   DEPARTMENTS — same design as the homepage chapter, on a darker backdrop
+═══════════════════════════════════════════ */
+function DepartmentsSection() {
+  return (
+    <section id="departments" className="ab-sec ab-sec--deep py-16 sm:py-24">
+      <div className="relative max-w-7xl mx-auto px-4 sm:px-6">
+        <div className="ch-head reveal">
+          <span className="k"><b>Structure</b></span>
+          <span className="ch-rule" />
+          <span className="k">SIX TEAMS</span>
+        </div>
+        <div className="ch-story-grid reveal" style={{ marginBottom: "clamp(34px,6vh,72px)" }}>
+          <h2 className="ch-display ch-sec">Six departments. One mission.</h2>
+          <p className="ch-body-lg" style={{ paddingTop: 8 }}>
+            Each department runs independently and reports to the Executive Committee —
+            administration, research, publication, technology, academics and quiz.
+          </p>
+        </div>
+        <div className="ch-plates ab-plates reveal" role="list">
+          {DEPT_PLATES.map((d) => (
+            <div
+              key={d.n}
+              className="ch-plate"
+              role="listitem"
+              style={{ "--tint": d.tint, "--accent": d.accent } as React.CSSProperties}
+            >
+              <span className="orb" />
+              <span className="k">{d.n}</span>
+              <h3>{d.name}</h3>
+              <p>{d.desc}</p>
+              <i className="bar" />
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+/* ═══════════════════════════════════════════
+   VOICE OF OUR LEADERS — same card design as the homepage chapter.
+   ids "moderator" / "gs" are what the homepage's "Read more" links target
+   (/about#moderator, /about#gs), so a matching hash opens that card.
+═══════════════════════════════════════════ */
+type Leader = {
+  id: string;
+  name: string;
+  role: string;
+  sub: string;
+  img: string;
+  paras: ReactNode[];
+  extra?: { href: string; label: string };
+};
+
+const LEADERS: Leader[] = [
+  {
+    id: "moderator",
+    name: "Dr. Vincent Titas Rozario",
+    role: "Moderator",
+    sub: "Notre Dame Science Club",
+    img: "https://uploads.ndscbd.net/executives/1780621402_fdc8d88bf714.jpg",
+    paras: [
+      <>&ldquo;For nearly seven decades, Notre Dame Science Club has stood as a beacon of intellectual curiosity, disciplined inquiry, and service to humanity. I have witnessed how this club transforms young minds — nurturing not just scientific knowledge, but the values of integrity, perseverance, and compassion.</>,
+      <>Science, when practised with a humane heart, becomes a force for good in our world. The legacy of our founder, Fr. Richard William Timm, C.S.C., continues to inspire every student who walks through the doors of this institution. Notre Dame Science Club has always been a place where curiosity is celebrated, questions are welcomed, and excellence is expected.</>,
+      <>I urge every member to carry forward the spirit of our founding motto: <em style={{ color: "var(--blue)" }}>Science in Human Welfare</em>. This is not merely a slogan — it is a responsibility. A responsibility to use your knowledge, your talents, and your passion to serve the community, the nation, and humanity at large.</>,
+      <>The future of Bangladesh rests in the hands of young scientists like you. Let your curiosity be the compass, your dedication the fuel, and your compassion the guiding light. NDSC will always be your launchpad — your family — as you take flight toward a future of scientific greatness.&rdquo;</>,
+    ],
+  },
+  {
+    id: "gs",
+    name: "Fahim Faisal Arnob",
+    role: "General Secretary",
+    sub: "Notre Dame Science Club · 2025–2026",
+    img: "https://uploads.ndscbd.net/executives/1780619755_f8a427c9fe3d.jpg",
+    paras: [
+      <>&ldquo;Notre Dame Science Club has always been more than just a club — it is a family, a community of dreamers and doers. As your General Secretary, I am committed to taking NDSC to new heights, fostering innovation, scientific thinking, and brotherhood among our members. Together, we will uphold our 70-year legacy and write new chapters of excellence.</>,
+      <>Notre Dame Science Club (NDSC) is a pioneer in South Asia for organizing its annual and government-supported science festivals. With strong global alumni connections and exceptional professionalism, NDSC offers a perfect family environment for science enthusiasts.</>,
+      <>Science is not confined to textbooks; it lives in every experiment we conduct, every question we ask, and every problem we dare to solve. I invite every student of Notre Dame College to be part of this magnificent journey. Whether you are passionate about physics, chemistry, biology, technology, or simply curious about the world — NDSC is your home.</>,
+      <>Let us carry forward the noble motto of our founders: <em style={{ color: "var(--blue)" }}>Science in Human Welfare</em>. Together, we will make NDSC not just the oldest, but the greatest science club in Bangladesh.&rdquo;</>,
+    ],
+    extra: { href: "/executives", label: "View all executives" },
+  },
+];
+
+const ArrowIcon = () => (
+  <svg viewBox="0 0 14 14" fill="none"><path d="M3 11 11 3M5 3h6v6" stroke="currentColor" strokeWidth="1.3" /></svg>
+);
+
+function LeaderCard({ l }: { l: Leader }) {
+  const [open, setOpen] = useState(false);
+
+  useEffect(() => {
+    const check = () => { if (window.location.hash === `#${l.id}`) setOpen(true); };
+    check();
+    window.addEventListener("hashchange", check);
+    return () => window.removeEventListener("hashchange", check);
+  }, [l.id]);
+
+  return (
+    <article id={l.id} className="ch-leader-card ab-leader reveal">
+      <div className="head">
+        <div className="ch-lc-avatar">
+          <Image src={l.img} alt={l.name} width={92} height={92} />
+        </div>
+        <div>
+          <b className="name">{l.name}</b>
+          <span className="role">{l.role}</span>
+          <span className="ab-lc-sub">{l.sub}</span>
+        </div>
+      </div>
+
+      <div className="ab-lc-text">
+        {l.paras.map((p, i) => (
+          <p key={i} className={!open && i === 0 ? "clamp" : undefined} hidden={!open && i > 0}>{p}</p>
+        ))}
+      </div>
+
+      <div className="ab-lc-actions">
+        <button type="button" className="ch-arrowlink" aria-expanded={open} onClick={() => setOpen((o) => !o)}>
+          <span>{open ? "Show less" : "Read more"}</span>
+          <span className="ar"><ArrowIcon /></span>
+        </button>
+        {l.extra && (
+          <Link className="ch-arrowlink" href={l.extra.href}>
+            <span>{l.extra.label}</span>
+            <span className="ar"><ArrowIcon /></span>
+          </Link>
+        )}
+      </div>
+    </article>
+  );
+}
+
+function LeadersSection() {
+  return (
+    <section id="leaders" className="ab-sec ab-sec--alt py-16 sm:py-24">
+      <div className="relative max-w-7xl mx-auto px-4 sm:px-6">
+        <div className="ch-head reveal">
+          <span className="k"><b>Leadership</b></span>
+          <span className="ch-rule" />
+          <span className="k">2025–26</span>
+        </div>
+        <div className="ch-story-grid reveal" style={{ marginBottom: "clamp(30px,5vh,56px)" }}>
+          <h2 className="ch-display ch-sec" style={{ maxWidth: "12ch" }}>Voice of our leaders.</h2>
+          <p className="ch-body-lg" style={{ paddingTop: 8 }}>
+            The people carrying the club&apos;s motto — Science in Human Welfare — into this session.
+          </p>
+        </div>
+        <div className="ch-leaders-grid ab-leaders-grid">
+          {LEADERS.map((l) => <LeaderCard key={l.id} l={l} />)}
+        </div>
+      </div>
+    </section>
+  );
+}
+
 /* ═══════════════════════════════════════════
    COLLAPSIBLE SECTION component
 ═══════════════════════════════════════════ */
@@ -309,15 +303,9 @@ function CollapsibleText({
     <div>
       <div
         className="relative overflow-hidden transition-all duration-500"
-        style={{ maxHeight: expanded ? "9999px" : `${previewLines * 1.9 * 14}px` }}
+        style={{ maxHeight: expanded ? "9999px" : `${previewLines * 1.9 * 14}px`, ...(expanded ? null : FADE_MASK) }}
       >
         {children}
-        {!expanded && (
-          <div
-            className="absolute bottom-0 left-0 right-0 h-24 pointer-events-none"
-            style={{ background: "linear-gradient(to bottom, transparent, var(--bg))" }}
-          />
-        )}
       </div>
       <button
         onClick={() => setExpanded(!expanded)}
@@ -333,26 +321,19 @@ function CollapsibleText({
 function CollapsibleText2({
   children,
   previewLines = 6,
-  bg = "var(--bg2)",
 }: {
   children: React.ReactNode;
   previewLines?: number;
-  bg?: string;
+  bg?: string; // kept so call sites don't change; the fade is a mask now
 }) {
   const [expanded, setExpanded] = useState(false);
   return (
     <div>
       <div
         className="relative overflow-hidden transition-all duration-500"
-        style={{ maxHeight: expanded ? "9999px" : `${previewLines * 1.9 * 14}px` }}
+        style={{ maxHeight: expanded ? "9999px" : `${previewLines * 1.9 * 14}px`, ...(expanded ? null : FADE_MASK) }}
       >
         {children}
-        {!expanded && (
-          <div
-            className="absolute bottom-0 left-0 right-0 h-24 pointer-events-none"
-            style={{ background: `linear-gradient(to bottom, transparent, ${bg})` }}
-          />
-        )}
       </div>
       <button
         onClick={() => setExpanded(!expanded)}
@@ -384,7 +365,7 @@ export default function AboutPage() {
   const { videoUrl, posterUrl } = heroData;
 
   return (
-    <div className="min-h-screen relative z-10" style={{ paddingTop: "64px" }}>
+    <div className="ab-page min-h-screen relative z-10" style={{ paddingTop: "64px" }}>
 
       {/* ══ HERO WITH VIDEO BACKGROUND ══════════════════════════════════════════════ */}
       <section className="relative min-h-[70vh] flex items-center justify-center overflow-hidden">
@@ -441,7 +422,7 @@ export default function AboutPage() {
       </section>
 
       {/* ══ WHO WE ARE — Collapsible Article ═════════════════════════════════════ */}
-      <section className="py-12 sm:py-16 border-b" style={{ borderColor: "var(--border)", background: "var(--bg)" }}>
+      <section className="ab-sec py-12 sm:py-16 border-b" style={{ borderColor: "var(--border)" }}>
         <div className="relative max-w-6xl mx-auto px-4 sm:px-6">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 lg:gap-14 lg:items-center">
 
@@ -482,14 +463,14 @@ export default function AboutPage() {
             </div>
 
           <div
-            className="p-6 sm:p-8 rounded-2xl border"
-            style={{ borderColor: "rgba(var(--blue-rgb), 0.2)", background: "rgba(var(--blue-rgb), 0.03)" }}
+            className="ab-card p-6 sm:p-8 rounded-2xl border"
+            style={{ borderColor: "rgba(var(--blue-rgb), 0.28)" }}
           >
             <div className="section-label mb-3">[ Who We Are ]</div>
             <CollapsibleText previewLines={5}>
               <div className="space-y-4 text-sm leading-[1.9]" style={{ color: "var(--muted)" }}>
                 <p>
-                  Notre Dame Science Club, also known as <strong style={{ color: "var(--white)" }}>NDSC</strong>, is the most promising, versatile, and eminent co-curricular activities club of Notre Dame College, Dhaka. It began its inception in <strong style={{ color: "var(--blue)" }}>1955</strong> with a singular mission — to ignite a passion for science among students. It holds the proud distinction of being the <strong style={{ color: "var(--blue)" }}>pioneer science club of the Indian Subcontinent</strong>. Holding the noble motto &ldquo;Science in Human Welfare,&rdquo; the eminent scientist <strong style={{ color: "var(--white)" }}>Fr. Richard William Timm, C.S.C.</strong> inaugurated the flag of NDSC on September 18, 1955, alongside 19 founding student members.
+                  Notre Dame Science Club, also known as <strong style={{ color: "var(--white)" }}>NDSC</strong>, is the most promising, versatile, and eminent co-curricular activities club of Notre Dame College, Dhaka. It began its inception in <strong style={{ color: "var(--blue)" }}>1955</strong> with a singular mission — to ignite a passion for science among students. It holds the proud distinction of being the <strong style={{ color: "var(--blue)" }}>pioneer science club of South Asia</strong>. Holding the noble motto &ldquo;Science in Human Welfare,&rdquo; the eminent scientist <strong style={{ color: "var(--white)" }}>Fr. Richard William Timm, C.S.C.</strong> inaugurated the flag of NDSC on September 18, 1955, alongside 19 founding student members.
                 </p>
                 <p>
                   The NDSC has a long history of inspiring its followers to rediscover their innate passion for science by serving as the country&apos;s <strong style={{ color: "var(--white)" }}>oldest and most prestigious scientific club</strong>. NDSC provides necessary guidelines to budding scientists and is the trailblazer in spreading scientific awareness among the people. We foster a love of science and an eagerness to learn more about the world&apos;s mysteries, touch the untouched, and see the unseen. For the last few decades, NDSC has turned into the most prominent club to organize numerous <strong style={{ color: "var(--white)" }}>science fairs</strong> — the ultimate platform for student project demonstrations across the nation.
@@ -501,7 +482,7 @@ export default function AboutPage() {
                   Every year, distinguished members of NDSC compete in <strong style={{ color: "var(--white)" }}>international science fairs</strong> and bring honour to the institution. The club has secured remarkable positions at global competitions — including 2nd place at the International Science Festival in Lucknow, India (2006), and 8th place globally out of 128 competing international teams at the ISSF (2007). Run by experienced moderators and a dedicated executive panel, NDSC continues to be the pioneer of the science movement in Bangladesh and will upgrade the noble cause of promoting science in every sphere of life.
                 </p>
                 <p>
-                  Today, as NDSC celebrates its <strong style={{ color: "var(--blue)" }}>70th Anniversary — the Platinum Jubilee</strong> — it stands not just as a college club, but as an institution that has systematically defined the landscape of scientific education, secular thought, and technological innovation in Bangladesh for seven glorious decades. With over <strong style={{ color: "var(--white)" }}>5000 alumni members</strong> across the globe, more than 100 events hosted, and 7 specialized departments working in unison, NDSC remains the benchmark of scientific co-curricular excellence in the region.
+                  Today, as NDSC celebrates its <strong style={{ color: "var(--blue)" }}>70th Anniversary — the Platinum Jubilee</strong> — it stands not just as a college club, but as an institution that has systematically defined the landscape of scientific education, secular thought, and technological innovation in Bangladesh for seven glorious decades. With over <strong style={{ color: "var(--white)" }}>5000 alumni members</strong> across the globe, more than 100 events hosted, and 6 departments working in unison, NDSC remains the benchmark of scientific co-curricular excellence in the region.
                 </p>
               </div>
             </CollapsibleText>
@@ -512,7 +493,7 @@ export default function AboutPage() {
       </section>
 
       {/* ══ HISTORY ARTICLE ═══════════════════════════════════ */}
-      <section className="py-16 sm:py-20" style={{ background: "var(--bg2)" }}>
+      <section className="ab-sec ab-sec--alt py-16 sm:py-20">
         <div className="max-w-4xl mx-auto px-4 sm:px-6">
           <div className="reveal section-label mb-2">Historical Narrative</div>
           <h2 className="reveal text-2xl sm:text-3xl font-black mb-3" style={{ fontFamily: 'inherit' }}>
@@ -525,7 +506,7 @@ export default function AboutPage() {
           {/* Pull quote */}
           <div className="reveal relative pl-5 mb-8 border-l-2" style={{ borderColor: "var(--blue)" }}>
             <p className="text-base sm:text-lg font-semibold italic leading-relaxed" style={{ color: "var(--white)" }}>
-              &ldquo;The pioneer science club of the Indian Subcontinent — 70 years of igniting curiosity, innovation, and scientific excellence.&rdquo;
+              &ldquo;The pioneer science club of South Asia — 70 years of igniting curiosity, innovation, and scientific excellence.&rdquo;
             </p>
           </div>
 
@@ -557,116 +538,16 @@ export default function AboutPage() {
         </div>
       </section>
 
-      {/* ══ DEPARTMENTS — Enhanced ═══════════════════════════════════════════ */}
-      <section id="departments" className="py-16 sm:py-20 relative">
-        {/* Ambient orbs */}
-        <div className="absolute inset-0 pointer-events-none overflow-hidden" aria-hidden="true">
-          <div className="orb-drift absolute -top-40 -right-40 w-96 h-96 rounded-full" style={{ background: "radial-gradient(circle, rgba(var(--cat-teal-rgb), 0.12) 0%, transparent 70%)", filter: "blur(60px)" }} />
-          <div className="orb-drift absolute -bottom-40 -left-40 w-80 h-80 rounded-full" style={{ background: "radial-gradient(circle, rgba(var(--cat-amber-rgb), 0.1) 0%, transparent 70%)", filter: "blur(50px)", animationDelay: "-7s" }} />
-        </div>
-        
-        <div className="relative max-w-7xl mx-auto px-4 sm:px-6">
-          <div className="reveal section-label mb-2">Structure</div>
-          <h2 className="reveal text-2xl sm:text-3xl font-black mb-3" style={{ fontFamily: 'inherit' }}>
-            OUR <span style={{ color: "var(--blue)" }}>DEPARTMENTS</span>
-          </h2>
-          <p className="reveal text-sm mb-12 max-w-xl" style={{ color: "var(--muted)" }}>
-            NDSC is structured into 7 specialized departments, each driving a unique aspect of our scientific mission.
-          </p>
+      {/* ══ DEPARTMENTS (homepage design) ═══════════════════════ */}
+      <DepartmentsSection />
 
-          <div className="reveal-stagger grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6" role="list">
-            {DEPTS.map((d, i) => (
-              <DepartmentCard key={d.name} dept={d} index={i} delay={i * 0.08} />
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* ══ MODERATOR MESSAGE ════════════════════════════════════ */}
-      <section id="moderator" className="py-16 sm:py-20" style={{ background: "var(--bg2)" }}>
-        <div className="max-w-4xl mx-auto px-4 sm:px-6">
-          <div className="reveal section-label mb-2">Message</div>
-          <h2 className="reveal text-2xl sm:text-3xl font-black mb-8" style={{ fontFamily: 'inherit' }}>
-            FROM THE <span style={{ color: "var(--accent2)" }}>MODERATOR</span>
-          </h2>
-          <div
-            className="reveal card-lift p-6 sm:p-10 rounded-2xl border relative overflow-hidden"
-            style={{ borderColor: "rgba(var(--accent2-rgb), 0.35)", background: "rgba(var(--accent2-rgb), 0.04)" }}
-          >
-            <div
-              className="absolute top-4 right-6 text-9xl font-black leading-none select-none pointer-events-none"
-              style={{ color: "rgba(var(--accent2-rgb), 0.06)", fontFamily: 'inherit' }}
-            >"</div>
-            <div className="flex flex-col sm:flex-row gap-5 sm:gap-8 items-start mb-6">
-              <div className="relative w-20 h-20 rounded-full overflow-hidden border-2 shrink-0" style={{ borderColor: "var(--accent2)" }}>
-                <Image src="https://uploads.ndscbd.net/executives/1780621402_fdc8d88bf714.jpg" alt="Moderator" fill className="object-cover" sizes="80px" />
-              </div>
-              <div>
-                <h3 className="font-black text-base" style={{ fontFamily: 'inherit' }}>Dr. Vincent Titas Rozario</h3>
-                <p className="text-sm font-bold" style={{ color: "var(--accent2)" }}>Moderator</p>
-                <p className="text-xs" style={{ color: "var(--muted)" }}>Notre Dame Science Club</p>
-              </div>
-            </div>
-            <CollapsibleText2 previewLines={5} bg="var(--bg2)">
-              <div className="space-y-4 text-sm leading-relaxed" style={{ color: "var(--muted)" }}>
-                <p>&ldquo;For nearly seven decades, Notre Dame Science Club has stood as a beacon of intellectual curiosity, disciplined inquiry, and service to humanity. I have witnessed how this club transforms young minds — nurturing not just scientific knowledge, but the values of integrity, perseverance, and compassion.</p>
-                <p>Science, when practised with a humane heart, becomes a force for good in our world. The legacy of our founder, Fr. Richard William Timm, C.S.C., continues to inspire every student who walks through the doors of this institution. Notre Dame Science Club has always been a place where curiosity is celebrated, questions are welcomed, and excellence is expected.</p>
-                <p>I urge every member to carry forward the spirit of our founding motto: <em style={{ color: "var(--accent2)" }}>Science in Human Welfare</em>. This is not merely a slogan — it is a responsibility. A responsibility to use your knowledge, your talents, and your passion to serve the community, the nation, and humanity at large.</p>
-                <p>The future of Bangladesh rests in the hands of young scientists like you. Let your curiosity be the compass, your dedication the fuel, and your compassion the guiding light. NDSC will always be your launchpad — your family — as you take flight toward a future of scientific greatness.&rdquo;</p>
-              </div>
-            </CollapsibleText2>
-          </div>
-        </div>
-      </section>
-
-      {/* ══ GS MESSAGE ══════════════════════════════════════════ */}
-      <section id="gs" className="py-16 sm:py-20">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6">
-          <div className="reveal section-label mb-2">Message</div>
-          <h2 className="reveal text-2xl sm:text-3xl font-black mb-8" style={{ fontFamily: 'inherit' }}>
-            FROM THE <span style={{ color: "var(--blue)" }}>GENERAL SECRETARY</span>
-          </h2>
-          <div
-            className="reveal card-lift p-6 sm:p-10 rounded-2xl border relative overflow-hidden"
-            style={{ borderColor: "rgba(var(--blue-rgb), .3)", background: "rgba(var(--blue-rgb), .03)" }}
-          >
-            <div
-              className="absolute top-4 right-6 text-9xl font-black leading-none select-none pointer-events-none"
-              style={{ color: "rgba(var(--blue-rgb), 0.05)", fontFamily: 'inherit' }}
-            >"</div>
-            <div className="flex flex-col sm:flex-row gap-5 sm:gap-8 items-start mb-6">
-              <div className="relative w-20 h-20 rounded-full overflow-hidden border-2 shrink-0" style={{ borderColor: "var(--blue)" }}>
-                <Image src="https://uploads.ndscbd.net/executives/1780619755_f8a427c9fe3d.jpg" alt="GS" fill className="object-cover" sizes="80px" />
-              </div>
-              <div>
-                <h3 className="font-black text-base" style={{ fontFamily: 'inherit' }}>Fahim Faisal Arnob</h3>
-                <p className="text-sm font-bold" style={{ color: "var(--blue)" }}>General Secretary</p>
-                <p className="text-xs" style={{ color: "var(--muted)" }}>Notre Dame Science Club · 2025–2026</p>
-              </div>
-            </div>
-            <CollapsibleText previewLines={5}>
-              <div className="space-y-4 text-sm leading-relaxed" style={{ color: "var(--muted)" }}>
-                <p>&ldquo;Notre Dame Science Club has always been more than just a club — it is a family, a community of dreamers and doers. As your General Secretary, I am committed to taking NDSC to new heights, fostering innovation, scientific thinking, and brotherhood among our members. Together, we will uphold our 70-year legacy and write new chapters of excellence.</p>
-                <p>Notre Dame Science Club (NDSC) is a pioneer in the Indian Subcontinent for organizing its annual and government-supported science festivals. With strong global alumni connections and exceptional professionalism, NDSC offers a perfect family environment for science enthusiasts.</p>
-                <p>Science is not confined to textbooks; it lives in every experiment we conduct, every question we ask, and every problem we dare to solve. I invite every student of Notre Dame College to be part of this magnificent journey. Whether you are passionate about physics, chemistry, biology, technology, or simply curious about the world — NDSC is your home.</p>
-                <p>Let us carry forward the noble motto of our founders: <em style={{ color: "var(--blue)" }}>Science in Human Welfare</em>. Together, we will make NDSC not just the oldest, but the greatest science club in Bangladesh.&rdquo;</p>
-              </div>
-            </CollapsibleText>
-            <Link
-              href="/executives"
-              className="inline-block mt-6 px-5 py-2 text-xs font-black tracking-widest rounded-lg border transition-all hover:bg-[var(--blue)] hover:text-black"
-              style={{ borderColor: "var(--blue)", color: "var(--blue)", fontFamily: 'inherit' }}
-            >
-              VIEW ALL EXECUTIVES →
-            </Link>
-          </div>
-        </div>
-      </section>
+      {/* ══ VOICE OF OUR LEADERS (homepage design) ══════════════ */}
+      <LeadersSection />
 
       {/* ══ MOTTO ════════════════════════════════════════════════ */}
       {/* lg:hidden — on desktop this content now lives beside "Who We Are" above.
           On mobile it stays exactly where it was, unchanged. */}
-      <section className="py-20 sm:py-24 text-center lg:hidden" style={{ background: "var(--bg2)" }}>
+      <section className="ab-sec ab-sec--alt py-20 sm:py-24 text-center lg:hidden">
         <div className="max-w-3xl mx-auto px-4 sm:px-6">
           {/* Motto mark — replaces the old two spinning dashed circles with
               a single conic-gradient sweep ring (one rotation, 6s) and a
@@ -720,8 +601,8 @@ export default function AboutPage() {
       </section>
 
       {/* ══ FULL MILESTONES TABLE ════════════════════════════════ */}
-      <section className="py-16 sm:py-24">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6">
+      <section className="ab-sec py-16 sm:py-24">
+        <div className="relative max-w-7xl mx-auto px-4 sm:px-6">
           <div className="reveal section-label mb-2">Chronological Record</div>
           <h2 className="reveal text-2xl sm:text-4xl font-black mb-3" style={{ fontFamily: 'inherit' }}>
             KEY <span style={{ color: "var(--blue)" }}>MILESTONES</span>
@@ -745,7 +626,7 @@ export default function AboutPage() {
                       background: activeEra === i ? e.color : "transparent",
                       color: activeEra === i ? "#000" : "var(--muted)",
                       borderColor: activeEra === i ? e.color : "var(--border)",
-                      boxShadow: activeEra === i ? `0 0 14px ${e.color}55` : "none",
+                      boxShadow: activeEra === i ? `0 0 14px ${tint(e.color, 33)}` : "none",
                     }}
                   >
                     <e.icon size={13} className="inline mr-1 -mt-0.5" /> {e.year}
@@ -760,7 +641,7 @@ export default function AboutPage() {
               <div
                 key={activeEra}
                 className="reveal p-6 sm:p-8 rounded-2xl border mb-6"
-                style={{ borderColor: ERAS[activeEra].color + "55", background: ERAS[activeEra].color + "0a" }}
+                style={{ borderColor: tint(ERAS[activeEra].color, 40), background: `color-mix(in srgb, ${ERAS[activeEra].color} 9%, rgba(4,10,22,.9))` }}
               >
                 <div className="flex items-center gap-3 mb-4">
                   <EraIcon size={30} style={{ color: ERAS[activeEra].color }} />
@@ -831,8 +712,8 @@ export default function AboutPage() {
                     <div
                       className="mb-4 p-4 rounded-xl border transition-all duration-200"
                       style={{
-                        borderColor: activeEra === i ? e.color + "66" : "var(--border)",
-                        background: activeEra === i ? e.color + "0d" : "var(--card)",
+                        borderColor: activeEra === i ? tint(e.color, 45) : "var(--border)",
+                        background: activeEra === i ? `color-mix(in srgb, ${e.color} 9%, rgba(4,10,22,.9))` : "var(--card)",
                       }}
                     >
                       <div className="flex items-center gap-2 mb-2">
@@ -877,33 +758,18 @@ export default function AboutPage() {
             </div>
           </div>
 
-          {/* Stats row */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mt-14">
-            {[["70+", "Years of Legacy"], ["5000+", "Alumni Members"], ["100+", "Events Hosted"], ["7", "Departments"]].map(([n, l], i) => (
-              <div
-                key={l}
-                className="reveal card-lift p-5 rounded-xl border text-center"
-                style={{
-                  borderColor: "var(--border)",
-                  background: "var(--card)",
-                  transitionDelay: `${i * 0.08}s`,
-                }}
-              >
-                <p
-                  className="text-2xl sm:text-3xl font-black mb-1"
-                  style={{ fontFamily: 'inherit', color: "var(--blue)", filter: "drop-shadow(0 0 8px var(--glow))" }}
-                >
-                  {n}
-                </p>
-                <p className="text-xs tracking-wider uppercase" style={{ color: "var(--muted)" }}>{l}</p>
-              </div>
-            ))}
+          {/* Stats — same strip as the homepage (app/_components/home2/StatsStrip.tsx) */}
+          <div className="ch-stats-grid ab-stats reveal mt-14">
+            <div className="ch-stat"><b>70+</b><span>Years of Legacy</span></div>
+            <div className="ch-stat"><b>20,000+</b><span>Members &amp; Alumni</span></div>
+            <div className="ch-stat"><b>1,000+</b><span>Workshops &amp; Sessions</span></div>
+            <div className="ch-stat"><b>1st</b><span>Science Club in S. Asia</span></div>
           </div>
         </div>
       </section>
 
       {/* ══ GOALS ════════════════════════════════════════════════ */}
-      <section className="py-16 sm:py-20" style={{ background: "var(--bg2)" }}>
+      <section className="ab-sec ab-sec--alt py-16 sm:py-20">
         <div className="max-w-4xl mx-auto px-4 sm:px-6">
           <div className="reveal section-label mb-2">Mission</div>
           <h2 className="reveal text-2xl sm:text-3xl font-black mb-10" style={{ fontFamily: 'inherit' }}>

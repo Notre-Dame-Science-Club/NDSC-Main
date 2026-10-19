@@ -22,7 +22,7 @@ export async function GET(req: NextRequest) {
 
     // Get member info
     const { data: member } = await supabase
-      .from("members")
+      .from("users")
       .select("id, is_verified, stage")
       .eq("id", memberId)
       .single();
@@ -125,7 +125,7 @@ export async function GET(req: NextRequest) {
             message,
             created_at,
             sender_id,
-            members(full_name)
+            members:users(full_name)
           `)
           .eq("room_id", room.id)
           .eq("is_deleted", false)

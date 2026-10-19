@@ -38,7 +38,7 @@ function isValidEmail(e: unknown): e is string {
 
 async function getRecipients(target: Target): Promise<{ email: string; name?: string }[]> {
   const { data: members } = await supabaseAdmin
-    .from('members')
+    .from('users')
     .select('email, full_name')
     .eq('is_verified', true)
 

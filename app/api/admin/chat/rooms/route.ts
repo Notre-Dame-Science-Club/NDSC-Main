@@ -58,7 +58,7 @@ export async function GET(req: NextRequest) {
           .select(`
             message,
             created_at,
-            members(full_name)
+            members:users(full_name)
           `)
           .eq("room_id", room.id)
           .eq("is_deleted", false)

@@ -51,7 +51,7 @@ export default function AudriSection() {
         </div>
         <div className="ch-story-copy">
           <h2 className="ch-display ch-sec" data-rv="up" style={{ maxWidth: "12ch", marginBottom: 20 }}>
-            AUDRI — the club&apos;s own journal.
+            AUDRI — the club&apos;s own magazine.
           </h2>
           <p className="ch-body-lg" data-rv="up">
             Annual science publication — articles on quantum entanglement, CRISPR, neural networks and

@@ -42,7 +42,7 @@ export async function GET(req: NextRequest) {
   // without a second round-trip. The members table is the source of
   // truth in local mode (no auth.users table to join against).
   const { data: member, error } = await supabaseAdmin
-    .from('members')
+    .from('users')
     .select('id, email, full_name, is_verified')
     .eq('id', payload.mid)
     .single()

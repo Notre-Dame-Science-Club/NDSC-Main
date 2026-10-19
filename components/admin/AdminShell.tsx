@@ -5,7 +5,7 @@ import { usePathname } from 'next/navigation'
 import {
   LayoutDashboard, Users, CalendarDays, BookOpen, UserCog,
   Megaphone, Trophy, Film, Settings, Power, ClipboardList, Palette, Workflow, Menu, X,
-  MessageSquare, FileText, UserPlus, Wrench, Mail,
+  MessageSquare, FileText, UserPlus, Wrench, Mail, Award, Phone, KeyRound, MessageCircle,
 } from 'lucide-react'
 
 const NAV_LINKS = [
@@ -16,13 +16,17 @@ const NAV_LINKS = [
   { href: '/admin/olympiads', label: 'Olympiads', icon: Trophy },
   { href: '/admin/publications', label: 'Publications', icon: BookOpen },
   { href: '/admin/science-media', label: 'Science Media', icon: Film },
-  { href: '/admin/announcements', label: 'Announcements', icon: Megaphone },
   { href: '/admin/emailing', label: 'Mailing', icon: Mail },
+  { href: '/admin/whatsapp', label: 'WhatsApp', icon: Phone },
+  { href: '/admin/credentials', label: 'Credentials', icon: KeyRound },
   { href: '/admin/form-builder', label: 'Form Builder', icon: Workflow },
   { href: '/admin/forms', label: 'Form Configs', icon: FileText },
   { href: '/admin/surveys', label: 'Surveys', icon: ClipboardList },
+  { href: '/admin/notices', label: 'Notices', icon: Megaphone },
+  { href: '/admin/messages', label: 'Messages', icon: MessageCircle },
   { href: '/admin/chat', label: 'Chat & Voting', icon: MessageSquare },
-  { href: '/admin/bulk-accounts', label: 'Bulk Accounts', icon: UserPlus },
+  { href: '/admin/accounts', label: 'Manage Accounts', icon: UserPlus },
+  { href: '/admin/certificates', label: 'Certificates', icon: Award },
   { href: '/admin/fix-urls', label: 'Fix URLs', icon: Wrench },
   { href: '/admin/homepage-settings', label: 'Homepage Settings', icon: Settings },
   { href: '/admin/appearance', label: 'Appearance', icon: Palette },
@@ -36,6 +40,16 @@ const NAV_LINKS = [
 export default function AdminShell({ children }: { children: React.ReactNode }) {
   const [mobileOpen, setMobileOpen] = useState(false)
   const pathname = usePathname()
+
+  // Wake the WhatsApp service in the background once per browser session, so by the time
+  // someone opens WhatsApp or Bulk sending it is already up (a sleeping host takes ~1 min).
+  useEffect(() => {
+    try {
+      if (sessionStorage.getItem('wa-prewarm')) return
+      sessionStorage.setItem('wa-prewarm', '1')
+    } catch { /* storage unavailable: just ping */ }
+    fetch('/api/admin/whatsapp-wake', { cache: 'no-store' }).catch(() => {})
+  }, [])
 
   // Close the drawer whenever the route changes.
   useEffect(() => { setMobileOpen(false) }, [pathname])

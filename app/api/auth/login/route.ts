@@ -7,10 +7,10 @@ import { signLocalToken } from '@/lib/localAuth'
 //
 // Two paths, branched on SUPABASE_ENV:
 //   - Production (default): sign in via Supabase Auth (GoTrue), then
-//     look the matching row up in `members` to enforce is_verified.
+//     look the matching account row up in `users` (every account is there).
 //   - Local dev: there is no GoTrue in the docker stack, so we verify
 //     the password against the salted SHA-256 hash stored in
-//     members.password_hash (written by /api/auth/register on the same
+//     users.password_hash (written by /api/auth/register on the same
 //     branch) and hand back a self-signed bearer token. The token
 //     passes through everywhere the rest of the app expects a
 //     Supabase session — the `localFetch` shim in lib/supabase.ts
@@ -57,7 +57,7 @@ export async function POST(req: NextRequest) {
       // `role` and `avatar_url` don't exist in the local table, so
       // they're intentionally omitted.
       const { data: member, error: lookupError } = await supabaseAdmin
-        .from('members')
+        .from('users')
         .select('id, email, full_name, wing, department, college_roll, batch, is_verified, password_hash')
         .ilike('email', email)
         .maybeSingle()
@@ -140,16 +140,16 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    // members table থেকে info আনো
+    // users table থেকে info আনো (all accounts; club members also have a `members` row)
     const { data: member, error: memberError } = await supabaseAdmin
-      .from('members')
+      .from('users')
       .select('*')
       .eq('id', data.user.id)
       .single()
 
     if (memberError || !member) {
       return apiOk(
-        { error: 'Member record not found.' },
+        { error: 'Account record not found.' },
         { status: 404 }
       )
     }

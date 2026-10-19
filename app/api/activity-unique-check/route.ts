@@ -59,6 +59,7 @@ export async function GET(req: NextRequest) {
     .from('activity_registrations')
     .select('id, full_name, phone, email, college, college_roll, hsc_session, division, custom_answers, team_members, category_id, activity_session_id, member_id, submitted_node_ids')
     .eq('activity_session_id', sessionId)
+    .not('completed_at', 'is', null)   // B2
 
   if (error) return apiError(error, 400)
 

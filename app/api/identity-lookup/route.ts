@@ -26,7 +26,7 @@ export async function POST(req: NextRequest) {
   const candidates: { source: string; data: any; created_at: string }[] = []
 
   if (isEmail) {
-    const { data: member } = await supabaseAdmin.from('members').select('*').eq('email', query).maybeSingle()
+    const { data: member } = await supabaseAdmin.from('users').select('*').eq('email', query).maybeSingle()
     if (member) candidates.push({ source: 'member', data: member, created_at: member.created_at })
 
     const { data: olyRegs } = await supabaseAdmin
@@ -40,7 +40,7 @@ export async function POST(req: NextRequest) {
     if (actRegs?.[0]) candidates.push({ source: 'activity', data: actRegs[0], created_at: actRegs[0].created_at })
   } else {
     // Treat as a roll number lookup
-    const { data: member } = await supabaseAdmin.from('members').select('*').eq('college_roll', query).maybeSingle()
+    const { data: member } = await supabaseAdmin.from('users').select('*').eq('college_roll', query).maybeSingle()
     if (member) candidates.push({ source: 'member', data: member, created_at: member.created_at })
 
     const { data: olyRegs } = await supabaseAdmin

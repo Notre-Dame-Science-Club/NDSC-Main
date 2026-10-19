@@ -49,7 +49,7 @@ export default function CompleteRegistrationPage() {
         return
       }
       const { data: member } = await supabase
-        .from('members')
+        .from('users')
         .select('id')
         .eq('id', user.id)
         .maybeSingle()

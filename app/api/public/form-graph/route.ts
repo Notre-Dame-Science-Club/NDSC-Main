@@ -16,6 +16,7 @@ import { NextRequest } from 'next/server'
 import { apiError, apiOk } from '@/lib/api/response'
 import type { FormGraph, FormNode } from '@/lib/formGraph'
 import { getOlympiadActivityLink } from '@/lib/server/olympiadActivityLink'
+import { stripAnswerKeysFromNode } from '@/lib/server/stripAnswerKeys'
 
 export async function GET(req: NextRequest) {
   const url = req.nextUrl
@@ -86,7 +87,8 @@ export async function GET(req: NextRequest) {
 
   return apiOk({
     graph: graph as FormGraph,
-    nodes: (nodes || []) as FormNode[],
+    // S12: grading data never leaves the server via this public route.
+    nodes: (nodes || []).map((n: any) => stripAnswerKeysFromNode(n)) as FormNode[],
     owner_title: ownerTitle,
     owner: { title: ownerTitle, description: ownerDescription, cover_image_url: ownerCoverImageUrl },
   })

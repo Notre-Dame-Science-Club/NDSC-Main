@@ -39,6 +39,8 @@ Format: `XX_descriptive_name.sql`
 - `22_migration_organizer_username.sql` - Organizer login username (paired with organizer_password, set from Admin → Olympiads)
 - `23_migration_backfill_oauth_institution.sql` - Backfill oauth institution data
 - `24_migration_consolidate_exam_schedule.sql` - Collapses `exam_date` + `scheduled_start_at`/`scheduled_end_at` + the unused `auto_start` flag into a single `scheduled_start_at`/`scheduled_end_at` pair (same day = one-day exam)
+- `38_migration_split_users_and_members.sql` - **Accounts vs club members.** Renames the old all-in-one `members` table to `users` (ids, FKs and logins untouched), adds `membership_applications` ("Become a member" requests) and a new `members` table holding ONLY approved NDC club members. Run after a DB backup; on a fresh install run it after `00_UNIFIED_MASTER_SCHEMA.sql`.
+- `41_migration_notices_and_messages.sql` - **Dashboard notices + message box.** `notices` / `notice_dismissals` (admin-written notices targeted at a college and/or batch, e.g. a batch's WhatsApp group link, with a link and optional schedule) and `member_messages` (the dashboard "Contact Us" box: professional obligation / report a problem / tell us something, resolved from /admin/messages). Requires migration 38. Idempotent; server-only access (RLS on, no browser policies).
 - `31_migration_certificate_pdf.sql` - Per-event certificate PDF (`activity_sessions.certificate_pdf_url`), uploaded by the organizer and shown to registrants on their dashboard
 
 ### Data Seeds

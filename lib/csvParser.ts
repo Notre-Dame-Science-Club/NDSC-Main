@@ -4,7 +4,8 @@
 // import: parsing uploaded CSV files into structured data and validating
 // each row against the requirements for member/user account creation.
 
-import { validateCollegeRoll } from './validation'
+import { validateCollegeRoll } from './validation.ts'
+import { canonicalCollege, NDC_NAME } from './college.ts'
 
 export type CsvCell = string | number | null | undefined
 
@@ -144,7 +145,7 @@ export function validateAccountsCsv(
   // Required headers for both types
   const requiredHeaders = ['email', 'full_name']
   if (accountType === 'member') {
-    requiredHeaders.push('college_roll')
+    requiredHeaders.push('college_roll', 'batch')
   }
 
   // Check if all required headers are present
@@ -183,12 +184,14 @@ export function validateAccountsCsv(
       // Member-specific validation
       const department = getCell(row, 'department')
 
+      if (!batch) rowErrors.push('Batch is required for members')
+
       // College roll is required for members
       if (!college_roll) {
         rowErrors.push('College roll is required for members')
       } else {
-        // Validate college roll (assumes Notre Dame College by default)
-        const rollError = validateCollegeRoll('Notre Dame College', college_roll)
+        // Members are always Notre Dame College
+        const rollError = validateCollegeRoll(NDC_NAME, college_roll)
         if (rollError) {
           rowErrors.push(rollError)
         }
@@ -212,7 +215,7 @@ export function validateAccountsCsv(
       }
     } else {
       // User-specific validation
-      const college = getCell(row, 'college')
+      const college = canonicalCollege(getCell(row, 'college')) || undefined // NDC/notredame/... -> Notre Dame College
       const hsc_session = getCell(row, 'hsc_session')
 
       // College roll validation (optional for non-NDC users)
@@ -242,6 +245,91 @@ export function validateAccountsCsv(
   })
 
   return { valid, errors }
+}
+
+export interface CertificateRecipientData {
+  email: string
+  full_name: string
+}
+
+export interface ValidatedCertificateRecipients {
+  valid: CertificateRecipientData[]
+  errors: ValidationError[]
+}
+
+/**
+ * Validate CSV/pasted data for certificate recipients. Same two-column
+ * shape and error format as validateAccountsCsv above (row-numbered
+ * errors, case-insensitive headers), just for `email, full_name` instead
+ * of the full account-creation column set — the certificates system
+ * doesn't create accounts, it only matches against existing ones by email.
+ */
+export function validateCertificateRecipientsCsv(
+  headers: string[],
+  rows: string[][]
+): ValidatedCertificateRecipients {
+  const valid: CertificateRecipientData[] = []
+  const errors: ValidationError[] = []
+
+  const headerMap = new Map<string, number>()
+  headers.forEach((h, i) => headerMap.set(h.toLowerCase().trim(), i))
+
+  const getCell = (row: string[], headerName: string): string | undefined => {
+    const index = headerMap.get(headerName.toLowerCase())
+    if (index === undefined) return undefined
+    const value = row[index]?.trim()
+    return value || undefined
+  }
+
+  const requiredHeaders = ['email', 'full_name']
+  const missingHeaders = requiredHeaders.filter((h) => !headerMap.has(h.toLowerCase()))
+  if (missingHeaders.length > 0) {
+    errors.push({ row: 0, errors: [`Missing required columns: ${missingHeaders.join(', ')}`] })
+    return { valid: [], errors }
+  }
+
+  const seenEmails = new Set<string>()
+
+  rows.forEach((row, index) => {
+    const rowNum = index + 2
+    const rowErrors: string[] = []
+
+    const email = getCell(row, 'email')
+    const full_name = getCell(row, 'full_name')
+
+    if (!email) {
+      rowErrors.push('Email is required')
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      rowErrors.push('Invalid email format')
+    } else {
+      const normalized = email.toLowerCase()
+      if (seenEmails.has(normalized)) {
+        rowErrors.push('Duplicate email in this list')
+      }
+      seenEmails.add(normalized)
+    }
+
+    if (!full_name) {
+      rowErrors.push('Full name is required')
+    }
+
+    if (rowErrors.length === 0) {
+      valid.push({ email: email!.toLowerCase(), full_name: full_name! })
+    } else {
+      errors.push({ row: rowNum, errors: rowErrors })
+    }
+  })
+
+  return { valid, errors }
+}
+
+/** Generates a sample CSV template for certificate recipient upload. */
+export function generateCertificateRecipientsCsvTemplate(): string {
+  return [
+    'email,full_name',
+    'john@example.com,John Doe',
+    'jane@example.com,Jane Smith',
+  ].join('\n')
 }
 
 /**

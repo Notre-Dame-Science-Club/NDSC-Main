@@ -24,7 +24,7 @@ export async function GET(req: NextRequest) {
   let memberMap: Record<string, { full_name: string; email: string }> = {}
   if (memberIds.length > 0) {
     const { data: members } = await supabaseAdmin
-      .from('members')
+      .from('users')
       .select('id, full_name, email')
       .in('id', memberIds)
     memberMap = Object.fromEntries((members || []).map((m: any) => [m.id, { full_name: m.full_name, email: m.email }]))

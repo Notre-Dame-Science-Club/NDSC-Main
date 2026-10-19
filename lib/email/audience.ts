@@ -10,10 +10,10 @@ import { supabaseAdmin } from '@/lib/supabase'
 export type EmailAudienceFilters = {
   batches?: string[]
   departments?: string[] // only applies to members
-  verified_only?: boolean // members.is_verified
-  organizers_only?: boolean // members.is_organizer
-  executives_only?: boolean // members.is_executive
-  college?: 'any' | 'notre_dame_only' | 'excluding_notre_dame' // only applies to users
+  verified_only?: boolean // legacy flag; the `members` audience is always approved club members
+  organizers_only?: boolean // users.stage = 'organizer'
+  executives_only?: boolean // users.stage = 'executive'
+  college?: 'any' | 'notre_dame_only' | 'excluding_notre_dame' // only applies to the non-member users audience (users.institution)
   active_only?: boolean // users.is_active
   custom_ids?: string[] // explicit member/user ids, OR'd with everything else
   custom_emails?: string[] // explicit raw email addresses (no member/user record needed), OR'd with everything else
@@ -45,28 +45,31 @@ export async function resolveAudience(
 
   // Fetch members if needed
   if (source === 'members' || source === 'both') {
-    let query = supabaseAdmin.from('members').select('id, email, full_name, batch, department, is_verified, is_organizer, is_executive')
+    // `members` = approved club members only (verified_only is therefore always true).
+    // Name/email/batch/department come from the linked `users` row. Organizer/executive
+    // are values of users.stage (the old is_organizer / is_executive columns were dropped).
+    let query = supabaseAdmin
+      .from('members')
+      .select('user_id, users!inner(id, email, full_name, batch, department, stage)')
 
     // Apply filters
-    if (filters.verified_only) {
-      query = query.eq('is_verified', true)
-    }
     if (filters.organizers_only) {
-      query = query.eq('is_organizer', true)
+      query = query.eq('users.stage', 'organizer')
     }
     if (filters.executives_only) {
-      query = query.eq('is_executive', true)
+      query = query.eq('users.stage', 'executive')
     }
     if (filters.departments && filters.departments.length > 0) {
-      query = query.in('department', filters.departments)
+      query = query.in('users.department', filters.departments)
     }
     if (filters.batches && filters.batches.length > 0) {
-      query = query.in('batch', filters.batches)
+      query = query.in('users.batch', filters.batches)
     }
 
-    const { data: members, error } = await query
-    if (!error && members) {
-      members.forEach(m => {
+    const { data: memberRows, error } = await query
+    if (!error && memberRows) {
+      const members = (memberRows as any[]).map(r => r.users).filter(Boolean)
+      members.forEach((m: any) => {
         if (m.email && EMAIL_REGEX.test(m.email)) {
           recipients.push({
             email: m.email.toLowerCase(),
@@ -81,7 +84,11 @@ export async function resolveAudience(
 
   // Fetch users if needed
   if (source === 'users' || source === 'both') {
-    let query = supabaseAdmin.from('users').select('id, email, full_name, batch, college, is_active')
+    // 'users' audience = website accounts that are NOT (yet) club members
+    let query = supabaseAdmin
+      .from('users')
+      .select('id, email, full_name, batch, institution, is_active')
+      .neq('membership_status', 'approved')
 
     // Apply filters
     if (filters.active_only) {
@@ -91,9 +98,9 @@ export async function resolveAudience(
       query = query.in('batch', filters.batches)
     }
     if (filters.college === 'notre_dame_only') {
-      query = query.ilike('college', '%notre dame%')
+      query = query.ilike('institution', '%notre dame%')
     } else if (filters.college === 'excluding_notre_dame') {
-      query = query.not('college', 'ilike', '%notre dame%')
+      query = query.not('institution', 'ilike', '%notre dame%')
     }
 
     const { data: users, error } = await query
@@ -115,7 +122,7 @@ export async function resolveAudience(
   if (filters.custom_ids && filters.custom_ids.length > 0) {
     // Try members first
     const { data: customMembers } = await supabaseAdmin
-      .from('members')
+      .from('users')
       .select('id, email, full_name')
       .in('id', filters.custom_ids)
     if (customMembers) {
@@ -170,6 +177,7 @@ export async function resolveAudience(
     let regQuery = supabaseAdmin
       .from('activity_registrations')
       .select('id, email, full_name, category_id, activity_session_id, submitted_node_ids')
+      .not('completed_at', 'is', null)   // B2: don't email people with abandoned drafts
     if (orClauses.length > 0) {
       regQuery = regQuery.or(orClauses.join(','))
     }

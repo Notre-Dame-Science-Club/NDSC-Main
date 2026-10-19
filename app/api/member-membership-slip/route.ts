@@ -34,12 +34,20 @@ export async function PUT(req: NextRequest) {
   }
 
   const { data, error } = await supabaseAdmin
-    .from('members')
+    .from('users')
     .update({ payment_slip_url })
     .eq('id', user.id)
     .select()
     .single()
 
   if (error) return apiError(error.message || 'Could not save your slip.', 400)
+
+  // If an application is already waiting for review, point it at the new photo too
+  await supabaseAdmin
+    .from('membership_applications')
+    .update({ payment_slip_url })
+    .eq('user_id', user.id)
+    .eq('status', 'pending')
+
   return apiOk({ member: data })
 }

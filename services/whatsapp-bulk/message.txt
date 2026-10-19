@@ -1,0 +1,6 @@
+Hi {name}! 👋
+
+You're invited to join the official NDSC club group on WhatsApp:
+{link}
+
+See you there!

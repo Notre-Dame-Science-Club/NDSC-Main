@@ -40,7 +40,7 @@ export async function POST(req: NextRequest) {
       return apiError('Reset token has expired. Please try again.', 401)
     }
 
-    const { id, source } = tokenData
+    const { id } = tokenData
 
     if (IS_LOCAL) {
       // Local dev: update password_hash in members/users table
@@ -49,8 +49,10 @@ export async function POST(req: NextRequest) {
         .update(`${salt}::${new_password}`)
         .digest('hex')
 
+      // Tokens issued before the users/members split may say source: 'members';
+      // every account now lives in `users`.
       const { error } = await supabaseAdmin
-        .from(source)
+        .from('users')
         .update({ password_hash: `${salt}$${password_hash}` })
         .eq('id', id)
 

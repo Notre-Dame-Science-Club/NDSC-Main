@@ -9,7 +9,8 @@ import { supabaseAdmin } from '@/lib/supabase'
 import { NextRequest } from 'next/server'
 import { requireAdmin } from '@/lib/api/admin-auth'
 import { apiError, apiOk } from '@/lib/api/response'
-import { packFormNodeBody } from '@/lib/formGraph'
+import { packFormNodeUpdate } from '@/lib/formGraph'
+import { recomputeSlotGroups } from '@/lib/server/slotGroups'
 
 type Ctx = { params: Promise<{ id: string }> }
 
@@ -41,12 +42,27 @@ export async function PUT(req: NextRequest, ctx: Ctx) {
   delete safe.parent_id
   delete safe.created_at
 
-  const packed = packFormNodeBody(safe)
+  const packed = packFormNodeUpdate(safe)
+  if (Object.keys(packed).length === 0) return apiError('No updatable fields in request.', 400)
   packed.updated_at = new Date().toISOString()
+  // Segment groups: remember the group-related settings BEFORE the write so we only
+  // re-key registration slots when they actually change.
+  let before: any = null
+  if (packed.behavior !== undefined) {
+    const { data: prev } = await supabaseAdmin.from('form_nodes').select('behavior').eq('id', id).maybeSingle()
+    before = prev?.behavior || {}
+  }
   const { data, error } = await supabaseAdmin
     .from('form_nodes').update(packed).eq('id', id).select().single()
   if (error) return apiError(error, 400)
-  return apiOk({ node: data })
+  let group_recompute: any = null
+  if (before && data) {
+    const after: any = (data as any).behavior || {}
+    const changed = (before.segment_group_id || null) !== (after.segment_group_id || null)
+      || !!before.disable_multi_segment_enroll !== !!after.disable_multi_segment_enroll
+    if (changed) group_recompute = await recomputeSlotGroups((data as any).graph_id)
+  }
+  return apiOk({ node: data, group_recompute })
 }
 
 export async function DELETE(_req: NextRequest, ctx: Ctx) {

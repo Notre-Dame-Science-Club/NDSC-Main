@@ -1,0 +1,27 @@
+# Render Blueprint for the WhatsApp sender (this repo is the website; the service lives in services/whatsapp-bulk).
+services:
+  - type: web
+    name: ndsc-whatsapp-sender
+    runtime: node
+    plan: starter            # free can't keep SIM logins: its disk is wiped on every sleep/redeploy
+    rootDir: services/whatsapp-bulk
+    buildCommand: npm ci
+    startCommand: npm start
+    healthCheckPath: /healthz
+    disk:
+      name: wa-data
+      mountPath: /var/data
+      sizeGB: 1
+    envVars:
+      - key: DATA_DIR
+        value: /var/data
+      - key: WA_API_TOKEN
+        generateValue: true  # the website receives it automatically (NDSC_URL below), or copy it into Admin → Credentials
+      - key: WA_ADMIN_PASSWORD  # optional: sign in to the panel directly in a browser
+        sync: false
+      - key: NDSC_URL                # e.g. https://ndscbd.net — where the website lives
+        sync: false
+      - key: NDSC_REGISTER_SECRET    # same value as SERVICE_REGISTER_SECRET on the website
+        sync: false
+      - key: NODE_VERSION
+        value: "22"

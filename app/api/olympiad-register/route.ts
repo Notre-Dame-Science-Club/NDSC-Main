@@ -2,6 +2,7 @@ import { supabaseAdmin } from '@/lib/supabase'
 import { NextRequest } from 'next/server'
 import { validateCollegeRoll } from '@/lib/validation'
 import { apiError, apiOk } from '@/lib/api/response'
+import { checkWindow } from '@/lib/segmentAccess'
 
 // GET is used to resume a student's session after a page refresh or closed
 // tab — the public olympiad page stores the registration id in the URL and
@@ -64,28 +65,39 @@ export async function PUT(req: NextRequest) {
     return apiError('No valid fields to update', 400)
   }
 
-  // Some olympiads disable resubmission (e.g. to prevent a student comparing
-  // notes and re-answering after seeing others' results) — once this
-  // registration already has a final submission, any further PUT (whether
-  // it's another exam_submitted_at or just a quiet answers overwrite) is
-  // blocked for those. Olympiads that never set the flag keep today's
-  // behavior (resubmission allowed) so nothing breaks for existing data.
   const { data: existing } = await supabaseAdmin
     .from('olympiad_registrations')
-    .select('exam_submitted_at, olympiad_id')
+    .select('exam_started_at, exam_submitted_at, olympiad_id')
     .eq('id', id)
     .single()
+  if (!existing) return apiError('Registration not found.', 404)
 
-  if (existing?.exam_submitted_at) {
-    const { data: olympiad } = await supabaseAdmin
-      .from('olympiads')
-      .select('allow_resubmission')
-      .eq('id', existing.olympiad_id)
-      .single()
-    if (olympiad?.allow_resubmission === false) {
-      return apiError('This olympiad has already received your submission and does not allow resubmission.', 409)
-    }
+  const { data: olympiad } = await supabaseAdmin
+    .from('olympiads')
+    .select('allow_resubmission, scheduled_start_at, scheduled_end_at')
+    .eq('id', existing.olympiad_id)
+    .single()
+
+  // S8: the exam window is enforced on the server.
+  const w = checkWindow(new Date(), { opens_at: olympiad?.scheduled_start_at, closes_at: olympiad?.scheduled_end_at })
+  if (w === 'not_open') return apiError('The exam has not started yet.', 403)
+  if (w === 'closed') return apiError('Exam time is over.', 403)
+
+  // Once submitted, olympiads that disable resubmission accept no further writes.
+  // (Olympiads that never set the flag keep today's behaviour.)
+  if (existing.exam_submitted_at && olympiad?.allow_resubmission === false) {
+    return apiError('This olympiad has already received your submission and does not allow resubmission.', 409)
   }
+
+  // S8: timestamps are SERVER-controlled. A client "start"/"submit" signal is
+  // honoured, but the value is always the server clock, and exam_started_at is
+  // never moved once set.
+  const wantsStart = updates.exam_started_at !== undefined
+  const wantsSubmit = updates.exam_submitted_at !== undefined
+  delete updates.exam_started_at
+  delete updates.exam_submitted_at
+  if (wantsStart && !existing.exam_started_at) updates.exam_started_at = new Date().toISOString()
+  if (wantsSubmit) updates.exam_submitted_at = new Date().toISOString()
 
   const { error } = await supabaseAdmin
     .from('olympiad_registrations')

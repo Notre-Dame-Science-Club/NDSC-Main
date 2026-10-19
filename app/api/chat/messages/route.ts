@@ -41,7 +41,7 @@ export async function GET(req: NextRequest) {
       .from("chat_messages")
       .select(`
         *,
-        members!sender_id(
+        members:users!sender_id(
           id,
           full_name,
           department
@@ -49,7 +49,7 @@ export async function GET(req: NextRequest) {
         chat_message_reactions(
           emoji,
           member_id,
-          members(full_name)
+          members:users(full_name)
         )
       `)
       .eq("room_id", roomId)
@@ -70,7 +70,7 @@ export async function GET(req: NextRequest) {
       .from("chat_messages")
       .select(`
         *,
-        members!sender_id(
+        members:users!sender_id(
           id,
           full_name,
           department
@@ -171,7 +171,7 @@ export async function POST(req: NextRequest) {
       })
       .select(`
         *,
-        members!sender_id(
+        members:users!sender_id(
           id,
           full_name,
           department
@@ -271,7 +271,7 @@ export async function PATCH(req: NextRequest) {
       .eq("id", message_id)
       .select(`
         *,
-        members!sender_id(
+        members:users!sender_id(
           id,
           full_name,
           department

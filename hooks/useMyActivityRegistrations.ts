@@ -1,6 +1,7 @@
 'use client'
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
+import { segmentAuthHeaders } from '@/lib/clientAuthHeaders'
 
 export type MyActivityRegistration = {
   id: string
@@ -45,7 +46,7 @@ export function useMyActivityRegistrations() {
           return
         }
         setMemberId(user.id)
-        const res = await fetch(`/api/member-activity-registrations?member_id=${user.id}`)
+        const res = await fetch('/api/member-activity-registrations', { headers: await segmentAuthHeaders() })
         if (cancelled) return
         if (!res.ok) {
           setRegistrations([])

@@ -233,7 +233,7 @@ export default function Footer() {
             <Image src="/images/cropped-logo.png" alt="NDSC" fill className="object-contain" />
           </div>
           <p className="foot-brand-copy">
-            The pioneer science club of the <b>Indian Subcontinent</b>, founded <em>1955</em> at
+            The pioneer science club of <b>South Asia</b>, founded <em>1955</em> at
             Notre Dame College, Dhaka.
           </p>
         </div>

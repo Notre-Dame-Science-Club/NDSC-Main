@@ -7,6 +7,7 @@ const nextConfig: NextConfig = {
       { protocol: "https", hostname: "uploads.ndscbd.net" },   // primary uploads domain
       { protocol: "https", hostname: "ndscbd.net" },            // legacy fallback
       { protocol: "https", hostname: "www.ndscbd.net" },
+      { protocol: "https", hostname: "arnob.ndscbd.net" },      // legacy — see lib/uploadUrl.ts normalizeUploadUrl
       { protocol: "https", hostname: "*.supabase.co" },
     ],
   },

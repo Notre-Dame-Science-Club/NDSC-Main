@@ -30,7 +30,7 @@ export async function GET(req: NextRequest) {
 
   // Verify the user is a verified club member
   const { data: member, error: memberError } = await supabaseAdmin
-    .from('members')
+    .from('users')
     .select('id, is_verified')
     .eq('id', user.id)
     .single()
@@ -64,7 +64,7 @@ export async function POST(req: NextRequest) {
   // Confirm this is a verified member (not just any authenticated auth.user)
   // before letting them post to a feed every other member can see.
   const { data: member, error: memberError } = await supabaseAdmin
-    .from('members')
+    .from('users')
     .select('id, full_name, is_verified')
     .eq('id', user.id)
     .single()

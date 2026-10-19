@@ -13,34 +13,30 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const { email, phone } = await req.json()
+    const body = await req.json()
+    const email = String(body.email || '').trim()
+    const phone = String(body.phone || '').trim()
 
     if (!email || !phone) {
       return apiError('Email and phone number are required.', 400)
     }
 
-    // Look up the user by email (check both members and users tables)
-    const { data: member } = await supabaseAdmin
-      .from('members')
-      .select('id, email, phone')
-      .ilike('email', email)
-      .maybeSingle()
-
-    const { data: user } = await supabaseAdmin
+    // Look up the account by email (every website account lives in `users`)
+    const { data: account } = await supabaseAdmin
       .from('users')
       .select('id, email, phone')
-      .ilike('email', email)
+      .ilike('email', email.replace(/[\\%_]/g, c => '\\' + c))
       .maybeSingle()
-
-    const account = member || user
 
     if (!account) {
       // Return generic error to prevent email enumeration
       return apiError('Invalid email or phone number.', 401)
     }
 
-    // Verify phone matches (case-insensitive, trim whitespace)
-    const normalizePhone = (p: string) => (p || '').trim().replace(/\s+/g, '').toLowerCase()
+    // Verify phone matches. Compare only the last 10 digits so that
+    // 01712345678, +8801712345678, 8801712345678 and "017-1234 5678"
+    // all count as the same number.
+    const normalizePhone = (p: string) => (p || '').replace(/\D/g, '').slice(-10)
     const inputPhone = normalizePhone(phone)
     const storedPhone = normalizePhone(account.phone || '')
 
@@ -58,7 +54,7 @@ export async function POST(req: NextRequest) {
     const tokenData = Buffer.from(JSON.stringify({
       id: account.id,
       email: account.email,
-      source: member ? 'members' : 'users',
+      source: 'users',
       exp: expiresAt,
       nonce: resetToken
     })).toString('base64')

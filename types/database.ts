@@ -9,6 +9,8 @@
 // "unused" are still typed here (as optional/nullable) so reads don't break,
 // but new code shouldn't write to them.
 
+import { isNDCName } from '@/lib/college'
+
 export type UUID = string
 export type ISODateString = string // timestamptz / date, always as returned by Supabase (string)
 
@@ -86,6 +88,57 @@ export interface UserRow {
   batch: string
   is_active: boolean
   created_at: ISODateString
+}
+
+// ── notices (batch / college targeted dashboard notices, migration 41) ──
+export type NoticeTone = 'info' | 'important' | 'success'
+
+export interface NoticeRow {
+  id: UUID
+  title: string
+  body: string | null
+  link_url: string | null
+  link_label: string | null
+  tone: NoticeTone
+  /** Empty = any college. Both lists empty = everyone; otherwise college AND batch must match — see lib/notices.ts */
+  audience_colleges: string[]
+  /** Empty = any batch. Compared normalised ("28" = "Batch 28"). */
+  audience_batches: string[]
+  is_active: boolean
+  dismissible: boolean
+  starts_at: ISODateString | null
+  ends_at: ISODateString | null
+  created_by: string | null
+  created_at: ISODateString
+  updated_at: ISODateString
+}
+
+export interface NoticeDismissalRow {
+  notice_id: UUID
+  user_id: UUID
+  dismissed_at: ISODateString
+}
+
+// ── member_messages (dashboard message box, migration 41) ───────────────
+export type MemberMessageCategory = 'professional' | 'problem' | 'other'
+export type MemberMessageStatus = 'open' | 'in_progress' | 'resolved'
+
+export interface MemberMessageRow {
+  id: UUID
+  /** null if the account was deleted; sender_name/sender_email keep the message traceable */
+  user_id: UUID | null
+  sender_name: string | null
+  sender_email: string | null
+  category: MemberMessageCategory
+  subject: string | null
+  message: string
+  status: MemberMessageStatus
+  /** Shown to the member on their dashboard */
+  admin_reply: string | null
+  resolved_by: string | null
+  resolved_at: ISODateString | null
+  created_at: ISODateString
+  updated_at: ISODateString
 }
 
 // ── announcements ───────────────────────────────────────────────────────
@@ -575,9 +628,7 @@ export interface ActivitySessionFormAppearance {
 // ── Member Helper Functions ──────────────────────────────────────────────
 
 export function isNDCStudent(member: Partial<MemberRow> | null | undefined): boolean {
-  if (!member?.institution) return false;
-  const inst = member.institution.toLowerCase();
-  return inst.includes('notre dame college') || inst === 'ndc';
+  return isNDCName(member?.institution);
 }
 
 export function isNDCClubMember(member: Partial<MemberRow> | null | undefined): boolean {

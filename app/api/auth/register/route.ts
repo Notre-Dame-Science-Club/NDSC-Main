@@ -2,6 +2,7 @@ import { supabaseAdmin } from '@/lib/supabase'
 import { NextRequest } from 'next/server'
 import { apiError, apiOk } from '@/lib/api/response'
 import { createHash, randomBytes, randomUUID } from 'crypto'
+import { claimTeamRegistrations } from '@/lib/server/claimRegistrations'
 
 // Member registration.
 //
@@ -10,11 +11,11 @@ import { createHash, randomBytes, randomUUID } from 'crypto'
 //
 // Two paths:
 //   - Production (default): create a Supabase Auth user via the admin
-//     API, then insert the matching row in the `members` table.
+//     API, then insert the matching row in the `users` table (everyone who signs up is a user; club members are added to `members` only after admin approval).
 //   - Local dev (SUPABASE_ENV=local): skip GoTrue entirely. We don't
 //     have it in the docker-compose stack, so we generate a uuid
 //     locally and store a salted SHA-256 hash of the password in
-//     `members.password_hash`. The login route branches the same way.
+//     `users.password_hash`. The login route branches the same way.
 //
 // The session side of the auth flow on local is handled by the
 // shim in lib/supabase.ts — it rewrites client-side `supabase.auth.*`
@@ -51,16 +52,16 @@ export async function POST(req: NextRequest) {
     }
 
     if (IS_LOCAL) {
-      // Local dev: no GoTrue, write straight to members with a hashed
+      // Local dev: no GoTrue, write straight to users with a hashed
       // password. The id is a random uuid; we don't try to keep it
-      // matching any auth.users id (there are none). members.id has no
+      // matching any auth.users id (there are none). users.id has no
       // default (schema.sql: "== auth.users.id, no default"), so it must
       // be generated here explicitly or the insert violates the not-null
       // constraint.
       const salt = randomBytes(8).toString('hex')
       const password_hash = hashPasswordLocal(password, salt)
       const { data: created, error: dbError } = await supabaseAdmin
-        .from('members')
+        .from('users')
         .insert({
           id: randomUUID(),
           email,
@@ -75,6 +76,7 @@ export async function POST(req: NextRequest) {
         .select('id')
         .single()
       if (dbError) return apiError(dbError.message || 'Failed to register.', 400)
+      await claimTeamRegistrations(created.id, email)   // auto-enroll into teams that already list this e-mail
       return apiOk({
         success: true,
         member_id: created.id,
@@ -95,7 +97,7 @@ export async function POST(req: NextRequest) {
     }
 
     const { error: dbError } = await supabaseAdmin
-      .from('members')
+      .from('users')
       .insert({
         id: authData.user.id,
         email,
@@ -112,6 +114,8 @@ export async function POST(req: NextRequest) {
       await supabaseAdmin.auth.admin.deleteUser(authData.user.id)
       return apiError(dbError.message, 400)
     }
+
+    await claimTeamRegistrations(authData.user.id, email)   // auto-enroll into teams that already list this e-mail
 
     return apiOk({
       success: true,

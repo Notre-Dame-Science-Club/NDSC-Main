@@ -22,7 +22,7 @@ export async function POST(req: NextRequest) {
   }
 
   const { data: member, error: memberError } = await supabaseAdmin
-    .from('members')
+    .from('users')
     .select('email, full_name')
     .eq('id', memberId)
     .single()

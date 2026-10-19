@@ -25,7 +25,7 @@
   --surface: #0a1628;
   --surface-alt: #0a1f35;
   --surface-deep: #061420;
-  --card: #0a162899;
+  --card: rgba(6, 14, 28, 0.84);
   --border: #14304f;
   --border-soft: #23425f;
 
@@ -64,7 +64,12 @@
   --cat-orange: #fb923c;
   --cat-orange-rgb: 251, 146, 60;
 
-  background: var(--bg);
+  /* shared with the homepage's .ch-* design (home2.css reads these) */
+  --pad: clamp(20px, 3.4vw, 60px);
+  --ease: cubic-bezier(.22, .61, .36, 1);
+  --ease-out: cubic-bezier(.16, 1, .3, 1);
+
+  background: transparent; /* cosmos backdrop stays visible; .ab-sec scrims keep text readable */
   color: var(--white);
   color-scheme: dark;
   position: relative;
@@ -85,120 +90,103 @@
     radial-gradient(50% 35% at 100% 30%, rgba(167, 139, 250, 0.04), transparent 65%);
 }
 
-/* ── department plates — mirrors the homepage's .ch-plates grid ─────── */
-.ab-plates {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 1px;
-  background: var(--border-soft);
-  border: 1px solid var(--border-soft);
-  border-radius: 16px;
-  overflow: hidden;
-}
-.ab-plate {
+/* ── readability scrims ───────────────────────────────────────────────
+   The cosmos (earth / orbit) backdrop runs behind the whole site. Sections
+   that had no background of their own put body text straight on top of it,
+   which is what made the page hard to read. Each section now carries a dark
+   veil + a light blur; the backdrop still shows through, text no longer
+   fights it. --deep is the darker variant (Departments). */
+.ab-sec {
   position: relative;
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  min-height: 236px;
-  padding: 24px;
-  gap: 10px;
-  background: var(--bg2);
-  overflow: hidden;
-  cursor: default;
-  transition: padding 0.5s cubic-bezier(0.22, 0.61, 0.36, 1), background 0.4s;
+  isolation: isolate;
 }
-.ab-plate::before {
+.ab-sec::before {
   content: "";
   position: absolute;
   inset: 0;
+  z-index: -1;
   pointer-events: none;
-  opacity: 0;
-  transition: opacity 0.55s ease;
-  background: linear-gradient(150deg, var(--tint), transparent 62%);
+  background: linear-gradient(180deg, rgba(2, 6, 14, 0.78), rgba(2, 6, 14, 0.84));
+  -webkit-backdrop-filter: blur(3px);
+  backdrop-filter: blur(3px);
 }
-.ab-plate:hover::before,
-.ab-plate:focus-within::before {
-  opacity: 1;
+.ab-sec--alt::before {
+  background: linear-gradient(180deg, rgba(3, 9, 20, 0.85), rgba(3, 9, 20, 0.89));
 }
-.ab-plate:hover,
-.ab-plate:focus-within {
-  padding-left: 30px;
+.ab-sec--deep::before {
+  background: linear-gradient(180deg, rgba(1, 3, 9, 0.93), rgba(1, 3, 9, 0.96));
+  -webkit-backdrop-filter: blur(5px);
+  backdrop-filter: blur(5px);
 }
-.ab-plate .orb {
-  position: absolute;
-  top: -38px;
-  right: -38px;
-  width: 140px;
-  height: 140px;
-  border-radius: 50%;
-  pointer-events: none;
-  background: radial-gradient(circle, var(--tint), transparent 70%);
-  filter: blur(6px);
-  opacity: 0.85;
+.ab-card {
+  background: rgba(4, 10, 22, 0.86);
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
 }
-.ab-plate .num {
-  position: relative;
-  font-family: var(--font-mono);
-  font-size: 11px;
-  letter-spacing: 0.16em;
-  color: var(--muted);
-  transition: color 0.4s;
+
+/* ── departments — homepage .ch-plate design, darker surface ─────────── */
+.ab-page .ch-plates {
+  background: rgba(35, 66, 95, 0.75);
 }
-.ab-plate:hover .num,
-.ab-plate:focus-within .num {
-  color: var(--accent);
+.ab-page .ch-plate {
+  cursor: default;
+  background: rgba(2, 5, 12, 0.94);
 }
-.ab-plate .icon-wrap {
-  position: relative;
-  width: 42px;
-  height: 42px;
-  margin-top: 2px;
-  transition: transform 0.5s cubic-bezier(0.22, 1, 0.36, 1);
+.ab-page .ch-plate p {
+  color: #a9c5de;
 }
-.ab-plate:hover .icon-wrap,
-.ab-plate:focus-within .icon-wrap {
-  transform: scale(1.08) rotate(2deg);
+/* ── stats strip — homepage .ch-stat design, readable surface ───────── */
+.ab-page .ab-stats {
+  background: rgba(2, 6, 14, 0.78);
+  -webkit-backdrop-filter: blur(6px);
+  backdrop-filter: blur(6px);
 }
-.ab-plate h3 {
-  position: relative;
-  margin: 0;
-  font-family: inherit;
-  font-weight: 900;
-  font-size: 13.5px;
-  letter-spacing: 0.08em;
-  color: var(--accent);
+
+/* ── leaders — homepage .ch-leader-card design, full message inside ──── */
+.ab-page .ab-leaders-grid {
+  align-items: start;
 }
-.ab-plate p {
-  position: relative;
-  margin: 0;
-  max-width: 34ch;
-  font-size: 12.5px;
-  line-height: 1.62;
+.ab-page .ch-leader-card {
+  scroll-margin-top: 96px;
+  background: rgba(4, 10, 22, 0.88);
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+}
+.ab-lc-sub {
+  display: block;
+  margin-top: 6px;
+  font-size: 12px;
   color: var(--muted);
 }
-.ab-plate .bar {
-  position: absolute;
-  left: 0;
-  bottom: 0;
-  height: 2px;
-  width: 100%;
-  background: var(--accent);
-  transform: scaleX(0);
-  transform-origin: left;
-  transition: transform 0.7s cubic-bezier(0.16, 1, 0.3, 1);
+.ab-lc-text p {
+  margin: 0 0 14px;
+  font-style: italic;
+  font-size: 14.5px;
+  line-height: 1.78;
+  color: var(--white-soft);
 }
-.ab-plate:hover .bar,
-.ab-plate:focus-within .bar {
-  transform: scaleX(1);
+.ab-lc-text p:last-child { margin-bottom: 0; }
+.ab-lc-text p.clamp {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 6;
+  overflow: hidden;
 }
-@media (max-width: 1080px) {
-  .ab-plates { grid-template-columns: repeat(2, 1fr); }
+.ab-lc-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 30px;
 }
-@media (max-width: 560px) {
-  .ab-plates { grid-template-columns: 1fr; }
-  .ab-plate { min-height: 0; padding: 20px; }
-  .ab-plate:hover, .ab-plate:focus-within { padding-left: 20px; }
+.ab-lc-actions .ch-arrowlink {
+  margin-top: 22px;
+  background: none;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+}
+.ab-lc-actions button.ch-arrowlink[aria-expanded="true"] .ar svg {
+  transform: rotate(90deg);
 }
 
 /* ── quote / message cards — a touch more depth than a flat tint fill ── */

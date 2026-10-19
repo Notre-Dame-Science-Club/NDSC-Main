@@ -1,8 +1,17 @@
 import { NextRequest } from 'next/server'
 import { normalizeUploadUrl } from '@/lib/uploadUrl'
 import { apiError, apiOk } from '@/lib/api/response'
+import { authorizeSegmentAccess, denyResponse } from '@/lib/server/registrationAccess'
 
-// Public route — used for:
+// S5: two modes.
+//  - SUBMISSION mode (registration_id + field_id in the form data): caller must be
+//    on that COMPLETE registration and the submission window must be open. Type and
+//    size limits come from the segment's configured submission field on the server;
+//    client-supplied allowed_types / max_size_mb are ignored.
+//  - FORM mode (no registration_id): registration-form photo fields. Image types
+//    only, fixed 10MB cap, per-IP rate limit. Client limits are ignored.
+//
+// Used for:
 //  1. Photo/file-type custom fields on activity registration forms
 //  2. Submission fields (Phase D) — answer sheets, project videos, PDFs, etc.
 // The Hostinger secret stays server-side, folder is fixed, size/type are
@@ -37,6 +46,20 @@ const EXT_MIME_MAP: Record<string, string[]> = {
 }
 
 const FOLDER = 'activity-registrations'
+const HARD_MAX_MB = 100
+
+// Best-effort per-IP limiter for anonymous form-mode uploads (in-memory, so it
+// is per server instance; it slows abuse, it is not a hard guarantee).
+const hits = new Map<string, number[]>()
+function rateLimited(req: NextRequest): boolean {
+  const ip = (req.headers.get('x-forwarded-for') || '').split(',')[0].trim() || 'unknown'
+  const now = Date.now(), windowMs = 10 * 60 * 1000, max = 30
+  const arr = (hits.get(ip) || []).filter(t => now - t < windowMs)
+  arr.push(now)
+  hits.set(ip, arr)
+  if (hits.size > 5000) for (const [k, v] of hits) if (!v.some(t => now - t < windowMs)) hits.delete(k)
+  return arr.length > max
+}
 
 export async function POST(req: NextRequest) {
   let formData: FormData
@@ -49,28 +72,45 @@ export async function POST(req: NextRequest) {
   const file = formData.get('file') as File | null
   if (!file) return apiError('No file provided', 400)
 
-  // Optional: client tells us what's allowed for this specific submission
-  // field (comma-separated extensions) and the max size in MB, mirroring
-  // the admin's configuration for that field.
-  const allowedExtsRaw = formData.get('allowed_types') as string | null
-  const maxSizeMbRaw = formData.get('max_size_mb') as string | null
+  const registrationId = (formData.get('registration_id') as string | null) || null
+  const fieldId = (formData.get('field_id') as string | null) || null
 
-  const maxSize = maxSizeMbRaw ? Number(maxSizeMbRaw) * 1024 * 1024 : DEFAULT_MAX_SIZE
+  let maxSize = DEFAULT_MAX_SIZE
+  let exts: string[] | null = null   // null = photo/image mode
+
+  if (registrationId) {
+    if (!fieldId) return apiError('field_id is required with registration_id.', 400)
+    const access = await authorizeSegmentAccess(req, registrationId, { need: 'submission' })
+    if (access.ok === false) return denyResponse(access)
+    const fields: any[] = Array.isArray((access.node as any)?.behavior?.submission?.fields)
+      ? (access.node as any).behavior.submission.fields : []
+    const field = fields.find((f: any) => f?.id === fieldId)
+    if (!field) return apiError('Unknown submission field.', 400)
+    const cfgExts = Array.isArray(field.file_types)
+      ? field.file_types.map((e: any) => String(e).trim().toLowerCase().replace(/^\./, '')).filter(Boolean)
+      : []
+    exts = cfgExts.length ? cfgExts : null
+    const cfgMb = Number(field.max_file_size_mb)
+    if (cfgMb > 0) maxSize = Math.min(cfgMb, HARD_MAX_MB) * 1024 * 1024
+  } else {
+    if (rateLimited(req)) return apiError('Too many uploads. Please wait a few minutes and try again.', 429)
+  }
+
   if (file.size > maxSize) {
     return apiError(`File too large. Maximum size is ${Math.round(maxSize / (1024 * 1024))}MB.`, 413)
   }
 
-  if (allowedExtsRaw) {
-    const exts = allowedExtsRaw.split(',').map(e => e.trim().toLowerCase()).filter(Boolean)
+  if (exts) {
     const allowedMimes = exts.flatMap(e => EXT_MIME_MAP[e] || [])
     const fileExt = file.name.split('.').pop()?.toLowerCase() || ''
     const extOk = exts.includes(fileExt)
+    // Extension must be allowed; a declared mime type must also agree when we know the mapping.
     const mimeOk = !file.type || allowedMimes.length === 0 || allowedMimes.includes(file.type)
-    if (!extOk && !mimeOk) {
+    if (!extOk || !mimeOk) {
       return apiError(`Invalid file type. Allowed: ${exts.join(', ')}`, 400)
     }
   } else {
-    // Default behaviour (no explicit allowlist given) — treat as a photo field
+    // Photo fields (and submission fields with no configured types): images only.
     if (file.type && !IMAGE_TYPES.includes(file.type)) {
       return apiError('Invalid file type. Please upload a JPG, PNG, WEBP, or HEIC image.', 400)
     }

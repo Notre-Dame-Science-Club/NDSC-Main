@@ -1,7 +1,7 @@
-import { cookies } from 'next/headers'
 import { redirect } from 'next/navigation'
 import { authCookies } from '@/lib/config/site'
-import { Users, CalendarDays, BookOpen, UserCog, Trophy, Megaphone, Wrench, Bot, MessageSquare, FileText, UserPlus, ClipboardList, Workflow, Film } from 'lucide-react'
+import { readSessionCookie } from '@/lib/api/session-cookie'
+import { Users, CalendarDays, BookOpen, UserCog, Trophy, Megaphone, Wrench, Bot, MessageSquare, FileText, UserPlus, ClipboardList, Workflow, Film, KeyRound, MessageCircle } from 'lucide-react'
 
 const DASHBOARD_CARDS = [
   { label: 'Members', icon: Users, href: '/admin/members', desc: 'Manage member registrations' },
@@ -10,25 +10,23 @@ const DASHBOARD_CARDS = [
   { label: 'Olympiads', icon: Trophy, href: '/admin/olympiads', desc: 'Manage olympiad registrations' },
   { label: 'Publications', icon: BookOpen, href: '/admin/publications', desc: 'Upload & manage PDFs' },
   { label: 'Science Media', icon: Film, href: '/admin/science-media', desc: 'Manage science media content' },
-  { label: 'Announcements', icon: Megaphone, href: '/admin/announcements', desc: 'Send email & SMS blasts' },
+  { label: 'Credentials', icon: KeyRound, href: '/admin/credentials', desc: 'WhatsApp service URL & token' },
   { label: 'Surveys', icon: ClipboardList, href: '/admin/surveys', desc: 'Create and manage surveys' },
+  { label: 'Notices', icon: Megaphone, href: '/admin/notices', desc: 'Batch & college dashboard notices' },
+  { label: 'Messages', icon: MessageCircle, href: '/admin/messages', desc: 'Read and resolve member messages' },
   { label: 'Chat & Voting', icon: MessageSquare, href: '/admin/chat', desc: 'Manage chat rooms and polls' },
   { label: 'Form Builder', icon: Workflow, href: '/admin/form-builder', desc: 'Visual form graph builder' },
   { label: 'Form Configs', icon: FileText, href: '/admin/forms', desc: 'Configure form templates & themes' },
-  { label: 'Bulk Accounts', icon: UserPlus, href: '/admin/bulk-accounts', desc: 'Create multiple accounts via CSV' },
+  { label: 'Manage Accounts', icon: UserPlus, href: '/admin/accounts', desc: 'Stats, CSV export & bulk add' },
   { label: 'Fix Upload URLs', icon: Wrench, href: '/admin/fix-urls', desc: 'Fix broken image/file URLs in database' },
   { label: 'AI ChatBot', icon: Bot, href: 'https://ndsc-ai-bot.foysalmahmud1627.workers.dev/logs', desc: 'NDSC AI LightHouse' },
 ]
 
 export default async function AdminDashboard() {
-  const cookieStore = await cookies()
-  const session = cookieStore.get(authCookies.admin)
+  const session = await readSessionCookie<{ email?: string }>(authCookies.admin)
   if (!session) redirect('/admin/login')
 
-  let adminEmail = 'Admin'
-  try {
-    adminEmail = JSON.parse(session.value).email || 'Admin'
-  } catch {}
+  const adminEmail = session.email || 'Admin'
 
   return (
     <div>

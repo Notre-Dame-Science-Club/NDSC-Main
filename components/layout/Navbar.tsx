@@ -26,7 +26,7 @@ const STATIC_NAV: NavItem[] = [
   { href: "/membership", label: "Membership" },
 ];
 
-const HIDE_NAVBAR_ON = ["/login", "/register", "/dashboard", "/admin"];
+const HIDE_NAVBAR_ON = ["/login", "/register", "/admin"];
 
 // Short second word shown under each nav label on hover — same two-line
 // slide treatment as the Cosmos prototype nav ("About" / "Legacy" etc).

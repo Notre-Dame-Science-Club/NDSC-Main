@@ -2,6 +2,7 @@
 import { useMemo, useState } from 'react'
 import { X, CheckCircle2, XCircle, ImageIcon } from 'lucide-react'
 import MathText from './MathText'
+import { toAnswerUrls } from '@/lib/photoAnswer'
 
 type QuestionResult = {
   question_id: string
@@ -182,14 +183,34 @@ export default function ResponseDetailModal({ reg, questions, onClose, onSave }:
                 {r.is_correct === false && <XCircle size={16} style={{ color: 'var(--danger)', flexShrink: 0 }} />}
               </div>
 
-              {r.type === 'photo' ? (
-                r.student_answer ? (
-                  <a href={r.student_answer} target="_blank" rel="noreferrer" className="inline-block">
-                    <img src={r.student_answer} alt="Student answer" className="max-h-64 rounded-lg border" style={{ borderColor: 'var(--border)' }} />
-                  </a>
+              {r.type === 'photo' ? (() => {
+                const urls = toAnswerUrls(r.student_answer)
+                return urls.length > 0 ? (
+                  <div className="flex flex-wrap gap-2">
+                    {urls.map((u, idx) => (
+                      <a key={u + idx} href={u} target="_blank" rel="noreferrer" className="inline-block">
+                        <img src={u} alt={`Student answer${urls.length > 1 ? ` ${idx + 1}` : ''}`} className="max-h-64 rounded-lg border" style={{ borderColor: 'var(--border)' }} />
+                      </a>
+                    ))}
+                  </div>
                 ) : (
                   <p className="text-xs flex items-center gap-1" style={{ color: 'var(--border-soft)' }}><ImageIcon size={12} /> No photo submitted</p>
                 )
+              })() : r.type === 'file' ? (
+                (() => {
+                  const urls = toAnswerUrls(r.student_answer)
+                  return urls.length > 0 ? (
+                    <div className="flex flex-wrap gap-2 text-xs">
+                      {urls.map((u, idx) => (
+                        <a key={u + idx} href={u} target="_blank" rel="noreferrer" className="underline px-2 py-1 rounded" style={{ background: 'rgba(255,255,255,0.03)', color: 'var(--blue)' }}>
+                          File {urls.length > 1 ? idx + 1 : ''}
+                        </a>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-sm px-3 py-2 rounded" style={{ background: 'rgba(255,255,255,0.03)', color: 'var(--border-soft)' }}>No answer</p>
+                  )
+                })()
               ) : (
                 <p className="text-sm px-3 py-2 rounded" style={{ background: 'rgba(255,255,255,0.03)', color: r.student_answer ? 'var(--white-soft)' : 'var(--border-soft)' }}>
                   {r.student_answer ? <MathText text={String(r.student_answer)} /> : 'No answer'}

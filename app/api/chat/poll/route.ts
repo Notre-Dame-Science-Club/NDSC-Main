@@ -36,7 +36,7 @@ export async function GET(req: NextRequest) {
         .from("chat_typing_indicators")
         .select(`
           member_id,
-          members(full_name)
+          members:users(full_name)
         `)
         .eq("room_id", roomId)
         .neq("member_id", memberId)

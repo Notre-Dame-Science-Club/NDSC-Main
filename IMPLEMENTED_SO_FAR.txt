@@ -1,0 +1,103 @@
+NDSC segment gating / bug sweep - IMPLEMENTED SO FAR (checkpoint 11)
+====================================================================
+Verified: npx tsc --noEmit OK, next build OK (dummy env), 16 unit tests pass
+(node --experimental-strip-types --test tests/*.test.ts).
+NOT verified: runtime behaviour, migration on a real DB, production RLS (P0).
+
+DONE
+- B1  Partial updates: PUT form-nodes/[id] and form-graphs/[id] write only sent keys
+      (lib/formGraph.ts: packFormNodeUpdate / packFormGraphUpdate). Also fixed
+      form_configs resetting contact_persons.
+- B2  Completeness: db/35_migration_registration_completeness.sql (completed_at,
+      terminal_node_id, backfill, folded into master schema). Submit stamps completion.
+      Duplicate scans, member list, admin list/CSV, organizer, unique-check,
+      member-history, email audience count only completed rows.
+- B3  Path integrity (lib/registrationPath.ts): submits must follow the path;
+      revisit/branch switch truncates; completed registrations reject further submits.
+- B15 Ancestor chain must be enabled on submit.
+- B7  Per-node replace semantics for custom answers, team members (tagged node_id),
+      olympiad mcq/short/photo derived from custom answers (no duplicates).
+- B10 Server accepts and validates next_node_id; FormRunner sends it.
+- S4/S12 Answer keys stripped server-side: public form-graph route, and
+      /api/olympiad?id= (questions only for authorized, in-window, started exams).
+- S1  relay-exam GET/POST gated by lib/server/registrationAccess.ts
+      (complete registration, caller on team, segment enabled, payment settled,
+      window open, olympiad_id must equal the segment's linked olympiad, turn order,
+      only leader starts).
+- S6  activity-team-login: complete registrations only, all matches, optional session
+      scope, signed expiring team token (lib/api/teamToken.ts, x-team-token header).
+      Client stores it (dashboard) and sends it (relay page) via lib/clientAuthHeaders.ts.
+- B5  password_hash stripped from activity-register GET and relay-exam GET.
+- B20 FormRunner no longer restores hashed team members on resume.
+- B6  member-activity-registrations derives member from bearer token (401 if absent);
+      ?member_id= ignored. Callers (dashboard page, useMyActivityRegistrations) send the token.
+      (checkpoint 6: not yet tsc/build verified, no node_modules in this environment)
+- B4  Fee = sum of requires_payment.amount over the completed path (lib/paymentFee.ts),
+      stamped only at completion (root or non-root). Response requires_payment_init only
+      when done && fee>0. payment/init requires a completed registration. IPN is idempotent,
+      checks tran_id + registration amount, never downgrades a paid registration.
+      DECISION TO CONFIRM: ancestor fees ADD UP (root fee + segment fee). Not yet done:
+      a pay button on the dashboard for unpaid registrations (FormRunner comment claims one).
+- S2/S3 activity-submission GET+POST gated by authorizeSegmentAccess (need 'view' / 'submission'):
+      complete registration, caller on team, enabled chain, payment settled, submission
+      enabled + window. submitted_by is derived from the verified caller (client value
+      ignored); required-field validation on is_final only.
+- S5  activity-upload: submission mode (registration_id+field_id) is authorized and takes
+      type/size from the segment's field config (hard cap 100MB); form mode is image-only,
+      10MB, per-IP in-memory rate limit. Client allowed_types/max_size_mb ignored.
+- FIX (checkpoint 5 gap): activity dashboard now sends auth headers on submission,
+      olympiad (with registration_id) and relay-exam calls; without them they would 401.
+      RISK: legacy v1 registrations (category_id, no form_node_id/terminal) are denied by
+      the helper as 'segment_missing'; add a v1 fallback if such rows still exist in prod.
+      RISK: FieldsRenderer form-mode uploads remain anonymous (needed for standalone olympiads).
+- B11/B12 (partial) lib/server/registrationAccess.ts now exports resolveRegistrationIdentity
+      (identity only, no completeness/payment checks). activity-register GET requires the
+      leader / a team member (bearer or team token), optional ?slug= must match the event
+      (404 wrong_event), siblings list completed rows only, response includes viewer role.
+      PUT is leader-only, trims, lowercases email, rejects empty required fields, re-runs
+      college-roll validation and uniqueness (email/phone/roll, normalized, vs. other
+      COMPLETE registrations + own team). Dashboard/FormRunner/relay page send auth headers;
+      dashboard resolves its registration for THIS slug from the server before falling back
+      to localStorage, and clears a stale stored id. NOT DONE: per-field validation rules
+      from the form builder on edit, edit_locked_at default, per-event "My registrations"
+      list, MyRegistrationStrip/RegistrationCTA multi-registration (needs slots/groups work).
+      BEHAVIOR CHANGE: an anonymous visitor with only a registration UUID can no longer open
+      the dashboard; they must log in or use team-member login.
+- S9  form-graph/submit: ROOT submit (new registration) requires the event open
+      (lib/registrationWindow.ts): activities need is_upcoming && registration_enabled &&
+      reg_deadline not passed; olympiads need is_active !== false && deadline not passed.
+      403 code 'registration_closed'. In-flight registrations may still finish their path.
+- B8  maybeMarkOlympiadTimers only sets exam_started_at when null (server clock);
+      olympiad exam-content submits enforce scheduled_start/end and allow_resubmission
+      (403 not_open/closed, 409 resubmission_blocked).
+- S8  olympiad-register PUT: window enforced; exam_started_at/exam_submitted_at are
+      server-stamped (client value ignored, start never moved); resubmission block kept.
+      NOTE: standalone olympiad registrations still use the UUID-as-identity model
+      (no member_id, B18) so this route is not identity-gated yet.
+- B9 + Part 3 foundation: db/36_migration_registration_slots.sql (also in master schema):
+      registration_slots table + unique indexes (one person/one terminal, one person/one
+      group), complete_registration() SQL function (slots + completed_at in ONE transaction,
+      returns conflict info), backfill for existing complete registrations (conflicts skipped,
+      NOTICE reports registrations left without slots). SQL parses with pglast; NOT run on a DB.
+      submit route: finalizeCompletion() replaces direct completed_at stamping; 409 codes
+      'duplicate_registration' / 'segment_group_conflict' with segment + group names.
+      If migration 36 is not applied yet the route falls back to the old direct stamp.
+      group_key = '__all__' when disable_multi_segment_enroll, else resolved group, else null.
+      lib/segmentGroups.ts (resolveGroupId, groupKeyFor, terminalsOf) + buildSlotIdentities
+      (lib/identity.ts) unit-tested; types segment_groups / segment_group_id added.
+      No groups exist yet, so behavior is unchanged until the admin UI (next) creates some.
+      Syntax of all changed files checked with the TypeScript transpiler (not a full type check).
+- Helpers: lib/identity.ts, lib/segmentAccess.ts, lib/server/stripAnswerKeys.ts.
+
+NOT DONE YET
+- P0 RLS check (needs production access).
+- B11 (form-builder validation on edit), B13, B14,
+  B16-B18, B21; S7, S10.
+- Section 1B verified-email claim-on-signup (needs decision on email verification).
+- Part 3 Segment Groups (registration_slots, resolver, UI).
+- Old drafts: no garbage collection; pre-fix untagged team members kept.
+
+NOTES / RISKS
+- In production SESSION_SECRET must be set; team tokens now refuse to issue without it.
+- Relay: leader may act for any participant; team members only for themselves.
+- npm ci fails: package-lock.json lacks pdf-lib@1.17.1; run npm install and commit.

@@ -33,7 +33,7 @@ export async function POST(req: NextRequest) {
       })
       .select(`
         *,
-        members(
+        members:users(
           id,
           full_name
         )

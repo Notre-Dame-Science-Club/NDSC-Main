@@ -2,10 +2,7 @@
 // app/register/page.tsx
 //
 // Member sign-up. Registration is open to all students.
-// Two paths share this screen:
-//   - Email/password (default), always available.
-//   - OAuth (Google), rendered on top when NEXT_PUBLIC_AUTH_ENABLE_OAUTH is
-//     enabled (default) — a fallback so users are never locked out.
+// Email/password sign-up.
 //
 // NDC students can apply for Club Membership from their dashboard profile.
 // Field-level errors validate on blur + submit;
@@ -16,8 +13,6 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { ArrowRight, CheckCircle, Eye, EyeOff, Loader2, UserPlus } from 'lucide-react'
 import Input from '@/components/ui/Input'
-import OAuthButton from '@/components/auth/OAuthButton'
-import { isOAuthEnabled } from '@/lib/authConfig'
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
@@ -330,17 +325,6 @@ export default function RegisterPage() {
             <div role="alert" className="px-4 py-3 rounded-lg mb-5 text-sm border"
               style={{ background: 'rgba(255,50,50,0.08)', borderColor: 'rgba(var(--danger-rgb), 0.3)', color: 'var(--danger-soft)' }}>
               {serverError}
-            </div>
-          )}
-
-          {isOAuthEnabled() && (
-            <div className="mb-6 space-y-3">
-              <OAuthButton label="Sign up with" />
-              <div className="flex items-center gap-3 text-xs" style={{ color: 'var(--muted)' }}>
-                <div className="flex-1" style={{ borderTop: '1px solid var(--border)' }} />
-                or sign up with email
-                <div className="flex-1" style={{ borderTop: '1px solid var(--border)' }} />
-              </div>
             </div>
           )}
 

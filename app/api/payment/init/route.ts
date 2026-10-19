@@ -29,6 +29,9 @@ export async function POST(req: NextRequest) {
   if (regError || !registration) {
     return apiError('Registration not found.', 404)
   }
+  if (!registration.completed_at) {
+    return apiError('Finish the registration before paying.', 409)
+  }
   if (registration.payment_status === 'paid') {
     return apiError('This registration has already been paid for.', 400)
   }

@@ -1,11 +1,13 @@
 'use client'
 import { useCallback, useEffect, useMemo, useState, type ReactNode, type CSSProperties } from 'react'
+import { segmentAuthHeaders } from '@/lib/clientAuthHeaders'
 import { CheckCircle, Loader2, AlertTriangle, ChevronRight, ChevronLeft, Circle, CreditCard } from 'lucide-react'
 import FieldsRenderer from '@/components/FieldsRenderer'
 import AntiCheatProvider from '@/components/olympiad/AntiCheatProvider'
 import TeamMembersEditor, { defaultTeamMembers, type TeamMemberDraft } from '@/components/public/TeamMembersEditor'
 import { supabase } from '@/lib/supabase'
 import type { FormGraph, FormNode, FormNodeAppearance } from '@/lib/formGraph'
+import { normalizeBlocks } from '@/lib/formBlocks'
 
 // The public form runner. Renders the user's path down the graph as a
 // single growing column:
@@ -300,7 +302,8 @@ export default function FormRunner({
     const endpoint = graph.owner_kind === 'olympiad'
       ? `/api/olympiad-register?id=${initialRegistrationId}`
       : `/api/activity-register?id=${initialRegistrationId}`
-    fetch(endpoint)
+    segmentAuthHeaders(initialRegistrationId)
+      .then(h => fetch(endpoint, { headers: h }))
       .then(r => r.json())
       .then(d => {
         if (cancelled || !d?.registration) return
@@ -322,9 +325,10 @@ export default function FormRunner({
         // harmless, FieldsRenderer only reads the keys its own node's
         // fields actually ask for.
         if (reg.custom_answers) setCustom(c => ({ ...reg.custom_answers, ...c }))
-        if (Array.isArray(reg.team_members) && reg.team_members.length) {
-          setTeamMembers(tm => (tm.length ? tm : reg.team_members))
-        }
+        // B20: deliberately NOT restoring team_members on resume. The server
+        // never returns password hashes, and re-submitting a team node
+        // REPLACES that node's members (see form-graph/submit), so the team
+        // editor starts blank and the person re-enters their team.
         if (reg.team_name) setTeamName(t => t || reg.team_name)
       })
       .catch(() => { /* non-critical — worst case, resume starts blank like before */ })
@@ -372,7 +376,7 @@ export default function FormRunner({
       // all, so it was always asked (or silently dropped) instead of just
       // carrying over from their profile.
       const { data: m } = await supabase
-        .from('members')
+        .from('users')
         .select('full_name, phone, email, college_roll, batch')
         .eq('id', uid)
         .maybeSingle()
@@ -539,6 +543,7 @@ export default function FormRunner({
           graph_id: graph.id,
           node_id: activeNode.id,
           registration_id: registrationId,
+          next_node_id: childId || undefined,
           form: { ...form, team_name: teamName },
           custom_answers: custom,
           team_members: teamMembers,
@@ -650,7 +655,14 @@ export default function FormRunner({
   const appearance = resolveAppearance(activeNode, graph, owner)
   const timerSeconds = resolveTimerSeconds(activeNode, graph)
   const directChildren = childrenOf(activeNode.id)
-  const hasFields = (activeNode.fields || []).length > 0
+  // Only genuine, labeled question fields go to FieldsRenderer. Content blocks
+  // (header/paragraph/image/divider/...) are rendered by renderContentBlocks
+  // above it, and blank field blocks left over from the builder are dropped —
+  // otherwise they'd render as a text input labeled with their random id.
+  const visibleFields = normalizeBlocks(activeNode.fields || []).filter((f: any) =>
+    f.kind === 'field' && (f.is_builtin || (typeof f.label === 'string' && f.label.trim() !== ''))
+  )
+  const hasFields = visibleFields.length > 0
   const hasChildren = directChildren.length > 0
 
   const currentStep = path.length
@@ -772,7 +784,7 @@ export default function FormRunner({
                 {hasFields && (
                   <div className={hasChildren ? 'mt-3' : ''}>
                     <FieldsRenderer
-                      schema={activeNode.fields || []}
+                      schema={visibleFields}
                       form={form}
                       onFormChange={setForm}
                       customAnswers={custom}

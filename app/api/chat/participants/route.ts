@@ -23,7 +23,7 @@ export async function GET(req: NextRequest) {
       .from("chat_room_participants")
       .select(`
         *,
-        members(
+        members:users(
           id,
           full_name,
           department,
@@ -99,7 +99,7 @@ export async function POST(req: NextRequest) {
       })
       .select(`
         *,
-        members(
+        members:users(
           id,
           full_name,
           department
@@ -167,7 +167,7 @@ export async function PATCH(req: NextRequest) {
       .eq("member_id", member_id)
       .select(`
         *,
-        members(
+        members:users(
           id,
           full_name,
           department

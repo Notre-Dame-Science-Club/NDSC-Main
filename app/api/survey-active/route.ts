@@ -24,7 +24,7 @@ async function getMemberFromRequest(req: NextRequest): Promise<AudienceMember> {
   const { data, error } = await supabaseAdmin.auth.getUser(token)
   if (error || !data.user) return null
   const { data: member } = await supabaseAdmin
-    .from('members')
+    .from('users')
     .select('id, batch, stage')
     .eq('id', data.user.id)
     .single()

@@ -36,7 +36,7 @@ export async function GET(req: NextRequest) {
       .from("chat_votes")
       .select(`
         *,
-        members(
+        members:users(
           id,
           full_name,
           department

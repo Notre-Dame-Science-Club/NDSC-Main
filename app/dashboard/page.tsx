@@ -1,17 +1,31 @@
 'use client'
-import { useEffect, useState } from 'react'
+import { useEffect, useState, type CSSProperties } from 'react'
 import { supabase } from '@/lib/supabase'
+import { segmentAuthHeaders } from '@/lib/clientAuthHeaders'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { MessageCircle, Award, Plus, Upload, X, Home, CalendarDays, BookOpen, Trophy, User, Megaphone, Ticket, Link2, CheckCircle, FileText, CalendarCheck, CreditCard, ClipboardList, ArrowRight, IdCard, Clock, Zap, Sparkles, PenLine, ExternalLink } from 'lucide-react'
+import { MessageCircle, Award, Plus, Upload, X, Home, CalendarDays, BookOpen, Trophy, User, Megaphone, Ticket, Link2, CheckCircle, FileText, CalendarCheck, CreditCard, ClipboardList, ArrowRight, IdCard, Clock, Zap, Sparkles, PenLine, ExternalLink, MessageSquare } from 'lucide-react'
 import SurveyForm from '@/components/SurveyForm'
 import AnnotationViewer from '@/components/olympiad/AnnotationViewer'
+import { isNDCName } from '@/lib/college'
+import DashboardNotices from '@/components/dashboard/DashboardNotices'
+import ContactPanel from '@/components/dashboard/ContactPanel'
+import CollegeRollField from '@/components/dashboard/CollegeRollField'
+import BatchCommunity from '@/components/dashboard/BatchCommunity'
 
-type Tab = 'profile' | 'tasks' | 'history' | 'activities' | 'chat' | 'surveys' | 'publications' | 'control'
+type Tab = 'profile' | 'tasks' | 'history' | 'activities' | 'chat' | 'surveys' | 'publications' | 'contact' | 'control'
 type Achievement = { id: string; title: string; description?: string; image_url?: string; status: 'pending' | 'approved'; created_at: string }
 type ActiveSurvey = {
   id: string; title: string; description?: string; cover_image_url?: string
   show_notification: boolean; notification_title?: string; notification_message?: string; question_count: number
+}
+
+const GLASS: CSSProperties = {
+  background: 'linear-gradient(180deg, rgba(255,255,255,0.045), rgba(255,255,255,0.015))',
+  border: '1px solid var(--border)',
+  backdropFilter: 'blur(10px)',
+  WebkitBackdropFilter: 'blur(10px)',
+  boxShadow: '0 8px 30px rgba(0,0,0,0.18)',
 }
 
 export default function DashboardPage() {
@@ -55,7 +69,7 @@ export default function DashboardPage() {
 
       // Load member profile
       const { data: m } = await supabase
-        .from('members')
+        .from('users')
         .select('*')
         .eq('id', user.id)
         .single()
@@ -74,7 +88,8 @@ export default function DashboardPage() {
       // Load member's event registrations
       if (m?.id) {
         setRegsLoading(true)
-        fetch(`/api/member-activity-registrations?member_id=${m.id}`)
+        segmentAuthHeaders()
+          .then(h => fetch('/api/member-activity-registrations', { headers: h }))
           .then(r => r.json())
           .then(d => setMyRegistrations(d.registrations || []))
           .catch(() => {})
@@ -250,11 +265,7 @@ export default function DashboardPage() {
   }
 
   // Helper to check if institution is NDC
-  const isNDCStudent = (m: any) => {
-    if (!m?.institution) return false
-    const inst = m.institution.toLowerCase()
-    return inst.includes('notre dame') || inst.includes('ndc')
-  }
+  const isNDCStudent = (m: any) => isNDCName(m?.institution)
 
   const submitClubMembership = async () => {
     if (!clubAppForm.college_roll.trim() || clubAppForm.college_roll.trim().length !== 8) {
@@ -299,6 +310,7 @@ export default function DashboardPage() {
 
   // Profile self-edit state
   const [editingProfile, setEditingProfile] = useState(false)
+  const [editingRoll, setEditingRoll] = useState(false)
   const [profileForm, setProfileForm] = useState<any>({})
   const [profileSaving, setProfileSaving] = useState(false)
   const [profileError, setProfileError] = useState('')
@@ -391,6 +403,7 @@ export default function DashboardPage() {
     { key: 'activities', label: 'Activities & Events', icon: CalendarDays },
     { key: 'surveys', label: 'Surveys', icon: ClipboardList },
     { key: 'publications', label: 'Publications', icon: BookOpen },
+    { key: 'contact', label: 'Contact Us', icon: MessageSquare },
   )
 
   // Control Room only for verified executives
@@ -410,46 +423,67 @@ export default function DashboardPage() {
 
   return (
     <div className="min-h-screen" style={{ background: 'var(--bg)' }}>
-      {/* Header */}
-      <div className="text-white px-6 py-4 flex justify-between items-center sticky top-0 z-10"
-        style={{ background: 'var(--surface)', borderBottom: '1px solid var(--border)' }}>
-        <div>
-          <h1 className="text-base font-bold flex items-center gap-2" style={{ fontFamily: 'inherit', color: 'var(--blue)' }}>
-            NDSC Portal
-            {isVerified && (
-              <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full"
-                style={{ background: 'rgba(var(--success-rgb), 0.1)', color: 'var(--success)', border: '1px solid rgba(var(--success-rgb), 0.3)' }}>
-                <IdCard size={10} /> Member
-              </span>
-            )}
-          </h1>
-          <p className="text-xs mt-0.5" style={{ color: 'var(--muted)' }}>{member?.full_name || member?.email}</p>
+      {/* Hero — sits under the site navbar (which is fixed, so we reserve its height) */}
+      <div style={{ paddingTop: 'var(--navbar-height)' }}>
+        <div className="max-w-4xl mx-auto px-5 pt-8 pb-5">
+          <div className="rounded-2xl p-5 sm:p-6 flex flex-wrap items-center gap-4" style={GLASS}>
+            <div className="w-14 h-14 rounded-full flex items-center justify-center text-xl font-bold flex-shrink-0 overflow-hidden"
+              style={{ background: 'linear-gradient(135deg, var(--blue), rgba(var(--blue-rgb), 0.35))', color: '#04121f' }}>
+              {member?.avatar_url
+                ? <img src={member.avatar_url} alt="" className="w-full h-full object-cover" />
+                : String(member?.full_name || member?.email || '?').trim().charAt(0).toUpperCase()}
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-[10px] font-bold uppercase tracking-[0.18em]" style={{ color: 'var(--blue)' }}>NDSC Portal</p>
+              <h1 className="text-xl sm:text-2xl font-bold truncate mt-0.5 flex items-center gap-2 flex-wrap" style={{ fontFamily: 'inherit', color: 'var(--white)' }}>
+                {member?.full_name || member?.email}
+                {isVerified && (
+                  <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full"
+                    style={{ background: 'rgba(var(--success-rgb), 0.1)', color: 'var(--success)', border: '1px solid rgba(var(--success-rgb), 0.3)' }}>
+                    <IdCard size={10} /> Member
+                  </span>
+                )}
+              </h1>
+              <p className="text-xs mt-1 truncate" style={{ color: 'var(--muted)' }}>
+                {[member?.institution, member?.college_roll && `Roll ${member.college_roll}`].filter(Boolean).join(' · ') || member?.email}
+              </p>
+            </div>
+            <button onClick={logout}
+              className="text-sm px-4 py-1.5 rounded-lg transition-colors border"
+              style={{ borderColor: 'var(--border)', color: 'var(--muted)' }}
+              onMouseEnter={e => { (e.target as HTMLElement).style.color = 'var(--danger-soft)'; (e.target as HTMLElement).style.borderColor = 'var(--danger-soft)' }}
+              onMouseLeave={e => { (e.target as HTMLElement).style.color = 'var(--muted)'; (e.target as HTMLElement).style.borderColor = 'var(--border)' }}>
+              Logout
+            </button>
+          </div>
         </div>
-        <button onClick={logout}
-          className="text-sm px-4 py-1.5 rounded-lg transition-colors border"
-          style={{ borderColor: 'var(--border)', color: 'var(--muted)' }}
-          onMouseEnter={e => { (e.target as HTMLElement).style.color = 'var(--danger-soft)'; (e.target as HTMLElement).style.borderColor = 'var(--danger-soft)' }}
-          onMouseLeave={e => { (e.target as HTMLElement).style.color = 'var(--muted)'; (e.target as HTMLElement).style.borderColor = 'var(--border)' }}>
-          Logout
-        </button>
       </div>
 
-      {/* Tabs */}
-      <div className="flex overflow-x-auto sticky top-[60px] z-10"
-        style={{ background: 'var(--bg2)', borderBottom: '1px solid var(--border)' }}>
-        {tabs.map(t => (
-          <button key={t.key} onClick={() => setTab(t.key)}
-            className="flex items-center gap-1.5 px-5 py-3 text-sm font-medium whitespace-nowrap border-b-2 transition-colors"
-            style={{
-              borderColor: tab === t.key ? 'var(--blue)' : 'transparent',
-              color: tab === t.key ? 'var(--blue)' : 'var(--muted)',
-            }}>
-            <t.icon size={15} /> {t.label}
-          </button>
-        ))}
+      {/* Tabs — pill bar that sticks just under the navbar */}
+      <div className="sticky z-10 backdrop-blur-md" style={{ top: 'var(--navbar-height)', background: 'color-mix(in srgb, var(--bg) 60%, transparent)' }}>
+        <div className="max-w-4xl mx-auto px-5 py-2 flex gap-1.5 overflow-x-auto">
+          {tabs.map(t => (
+            <button key={t.key} onClick={() => setTab(t.key)}
+              className="flex items-center gap-1.5 px-4 py-2 text-sm font-medium whitespace-nowrap rounded-full transition-all"
+              style={{
+                background: tab === t.key ? 'rgba(var(--blue-rgb), 0.16)' : 'transparent',
+                border: `1px solid ${tab === t.key ? 'rgba(var(--blue-rgb), 0.45)' : 'transparent'}`,
+                color: tab === t.key ? 'var(--blue)' : 'var(--muted)',
+              }}>
+              <t.icon size={15} /> {t.label}
+            </button>
+          ))}
+        </div>
       </div>
 
-      <div className="max-w-3xl mx-auto p-5 pb-16">
+      <div className="max-w-4xl mx-auto p-5 pb-16">
+
+        {/* ── Targeted notices (college / batch) + "add your roll" prompt for NDC students.
+             First thing a member sees, on every tab. ── */}
+        <DashboardNotices
+          member={member}
+          onMemberChange={patch => setMember((prev: any) => ({ ...prev, ...patch }))}
+        />
 
         {/* ── Live / starting-soon Olympiads — spotlighted above everything else,
              regardless of which tab is open, since these are time-critical. ── */}
@@ -498,8 +532,11 @@ export default function DashboardPage() {
         {/* PROFILE */}
         {tab === 'profile' && (
           <div className="space-y-4">
+            {/* Batch 28 only (NDC, roll 128xxxxx) — gated again on the server */}
+            <BatchCommunity roll={member?.college_roll} institution={member?.institution} />
+
             {/* Primary Details */}
-            <div className="rounded-xl p-6" style={{ background: 'var(--bg2)', border: '1px solid var(--border)' }}>
+            <div className="rounded-xl p-6" style={GLASS}>
               <div className="flex items-center justify-between mb-4">
                 <h3 className="font-semibold text-sm flex items-center gap-2" style={{ color: 'var(--muted)', fontFamily: 'inherit' }}>
                   <User size={15} /> Primary Details
@@ -555,11 +592,68 @@ export default function DashboardPage() {
             </div>
 
             {/* Secondary Details */}
-            <div className="rounded-xl p-6" style={{ background: 'var(--bg2)', border: '1px solid var(--border)' }}>
+            <div className="rounded-xl p-6" style={GLASS}>
               <h3 className="font-semibold text-sm mb-4 flex items-center gap-2" style={{ color: 'var(--muted)', fontFamily: 'inherit' }}>
                 <User size={15} /> Secondary Details
               </h3>
               <div className="space-y-0">
+                {/* College roll. For Notre Dame College students it is their unique identity, so the
+                    row is gently highlighted (and flagged when still missing). Everyone else sees
+                    it as ordinary optional info. */}
+                {(() => {
+                  const ndc = isNDCStudent(member)
+                  const roll = String(member?.college_roll || '').trim()
+                  return (
+                    <div className="py-3 px-3 rounded-lg"
+                      style={ndc
+                        ? { background: 'rgba(var(--blue-rgb), 0.06)', boxShadow: 'inset 3px 0 0 var(--blue)', marginBottom: 4 }
+                        : { borderBottom: '1px solid var(--border)', padding: '12px 0' }}>
+                      <div className="flex justify-between items-center gap-3">
+                        <span className="text-sm flex items-center gap-2" style={{ color: ndc ? 'var(--white)' : 'var(--muted)' }}>
+                          College Roll
+                          {ndc && (
+                            <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full"
+                              style={{ background: 'rgba(var(--blue-rgb), 0.15)', color: 'var(--blue)' }}>
+                              Your unique ID
+                            </span>
+                          )}
+                        </span>
+                        {!editingRoll && (
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm font-semibold tracking-wide"
+                              style={{
+                                fontVariantNumeric: 'tabular-nums',
+                                color: roll ? (ndc ? 'var(--blue)' : 'var(--white)') : (ndc ? 'var(--warning)' : 'var(--muted)'),
+                              }}>
+                              {roll || (ndc ? 'Not added yet' : '—')}
+                            </span>
+                            <button onClick={() => setEditingRoll(true)}
+                              className="text-xs px-2.5 py-1 rounded-lg flex-shrink-0"
+                              style={{ background: 'rgba(var(--blue-rgb), 0.1)', color: 'var(--blue)' }}>
+                              {roll ? 'Edit' : 'Add'}
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                      {ndc && !editingRoll && (
+                        <p className="text-[11px] mt-1" style={{ color: 'var(--muted)' }}>
+                          NDSC identifies you by your roll — every Notre Dame College roll is unique.
+                        </p>
+                      )}
+                      {editingRoll && (
+                        <div className="mt-2">
+                          <CollegeRollField
+                            institution={member?.institution}
+                            initialValue={roll}
+                            autoFocus
+                            onCancel={() => setEditingRoll(false)}
+                            onSaved={saved => { setMember((prev: any) => ({ ...prev, college_roll: saved })); setEditingRoll(false) }}
+                          />
+                        </div>
+                      )}
+                    </div>
+                  )
+                })()}
                 {[
                   { label: 'Gender', value: member?.gender },
                   { label: 'Blood Group', value: member?.blood_group },
@@ -576,7 +670,7 @@ export default function DashboardPage() {
             </div>
 
             {/* Club Membership Status Card */}
-            <div className="rounded-xl p-6" style={{ background: 'var(--bg2)', border: '1px solid var(--border)' }}>
+            <div className="rounded-xl p-6" style={GLASS}>
               <h3 className="font-semibold text-sm mb-4 flex items-center gap-2" style={{ color: 'var(--muted)', fontFamily: 'inherit' }}>
                 <IdCard size={15} /> Club Membership Status
               </h3>
@@ -647,7 +741,11 @@ export default function DashboardPage() {
                   <p className="text-sm mb-3" style={{ color: 'var(--muted)' }}>
                     You are an NDC student. Apply for club membership to access exclusive benefits.
                   </p>
-                  <button onClick={() => setShowClubMembershipModal(true)}
+                  <button onClick={() => {
+                      // Reuse what's already on the profile so the application can't disagree with it.
+                      setClubAppForm(f => ({ ...f, college_roll: f.college_roll || member?.college_roll || '', batch: f.batch || member?.batch || '' }))
+                      setShowClubMembershipModal(true)
+                    }}
                     className="w-full py-2.5 rounded-lg text-sm font-bold text-black"
                     style={{ background: 'var(--blue)' }}>
                     Become a Club Member
@@ -666,7 +764,7 @@ export default function DashboardPage() {
             </div>
 
             {/* ACHIEVEMENTS */}
-            <div className="rounded-xl p-6" style={{ background: 'var(--bg2)', border: '1px solid var(--border)' }}>
+            <div className="rounded-xl p-6" style={GLASS}>
               <div className="flex items-center justify-between mb-4">
                 <h3 className="font-semibold text-sm flex items-center gap-2" style={{ color: 'var(--muted)', fontFamily: 'inherit' }}>
                   <Award size={15} /> Achievements
@@ -820,7 +918,7 @@ export default function DashboardPage() {
             ) : (
               <>
                 {/* Going (In Progress) */}
-                <div className="rounded-xl p-5" style={{ background: 'var(--bg2)', border: '1px solid var(--border)' }}>
+                <div className="rounded-xl p-5" style={GLASS}>
                   <h4 className="font-semibold text-sm mb-3 flex items-center gap-2" style={{ color: 'var(--blue)' }}>
                     <ArrowRight size={14} /> Going ({tasks.going.length})
                   </h4>
@@ -864,7 +962,7 @@ export default function DashboardPage() {
                 </div>
 
                 {/* Completed */}
-                <div className="rounded-xl p-5" style={{ background: 'var(--bg2)', border: '1px solid var(--border)' }}>
+                <div className="rounded-xl p-5" style={GLASS}>
                   <h4 className="font-semibold text-sm mb-3 flex items-center gap-2" style={{ color: 'var(--success)' }}>
                     <CheckCircle size={14} /> Completed ({tasks.completed.length})
                   </h4>
@@ -902,7 +1000,7 @@ export default function DashboardPage() {
                 </div>
 
                 {/* Passed (Overdue) */}
-                <div className="rounded-xl p-5" style={{ background: 'var(--bg2)', border: '1px solid var(--border)' }}>
+                <div className="rounded-xl p-5" style={GLASS}>
                   <h4 className="font-semibold text-sm mb-3 flex items-center gap-2" style={{ color: 'var(--danger-soft)' }}>
                     <X size={14} /> Passed ({tasks.passed.length})
                   </h4>
@@ -950,7 +1048,7 @@ export default function DashboardPage() {
             <h3 className="font-semibold text-sm" style={{ color: 'var(--muted)', fontFamily: 'inherit' }}>Activity History</h3>
 
             {/* Olympiad Submissions */}
-            <div className="rounded-xl p-5" style={{ background: 'var(--bg2)', border: '1px solid var(--border)' }}>
+            <div className="rounded-xl p-5" style={GLASS}>
               <h4 className="font-semibold text-sm mb-3 flex items-center gap-2" style={{ color: 'var(--white)' }}>
                 <Trophy size={14} /> Olympiad Submissions
               </h4>
@@ -1011,7 +1109,7 @@ export default function DashboardPage() {
             </div>
 
             {/* Activity Participations */}
-            <div className="rounded-xl p-5" style={{ background: 'var(--bg2)', border: '1px solid var(--border)' }}>
+            <div className="rounded-xl p-5" style={GLASS}>
               <h4 className="font-semibold text-sm mb-3 flex items-center gap-2" style={{ color: 'var(--white)' }}>
                 <CalendarCheck size={14} /> Activity Participations
               </h4>
@@ -1036,7 +1134,7 @@ export default function DashboardPage() {
             </div>
 
             {/* Payment History */}
-            <div className="rounded-xl p-5" style={{ background: 'var(--bg2)', border: '1px solid var(--border)' }}>
+            <div className="rounded-xl p-5" style={GLASS}>
               <h4 className="font-semibold text-sm mb-3 flex items-center gap-2" style={{ color: 'var(--white)' }}>
                 <CreditCard size={14} /> Payment History
               </h4>
@@ -1116,7 +1214,7 @@ export default function DashboardPage() {
                     }
                     return Object.values(groups).map(({ session, regs }) => (
                       <div key={session?.id || regs[0].activity_session_id} className="rounded-2xl overflow-hidden"
-                        style={{ background: 'var(--bg2)', border: '1px solid var(--border)' }}>
+                        style={GLASS}>
                         <div className="flex items-center justify-between gap-3 p-4" style={{ borderBottom: '1px solid var(--border)' }}>
                           <div className="flex items-center gap-3 min-w-0">
                             {session?.cover_image_url && (
@@ -1262,7 +1360,7 @@ export default function DashboardPage() {
                     const isNew = !isLive && !!a.is_upcoming
                     return (
                       <Link key={a.id} href={`/activities/${a.slug}`} className="block rounded-xl overflow-hidden transition-transform hover:-translate-y-0.5 mb-3"
-                        style={{ background: 'var(--bg2)', border: '1px solid var(--border)' }}>
+                        style={GLASS}>
                         {a.cover_image_url && (
                           <img src={a.cover_image_url} alt={a.title} className="w-full h-40 object-cover" />
                         )}
@@ -1311,7 +1409,7 @@ export default function DashboardPage() {
         {tab === 'chat' && (
           <div className="space-y-4">
             {/* ANNOUNCEMENTS */}
-            <div className="rounded-xl p-5" style={{ background: 'var(--bg2)', border: '1px solid var(--border)' }}>
+            <div className="rounded-xl p-5" style={GLASS}>
               <h3 className="font-semibold text-sm mb-3 flex items-center gap-2" style={{ color: 'var(--muted)', fontFamily: 'inherit' }}>
                 <Megaphone size={14} /> Announcements
               </h3>
@@ -1366,7 +1464,7 @@ export default function DashboardPage() {
             <h3 className="font-semibold text-sm flex items-center gap-2" style={{ color: 'var(--muted)', fontFamily: 'inherit' }}>
               <MessageCircle size={14} /> Recent Posts
             </h3>
-            <div className="rounded-xl p-4" style={{ background: 'var(--bg2)', border: '1px solid var(--border)' }}>
+            <div className="rounded-xl p-4" style={GLASS}>
               <div className="flex gap-2 mb-3">
                 <input value={shoutMessage} onChange={e => setShoutMessage(e.target.value)}
                   onKeyDown={e => { if (e.key === 'Enter' && !shoutPosting) postShout() }}
@@ -1406,7 +1504,7 @@ export default function DashboardPage() {
             ) : surveys.length === 0 ? (
               <p className="text-sm" style={{ color: 'var(--muted)' }}>No surveys open for you right now.</p>
             ) : surveys.map(sv => (
-              <div key={sv.id} className="rounded-xl p-5" style={{ background: 'var(--bg2)', border: '1px solid var(--border)' }}>
+              <div key={sv.id} className="rounded-xl p-5" style={GLASS}>
                 <h4 className="font-bold text-lg" style={{ color: 'var(--white)' }}>{sv.title}</h4>
                 {sv.description && <p className="text-sm mt-1" style={{ color: 'var(--muted)' }}>{sv.description}</p>}
                 <p className="text-xs mt-2" style={{ color: 'var(--border-soft)' }}>{sv.question_count} question{sv.question_count === 1 ? '' : 's'}</p>
@@ -1428,7 +1526,7 @@ export default function DashboardPage() {
               ? <p className="text-sm" style={{ color: 'var(--muted)' }}>No publications available yet.</p>
               : publications.map(p => (
                 <div key={p.id} className="rounded-xl p-4 flex gap-4"
-                  style={{ background: 'var(--bg2)', border: '1px solid var(--border)' }}>
+                  style={GLASS}>
                   {p.cover_image_url
                     ? <img src={p.cover_image_url} alt={p.title} className="w-16 h-20 object-cover rounded-lg flex-shrink-0" />
                     : <div className="w-16 h-20 rounded-lg flex items-center justify-center flex-shrink-0"
@@ -1455,6 +1553,9 @@ export default function DashboardPage() {
           </div>
         )}
 
+        {/* CONTACT US — message box: professional obligation / report a problem / tell us something */}
+        {tab === 'contact' && <ContactPanel />}
+
         {/* CONTROL ROOM (Executives Only) */}
         {tab === 'control' && member?.stage === 'executive' && (
           <div className="space-y-4">
@@ -1467,7 +1568,7 @@ export default function DashboardPage() {
             </div>
 
             {/* Task Management */}
-            <div className="rounded-xl p-5" style={{ background: 'var(--bg2)', border: '1px solid var(--border)' }}>
+            <div className="rounded-xl p-5" style={GLASS}>
               <h4 className="font-semibold text-sm mb-3 flex items-center gap-2" style={{ color: 'var(--white)' }}>
                 <CheckCircle size={14} /> Task Management
               </h4>
@@ -1482,7 +1583,7 @@ export default function DashboardPage() {
             </div>
 
             {/* Department Overview */}
-            <div className="rounded-xl p-5" style={{ background: 'var(--bg2)', border: '1px solid var(--border)' }}>
+            <div className="rounded-xl p-5" style={GLASS}>
               <h4 className="font-semibold text-sm mb-3 flex items-center gap-2" style={{ color: 'var(--white)' }}>
                 <User size={14} /> Departments
               </h4>
@@ -1496,7 +1597,7 @@ export default function DashboardPage() {
             </div>
 
             {/* Quick Actions */}
-            <div className="rounded-xl p-5" style={{ background: 'var(--bg2)', border: '1px solid var(--border)' }}>
+            <div className="rounded-xl p-5" style={GLASS}>
               <h4 className="font-semibold text-sm mb-3 flex items-center gap-2" style={{ color: 'var(--white)' }}>
                 Quick Actions
               </h4>

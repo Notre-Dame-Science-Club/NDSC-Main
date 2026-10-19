@@ -486,6 +486,10 @@ function DiagramInner({ graphId, showBackLink = true }: { graphId: string; showB
 
       <Toolbar onAdd={addNode} hasRoot={!!graph.root_node_id} />
 
+      {graph.owner_kind === 'activity' && (
+        <SegmentGroupsPanel graph={graph} nodes={nodes} onGraph={setGraph} onNodesChanged={load} />
+      )}
+
       <div className="mt-4 rounded-xl overflow-hidden border" style={{ borderColor: 'var(--border)', height: 'max(420px, calc(100vh - 300px))' }}>
         <ReactFlow
           nodes={rfNodes}
@@ -584,6 +588,109 @@ function ErrorBanner({ msg }: { msg: string }) {
     <p className="text-sm p-2 rounded-lg mb-3" style={{ background: 'rgba(var(--danger-rgb), 0.1)', color: 'var(--danger-soft)' }}>
       {msg}
     </p>
+  )
+}
+
+/** Segment groups: "a person can register in only ONE segment of a group".
+ *  Groups live in graph.settings.segment_groups; a segment joins one from its node editor.
+ *  The server enforces the rule and re-keys existing registrations when this changes. */
+function SegmentGroupsPanel({ graph, nodes, onGraph, onNodesChanged }: {
+  graph: FormGraph; nodes: FormNode[]; onGraph: (g: FormGraph) => void; onNodesChanged: () => void
+}) {
+  const groups: Array<{ id: string; name: string }> = Array.isArray(graph.settings?.segment_groups) ? graph.settings.segment_groups : []
+  const [newName, setNewName] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [msg, setMsg] = useState<{ kind: 'ok' | 'warn' | 'err'; text: string } | null>(null)
+  const rootLocked = !!nodes.find(n => n.parent_id === null)?.behavior?.disable_multi_segment_enroll
+
+  const membersOf = (gid: string) => nodes.filter(n => n.behavior?.segment_group_id === gid).map(n => n.label)
+
+  // Always merge into the LATEST saved settings so we never overwrite anything else stored there.
+  const saveGroups = async (mutate: (cur: Array<{ id: string; name: string }>) => Array<{ id: string; name: string }>) => {
+    setBusy(true); setMsg(null)
+    try {
+      const fresh = await fetch(`/api/admin/form-graphs/${graph.id}`).then(r => r.json())
+      const curSettings = fresh?.graph?.settings || graph.settings || {}
+      const cur = Array.isArray(curSettings.segment_groups) ? curSettings.segment_groups : []
+      const res = await fetch(`/api/admin/form-graphs/${graph.id}`, {
+        method: 'PUT', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ settings: { ...curSettings, segment_groups: mutate(cur) } }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Failed to save groups.')
+      onGraph(data.graph)
+      onNodesChanged()
+      const r = data.group_recompute
+      if (r && r.skipped > 0) {
+        setMsg({ kind: 'warn', text: `Saved. ${r.skipped} existing registration entr${r.skipped === 1 ? 'y belongs' : 'ies belong'} to people who were ALREADY in more than one segment of a group; they were left as they are (nothing was deleted). New registrations follow the rule.` })
+      } else setMsg({ kind: 'ok', text: 'Saved.' })
+    } catch (e: any) {
+      setMsg({ kind: 'err', text: e.message || 'Failed to save groups.' })
+    } finally { setBusy(false) }
+  }
+
+  const add = () => {
+    const name = newName.trim()
+    if (!name) return
+    setNewName('')
+    saveGroups(cur => [...cur, { id: 'grp_' + Math.random().toString(36).slice(2, 10), name }])
+  }
+
+  return (
+    <div className="mt-3 rounded-xl p-4" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+      <div className="flex items-center gap-2 mb-1">
+        <Users size={14} style={{ color: 'var(--blue)' }} />
+        <p className="text-sm font-bold" style={{ color: 'var(--white)' }}>Segment groups</p>
+        {busy && <Loader2 size={12} className="animate-spin" style={{ color: 'var(--muted)' }} />}
+      </div>
+      <p className="text-[11px] mb-3" style={{ color: 'var(--muted)' }}>
+        A person can register in only <b>one</b> segment of a group (leader or team member).
+        Segments with no group stay independent, exactly as before. To put a segment in a group,
+        open it (click it → Edit) and pick the group under Behavior.
+      </p>
+      {rootLocked && (
+        <p className="text-[11px] mb-3 p-2 rounded" style={{ background: 'var(--bg2)', color: 'var(--warning)' }}>
+          "Disable multiple segment enrollment" is ON for this event, so the whole event already acts as one group and
+          groups below have no extra effect.
+        </p>
+      )}
+      <div className="flex flex-col gap-2">
+        {groups.map(g => {
+          const inGroup = membersOf(g.id)
+          return (
+            <div key={g.id} className="flex flex-wrap items-center gap-2 rounded-lg p-2" style={{ background: 'var(--bg2)', border: '1px solid var(--border)' }}>
+              <input defaultValue={g.name} disabled={busy}
+                onBlur={e => { const v = e.target.value.trim(); if (v && v !== g.name) saveGroups(cur => cur.map(x => x.id === g.id ? { ...x, name: v } : x)) }}
+                className="px-2 py-1 rounded text-sm outline-none border flex-1 min-w-[140px]"
+                style={{ background: 'var(--surface)', borderColor: 'var(--border)', color: 'var(--white)' }} />
+              <span className="text-[11px]" style={{ color: 'var(--muted)' }}>
+                {inGroup.length ? inGroup.join(', ') : 'No segments yet'}
+              </span>
+              <button disabled={busy} title="Delete group"
+                onClick={() => { if (confirm(`Delete group "${g.name}"? Its segments become independent again.`)) saveGroups(cur => cur.filter(x => x.id !== g.id)) }}
+                className="p-1.5 rounded" style={{ color: 'var(--danger-soft)' }}>
+                <Trash2 size={14} />
+              </button>
+            </div>
+          )
+        })}
+        <div className="flex gap-2">
+          <input value={newName} onChange={e => setNewName(e.target.value)} disabled={busy}
+            onKeyDown={e => { if (e.key === 'Enter') add() }}
+            placeholder='New group name, e.g. "Science track"'
+            className="px-3 py-1.5 rounded text-sm outline-none border flex-1"
+            style={{ background: 'var(--bg2)', borderColor: 'var(--border)', color: 'var(--white)' }} />
+          <button onClick={add} disabled={busy || !newName.trim()}
+            className="px-3 py-1.5 rounded text-xs font-bold flex items-center gap-1.5 disabled:opacity-40"
+            style={{ background: 'var(--blue)', color: '#000' }}>
+            <Plus size={12} /> Add group
+          </button>
+        </div>
+      </div>
+      {msg && (
+        <p className="text-[11px] mt-2" style={{ color: msg.kind === 'err' ? 'var(--danger-soft)' : msg.kind === 'warn' ? 'var(--warning)' : 'var(--cat-teal)' }}>{msg.text}</p>
+      )}
+    </div>
   )
 }
 

@@ -311,6 +311,28 @@ public
     └─ updated_at         timestamptz default now()
 ```
 
+## Notices & member messages (migration 41)
+
+```
+notices                      admin-written dashboard notices
+├─ id, title, body, tone (info|important|success)
+├─ link_url, link_label      optional button (http/https only)
+├─ audience_colleges text[]  empty = any college   ┐ both empty = everyone;
+├─ audience_batches  text[]  empty = any batch     ┘ otherwise college AND batch must match
+├─ is_active, dismissible, starts_at, ends_at
+└─ created_by, created_at, updated_at
+
+notice_dismissals            who closed which notice (PK notice_id + user_id) ──→ notices, users
+
+member_messages              dashboard "Contact Us" box ──→ users (ON DELETE SET NULL)
+├─ category (professional|problem|other), subject, message
+├─ status (open|in_progress|resolved), admin_reply (shown to the member)
+└─ sender_name, sender_email (snapshot), resolved_by, resolved_at
+```
+
+Matching rules live in `lib/notices.ts` (college identity via `lib/college.ts`, batch normalised so
+"28" = "Batch 28"); the members' `GET /api/member-notices` and the admin "reaches N" preview both use them.
+
 ## Relationship summary
 
 ```

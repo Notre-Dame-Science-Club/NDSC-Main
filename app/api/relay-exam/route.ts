@@ -2,6 +2,7 @@ import { supabaseAdmin } from '@/lib/supabase'
 import { NextRequest, NextResponse } from 'next/server'
 import { apiError, apiOk } from '@/lib/api/response'
 import { getOlympiadQuestionFields } from '@/lib/server/olympiadQuestions'
+import { authorizeSegmentAccess, denyResponse } from '@/lib/server/registrationAccess'
 
 // GET /api/relay-exam?registration_id=UUID&olympiad_id=UUID
 // Returns current relay state for a team registration
@@ -9,6 +10,10 @@ export async function GET(req: NextRequest) {
   const registrationId = req.nextUrl.searchParams.get('registration_id')
   const olympiadId = req.nextUrl.searchParams.get('olympiad_id')
   if (!registrationId || !olympiadId) return apiError('registration_id and olympiad_id required', 400)
+
+  // S1: caller must be on a COMPLETE registration whose segment links THIS olympiad.
+  const access = await authorizeSegmentAccess(req, registrationId, { need: 'olympiad', requestedOlympiadId: olympiadId })
+  if (access.ok === false) return denyResponse(access)
 
   const { data, error } = await supabaseAdmin
     .from('relay_exam_state')
@@ -26,11 +31,10 @@ export async function GET(req: NextRequest) {
     .eq('id', olympiadId)
     .single()
 
-  const { data: reg } = await supabaseAdmin
-    .from('activity_registrations')
-    .select('full_name, team_members')
-    .eq('id', registrationId)
-    .single()
+  // B5: never expose password hashes (or other internal keys) to the client.
+  const safeTeam = (Array.isArray(access.registration.team_members) ? access.registration.team_members : [])
+    .map(({ password_hash, password, node_id, ...m }: any) => m)
+  const reg = { full_name: access.registration.full_name, team_members: safeTeam }
 
   return apiOk({ state: data || null, olympiad, registration: reg })
 }
@@ -43,7 +47,16 @@ export async function POST(req: NextRequest) {
     return apiError('action, registration_id, olympiad_id required', 400)
   }
 
-  const { action, registration_id, olympiad_id } = body
+  const { action, registration_id } = body
+
+  // S1: authorize against the registration's OWN segment; the olympiad id
+  // from the body must equal the one linked to that segment.
+  const access = await authorizeSegmentAccess(req, registration_id, { need: 'olympiad', requestedOlympiadId: body.olympiad_id })
+  if (access.ok === false) return denyResponse(access)
+  const olympiad_id: string = access.olympiadId as string
+  const participants: string[] = ['leader', ...((Array.isArray(access.registration.team_members) ? access.registration.team_members : []).map((m: any) => m?.id).filter(Boolean))]
+  // A caller acts as themselves; the leader may act for any participant.
+  const mayActAs = (pid: string) => access.role === 'leader' || access.participantId === pid
 
   const { data: olympiad } = await supabaseAdmin
     .from('olympiads')
@@ -66,6 +79,7 @@ export async function POST(req: NextRequest) {
 
   // ── START ──────────────────────────────────────────────────────
   if (action === 'start') {
+    if (access.role !== 'leader') return apiError('Only the team leader can start the relay.', 403)
     const { data: existing } = await supabaseAdmin
       .from('relay_exam_state')
       .select('id')
@@ -106,6 +120,14 @@ export async function POST(req: NextRequest) {
 
     if (!state) return apiError('Relay not started yet.', 404)
     if (state.completed_at) return apiError('Relay already completed.', 409)
+
+    // S1: must be a real participant, it must be THEIR turn, and the caller
+    // must be that participant (or the leader).
+    if (!participants.includes(member_id)) return apiError('That member is not on this team.', 403)
+    if (participants[state.current_member_index] !== member_id) {
+      return apiError("It isn't this member's turn.", 409)
+    }
+    if (!mayActAs(member_id)) return apiError("You can't submit for another member.", 403)
 
     const submissions: any[] = state.member_submissions || []
     const alreadySubmitted = submissions.find((s: any) => s.member_id === member_id)
@@ -190,6 +212,8 @@ export async function POST(req: NextRequest) {
   if (action === 'assign_subject') {
     const { member_id, subject_id } = body
     if (!member_id || !subject_id) return apiError('member_id and subject_id required', 400)
+    if (!participants.includes(member_id)) return apiError('That member is not on this team.', 403)
+    if (!mayActAs(member_id)) return apiError("You can't choose a subject for another member.", 403)
 
     // Check subject not already taken by another member in same registration
     const { data: existing } = await supabaseAdmin

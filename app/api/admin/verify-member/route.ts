@@ -11,10 +11,12 @@ export async function POST(req: NextRequest) {
   const id = formData.get('id') as string
   const verified = formData.get('verified') === 'true'
 
-  const { error } = await supabaseAdmin
-    .from('members')
-    .update({ is_verified: verified })
-    .eq('id', id)
+  // Verified == has a row in `members`. This approves (or revokes) membership atomically.
+  const { error } = await supabaseAdmin.rpc('admin_set_membership', {
+    p_user_id: id,
+    p_status: verified ? 'approved' : 'none',
+    p_admin: 'admin',
+  })
 
   if (error) return apiError(error, 400)
 

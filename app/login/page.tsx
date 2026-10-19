@@ -1,16 +1,27 @@
 'use client'
-import { useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { Suspense, useState } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import Link from 'next/link'
 import Image from 'next/image'
 import { Eye, EyeOff, Loader2, LogIn } from 'lucide-react'
 import Input from '@/components/ui/Input'
-import OAuthButton from '@/components/auth/OAuthButton'
-import { isOAuthEnabled } from '@/lib/authConfig'
 
 export default function LoginPage() {
+  return (
+    <Suspense fallback={null}>
+      <LoginPageInner />
+    </Suspense>
+  )
+}
+
+function LoginPageInner() {
   const router = useRouter()
+  const searchParams = useSearchParams()
+  // Lets other pages (e.g. /certificate/[slug]) send a logged-out visitor
+  // to /login?redirect=/wherever and get them bounced straight back after
+  // a successful sign-in, instead of always landing on /dashboard.
+  const redirect = searchParams.get('redirect')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
@@ -36,7 +47,10 @@ export default function LoginPage() {
         return setError(signInError?.message || 'Login failed.')
       }
 
-      router.push('/dashboard')
+      // Only ever redirect to a same-site path (never an absolute/external
+      // URL) so this query param can't be turned into an open redirect.
+      const safeRedirect = redirect && redirect.startsWith('/') && !redirect.startsWith('//') ? redirect : '/dashboard'
+      router.push(safeRedirect)
       router.refresh()
     } catch {
       setLoading(false)
@@ -88,17 +102,6 @@ export default function LoginPage() {
             </div>
           )}
 
-          {isOAuthEnabled() && (
-            <div className="mb-6 space-y-3">
-              <OAuthButton />
-              <div className="flex items-center gap-3 text-xs" style={{ color: 'var(--muted)' }}>
-                <div className="flex-1" style={{ borderTop: '1px solid var(--border)' }} />
-                or continue with email
-                <div className="flex-1" style={{ borderTop: '1px solid var(--border)' }} />
-              </div>
-            </div>
-          )}
-
           <form noValidate onSubmit={e => { e.preventDefault(); submit() }} className="space-y-4">
             <div>
               <label htmlFor="field-email" className="block text-xs font-medium mb-1.5 uppercase tracking-wider"
@@ -111,8 +114,14 @@ export default function LoginPage() {
             </div>
 
             <div>
-              <label htmlFor="field-password" className="block text-xs font-medium mb-1.5 uppercase tracking-wider"
-                style={{ color: 'var(--muted)' }}>Password</label>
+              <div className="flex items-center justify-between mb-1.5">
+                <label htmlFor="field-password" className="block text-xs font-medium uppercase tracking-wider"
+                  style={{ color: 'var(--muted)' }}>Password</label>
+                <Link href="/forgot-password" className="text-xs font-medium transition-colors hover:underline"
+                  style={{ color: 'var(--blue)' }}>
+                  Forgot password?
+                </Link>
+              </div>
               <div className="relative">
                 <Input
                   id="field-password" name="password" type={showPassword ? 'text' : 'password'} autoComplete="current-password"
@@ -159,13 +168,6 @@ export default function LoginPage() {
                 <Link href="/membership" className="underline" style={{ color: 'var(--blue)' }}>Club Membership</Link>
                 {' '}from their dashboard afterwards.
               </span>
-            </div>
-
-            <div className="pt-2 text-center" style={{ borderTop: '1px solid var(--border)' }}>
-              <Link href="/admin/login" className="text-xs hover:text-white transition-colors"
-                style={{ color: 'var(--muted)' }}>
-                Admin Login →
-              </Link>
             </div>
           </form>
         </div>

@@ -46,8 +46,8 @@ export function createPost(renderer: THREE.WebGLRenderer, enabled: boolean): Pos
   const w = renderer.domElement.width, h = renderer.domElement.height;
   const O = { minFilter: THREE.LinearFilter, magFilter: THREE.LinearFilter, type: THREE.HalfFloatType, depthBuffer: false, stencilBuffer: false };
   post.scene = new THREE.WebGLRenderTarget(w, h, { ...O, depthBuffer: true });
-  let lw = Math.max(2, w >> 1), lh = Math.max(2, h >> 1);
-  for (let i = 0; i < 4; i++) {
+  let lw = Math.max(2, w >> 2), lh = Math.max(2, h >> 2);
+  for (let i = 0; i < 3; i++) {
     post.levels.push({ a: new THREE.WebGLRenderTarget(lw, lh, O), b: new THREE.WebGLRenderTarget(lw, lh, O), w: lw, h: lh });
     lw = Math.max(2, lw >> 1);
     lh = Math.max(2, lh >> 1);
@@ -152,7 +152,7 @@ export function resizePost(renderer: THREE.WebGLRenderer, post: Post, w: number,
   if (!post.enabled || !post.scene || !post.comp) return;
   post.scene.setSize(w, h);
   post.comp.uniforms.uRes.value.set(w, h);
-  let lw = Math.max(2, w >> 1), lh = Math.max(2, h >> 1);
+  let lw = Math.max(2, w >> 2), lh = Math.max(2, h >> 2);
   post.levels.forEach((L) => {
     L.a.setSize(lw, lh);
     L.b.setSize(lw, lh);

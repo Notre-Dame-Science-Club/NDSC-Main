@@ -84,26 +84,26 @@ export function texSky() {
     const sx = rnd() * W, sy = rnd() * H;
     const pole = 1 - Math.abs(sy / H - 0.5) * 1.5;
     if (rnd() > pole * 0.9 + 0.25) continue;
-    const r = 0.4 + rnd() * rnd() * 1.5;
+    const r = 0.3 + rnd() * rnd() * 0.7;
     const warm = rnd() > 0.86;
     x.fillStyle = (warm ? "rgba(255,214,176," : "rgba(206,232,255,") + (0.2 + rnd() * 0.7).toFixed(2) + ")";
     x.beginPath();
     x.arc(sx, sy, r, 0, TAU);
     x.fill();
   }
-  for (let i = 0; i < 26; i++) {
-    const sx = rnd() * W, sy = H * 0.2 + rnd() * H * 0.6, r = 1.6 + rnd() * 1.6;
-    const gg = x.createRadialGradient(sx, sy, 0, sx, sy, r * 9);
-    gg.addColorStop(0, "rgba(225,244,255,.85)");
-    gg.addColorStop(0.25, "rgba(150,200,255,.18)");
+  /* Brighter stars: tiny, sharp points with only a whisper of halo. A big
+     soft glow here reads as a dot-orb once the 2048px sky is stretched
+     across the screen, so the glow radius is kept to ~3x the core. */
+  for (let i = 0; i < 44; i++) {
+    const sx = rnd() * W, sy = H * 0.15 + rnd() * H * 0.7, r = 0.45 + rnd() * 0.45;
+    const gg = x.createRadialGradient(sx, sy, 0, sx, sy, r * 2.4);
+    gg.addColorStop(0, "rgba(245,251,255,1)");
+    gg.addColorStop(0.3, "rgba(200,228,255,.5)");
     gg.addColorStop(1, "rgba(0,0,0,0)");
     x.fillStyle = gg;
     x.beginPath();
-    x.arc(sx, sy, r * 9, 0, TAU);
+    x.arc(sx, sy, r * 2.4, 0, TAU);
     x.fill();
-    x.fillStyle = "rgba(225,244,255,.35)";
-    x.fillRect(sx - r * 7, sy - 0.4, r * 14, 0.8);
-    x.fillRect(sx - 0.4, sy - r * 7, 0.8, r * 14);
   }
   return c;
 }
@@ -261,9 +261,9 @@ export function texStar() {
   const S = 64, c = cvs(S, S), x = c.getContext("2d")!;
   const g = x.createRadialGradient(S / 2, S / 2, 0, S / 2, S / 2, S / 2);
   g.addColorStop(0, "rgba(255,255,255,1)");
-  g.addColorStop(0.08, "rgba(226,244,255,.9)");
-  g.addColorStop(0.2, "rgba(150,206,255,.34)");
-  g.addColorStop(0.5, "rgba(80,150,220,.06)");
+  g.addColorStop(0.07, "rgba(226,244,255,.95)");
+  g.addColorStop(0.16, "rgba(150,206,255,.2)");
+  g.addColorStop(0.4, "rgba(80,150,220,.02)");
   g.addColorStop(1, "rgba(0,0,0,0)");
   x.fillStyle = g; x.fillRect(0, 0, S, S);
   return c;

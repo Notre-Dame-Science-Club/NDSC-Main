@@ -21,6 +21,7 @@ const BUCKET_TO_FOLDER: Record<string, string> = {
   'publications':     'publications',
   'about-hero-video': 'about-hero',
   'about-hero-poster': 'about-hero',
+  'certificates':      'certificates',
 }
 
 export async function POST(req: NextRequest) {
@@ -43,7 +44,10 @@ export async function POST(req: NextRequest) {
     return apiError('File too large. Maximum size is 200MB.', 413)
   }
 
-  const folder = BUCKET_TO_FOLDER[bucketOrFolder] ?? bucketOrFolder
+  const folder = BUCKET_TO_FOLDER[bucketOrFolder]
+  if (!folder) {
+    return apiError(`Unknown upload folder "${bucketOrFolder}".`, 400)
+  }
 
   const hostingerUploadUrl = process.env.HOSTINGER_UPLOAD_URL
   const uploadSecret = process.env.UPLOAD_SECRET

@@ -1,0 +1,300 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>WhatsApp Sender</title>
+<style>
+  :root{--bg:#f6f7f9;--card:#fff;--ink:#16202a;--muted:#667085;--line:#e4e7ec;--brand:#0b5fff;--ok:#12805c;--warn:#b54708;--bad:#c0392b;--wa:#25d366;--chip:#eef2f7}
+  @media (prefers-color-scheme:dark){:root{--bg:#0e141b;--card:#16202a;--ink:#e8edf2;--muted:#93a1b1;--line:#263341;--brand:#5b9bff;--ok:#3ecf9a;--warn:#f0a35e;--bad:#ff7a6b;--chip:#1f2c39}}
+  *{box-sizing:border-box} body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.45 system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
+  header{display:flex;align-items:center;gap:12px;padding:14px 20px;background:var(--card);border-bottom:1px solid var(--line);position:sticky;top:0;z-index:5}
+  header img{width:34px;height:34px;border-radius:8px;object-fit:cover;background:var(--chip)} header h1{font-size:16px;margin:0} header small{color:var(--muted)}
+  nav{display:flex;gap:4px;padding:10px 20px 0;max-width:1100px;margin:0 auto;flex-wrap:wrap}
+  nav button{border:0;background:none;padding:9px 14px;font:inherit;font-weight:600;color:var(--muted);border-bottom:2px solid transparent;cursor:pointer}
+  nav button.on{color:var(--brand);border-color:var(--brand)}
+  main{max-width:1100px;margin:0 auto;padding:16px 20px 60px}
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(330px,1fr));gap:14px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px}
+  .row{display:flex;gap:8px;align-items:center;flex-wrap:wrap} .sp{justify-content:space-between}
+  h2{font-size:15px;margin:0 0 10px} h3{font-size:13px;margin:14px 0 6px;color:var(--muted);font-weight:600}
+  .muted{color:var(--muted)} .small{font-size:12px}
+  button.b{font:inherit;font-weight:600;padding:7px 12px;border-radius:8px;border:1px solid var(--line);background:var(--card);color:var(--ink);cursor:pointer}
+  button.b:hover{border-color:var(--brand)} button.p{background:var(--brand);border-color:var(--brand);color:#fff} button.d{color:var(--bad)} button:disabled{opacity:.5;cursor:not-allowed}
+  input,textarea,select{font:inherit;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:8px 10px;width:100%}
+  textarea{resize:vertical;min-height:90px} label{display:block;font-size:12px;color:var(--muted);margin:10px 0 4px}
+  .badge{font-size:11px;font-weight:700;padding:3px 8px;border-radius:99px;background:var(--chip);color:var(--muted);white-space:nowrap}
+  .badge.ready{background:rgba(18,128,92,.15);color:var(--ok)} .badge.warn{background:rgba(181,71,8,.15);color:var(--warn)} .badge.bad{background:rgba(192,57,43,.15);color:var(--bad)}
+  .big{font-size:28px;font-weight:700;line-height:1} .bar{height:6px;background:var(--chip);border-radius:9px;overflow:hidden;margin:6px 0} .bar i{display:block;height:100%;background:var(--brand)}
+  .err{background:rgba(192,57,43,.1);border:1px solid rgba(192,57,43,.3);color:var(--bad);border-radius:8px;padding:8px 10px;font-size:12px;margin-top:10px}
+  .note{background:var(--chip);border-radius:8px;padding:9px 11px;font-size:12px;color:var(--muted);margin:8px 0}
+  .qr{display:block;margin:12px auto;width:230px;height:230px;background:#fff;border-radius:8px;padding:6px}
+  table{width:100%;border-collapse:collapse;font-size:12.5px} th,td{text-align:left;padding:7px 8px;border-bottom:1px solid var(--line);vertical-align:top} th{color:var(--muted);font-weight:600}
+  .s-sent{color:var(--ok)} .s-failed{color:var(--bad)} .s-skipped,.s-credits,.s-info{color:var(--muted)}
+  dialog{border:1px solid var(--line);border-radius:14px;background:var(--card);color:var(--ink);padding:20px;width:min(420px,92vw)} dialog::backdrop{background:rgba(0,0,0,.45)}
+  .bubble{background:#dcf8c6;color:#111;border-radius:10px;padding:8px;max-width:320px;box-shadow:0 1px 1px rgba(0,0,0,.15)} @media (prefers-color-scheme:dark){.bubble{background:#005c4b;color:#e9f5f1}}
+  .bubble img{width:100%;max-height:220px;object-fit:cover;border-radius:6px;display:block;margin-bottom:6px} .bubble div{white-space:pre-wrap;word-break:break-word}
+  .toast{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:10px;z-index:20;max-width:90vw}
+  .hide{display:none}
+</style>
+</head>
+<body>
+<header>
+  <img id="hlogo" alt="" class="hide"><div><h1>WhatsApp Sender</h1><small id="hsub"></small></div>
+  <button class="b small hide" id="signOut" style="margin-left:auto">Sign out</button>
+</header>
+<nav id="tabs">
+  <button data-t="sims" class="on">SIMs</button><button data-t="campaign">Send</button><button data-t="brand">Brand &amp; message</button><button data-t="activity">Activity</button>
+</nav>
+<main>
+  <section id="t-sims">
+    <div class="row sp" style="margin-bottom:12px">
+      <div class="muted small">Each SIM is a WhatsApp number linked to this panel. Messages are spread across SIMs that still have credits. <b>1 credit = 1 message sent.</b></div>
+      <button class="b p" id="addSim">+ Add SIM</button>
+    </div>
+    <div class="grid" id="simGrid"></div>
+    <div id="simEmpty" class="card hide"><b>No SIMs yet.</b><p class="muted">Press “Add SIM”, give it some credits, then scan the QR from that phone: WhatsApp → Settings → Linked devices → Link a device.</p></div>
+  </section>
+
+  <section id="t-campaign" class="hide">
+    <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(340px,1fr))">
+      <div class="card">
+        <h2>1. Contacts</h2>
+        <div class="muted small">CSV with a <code>phone</code> column (and optional <code>name</code>), or paste one number per line. 01XXXXXXXXX is read as +880.</div>
+        <textarea id="csv" placeholder="phone,name&#10;01700000001,Rahim&#10;01800000002,Karim" style="min-height:170px;margin-top:8px"></textarea>
+        <div class="row" style="margin-top:8px"><input type="file" id="csvFile" accept=".csv,.txt" style="flex:1"><button class="b" id="check">Check</button></div>
+        <div id="preview" class="note hide"></div>
+      </div>
+      <div class="card">
+        <h2>2. Message</h2>
+        <div class="muted small">Written fresh for each send. <code>{name}</code> becomes each person's name. The brand name and logo from the Brand tab are added.</div>
+        <textarea id="msg" placeholder="Hi {name}, …" style="min-height:130px;margin-top:8px"></textarea>
+        <label class="row" style="color:var(--ink);font-size:13px;margin-top:8px"><input type="checkbox" id="notice" style="width:auto"> This is a notice: message people again even if they were messaged before</label>
+        <h2 style="margin-top:16px">3. Send</h2>
+        <div class="row"><button class="b p" id="start">Start sending</button><button class="b d" id="stop" disabled>Stop</button></div>
+        <div id="prog" class="hide" style="margin-top:12px">
+          <div class="row sp"><b id="progTxt"></b><span class="badge" id="progState"></span></div>
+          <div class="bar"><i id="progBar" style="width:0"></i></div>
+          <div class="small muted" id="progNow"></div>
+          <div id="progSims" class="small" style="margin-top:6px"></div>
+          <div id="progReason" class="note hide"></div>
+          <div id="failBox" class="hide"><h3>Not sent</h3><div class="small" id="failList"></div><button class="b small" id="failCsv" style="margin-top:6px">Download as CSV</button></div>
+        </div>
+        <h3>Already-messaged list</h3>
+        <div class="muted small">People you have messaged are remembered, so running the same list again skips them.</div>
+        <button class="b d" id="clearSent" style="margin-top:6px">Forget who was messaged</button>
+      </div>
+    </div>
+  </section>
+
+  <section id="t-brand" class="hide">
+    <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(340px,1fr))">
+      <div class="card">
+        <h2>Name &amp; logo shown to people</h2>
+        <label>Brand name</label><input id="brandName">
+        <label class="row" style="color:var(--ink);font-size:13px"><input type="checkbox" id="brandHeader" style="width:auto"> Show the name in bold at the top of every message</label>
+        <label>Logo (PNG or JPEG) — sent with every message</label>
+        <div class="row"><input type="file" id="logoFile" accept="image/png,image/jpeg" style="flex:1"><button class="b d" id="logoDel">Remove</button></div>
+        <div class="note"><b>What recipients see:</b> the logo and bold name inside the message itself (always). The WhatsApp profile name and photo of the number can also be set to the same brand: use <b>Apply brand to profile</b> on a SIM. People who haven't saved the number see that profile name (a verified business name needs Meta approval and can't be set from here).</div>
+        <label>Group link (replaces {link})</label><input id="groupLink" placeholder="https://chat.whatsapp.com/…">
+        <label>Message — use {name}, {link}, {brand}</label><textarea id="template" style="min-height:140px"></textarea>
+        <h3>Pace</h3>
+        <div class="row"><div style="flex:1"><label>Min wait (seconds)</label><input id="minDelay" type="number" min="1"></div><div style="flex:1"><label>Max wait (seconds)</label><input id="maxDelay" type="number" min="1"></div><div style="flex:1"><label>Country code</label><input id="cc"></div></div>
+        <div class="muted small" style="margin-top:6px">Wait time is per SIM, random between min and max. Slower is safer for the number.</div>
+        <button class="b p" id="saveBrand" style="margin-top:12px">Save</button>
+      </div>
+      <div class="card">
+        <h2>Preview</h2>
+        <div class="bubble"><img id="pvLogo" class="hide" alt=""><div id="pvText"></div></div>
+      </div>
+    </div>
+  </section>
+
+  <section id="t-activity" class="hide">
+    <div class="card">
+      <div class="row sp"><h2 style="margin:0">Recent activity</h2>
+        <div class="row"><select id="fSim" style="width:auto"><option value="">All SIMs</option></select>
+        <select id="fStatus" style="width:auto"><option value="">All</option><option value="sent">Sent</option><option value="failed">Failed</option><option value="skipped">Skipped</option><option value="credits">Credits</option><option value="info">Info</option></select></div></div>
+      <div style="overflow:auto;margin-top:8px"><table><thead><tr><th>When</th><th>SIM</th><th>Number</th><th>Result</th><th>Details</th></tr></thead><tbody id="actBody"></tbody></table></div>
+    </div>
+  </section>
+</main>
+
+<dialog id="dLogin"><h2>Sign in</h2>
+  <label>Password</label><input id="lgPass" type="password" autocomplete="current-password">
+  <div id="lgErr" class="small" style="color:var(--bad,#fa5252);margin-top:6px"></div>
+  <div class="row" style="justify-content:flex-end;margin-top:12px"><button class="b p" id="lgGo">Sign in</button></div></dialog>
+<dialog id="dAdd"><h2>Add SIM</h2>
+  <label>Name (so you can tell them apart)</label><input id="aLabel" placeholder="e.g. President's SIM">
+  <div class="row"><div style="flex:1"><label>Starting credits</label><input id="aCredits" type="number" min="0" value="100"></div><div style="flex:1"><label>Daily limit</label><input id="aDaily" type="number" min="1" value="100"></div></div>
+  <div class="note">Daily limit is the most this SIM will send in one day, even if it has more credits. Keeping it modest protects the number from being restricted.</div>
+  <div class="row" style="justify-content:flex-end;margin-top:12px"><button class="b" data-close>Cancel</button><button class="b p" id="aGo">Add &amp; show QR</button></div></dialog>
+<dialog id="dCredits"><h2 id="cTitle">Add credits</h2>
+  <div class="row" id="cQuick"><button class="b" data-n="50">+50</button><button class="b" data-n="100">+100</button><button class="b" data-n="500">+500</button></div>
+  <label>Or enter an amount (use a minus to remove)</label><input id="cAmount" type="number" placeholder="e.g. 250">
+  <div class="row" style="justify-content:flex-end;margin-top:12px"><button class="b" data-close>Cancel</button><button class="b p" id="cGo">Apply</button></div></dialog>
+<dialog id="dLimits"><h2 id="lTitle">Limits</h2>
+  <label>Name</label><input id="lLabel">
+  <div class="row"><div style="flex:1"><label>Daily limit</label><input id="lDaily" type="number" min="1"></div><div style="flex:1"><label>Set credits to</label><input id="lCredits" type="number" min="0"></div></div>
+  <div class="row" style="justify-content:flex-end;margin-top:12px"><button class="b" data-close>Cancel</button><button class="b p" id="lGo">Save</button></div></dialog>
+
+<script>
+const $ = (s, r = document) => r.querySelector(s)
+let S = null, tab = 'sims', formsLoaded = false, dlgSim = null
+
+async function api(path, method = 'GET', body) {
+  const opt = { method, headers: { 'x-ndsc': '1' } }
+  if (body instanceof Blob) { opt.body = body } else if (body !== undefined) { opt.headers['content-type'] = 'application/json'; opt.body = JSON.stringify(body) }
+  const r = await fetch(path, opt), j = await r.json().catch(() => ({}))
+  if (r.status === 401 && path !== '/login') { showLogin(); throw new Error('Please sign in') }
+  if (!r.ok) throw new Error(j.error || 'Request failed')
+  return j
+}
+function toast(msg) { const t = document.createElement('div'); t.className = 'toast'; t.textContent = msg; document.body.append(t); setTimeout(() => t.remove(), 3800) }
+const act = (fn) => async (...a) => { try { await fn(...a); await refresh() } catch (e) { toast(e.message) } }
+const esc = (s) => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]))
+const ago = (t) => { if (!t) return 'never'; const s = Math.max(0, (S.now - t) / 1000); return s < 60 ? 'just now' : s < 3600 ? Math.floor(s / 60) + ' min ago' : s < 86400 ? Math.floor(s / 3600) + ' h ago' : new Date(t).toLocaleDateString() }
+const when = (t) => new Date(t).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' })
+
+const STATUS = {
+  ready: ['Ready', 'ready'], connecting: ['Connecting…', ''], qr: ['Scan QR', 'warn'], disconnected: ['Not connected', 'warn'],
+  logged_out: ['Logged out', 'bad'], paused: ['Paused', 'bad'], cooldown: ['Cooling down', 'warn'], no_credits: ['Out of credits', 'warn'], daily_limit: ['Daily limit reached', 'warn'],
+}
+
+function renderSims() {
+  const g = $('#simGrid'); $('#simEmpty').classList.toggle('hide', S.sims.length > 0)
+  g.innerHTML = S.sims.map(s => {
+    const [label, cls] = STATUS[s.status] || [s.status, '']
+    const pct = Math.min(100, Math.round(100 * s.sentToday / s.dailyLimit))
+    return `<div class="card" data-id="${s.id}">
+      <div class="row sp"><div><b>${esc(s.label)}</b><div class="muted small">${s.phone ? '+' + esc(s.phone) : 'number not linked yet'}</div></div><span class="badge ${cls}">${label}</span></div>
+      ${s.qrImage ? `<img class="qr" src="${s.qrImage}" alt="QR"><div class="small muted" style="text-align:center">On that phone: WhatsApp → Settings → Linked devices → Link a device</div>` : ''}
+      ${s.problem && s.status !== 'ready' && !s.qrImage ? `<div class="note">${esc(s.problem)}</div>` : ''}
+      <div class="row" style="margin-top:12px;gap:22px"><div><div class="big">${s.credits}</div><div class="muted small">credits left</div></div>
+        <div style="flex:1"><div class="row sp small"><span>Today</span><span>${s.sentToday} / ${s.dailyLimit}</span></div><div class="bar"><i style="width:${pct}%"></i></div><div class="muted small">can send ${s.capacity} more today</div></div></div>
+      <div class="muted small" style="margin-top:8px">Last used: ${ago(s.lastUsedAt)} · ${s.totalSent} sent · ${s.totalFailed} failed in total</div>
+      ${s.lastError ? `<div class="err"><b>Last error</b> (${ago(s.lastError.at)}): ${esc(s.lastError.message)}</div>` : ''}
+      ${s.message && !s.lastError ? `<div class="note">${esc(s.message)}</div>` : ''}
+      <div class="row" style="margin-top:12px">
+        <button class="b p" data-a="credits">+ Credits</button><button class="b" data-a="limits">Limits</button>
+        ${s.connection === 'connected' ? '' : `<button class="b" data-a="connect">${s.status === 'qr' ? 'New QR' : 'Connect'}</button>`}
+        ${s.paused || s.status === 'cooldown' ? `<button class="b" data-a="resume">Resume</button>` : `<button class="b" data-a="pause">Pause</button>`}
+        ${s.connection === 'connected' ? `<button class="b" data-a="brand" title="Set this number's WhatsApp profile name and photo to your brand">Apply brand to profile</button>` : ''}
+        <button class="b" data-a="activity">Recent use</button><button class="b d" data-a="remove">Remove</button>
+      </div></div>`
+  }).join('')
+}
+
+function renderCampaign() {
+  const c = S.campaign, run = c?.running
+  $('#start').disabled = !!run; $('#stop').disabled = !run
+  $('#prog').classList.toggle('hide', !c)
+  if (!c) return
+  $('#progTxt').textContent = `${c.done} of ${c.total} done · ${c.ok} sent · ${c.skipped} skipped · ${c.failed} failed`
+  $('#progState').textContent = run ? 'Running' : 'Finished'; $('#progState').className = 'badge ' + (run ? 'ready' : '')
+  $('#progBar').style.width = (c.total ? 100 * c.done / c.total : 0) + '%'
+  $('#progNow').textContent = !run ? '' : c.waiting ? c.waiting : c.current ? `Sending to ${c.current.name} (+${c.current.phone})…` : ''
+  $('#progSims').innerHTML = Object.values(c.perSim).map(p => `${esc(p.label)}: ${p.ok} sent${p.failed ? `, ${p.failed} errors` : ''}`).join(' · ')
+  $('#progReason').classList.toggle('hide', run || !c.stopReason); $('#progReason').textContent = c.stopReason
+  $('#failBox').classList.toggle('hide', !c.failedList.length)
+  $('#failList').innerHTML = c.failedList.slice(-30).map(f => `+${esc(f.phone)} ${esc(f.name)} — ${esc(f.reason)}`).join('<br>')
+}
+
+function renderActivity() {
+  const sel = $('#fSim'), cur = sel.value
+  sel.innerHTML = '<option value="">All SIMs</option>' + S.sims.map(s => `<option value="${s.id}">${esc(s.label)}</option>`).join(''); sel.value = cur
+  const name = (id) => S.sims.find(s => s.id === id)?.label || '(removed)'
+  $('#actBody').innerHTML = S.recent.map(e => `<tr><td>${when(e.ts)}</td><td>${esc(name(e.simId))}</td><td>${e.to ? '+' + esc(e.to) : ''}</td><td class="s-${e.status}">${esc(e.status)}</td><td>${esc(e.error || '')}</td></tr>`).join('')
+    || '<tr><td colspan="5" class="muted">Nothing yet.</td></tr>'
+}
+
+function fillForms() {
+  const s = S.settings
+  $('#brandName').value = s.brandName; $('#brandHeader').checked = s.brandHeader; $('#groupLink').value = s.groupLink
+  $('#template').value = s.template; $('#minDelay').value = s.minDelayMs / 1000; $('#maxDelay').value = s.maxDelayMs / 1000; $('#cc').value = s.countryCode
+}
+function renderPreview() {
+  const name = $('#brandName').value.trim(), hdr = $('#brandHeader').checked
+  const body = $('#template').value.replaceAll('{name}', 'Rahim').replaceAll('{link}', $('#groupLink').value || 'https://chat.whatsapp.com/…').replaceAll('{brand}', name).trim()
+  $('#pvText').innerHTML = (hdr && name ? `<b>${esc(name)}</b><br><br>` : '') + esc(body).replaceAll('\n', '<br>')
+  $('#pvLogo').classList.toggle('hide', !S.hasLogo); if (S.hasLogo) $('#pvLogo').src = '/logo?' + (S.settings.logoFile || '')
+}
+
+function showLogin() { const d = $('#dLogin'); if (!d.open) d.showModal() }
+$('#dLogin').addEventListener('cancel', e => e.preventDefault()) // can't be dismissed without signing in
+const doLogin = async () => {
+  try { await api('/login', 'POST', { password: $('#lgPass').value }); $('#lgPass').value = ''; $('#lgErr').textContent = ''; $('#dLogin').close(); await refresh() }
+  catch (e) { $('#lgErr').textContent = e.message }
+}
+$('#lgGo').onclick = doLogin
+$('#lgPass').addEventListener('keydown', e => { if (e.key === 'Enter') doLogin() })
+$('#signOut').onclick = async () => { await api('/logout', 'POST', {}).catch(() => {}); location.reload() }
+
+async function refresh() {
+  const q = new URLSearchParams(); if ($('#fSim').value) q.set('sim', $('#fSim').value); if ($('#fStatus').value) q.set('status', $('#fStatus').value)
+  S = await api('/api/state?' + q)
+  const logo = $('#hlogo'); logo.classList.toggle('hide', !S.hasLogo); if (S.hasLogo) logo.src = '/logo?' + S.settings.logoFile
+  $('#hsub').textContent = S.settings.brandName
+  $('#signOut').classList.toggle('hide', !S.passwordLogin)
+  if (!formsLoaded) { fillForms(); formsLoaded = true }
+  renderSims(); renderCampaign(); renderActivity(); renderPreview()
+}
+
+// tabs
+$('#tabs').onclick = (e) => { const t = e.target.dataset.t; if (!t) return; showTab(t) }
+function showTab(t) { tab = t; for (const b of document.querySelectorAll('#tabs button')) b.classList.toggle('on', b.dataset.t === t); for (const s of ['sims', 'campaign', 'brand', 'activity']) $('#t-' + s).classList.toggle('hide', s !== t) }
+for (const d of document.querySelectorAll('dialog')) d.addEventListener('click', e => { if (e.target.hasAttribute('data-close')) d.close() })
+
+// SIM actions
+$('#addSim').onclick = () => $('#dAdd').showModal()
+$('#aGo').onclick = act(async () => { await api('/api/sims', 'POST', { label: $('#aLabel').value, credits: +$('#aCredits').value, dailyLimit: +$('#aDaily').value }); $('#dAdd').close(); $('#aLabel').value = '' })
+$('#simGrid').onclick = async (e) => {
+  const a = e.target.dataset.a; if (!a) return
+  const id = e.target.closest('.card').dataset.id, sim = S.sims.find(s => s.id === id); dlgSim = sim
+  if (a === 'credits') { $('#cTitle').textContent = `Add credits: ${sim.label} (${sim.credits} left)`; $('#cAmount').value = ''; return $('#dCredits').showModal() }
+  if (a === 'limits') { $('#lTitle').textContent = 'Limits: ' + sim.label; $('#lLabel').value = sim.label; $('#lDaily').value = sim.dailyLimit; $('#lCredits').value = sim.credits; return $('#dLimits').showModal() }
+  if (a === 'activity') { $('#fSim').value = id; showTab('activity'); return refresh() }
+  if (a === 'remove') { if (!confirm(`Remove ${sim.label}? This also unlinks it from WhatsApp. Its credits are lost.`)) return; return act(() => api('/api/sims/' + id, 'DELETE'))() }
+  if (a === 'brand') { return act(async () => { const r = await api(`/api/sims/${id}/apply-brand`, 'POST', {}); toast('Profile updated: ' + r.applied.join(' + ')) })() }
+  return act(() => api(`/api/sims/${id}/${a}`, 'POST', {}))()
+}
+$('#cQuick').onclick = (e) => { if (e.target.dataset.n) $('#cAmount').value = e.target.dataset.n }
+$('#cGo').onclick = act(async () => { await api(`/api/sims/${dlgSim.id}/credits`, 'POST', { add: +$('#cAmount').value }); $('#dCredits').close() })
+$('#lGo').onclick = act(async () => { await api(`/api/sims/${dlgSim.id}/limits`, 'POST', { label: $('#lLabel').value, dailyLimit: +$('#lDaily').value, credits: +$('#lCredits').value }); $('#dLimits').close() })
+
+// campaign
+const sendOpts = () => ({ csv: $('#csv').value, template: $('#msg').value, notify: $('#notice').checked }) // blank message = the saved one from the Brand tab
+$('#csvFile').onchange = async (e) => { const f = e.target.files[0]; if (f) $('#csv').value = await f.text() }
+$('#check').onclick = act(async () => {
+  const p = await api('/api/campaign/preview', 'POST', sendOpts()), box = $('#preview'); box.classList.remove('hide')
+  box.innerHTML = `<b>${p.total}</b> valid numbers${p.duplicates ? `, ${p.duplicates} duplicates removed` : ''}${p.invalid ? `, <b>${p.invalid}</b> invalid (${esc(p.invalidExamples.join(', '))})` : ''}.<br>`
+    + `${p.alreadySent} already messaged → <b>${p.toSend}</b> to send.<br>`
+    + (p.shortBy > 0 ? `<span style="color:var(--warn)">SIMs that are ready can send ${p.capacityNow} now, so about <b>${p.shortBy}</b> would be left. Add credits or raise a daily limit.</span>` : `SIMs ready to send: ${p.capacityNow} (enough).`)
+    + (p.sample ? `<br><br>First message:<br><i>${esc(p.sample).replaceAll('\n', '<br>')}</i>` : '')
+})
+$('#start').onclick = act(async () => { if (!confirm('Start sending now?')) return; await api('/api/campaign/start', 'POST', sendOpts()) })
+$('#stop').onclick = act(() => api('/api/campaign/stop', 'POST', {}))
+$('#clearSent').onclick = act(async () => { if (confirm('Forget everyone you have messaged? Running a list again would message them again.')) { await api('/api/sent/clear', 'POST', {}); toast('History cleared') } })
+$('#failCsv').onclick = () => {
+  const rows = ['phone,name,reason', ...S.campaign.failedList.map(f => [f.phone, f.name, f.reason].map(v => '"' + String(v).replace(/"/g, '""') + '"').join(','))]
+  const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([rows.join('\n')], { type: 'text/csv' })); a.download = 'not-sent.csv'; a.click()
+}
+
+// brand
+for (const id of ['brandName', 'brandHeader', 'groupLink', 'template']) $('#' + id).addEventListener('input', renderPreview)
+$('#saveBrand').onclick = act(async () => {
+  await api('/api/settings', 'POST', { brandName: $('#brandName').value.trim(), brandHeader: $('#brandHeader').checked, groupLink: $('#groupLink').value.trim(), template: $('#template').value,
+    minDelayMs: Math.round(+$('#minDelay').value * 1000), maxDelayMs: Math.round(+$('#maxDelay').value * 1000), countryCode: $('#cc').value.trim() || '880' })
+  toast('Saved'); formsLoaded = false
+})
+$('#logoFile').onchange = act(async (e) => { const f = e.target.files[0]; if (f) { await api('/api/logo', 'POST', f); toast('Logo saved') } })
+$('#logoDel').onclick = act(() => api('/api/logo', 'DELETE'))
+
+// activity filters
+$('#fSim').onchange = refresh; $('#fStatus').onchange = refresh
+
+refresh().catch(e => toast(e.message))
+setInterval(() => refresh().catch(() => {}), 2000)
+</script>
+</body>
+</html>

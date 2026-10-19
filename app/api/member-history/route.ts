@@ -15,7 +15,7 @@ export async function GET(req: NextRequest) {
 
     // Get member email first
     const { data: member, error: memberError } = await supabaseAdmin
-      .from('members')
+      .from('users')
       .select('email')
       .eq('id', memberId)
       .single()
@@ -66,6 +66,7 @@ export async function GET(req: NextRequest) {
       .from('activity_registrations')
       .select('id')
       .eq('member_id', memberId)
+      .not('completed_at', 'is', null)   // B2
 
     let paymentHistory = []
     if (!regError && registrations && registrations.length > 0) {

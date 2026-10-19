@@ -53,10 +53,33 @@ export async function POST(req: NextRequest) {
     return apiError('Unknown transaction.', 404)
   }
 
-  // Defense in depth: confirm the validated amount actually matches what we
-  // expected to charge — a mismatch here would mean something is wrong
-  // even if SSLCommerz says the transaction is otherwise valid.
-  const amountMatches = isValid && Math.abs(parseFloat(validation.amount) - parseFloat(tx.amount)) < 0.01
+  // Idempotency: a transaction already settled as valid is never re-processed
+  // (SSLCommerz retries IPNs), and a later bad/duplicate IPN can't downgrade it.
+  if (tx.status === 'valid') return apiOk({ received: true, valid: true, duplicate: true })
+
+  // Defense in depth: validated amount must match what we expected to charge,
+  // the validation must be for THIS tran_id, and the amount must still equal
+  // the registration's current fee (it could have changed since init).
+  let regAmountOk = true
+  if (tx.activity_registration_id) {
+    const { data: reg } = await supabaseAdmin
+      .from('activity_registrations')
+      .select('payment_amount, payment_status')
+      .eq('id', tx.activity_registration_id)
+      .maybeSingle()
+    regAmountOk = !!reg && Math.abs(parseFloat(String(reg.payment_amount)) - parseFloat(tx.amount)) < 0.01
+    if (reg?.payment_status === 'paid') {
+      // Already paid through another transaction: record this one, don't touch the registration.
+      await supabaseAdmin.from('payment_transactions').update({
+        status: isValid ? 'valid' : 'failed', raw_ipn: rawIpn, raw_validation: validation,
+        validated_at: new Date().toISOString(),
+      }).eq('tran_id', tranId)
+      return apiOk({ received: true, valid: isValid, duplicate: true })
+    }
+  }
+  const tranMatches = !validation.tran_id || validation.tran_id === tranId
+  const amountMatches = isValid && tranMatches && regAmountOk
+    && Math.abs(parseFloat(validation.amount) - parseFloat(tx.amount)) < 0.01
 
   await supabaseAdmin
     .from('payment_transactions')
@@ -77,6 +100,7 @@ export async function POST(req: NextRequest) {
         payment_validated_at: new Date().toISOString(),
       })
       .eq('id', tx.activity_registration_id)
+      .neq('payment_status', 'paid')   // never downgrade a paid registration
   }
 
   return apiOk({ received: true, valid: isValid && amountMatches })

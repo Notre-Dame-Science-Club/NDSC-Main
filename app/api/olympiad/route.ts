@@ -3,6 +3,8 @@ import { NextRequest } from 'next/server'
 import { apiError, apiOk } from '@/lib/api/response'
 import { getOlympiadQuestionFields } from '@/lib/server/olympiadQuestions'
 import { getOlympiadActivityLink } from '@/lib/server/olympiadActivityLink'
+import { stripAnswerKeysFromBlocks } from '@/lib/server/stripAnswerKeys'
+import { authorizeSegmentAccess } from '@/lib/server/registrationAccess'
 
 // Public route — no auth required.
 // Uses supabaseAdmin so it bypasses RLS (which restricts anon reads).
@@ -32,8 +34,28 @@ export async function GET(req: NextRequest) {
     if (error || !data) return apiError('Olympiad not found.', 404)
     // `questions` no longer lives on this row — it's the fields of the
     // olympiad's form-graph node of kind preset_olympiad_questions.
-    const questions = await getOlympiadQuestionFields(id)
-    return apiOk({ olympiad: { ...data, questions } })
+    // S4: questions are returned ONLY to a caller authorized for this
+    // olympiad through a complete registration in the segment it is linked
+    // to, inside the exam window, after the relay has started. Answer keys
+    // are never returned to anyone.
+    let questions: any[] = []
+    // question_count is safe to reveal to an authorized registrant before the
+    // exam starts. Without it the UI sees questions=[] until the relay_exam_state
+    // row exists, but that row is only created when the user clicks Start —
+    // and Start is hidden when there are "no questions". Deadlock.
+    let question_count = 0
+    const regId = req.nextUrl.searchParams.get('registration_id')
+    if (regId) {
+      const access = await authorizeSegmentAccess(req, regId, { need: 'olympiad', requestedOlympiadId: id })
+      if (access.ok) {
+        const allQuestions = await getOlympiadQuestionFields(id)
+        question_count = allQuestions.length
+        const { data: started } = await supabaseAdmin.from('relay_exam_state')
+          .select('id').eq('registration_id', regId).eq('olympiad_id', id).maybeSingle()
+        if (started) questions = stripAnswerKeysFromBlocks(allQuestions)
+      }
+    }
+    return apiOk({ olympiad: { ...data, questions, question_count } })
   }
 
   if (listing) {

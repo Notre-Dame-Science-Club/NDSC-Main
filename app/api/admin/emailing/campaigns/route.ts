@@ -2,7 +2,7 @@ import { supabaseAdmin } from '@/lib/supabase'
 import { NextRequest, after } from 'next/server'
 import { requireAdmin } from '@/lib/api/admin-auth'
 import { apiError, apiOk } from '@/lib/api/response'
-import { resolveAudience, type EmailAudienceFilters } from '@/lib/email/audience'
+import { resolveAudience, type EmailAudienceFilters, type ResolvedRecipient } from '@/lib/email/audience'
 import { processCampaignBatch } from '@/lib/email/campaign-runner'
 
 // Give this route enough wall-clock time to actually finish sending (see
@@ -49,6 +49,7 @@ export async function POST(req: NextRequest) {
     body_html,
     audience_source,
     audience_filters,
+    explicit_recipients,
     scheduled_at,
     send_now,
   } = body as {
@@ -57,16 +58,37 @@ export async function POST(req: NextRequest) {
     body_html: string
     audience_source: 'members' | 'users' | 'both'
     audience_filters: EmailAudienceFilters
+    // Accounts → Bulk sending / Group notify: an exact list (accounts + typed-in/CSV addresses).
+    // When present it is used as-is and audience_source / audience_filters are ignored.
+    explicit_recipients?: { email: string; name?: string; source_id?: string | null }[]
     scheduled_at?: string
     send_now?: boolean
   }
 
-  if (!name || !subject || !body_html || !audience_source) {
+  const explicit = Array.isArray(explicit_recipients)
+  if (!name || !subject || !body_html || (!audience_source && !explicit)) {
     return apiError('Missing required fields: name, subject, body_html, audience_source')
   }
 
   // Resolve audience
-  const recipients = await resolveAudience(audience_source, audience_filters || {})
+  let recipients: ResolvedRecipient[]
+  if (explicit) {
+    const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+    const seen = new Map<string, ResolvedRecipient>()
+    for (const r of explicit_recipients!) {
+      const email = String(r?.email || '').trim().toLowerCase()
+      if (!EMAIL_REGEX.test(email) || seen.has(email)) continue
+      seen.set(email, {
+        email,
+        name: String(r.name || email).slice(0, 200),
+        source: r.source_id ? 'user' : 'custom_email',
+        source_id: r.source_id || null,
+      })
+    }
+    recipients = [...seen.values()]
+  } else {
+    recipients = await resolveAudience(audience_source, audience_filters || {})
+  }
 
   if (recipients.length === 0) {
     return apiError('No recipients match the selected audience filters', 400)
@@ -80,8 +102,8 @@ export async function POST(req: NextRequest) {
       name,
       subject,
       body_html,
-      audience_source,
-      audience_filters: audience_filters || {},
+      audience_source: audience_source || 'both',
+      audience_filters: explicit ? { explicit: true } : (audience_filters || {}),
       status,
       scheduled_at: scheduled_at || null,
       total_recipients: recipients.length,

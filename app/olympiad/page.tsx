@@ -117,7 +117,7 @@ export default function OlympiadListPage() {
       if (cancelled) return
       const uid = data.user?.id
       if (!uid) { setMember(null); return }
-      const { data: m } = await supabase.from('members').select('institution').eq('id', uid).maybeSingle()
+      const { data: m } = await supabase.from('users').select('institution').eq('id', uid).maybeSingle()
       if (!cancelled) setMember(m || null)
     }).catch(() => { if (!cancelled) setMember(null) })
     return () => { cancelled = true }
