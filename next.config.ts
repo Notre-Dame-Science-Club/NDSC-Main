@@ -14,6 +14,21 @@ const nextConfig: NextConfig = {
   experimental: {
     serverActions: { bodySizeLimit: "200mb" },
   },
+  async headers() {
+    return [
+      {
+        source: "/sw.js",
+        headers: [
+          { key: "Cache-Control", value: "no-cache, no-store, must-revalidate" },
+          { key: "Service-Worker-Allowed", value: "/" },
+        ],
+      },
+      {
+        source: "/.well-known/assetlinks.json",
+        headers: [{ key: "Content-Type", value: "application/json" }],
+      },
+    ];
+  },
   serverExternalPackages: ["@supabase/supabase-js", "@supabase/auth-js"],
 };
 

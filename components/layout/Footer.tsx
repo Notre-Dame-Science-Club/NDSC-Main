@@ -16,6 +16,7 @@ const PORTAL_LINKS = [
   { href: "/login", label: "Login", icon: <LogIn size={13} /> },
   { href: "/register", label: "Register", icon: <UserPlus size={13} /> },
   { href: "/dashboard", label: "Dashboard", icon: <LayoutDashboard size={13} /> },
+  { href: "/privacy", label: "Privacy Policy", icon: <ShieldCheck size={13} /> },
   { href: "/admin/login", label: "Admin Panel", icon: <ShieldCheck size={13} /> },
 ];
 

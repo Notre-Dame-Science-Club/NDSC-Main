@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import Script from "next/script";
 import "./globals.css";
 // Loaded after globals.css on purpose: it re-points the same design tokens
@@ -13,6 +13,7 @@ import ScrollReveal from "@/components/ScrollReveal";
 import SpaceRocket from "@/components/SpaceRocket";
 import { supabaseAdmin } from "@/lib/supabase";
 import { darkenHex, hexToRgbString, isValidHex } from "@/lib/color";
+import ServiceWorkerRegister from "@/components/ServiceWorkerRegister";
 import ThemeProvider from "@/components/theme/ThemeProvider";
 import { resolveAppearance, THEME_STORAGE_KEY } from "@/lib/themes";
 
@@ -89,6 +90,12 @@ export const metadata: Metadata = {
     googleBot: { index: true, follow: true, "max-image-preview": "large" },
   },
   verification: {},
+};
+
+export const viewport: Viewport = {
+  themeColor: "#020810",
+  width: "device-width",
+  initialScale: 1,
 };
 
 const HEADER_SIZES: Record<string, { height: string; logo: string }> = {
@@ -193,6 +200,7 @@ export default async function RootLayout({
           <Footer />
           <SurveyNotification />
           <ActivityNotification />
+          <ServiceWorkerRegister />
         </ThemeProvider>
       </body>
     </html>
