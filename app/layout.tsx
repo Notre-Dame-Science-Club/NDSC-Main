@@ -169,9 +169,13 @@ export default async function RootLayout({
         <link rel="icon" href="/images/cropped-logo.png" type="image/png" sizes="32x32" />
         <link rel="shortcut icon" href="/favicon.png" />
         <link rel="apple-touch-icon" href="/favicon.png" sizes="180x180" />
-        {appearance.font_google_url && (
-          <link rel="stylesheet" href={appearance.font_google_url} />
-        )}
+        {/* Only Google Fonts stylesheets are allowed here. This value comes from the
+            database, and an arbitrary stylesheet URL lets whoever can write that row
+            restyle or deface every page on the site. */}
+        {appearance.font_google_url &&
+          /^https:\/\/fonts\.googleapis\.com\//.test(appearance.font_google_url) && (
+            <link rel="stylesheet" href={appearance.font_google_url} />
+          )}
       </head>
       <body suppressHydrationWarning>
         <Script id="ndsc-theme-init" strategy="beforeInteractive">
