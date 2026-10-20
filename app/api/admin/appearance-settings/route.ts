@@ -40,6 +40,18 @@ export async function PUT(req: NextRequest) {
   const unauthorized = await requireAdmin()
   if (unauthorized) return unauthorized
   const body = await req.json() // { key: string, value: string }
+  // Only the known appearance keys may be written through this route.
+  if (typeof body.key !== 'string' || !APPEARANCE_KEYS.includes(body.key)) {
+    return apiError('Invalid key', 400)
+  }
+  // The font stylesheet must be a Google Fonts URL (or empty to clear it).
+  if (
+    body.key === 'font_google_url' &&
+    body.value &&
+    !/^https:\/\/fonts\.googleapis\.com\//.test(String(body.value))
+  ) {
+    return apiError('Only https://fonts.googleapis.com/ URLs are allowed', 400)
+  }
   const { error } = await supabaseAdmin
     .from('homepage_settings')
     .upsert({ key: body.key, value: body.value, updated_at: new Date().toISOString() },
