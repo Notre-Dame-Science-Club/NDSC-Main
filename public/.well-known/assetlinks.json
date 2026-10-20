@@ -1,0 +1,8 @@
+[{
+      "relation": ["delegate_permission/common.handle_all_urls"],
+      "target": {
+        "namespace": "android_app",
+        "package_name": "net.ndscbd.app",
+        "sha256_cert_fingerprints": ["3E:C3:B9:7D:98:3F:1F:7B:9C:52:BF:DF:E3:8B:EA:4D:C3:14:31:8E:04:33:9F:49:BC:6C:50:DD:7F:ED:97:44"]
+      }
+    }]
