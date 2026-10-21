@@ -33,7 +33,13 @@ export async function GET() {
     .in('key', APPEARANCE_KEYS)
   if (error) return apiError(error, 400)
   const obj: Record<string, string> = {}
-  for (const row of data || []) obj[row.key] = row.value
+  // Stored rows are untrusted (the table may have been written directly).
+  // Anything that fails the allowlist is dropped, so no consumer of this
+  // endpoint ever receives a poisoned font URL, image URL or colour.
+  for (const row of data || []) {
+    const checked = validateAppearanceSetting(row.key, row.value)
+    if (checked.ok) obj[row.key] = checked.value
+  }
   return apiOk(obj)
 }
 

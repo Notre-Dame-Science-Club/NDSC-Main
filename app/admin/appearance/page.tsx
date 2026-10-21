@@ -3,6 +3,7 @@ import { useEffect, useState, useCallback } from 'react'
 import { CURATED_GOOGLE_FONTS, searchGoogleFonts, buildGoogleFontsUrl, parseGoogleFontsFamily, isGoogleFontsUrl } from '@/lib/googleFonts'
 import { isValidHex } from '@/lib/color'
 import { normalizeUploadUrl } from '@/lib/uploadUrl'
+import { safeGoogleFontsUrl } from '@/lib/safeStyle'
 import { Search, Link2, Check, AlertCircle, Upload, X, Video, Image as ImageIcon } from 'lucide-react'
 import { THEMES, THEME_IDS, ThemeId, parseThemeList, resolveAppearance } from '@/lib/themes'
 
@@ -45,10 +46,13 @@ export default function AppearanceSettingsAdmin() {
 
   // Load whatever font is currently selected into the page so the preview text renders in it.
   useEffect(() => {
-    const href = values.font_google_url
-    if (!href) return
+    const href = safeGoogleFontsUrl(values.font_google_url)
     const id = 'appearance-font-preview'
     let link = document.getElementById(id) as HTMLLinkElement | null
+    if (!href) {
+      link?.remove()
+      return
+    }
     if (!link) {
       link = document.createElement('link')
       link.id = id
