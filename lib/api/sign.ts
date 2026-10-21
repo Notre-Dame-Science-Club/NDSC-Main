@@ -9,15 +9,18 @@ import { createHmac, timingSafeEqual } from 'crypto'
 // values are otherwise unconstrained here and this keeps the encoding
 // simple and reversible.
 
-// Fallback used only when SESSION_SECRET isn't set in the environment.
-// This is a hardcoded dev convenience, NOT safe for production — anyone with
-// this source can forge session cookies. Set SESSION_SECRET in .env before
-// deploying anywhere real.
+// Fallback used only when SESSION_SECRET isn't set AND we're not in
+// production. This is a hardcoded dev convenience — anyone with this source
+// can forge session cookies — so in production getSecret() throws instead.
 const FALLBACK_SESSION_SECRET = 'dev-insecure-fallback-session-secret-change-me'
 
 function getSecret(): string {
   const secret = process.env.SESSION_SECRET
   if (!secret) {
+    if (process.env.NODE_ENV === 'production') {
+      // Fail closed: never sign or verify with a secret that is public in the repo.
+      throw new Error('SESSION_SECRET must be set in production.')
+    }
     console.warn(
       'SESSION_SECRET is not set — falling back to a hardcoded dev secret. ' +
         'This is insecure and must not be used in production.'

@@ -137,6 +137,9 @@ export class Engine {
     if ('maxDelayMs' in p) p.maxDelayMs = num(p.maxDelayMs, this.settings.maxDelayMs)
     if (p.minDelayMs > (p.maxDelayMs ?? this.settings.maxDelayMs)) p.maxDelayMs = p.minDelayMs
     for (const k of Object.keys(p)) if (!(k in DEFAULT_SETTINGS)) delete p[k]
+    // logoFile is joined onto the data dir in logoPath(): only accept the two
+    // names the app itself writes (via /api/logo), or '' to clear it.
+    if ('logoFile' in p && !(p.logoFile === '' || /^logo\.(png|jpg)$/.test(String(p.logoFile)))) delete p.logoFile
     this.settings = { ...this.settings, ...p }
     this.#writeJson(this.settingsFile, this.settings)
     return this.settings

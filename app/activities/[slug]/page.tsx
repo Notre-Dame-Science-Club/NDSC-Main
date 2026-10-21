@@ -17,7 +17,13 @@ function getYoutubeId(url: string) {
 
 function renderMarkdown(text: string) {
   if (!text) return ''
+  // Escape HTML first (same order as NDSCBot's parseMarkdown), so admin- or
+  // user-supplied text can't inject markup; the replacements below then add
+  // only the tags we intend.
   return text
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
     .replace(/^## (.+)$/gm, '<h2 style="font-size:1.25rem;font-weight:700;margin:1.5rem 0 0.5rem;color:var(--white)">$1</h2>')
     .replace(/^### (.+)$/gm, '<h3 style="font-size:1rem;font-weight:700;margin:1.25rem 0 0.5rem;color:var(--white)">$1</h3>')
     .replace(/\*\*(.+?)\*\*/g, '<strong style="color:var(--white)">$1</strong>')

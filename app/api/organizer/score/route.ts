@@ -2,6 +2,8 @@ import { NextRequest } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase'
 import { getOrganizerSession } from '@/lib/organizerAuth'
 import { apiError, apiOk } from '@/lib/api/response'
+import { getOlympiadActivityLink } from '@/lib/server/olympiadActivityLink'
+import { registrationBelongsToLink } from '@/lib/server/olympiadOwnership'
 
 export const dynamic = 'force-dynamic'
 
@@ -113,12 +115,22 @@ export async function POST(req: NextRequest) {
   // First verify the registration exists
   const { data: activityReg } = await supabaseAdmin
     .from('activity_registrations')
-    .select('id')
+    .select('id, form_node_id')
     .eq('id', regId)
     .maybeSingle()
 
   if (!activityReg) {
     return apiError('Registration not found.', 404)
+  }
+
+  // The olympiadId in the body is attacker-controlled, so authorizing it alone
+  // isn't enough: resolve the registration's REAL olympiad the same way the
+  // organizer registrations listing does (form node -> linked olympiad) and
+  // require it to match, otherwise an organizer for olympiad A could score
+  // registrations belonging to olympiad B.
+  const link = await getOlympiadActivityLink(olympiadId)
+  if (!registrationBelongsToLink(activityReg.form_node_id, link)) {
+    return apiError('Forbidden.', 403)
   }
 
   // Look up or create the activity_submission

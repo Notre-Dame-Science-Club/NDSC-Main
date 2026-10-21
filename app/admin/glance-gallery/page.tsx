@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { Save, Upload } from 'lucide-react'
-import { uploadFile } from '@/lib/uploadClient'
+import { uploadFile } from '@/lib/adminUpload'
 import FocalPointPicker from '@/components/admin/FocalPointPicker'
 import { GLANCE_ITEMS } from '@/app/_components/home2/glanceGalleryContent'
 

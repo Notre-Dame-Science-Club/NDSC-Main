@@ -1,6 +1,8 @@
 import { supabaseAdmin } from '@/lib/supabase'
 import { NextRequest } from 'next/server'
 import { apiError, apiOk } from '@/lib/api/response'
+import { verifyPayload } from '@/lib/api/sign'
+import { guardLogin } from '@/lib/api/rateLimit'
 import { createHash, randomBytes } from 'crypto'
 
 // POST /api/auth/reset-password
@@ -15,6 +17,11 @@ export async function POST(req: NextRequest) {
 
   const IS_LOCAL = (process.env.SUPABASE_ENV || '').toLowerCase() === 'local'
 
+  // Per-IP throttle (no identifier: the token is signed, so guessing is moot,
+  // but this stops hammering the endpoint).
+  const limited = guardLogin('reset-password', req, '', { limit: 20 })
+  if (limited) return limited
+
   try {
     const { reset_token, new_password } = await req.json()
 
@@ -26,12 +33,11 @@ export async function POST(req: NextRequest) {
       return apiError('Password must be at least 6 characters.', 400)
     }
 
-    // Decode and verify the reset token
-    let tokenData
-    try {
-      const decoded = Buffer.from(reset_token, 'base64').toString('utf8')
-      tokenData = JSON.parse(decoded)
-    } catch {
+    // Verify the reset token's signature (returns null if unsigned, tampered or malformed)
+    const tokenData = typeof reset_token === 'string'
+      ? verifyPayload<{ id?: string; email?: string; source?: string; exp?: string }>(reset_token)
+      : null
+    if (!tokenData) {
       return apiError('Invalid reset token.', 401)
     }
 

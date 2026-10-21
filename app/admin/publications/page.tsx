@@ -1,7 +1,7 @@
 'use client'
 import { type ChangeEvent, useEffect, useRef, useState } from 'react'
 import { Pencil, Plus, Upload, Loader2, X, FileText, CheckCircle2, BookOpen } from 'lucide-react'
-import { normalizeUploadUrl } from '@/lib/uploadUrl'
+import { uploadFile } from '@/lib/adminUpload'
 
 type Publication = {
   id: string
@@ -142,64 +142,6 @@ export default function AdminPublicationsPage() {
     }
   }, [categories, form.category])
 
-  const uploadFile = (file: File, bucket: string, onProgress?: (pct: number) => void): Promise<string | null> => {
-  return new Promise(async (resolve) => {
-    // Step 1: token নাও
-    let uploadUrl: string
-    let secret: string
-    try {
-      const res = await fetch('/api/admin/upload-token')
-      const data = await res.json()
-      if (!data.uploadUrl || !data.secret) { resolve(null); return }
-      uploadUrl = data.uploadUrl
-      secret = data.secret
-    } catch { resolve(null); return }
-
-    // Step 2: সরাসরি Hostinger এ পাঠাও — Vercel bypass
-    const BUCKET_TO_FOLDER: Record<string, string> = {
-      'activity-covers': 'covers',
-      'activity-gallery': 'gallery',
-      'activity-pdfs': 'pdfs',
-      'executive-photos': 'executives',
-      'covers': 'covers',
-      'gallery': 'gallery',
-      'pdfs': 'pdfs',
-      'executives': 'executives',
-      'misc': 'misc',
-    }
-    const folder = BUCKET_TO_FOLDER[bucket] ?? 'misc'
-
-    const fd = new FormData()
-    fd.append('file', file)
-    fd.append('folder', folder)
-
-    const xhr = new XMLHttpRequest()
-
-    xhr.upload.addEventListener('progress', (e) => {
-      if (e.lengthComputable && onProgress) {
-        onProgress(Math.round((e.loaded / e.total) * 100))
-      }
-    })
-
-    xhr.addEventListener('load', () => {
-      try {
-        const data = JSON.parse(xhr.responseText)
-        // Hostinger's upload.php sometimes returns the URL with an extra
-        // /uploads/ segment (…/uploads/covers/x.jpg) even though the file
-        // actually lands at …/covers/x.jpg. Saving that raw value straight
-        // into the DB was the cause of every broken publication cover.
-        resolve(data.url ? normalizeUploadUrl(data.url) : null)
-      } catch { resolve(null) }
-    })
-
-    xhr.addEventListener('error', () => resolve(null))
-    xhr.open('POST', uploadUrl)
-    xhr.setRequestHeader('X-Upload-Secret', secret)
-    xhr.send(fd)
-  })
-}
-   
-  
   const handleCover = async (e: ChangeEvent<HTMLInputElement>) => {
   const file = e.target.files?.[0]
   if (!file) return

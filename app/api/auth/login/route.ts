@@ -2,6 +2,7 @@ import { supabase, supabaseAdmin } from '@/lib/supabase'
 import { NextRequest } from 'next/server'
 import { apiOk } from '@/lib/api/response'
 import { signLocalToken } from '@/lib/localAuth'
+import { guardLogin, lockKey, recordFailure, clearFailures } from '@/lib/api/rateLimit'
 
 // Member login.
 //
@@ -50,6 +51,10 @@ export async function POST(req: NextRequest) {
       )
     }
 
+    const limited = guardLogin('auth-login', req, String(email))
+    if (limited) return limited
+    const failKey = lockKey('auth-login', req, String(email))
+
     if (IS_LOCAL) {
       // Look up the member by email (case-insensitive index added in
       // db/migration_member_password_07.sql). We pull the columns
@@ -67,8 +72,10 @@ export async function POST(req: NextRequest) {
         return apiOk({ error: 'Server error. Please try again.' }, { status: 500 })
       }
       if (!member || !member.password_hash || !verifyPasswordLocal(password, member.password_hash)) {
+        recordFailure(failKey)
         return apiOk({ error: 'Incorrect email or password.' }, { status: 401 })
       }
+      clearFailures(failKey)
 
       // Note: this used to reject login here when !member.is_verified.
       // That made sense when a membership slip was mandatory at
@@ -134,11 +141,13 @@ export async function POST(req: NextRequest) {
     })
 
     if (error) {
+      recordFailure(failKey)
       return apiOk(
         { error: 'Incorrect email or password.' },
         { status: 401 }
       )
     }
+    clearFailures(failKey)
 
     // users table থেকে info আনো (all accounts; club members also have a `members` row)
     const { data: member, error: memberError } = await supabaseAdmin
