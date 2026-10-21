@@ -3,12 +3,15 @@
 // app/activities/[slug]/register/page.tsx; moved here so the admin editor
 // can use the same code to live-preview the form while editing.
 
+import { safeCssColor } from './safeStyle'
+
 type EcMember = { id: string; full_name: string; position: string; email?: string | null; whatsapp?: string | null; facebook_url?: string | null }
 export type FormContactPerson = { name: string; post?: string; phone?: string; email?: string; whatsapp?: string; facebook?: string }
 
 /** 'default' | '#hexcolor' | 'var(--preset)' → CSS color usable in inline style. */
 export function resolveAccent(theme: string | undefined | null): string {
-  if (theme && theme !== 'default') return theme
+  // The value comes from the DB: only a real colour / var(--token) may reach inline styles.
+  if (theme && theme !== 'default') return safeCssColor(theme) || 'var(--blue)'
   return 'var(--blue)'
 }
 

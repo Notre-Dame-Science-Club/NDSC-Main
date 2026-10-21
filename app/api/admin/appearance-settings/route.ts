@@ -2,6 +2,7 @@ import { supabaseAdmin } from '@/lib/supabase'
 import { NextRequest } from 'next/server'
 import { apiError, apiOk } from '@/lib/api/response'
 import { requireAdmin } from '@/lib/api/admin-auth'
+import { validateAppearanceSetting } from '@/lib/safeStyle'
 
 // Appearance settings are stored as extra rows in the existing homepage_settings
 // key/value table (keys: default_theme, theme_switcher_enabled,
@@ -44,17 +45,13 @@ export async function PUT(req: NextRequest) {
   if (typeof body.key !== 'string' || !APPEARANCE_KEYS.includes(body.key)) {
     return apiError('Invalid key', 400)
   }
-  // The font stylesheet must be a Google Fonts URL (or empty to clear it).
-  if (
-    body.key === 'font_google_url' &&
-    body.value &&
-    !/^https:\/\/fonts\.googleapis\.com\//.test(String(body.value))
-  ) {
-    return apiError('Only https://fonts.googleapis.com/ URLs are allowed', 400)
-  }
+  // Every value is checked against an allowlist for its key (font stack, hex
+  // colour, Google Fonts URL, theme id, allowed-host image URL...).
+  const checked = validateAppearanceSetting(body.key, body.value)
+  if (!checked.ok) return apiError(checked.error, 400)
   const { error } = await supabaseAdmin
     .from('homepage_settings')
-    .upsert({ key: body.key, value: body.value, updated_at: new Date().toISOString() },
+    .upsert({ key: body.key, value: checked.value, updated_at: new Date().toISOString() },
       { onConflict: 'key' })
   if (error) return apiError(error, 400)
   return apiOk({ success: true })

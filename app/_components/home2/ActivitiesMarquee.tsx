@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import type { ActivitySession } from "../home/types";
 import { extractYouTubeId } from "../home/utils";
+import { cssUrl } from "@/lib/safeStyle";
 
 function coverFor(s: ActivitySession): string | null {
   if (s.cover_image_url) return s.cover_image_url;
@@ -60,7 +61,7 @@ export default function ActivitiesMarquee() {
                 className="ch-mcard"
                 data-cursor
               >
-                <span className="bg" style={cover ? { backgroundImage: `url(${cover})` } : { background: "linear-gradient(150deg,#123,#0a1830)" }} />
+                <span className="bg" style={cover ? { backgroundImage: cssUrl(cover) } : { background: "linear-gradient(150deg,#123,#0a1830)" }} />
                 <span className="tag">{s.activity_types?.name?.toUpperCase() || "ACTIVITY"}</span>
                 <span className="cap">
                   <b>{s.title}</b>

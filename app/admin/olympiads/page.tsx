@@ -6,6 +6,7 @@ import AnnotationViewer, { Annotation } from '@/components/olympiad/AnnotationVi
 import ResponseDetailModal from '@/components/olympiad/ResponseDetailModal'
 import { FormGraphBuilderForOwner } from '@/components/admin/FormGraphBuilder'
 import { normalizeUploadUrl } from '@/lib/uploadUrl'
+import { cssUrl, safeCssColor } from '@/lib/safeStyle'
 
 const uid = () => Math.random().toString(36).slice(2, 9)
 
@@ -1026,8 +1027,8 @@ export default function AdminOlympiadsPage() {
               <p className="text-xs mb-1.5" style={{ color: 'var(--muted)' }}>Preview</p>
               <div className="rounded-xl p-5 flex items-center gap-3" style={{
                 background: editing.theme_bg_image_url
-                  ? `linear-gradient(${editing.theme_bg_color || 'rgba(0,0,0,0.45)'}, ${editing.theme_bg_color || 'rgba(0,0,0,0.45)'}), url(${editing.theme_bg_image_url}) center/cover`
-                  : (editing.theme_bg_color || 'var(--surface-deep)'),
+                  ? `linear-gradient(${safeCssColor(editing.theme_bg_color) || 'rgba(0,0,0,0.45)'}, ${safeCssColor(editing.theme_bg_color) || 'rgba(0,0,0,0.45)'}), ${cssUrl(editing.theme_bg_image_url)} center/cover`
+                  : (safeCssColor(editing.theme_bg_color) || 'var(--surface-deep)'),
                 border: '1px solid var(--border)',
               }}>
                 {editing.theme_header_logo_url && <img src={editing.theme_header_logo_url} alt="" className="h-9 object-contain flex-shrink-0" />}
