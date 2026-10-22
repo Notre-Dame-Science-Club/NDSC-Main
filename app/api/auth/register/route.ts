@@ -6,7 +6,7 @@ import { claimTeamRegistrations } from '@/lib/server/claimRegistrations'
 import { checkRateLimit } from '@/lib/api/rateLimitCore'
 import { clientIp, tooManyRequests } from '@/lib/api/rateLimit'
 import { verifyTurnstile } from '@/lib/api/turnstile'
-import { validateRegister } from '@/lib/api/registerValidation'
+import { validateRegister, type RegisterInput } from '@/lib/api/registerValidation'
 
 // Member registration.
 //
@@ -58,8 +58,8 @@ export async function POST(req: NextRequest) {
 
     // 3) Validate + normalise every field (email lower-cased, lengths capped…).
     const v = validateRegister(body)
-    if (!v.ok) return apiError(v.error, 400)
-    const { email, password, full_name, institution, education_level, phone } = v.value
+    if (!v.ok) return apiError(v.error || 'Invalid request.', 400)
+    const { email, password, full_name, institution, education_level, phone } = v.value as RegisterInput
 
     // 4) Captcha — verified on the server with the secret key. Only now do we
     //    touch Supabase, which is the expensive part.

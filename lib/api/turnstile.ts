@@ -15,7 +15,8 @@
 
 const VERIFY_URL = 'https://challenges.cloudflare.com/turnstile/v0/siteverify'
 
-export type TurnstileResult = { ok: true } | { ok: false; reason: 'missing' | 'invalid' | 'not_configured' | 'unreachable' }
+// Flat type (not a union): the project's tsconfig is not `strict`, so unions don't narrow.
+export type TurnstileResult = { ok: boolean; reason?: 'missing' | 'invalid' | 'not_configured' | 'unreachable' }
 
 export async function verifyTurnstile(token: unknown, remoteIp?: string): Promise<TurnstileResult> {
   const isLocal = (process.env.SUPABASE_ENV || '').toLowerCase() === 'local'

@@ -18,7 +18,11 @@ export type RegisterInput = {
   phone: string
 }
 
-export function validateRegister(body: any): { ok: true; value: RegisterInput } | { ok: false; error: string } {
+// Flat result type on purpose: the project's tsconfig is not `strict`, so TypeScript
+// cannot narrow a `{ok:true}|{ok:false}` union and the build would fail.
+export type RegisterResult = { ok: boolean; error?: string; value?: RegisterInput }
+
+export function validateRegister(body: any): RegisterResult {
   if (!body || typeof body !== 'object') return { ok: false, error: 'Invalid request.' }
   const { email, password, full_name, institution, education_level, phone } = body
 
