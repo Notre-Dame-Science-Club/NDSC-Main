@@ -9,7 +9,7 @@ import {
   type SurveyQuestion, type SurveyQuestionType, type SurveyAudienceType, type SurveyAudienceConfig,
   SURVEY_QUESTION_TYPES, AUDIENCE_LABELS, blankQuestion,
 } from '@/lib/survey'
-import { normalizeUploadUrl } from '@/lib/uploadUrl'
+import { uploadAdminFile } from '@/lib/adminUpload'
 
 type Survey = {
   id: string
@@ -217,30 +217,8 @@ export default function AdminSurveysPage() {
     if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) { setUploadError('Only JPG/PNG/WebP allowed'); return }
     setUploading(true); setUploadError('')
     try {
-      const tokenRes = await fetch('/api/admin/upload-token')
-      if (!tokenRes.ok) throw new Error('Could not get upload token')
-      const { uploadUrl, secret } = await tokenRes.json()
-      const fd = new FormData()
-      fd.append('file', file)
-      fd.append('folder', 'survey-covers')
-      const url: string = await new Promise((resolve, reject) => {
-        const xhr = new XMLHttpRequest()
-        xhr.addEventListener('load', () => {
-          try {
-            const d = JSON.parse(xhr.responseText)
-            // Same Hostinger /uploads/ quirk as the Olympiads/Publications admin.
-            if (xhr.status >= 200 && xhr.status < 300 && d.url) resolve(normalizeUploadUrl(d.url))
-            else reject(new Error(d.error || 'Upload failed'))
-          } catch { reject(new Error('Upload failed')) }
-        })
-        xhr.addEventListener('error', () => reject(new Error('Network error')))
-        xhr.open('POST', uploadUrl)
-        // Secret must go in the header — Hostinger's upload script reads
-        // X-Upload-Secret, not a body field (see the same note in the
-        // Olympiads admin page's uploadFile helper).
-        xhr.setRequestHeader('X-Upload-Secret', secret)
-        xhr.send(fd)
-      })
+      // Server-side proxy holds the upload secret.
+      const url = await uploadAdminFile(file, 'survey-covers')
       setEditing(p => ({ ...p, cover_image_url: url }))
     } catch (e: any) {
       setUploadError(e.message || 'Upload failed')

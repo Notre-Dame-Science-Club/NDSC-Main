@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { Plus, Trash2, Save, Upload, GripVertical } from 'lucide-react'
-import { uploadFile } from '@/lib/uploadClient'
+import { uploadFile } from '@/lib/adminUpload'
 import FocalPointPicker from '@/components/admin/FocalPointPicker'
 
 type Row = {

@@ -1,6 +1,8 @@
 import { supabaseAdmin } from '@/lib/supabase'
 import { NextRequest } from 'next/server'
 import { apiError, apiOk } from '@/lib/api/response'
+import { signPayload } from '@/lib/api/sign'
+import { guardLogin, lockKey, recordFailure, clearFailures } from '@/lib/api/rateLimit'
 
 // POST /api/auth/verify-phone
 // Verifies that a phone number matches the one registered with an email
@@ -21,6 +23,11 @@ export async function POST(req: NextRequest) {
       return apiError('Email and phone number are required.', 400)
     }
 
+    // Phone numbers are low-entropy, so brute-force protection matters here.
+    const limited = guardLogin('verify-phone', req, email)
+    if (limited) return limited
+    const failKey = lockKey('verify-phone', req, email)
+
     // Look up the account by email (every website account lives in `users`)
     const { data: account } = await supabaseAdmin
       .from('users')
@@ -30,6 +37,7 @@ export async function POST(req: NextRequest) {
 
     if (!account) {
       // Return generic error to prevent email enumeration
+      recordFailure(failKey)
       return apiError('Invalid email or phone number.', 401)
     }
 
@@ -41,23 +49,22 @@ export async function POST(req: NextRequest) {
     const storedPhone = normalizePhone(account.phone || '')
 
     if (!storedPhone || inputPhone !== storedPhone) {
+      recordFailure(failKey)
       return apiError('Invalid email or phone number.', 401)
     }
 
-    // Generate a temporary reset token (valid for 15 minutes)
-    const resetToken = crypto.randomUUID()
-    const expiresAt = new Date(Date.now() + 15 * 60 * 1000).toISOString()
+    clearFailures(failKey)
 
-    // Store token in a temporary table or in-memory (for simplicity, we'll return it)
-    // In production, you'd want to store this in a password_reset_tokens table
-    // For now, we'll encode the info in a JWT-like token
-    const tokenData = Buffer.from(JSON.stringify({
+    // Temporary reset token (valid for 15 minutes). It is HMAC-signed with
+    // SESSION_SECRET so it cannot be hand-crafted or tampered with; the
+    // reset-password route verifies it with verifyPayload().
+    const expiresAt = new Date(Date.now() + 15 * 60 * 1000).toISOString()
+    const tokenData = signPayload({
       id: account.id,
       email: account.email,
       source: 'users',
       exp: expiresAt,
-      nonce: resetToken
-    })).toString('base64')
+    })
 
     return apiOk({
       success: true,

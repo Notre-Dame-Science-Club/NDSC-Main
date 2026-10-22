@@ -4,7 +4,7 @@ import { useParams, useRouter } from 'next/navigation'
 import {
   ArrowLeft, Download, Loader2, Trash2, Upload, Users, Copy, Check, AlertCircle, Eye,
 } from 'lucide-react'
-import { uploadFile } from '@/lib/uploadClient'
+import { uploadFile } from '@/lib/adminUpload'
 import {
   parseCsv,
   validateCertificateRecipientsCsv,

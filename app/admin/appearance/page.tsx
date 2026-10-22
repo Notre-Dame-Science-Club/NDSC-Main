@@ -2,7 +2,8 @@
 import { useEffect, useState, useCallback } from 'react'
 import { CURATED_GOOGLE_FONTS, searchGoogleFonts, buildGoogleFontsUrl, parseGoogleFontsFamily, isGoogleFontsUrl } from '@/lib/googleFonts'
 import { isValidHex } from '@/lib/color'
-import { normalizeUploadUrl } from '@/lib/uploadUrl'
+import { uploadAdminFile } from '@/lib/adminUpload'
+import { safeGoogleFontsUrl } from '@/lib/safeStyle'
 import { Search, Link2, Check, AlertCircle, Upload, X, Video, Image as ImageIcon } from 'lucide-react'
 import { THEMES, THEME_IDS, ThemeId, parseThemeList, resolveAppearance } from '@/lib/themes'
 
@@ -45,10 +46,13 @@ export default function AppearanceSettingsAdmin() {
 
   // Load whatever font is currently selected into the page so the preview text renders in it.
   useEffect(() => {
-    const href = values.font_google_url
-    if (!href) return
+    const href = safeGoogleFontsUrl(values.font_google_url)
     const id = 'appearance-font-preview'
     let link = document.getElementById(id) as HTMLLinkElement | null
+    if (!href) {
+      link?.remove()
+      return
+    }
     if (!link) {
       link = document.createElement('link')
       link.id = id
@@ -94,67 +98,19 @@ export default function AppearanceSettingsAdmin() {
     setLinkInput('')
   }
 
-  // Upload helper for video/poster — goes straight to Hostinger, bypassing the
-  // Vercel serverless function's ~4.5MB request-body cap (that cap is what was
-  // producing the 413s; /api/admin/upload's own 200MB check never even ran).
-  const UPLOAD_FOLDERS: Record<string, string> = {
-    'about-hero-video': 'about-hero',
-    'about-hero-poster': 'about-hero',
-  }
-
+  // Upload helper for video/poster — posts to the server-side proxy
+  // (/api/admin/upload), which holds the upload secret.
   const uploadFile = useCallback(async (
     file: File,
     folderKey: string,
     onProgress?: (pct: number) => void
   ): Promise<string | null> => {
-    // Step 1: get a short-lived upload token from our own API (this call is tiny,
-    // so it's unaffected by the body-size limit)
-    let uploadUrl: string
-    let secret: string
     try {
-      const res = await fetch('/api/admin/upload-token')
-      const data = await res.json()
-      if (!res.ok || !data.uploadUrl || !data.secret) {
-        alert(data.error || 'Could not get upload token')
-        return null
-      }
-      uploadUrl = data.uploadUrl
-      secret = data.secret
-    } catch {
-      alert('Upload error: could not reach server')
+      return await uploadAdminFile(file, folderKey, onProgress)
+    } catch (e: any) {
+      alert(e?.message || 'Upload failed')
       return null
     }
-
-    // Step 2: upload directly to Hostinger from the browser
-    const folder = UPLOAD_FOLDERS[folderKey] ?? 'misc'
-    const fd = new FormData()
-    fd.append('file', file)
-    fd.append('folder', folder)
-
-    return new Promise((resolve) => {
-      const xhr = new XMLHttpRequest()
-      xhr.upload.addEventListener('progress', (e) => {
-        if (e.lengthComputable && onProgress) onProgress(Math.round((e.loaded / e.total) * 100))
-      })
-      xhr.addEventListener('load', () => {
-        try {
-          const data = JSON.parse(xhr.responseText)
-          if (xhr.status >= 200 && xhr.status < 300 && data.url) {
-            resolve(normalizeUploadUrl(data.url))
-          } else {
-            alert(data.error || `Upload failed (${xhr.status})`)
-            resolve(null)
-          }
-        } catch {
-          alert('Upload failed: invalid response from upload server')
-          resolve(null)
-        }
-      })
-      xhr.addEventListener('error', () => { alert('Upload error'); resolve(null) })
-      xhr.open('POST', uploadUrl)
-      xhr.setRequestHeader('X-Upload-Secret', secret)
-      xhr.send(fd)
-    })
   }, [])
 
   const handleVideoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {

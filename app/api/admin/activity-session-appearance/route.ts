@@ -2,6 +2,7 @@ import { supabaseAdmin } from '@/lib/supabase'
 import { NextRequest } from 'next/server'
 import { requireAdmin } from '@/lib/api/admin-auth'
 import { apiBadRequest, apiError, apiOk } from '@/lib/api/response'
+import { safeCssColor, safeImageUrl } from '@/lib/safeStyle'
 
 // GET /api/admin/activity-session-appearance?session_id=…
 //   Returns the per-session appearance row (or null if none yet).
@@ -51,6 +52,17 @@ export async function PUT(req: NextRequest) {
   const packed: Record<string, any> = { session_id: body.session_id }
   for (const col of APPEARANCE_COLUMNS) {
     if (body[col] !== undefined) packed[col] = body[col]
+  }
+  // These end up in inline styles on the public form: colours and image URLs
+  // must pass the allowlist ('default' / empty = not set).
+  for (const col of ['form_bg_theme', 'form_bg_color'] as const) {
+    const v = packed[col]
+    if (v && v !== 'default' && !safeCssColor(v)) {
+      return apiBadRequest(`${col} must be a hex colour, rgb() value or var(--token).`)
+    }
+  }
+  if (packed.form_bg_image_url && !safeImageUrl(packed.form_bg_image_url)) {
+    return apiBadRequest('form_bg_image_url must be an https URL on an allowed image host.')
   }
   packed.updated_at = new Date().toISOString()
 

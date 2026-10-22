@@ -4,6 +4,7 @@ import { verifyPassword } from '@/lib/password'
 import { apiError, apiOk } from '@/lib/api/response'
 import { issueTeamToken } from '@/lib/api/teamToken'
 import { normalizeEmail } from '@/lib/identity'
+import { guardLogin, lockKey, recordFailure, clearFailures } from '@/lib/api/rateLimit'
 
 // Team members aren't real Supabase Auth users — their credentials live
 // inside their leader's registration row (team_members jsonb array), set by
@@ -19,6 +20,10 @@ export async function POST(req: NextRequest) {
   if (!email || !password) {
     return apiError('Email and password are required.', 400)
   }
+
+  const limited = guardLogin('team-login', req, String(email))
+  if (limited) return limited
+  const failKey = lockKey('team-login', req, String(email))
 
   // Filtering "team_members is not an empty array" reliably via PostgREST's
   // jsonb equality comparison is fiddly and easy to get subtly wrong (jsonb
@@ -57,9 +62,11 @@ export async function POST(req: NextRequest) {
     }
   }
   if (matches.length) {
+    clearFailures(failKey)
     // First match keeps the legacy top-level shape; `matches` lists all.
     return apiOk({ ...matches[0], matches })
   }
 
+  recordFailure(failKey)
   return apiError('Incorrect email or password.', 401)
 }

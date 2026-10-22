@@ -16,6 +16,7 @@ import { darkenHex, hexToRgbString, isValidHex } from "@/lib/color";
 import ServiceWorkerRegister from "@/components/ServiceWorkerRegister";
 import ThemeProvider from "@/components/theme/ThemeProvider";
 import { resolveAppearance, THEME_STORAGE_KEY } from "@/lib/themes";
+import { safeFontStack, safeGoogleFontsUrl } from "@/lib/safeStyle";
 
 export const metadata: Metadata = {
   title: "Notre Dame Science Club (NDSC) | ndscbd.net — Official Website",
@@ -142,9 +143,14 @@ export default async function RootLayout({
     "--navbar-height": headerSize.height,
     "--navbar-logo": headerSize.logo,
   };
-  if (appearance.font_family) {
-    rootStyle["--font-body"] = appearance.font_family;
-    rootStyle["--font-heading"] = appearance.font_family;
+  // font_family and font_google_url come from the database. Only a plain font
+  // stack / a Google Fonts URL may reach <html style> and <head>: a ";" in the
+  // font value would start a new declaration on <html> for every page.
+  const fontFamily = safeFontStack(appearance.font_family);
+  const fontStylesheet = safeGoogleFontsUrl(appearance.font_google_url);
+  if (fontFamily) {
+    rootStyle["--font-body"] = fontFamily;
+    rootStyle["--font-heading"] = fontFamily;
   }
   if (appearance.accent_color && isValidHex(appearance.accent_color)) {
     const accent = appearance.accent_color.startsWith("#") ? appearance.accent_color : `#${appearance.accent_color}`;
@@ -169,9 +175,10 @@ export default async function RootLayout({
         <link rel="icon" href="/images/cropped-logo.png" type="image/png" sizes="32x32" />
         <link rel="shortcut icon" href="/favicon.png" />
         <link rel="apple-touch-icon" href="/favicon.png" sizes="180x180" />
-        {appearance.font_google_url && (
-          <link rel="stylesheet" href={appearance.font_google_url} />
-        )}
+        {/* Only Google Fonts stylesheets are allowed here. This value comes from the
+            database, and an arbitrary stylesheet URL lets whoever can write that row
+            restyle or deface every page on the site. */}
+        {fontStylesheet && <link rel="stylesheet" href={fontStylesheet} />}
       </head>
       <body suppressHydrationWarning>
         <Script id="ndsc-theme-init" strategy="beforeInteractive">

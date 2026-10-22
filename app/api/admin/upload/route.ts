@@ -22,6 +22,10 @@ const BUCKET_TO_FOLDER: Record<string, string> = {
   'about-hero-video': 'about-hero',
   'about-hero-poster': 'about-hero',
   'certificates':      'certificates',
+  'certificate-templates': 'certificate-templates',
+  'olympiad-covers':   'olympiad-covers',
+  'olympiad-pdfs':     'olympiad-pdfs',
+  'survey-covers':     'survey-covers',
 }
 
 export async function POST(req: NextRequest) {

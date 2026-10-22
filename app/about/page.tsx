@@ -5,6 +5,7 @@ import Image from "next/image";
 import { Landmark, Microscope, Globe2, Trophy, Newspaper, Globe, Sparkles } from "lucide-react";
 import "../_components/home2/home2.css"; // shared .ch-* design (departments + leaders match the homepage)
 import "./about.css";
+import { safeImageUrl, cssUrl } from "@/lib/safeStyle";
 
 /* ═══════════════════════════════════════════
    DATA
@@ -357,8 +358,8 @@ export default function AboutPage() {
     fetch('/api/admin/appearance-settings')
       .then(r => r.json())
       .then(d => setHeroData({ 
-        videoUrl: d.about_hero_video_url || '', 
-        posterUrl: d.about_hero_poster_url || '' 
+        videoUrl: safeImageUrl(d.about_hero_video_url), 
+        posterUrl: safeImageUrl(d.about_hero_poster_url) 
       }));
   }, []);
 
@@ -385,7 +386,7 @@ export default function AboutPage() {
         {/* Fallback: Poster only if no video */}
         {!videoUrl && posterUrl && (
           <div className="absolute inset-0 z-0" style={{ 
-            backgroundImage: `url(${posterUrl})`,
+            backgroundImage: cssUrl(posterUrl),
             backgroundSize: 'cover',
             backgroundPosition: 'center',
           }} />

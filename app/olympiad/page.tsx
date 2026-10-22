@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { ArrowRight, Calendar, CheckCircle, Clock, Loader2, X } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { isNDCStudent } from '@/types/database'
+import { safeCssColor } from '@/lib/safeStyle'
 
 // Public olympiad listing page. This page is now a thin directory of every
 // olympiad in the system — it's deliberately an INDEPENDENT sector from the
@@ -316,12 +317,14 @@ function OlympiadCard({ card, activitySessions }: { card: Card; activitySessions
   const isGreyed = !isOpen
   const parentActivity = o.parent_activity_session_id ? activitySessions[o.parent_activity_session_id] : null
 
-  const accent = o.theme_accent_color || 'var(--blue)'
+  // theme_accent_color is stored in the DB: only a real colour may reach inline styles.
+  const themeAccent = safeCssColor(o.theme_accent_color)
+  const accent = themeAccent || 'var(--blue)'
   const cardStyle: React.CSSProperties = {
     background: 'var(--surface-deep)',
     border: '1px solid var(--border)',
     borderRadius: 16,
-    borderLeft: o.theme_accent_color ? `3px solid ${o.theme_accent_color}` : '1px solid var(--border)',
+    borderLeft: themeAccent ? `3px solid ${themeAccent}` : '1px solid var(--border)',
     opacity: isGreyed ? 0.7 : 1,
     filter: status === 'inactive' ? 'grayscale(0.5)' : undefined,
   }

@@ -5,7 +5,8 @@ import { Plus, Trash2, Edit2, ChevronDown, ChevronUp, Eye, EyeOff, X, Megaphone,
 import AnnotationViewer, { Annotation } from '@/components/olympiad/AnnotationViewer'
 import ResponseDetailModal from '@/components/olympiad/ResponseDetailModal'
 import { FormGraphBuilderForOwner } from '@/components/admin/FormGraphBuilder'
-import { normalizeUploadUrl } from '@/lib/uploadUrl'
+import { uploadAdminFile } from '@/lib/adminUpload'
+import { cssUrl, safeCssColor } from '@/lib/safeStyle'
 
 const uid = () => Math.random().toString(36).slice(2, 9)
 
@@ -230,36 +231,11 @@ export default function AdminOlympiadsPage() {
   }
 
   // Upload helper
-  const uploadFile = (file: File, folder: string, maxMB: number, accept: string[]): Promise<string> => {
-    return new Promise(async (resolve, reject) => {
-      if (file.size > maxMB * 1024 * 1024) { reject(new Error(`Max ${maxMB}MB allowed`)); return }
-      if (!accept.includes(file.type)) { reject(new Error('File type not allowed')); return }
-      const tokenRes = await fetch('/api/admin/upload-token')
-      if (!tokenRes.ok) { reject(new Error('Could not get upload token')); return }
-      const { uploadUrl, secret } = await tokenRes.json()
-      const fd = new FormData()
-      fd.append('file', file)
-      fd.append('folder', folder)
-      const xhr = new XMLHttpRequest()
-      xhr.upload.addEventListener('progress', e => { if (e.lengthComputable) setUploadProgress(Math.round(e.loaded / e.total * 100)) })
-      xhr.addEventListener('load', () => {
-        try {
-          const d = JSON.parse(xhr.responseText)
-          // normalizeUploadUrl: Hostinger sometimes returns …/uploads/<folder>/file
-          // while the file actually lives at …/<folder>/file.
-          if (xhr.status >= 200 && xhr.status < 300 && d.url) resolve(normalizeUploadUrl(d.url))
-          else reject(new Error(d.error || 'Upload failed'))
-        } catch { reject(new Error('Upload failed')) }
-      })
-      xhr.addEventListener('error', () => reject(new Error('Network error')))
-      xhr.open('POST', uploadUrl)
-      // The secret must be sent as a header, not a form field — Hostinger's
-      // upload script authenticates by reading the X-Upload-Secret header.
-      // Sending it as a body field (the previous bug) meant the server never
-      // saw it and rejected every direct upload as unauthorized.
-      xhr.setRequestHeader('X-Upload-Secret', secret)
-      xhr.send(fd)
-    })
+  const uploadFile = async (file: File, folder: string, maxMB: number, accept: string[]): Promise<string> => {
+    if (file.size > maxMB * 1024 * 1024) throw new Error(`Max ${maxMB}MB allowed`)
+    if (!accept.includes(file.type)) throw new Error('File type not allowed')
+    // Goes through the server-side proxy, which holds the upload secret.
+    return uploadAdminFile(file, folder, setUploadProgress)
   }
 
   const handleCoverUpload = async (file: File | null) => {
@@ -1026,8 +1002,8 @@ export default function AdminOlympiadsPage() {
               <p className="text-xs mb-1.5" style={{ color: 'var(--muted)' }}>Preview</p>
               <div className="rounded-xl p-5 flex items-center gap-3" style={{
                 background: editing.theme_bg_image_url
-                  ? `linear-gradient(${editing.theme_bg_color || 'rgba(0,0,0,0.45)'}, ${editing.theme_bg_color || 'rgba(0,0,0,0.45)'}), url(${editing.theme_bg_image_url}) center/cover`
-                  : (editing.theme_bg_color || 'var(--surface-deep)'),
+                  ? `linear-gradient(${safeCssColor(editing.theme_bg_color) || 'rgba(0,0,0,0.45)'}, ${safeCssColor(editing.theme_bg_color) || 'rgba(0,0,0,0.45)'}), ${cssUrl(editing.theme_bg_image_url)} center/cover`
+                  : (safeCssColor(editing.theme_bg_color) || 'var(--surface-deep)'),
                 border: '1px solid var(--border)',
               }}>
                 {editing.theme_header_logo_url && <img src={editing.theme_header_logo_url} alt="" className="h-9 object-contain flex-shrink-0" />}

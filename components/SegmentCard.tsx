@@ -3,6 +3,7 @@ import Link from 'next/link'
 import { useEffect, useState } from 'react'
 import { CalendarDays, MapPin, Users, CreditCard, Link2, ChevronRight, CheckCircle2, Loader2 } from 'lucide-react'
 import { normalizeUploadUrl } from '@/lib/uploadUrl'
+import { cssUrl } from '@/lib/safeStyle'
 import { ActivityIcon } from '@/lib/activityIcons'
 
 // One segment card on the public event page. Shows the segment name, optional
@@ -89,7 +90,7 @@ export default function SegmentCard({
   return (
     <div className="relative rounded-2xl border overflow-hidden" style={{ background: 'var(--bg2)', borderColor: 'var(--border)' }}>
       {bg && (
-        <div className="absolute inset-0 pointer-events-none" style={{ backgroundImage: `url(${bg})`, backgroundSize: 'cover', backgroundPosition: 'center', opacity: 0.18 }} />
+        <div className="absolute inset-0 pointer-events-none" style={{ backgroundImage: cssUrl(bg), backgroundSize: 'cover', backgroundPosition: 'center', opacity: 0.18 }} />
       )}
       <div className="relative p-5 min-h-[160px] flex flex-col">
         {/* Top row: icon + name + badges */}

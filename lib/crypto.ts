@@ -4,8 +4,9 @@
  * Env var recommended:
  *   EMAIL_ENCRYPTION_KEY - 32-byte key, base64-encoded (generate with `openssl rand -base64 32`)
  *
- * Fallback: If EMAIL_ENCRYPTION_KEY is not set, uses a hardcoded backup key.
- * For production security, always set EMAIL_ENCRYPTION_KEY in your environment.
+ * Fallback: If EMAIL_ENCRYPTION_KEY is not set, a hardcoded key is used in
+ * non-production only. In production (NODE_ENV === 'production') a missing key
+ * throws, so set EMAIL_ENCRYPTION_KEY before deploying.
  */
 
 import { createCipheriv, createDecipheriv, createHmac, randomBytes, timingSafeEqual } from 'crypto'
@@ -13,14 +14,19 @@ import { createCipheriv, createDecipheriv, createHmac, randomBytes, timingSafeEq
 const ALGORITHM = 'aes-256-gcm'
 
 // Backup key in case env var fails (generated with `openssl rand -base64 32`)
-// IMPORTANT: For production, always override this by setting EMAIL_ENCRYPTION_KEY env var
+// Used only outside production (and by the one-time re-encryption migration).
 const FALLBACK_KEY = 'X7k9mP2vL8nQ4tR6yU1wA5sD3fG7hJ0kM9nB8xC2vE4='
 
 function getKey(): Buffer {
-  const key = process.env.EMAIL_ENCRYPTION_KEY || FALLBACK_KEY
+  const key = process.env.EMAIL_ENCRYPTION_KEY
 
-  if (key === FALLBACK_KEY) {
+  if (!key) {
+    if (process.env.NODE_ENV === 'production') {
+      // Fail closed: never encrypt/decrypt with a key that is public in the repo.
+      throw new Error('EMAIL_ENCRYPTION_KEY must be set in production.')
+    }
     console.warn('[CRYPTO] Using fallback encryption key. Set EMAIL_ENCRYPTION_KEY env var for production.')
+    return Buffer.from(FALLBACK_KEY, 'base64')
   }
 
   return Buffer.from(key, 'base64')
@@ -121,7 +127,12 @@ export function decrypt(ciphertext: string): string {
 // decrypt() above rather than introducing a second secret to configure.
 
 function getDownloadTokenSecret(): string {
-  return process.env.EMAIL_ENCRYPTION_KEY || FALLBACK_KEY
+  const key = process.env.EMAIL_ENCRYPTION_KEY
+  if (key) return key
+  if (process.env.NODE_ENV === 'production') {
+    throw new Error('EMAIL_ENCRYPTION_KEY must be set in production.')
+  }
+  return FALLBACK_KEY
 }
 
 export function signCertificateDownloadToken(recipientId: string, expiresAtMs: number): string {

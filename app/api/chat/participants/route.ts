@@ -4,12 +4,17 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase";
+import { requireAdmin } from "@/lib/api/admin-auth";
 
 // ══════════════════════════════════════════════════════════════════════════
 // GET /api/chat/participants
 // Get participants for a room
 // ══════════════════════════════════════════════════════════════════════════
 export async function GET(req: NextRequest) {
+  // Admin-only (this route previously had no auth check at all).
+  const unauthorized = await requireAdmin();
+  if (unauthorized) return unauthorized;
+
   try {
     const supabase = supabaseAdmin;
     const { searchParams } = new URL(req.url);
@@ -47,6 +52,10 @@ export async function GET(req: NextRequest) {
 // Add participant to a room
 // ══════════════════════════════════════════════════════════════════════════
 export async function POST(req: NextRequest) {
+  // Admin-only (this route previously had no auth check at all).
+  const unauthorized = await requireAdmin();
+  if (unauthorized) return unauthorized;
+
   try {
     const supabase = supabaseAdmin;
     const body = await req.json();
@@ -129,6 +138,10 @@ export async function POST(req: NextRequest) {
 // Update participant permissions
 // ══════════════════════════════════════════════════════════════════════════
 export async function PATCH(req: NextRequest) {
+  // Admin-only (this route previously had no auth check at all).
+  const unauthorized = await requireAdmin();
+  if (unauthorized) return unauthorized;
+
   try {
     const supabase = supabaseAdmin;
     const body = await req.json();
@@ -189,6 +202,10 @@ export async function PATCH(req: NextRequest) {
 // Remove participant from room
 // ══════════════════════════════════════════════════════════════════════════
 export async function DELETE(req: NextRequest) {
+  // Admin-only (this route previously had no auth check at all).
+  const unauthorized = await requireAdmin();
+  if (unauthorized) return unauthorized;
+
   try {
     const supabase = supabaseAdmin;
     const { searchParams } = new URL(req.url);

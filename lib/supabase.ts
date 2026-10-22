@@ -12,6 +12,14 @@ const IS_LOCAL_BROWSER = (typeof window !== 'undefined') &&
   (process.env.NEXT_PUBLIC_SUPABASE_ENV || '').toLowerCase() === 'local'
 const IS_LOCAL = IS_LOCAL_SERVER || IS_LOCAL_BROWSER
 
+// Local mode swaps real Supabase Auth for salted-SHA-256 password checks and
+// self-signed bearer tokens (see /api/auth/login, /reset-password,
+// /local-verify). It must never be active on a real deployment: fail loudly at
+// startup if a hosted production environment has SUPABASE_ENV=local.
+if (IS_LOCAL_SERVER && process.env.NODE_ENV === 'production' && (process.env.VERCEL || process.env.RENDER)) {
+  throw new Error('SUPABASE_ENV=local is not allowed in a hosted production deployment. Unset it.')
+}
+
 // Local PostgREST (and any non-Supabase-hosted PostgREST) serves the API at
 // the root, e.g. http://localhost:3001/form_graphs. The Supabase JS client
 // always appends `/rest/v1/...` to NEXT_PUBLIC_SUPABASE_URL, so to make the
