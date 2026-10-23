@@ -13,6 +13,7 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { ArrowRight, CheckCircle, Eye, EyeOff, Loader2, UserPlus } from 'lucide-react'
 import Input from '@/components/ui/Input'
+import TurnstileWidget, { TURNSTILE_SITE_KEY } from '@/components/auth/TurnstileWidget'
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
@@ -160,6 +161,9 @@ export default function RegisterPage() {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
   const [loading, setLoading] = useState(false)
   const [success, setSuccess] = useState(false)
+  const [captchaToken, setCaptchaToken] = useState('')
+  const [captchaReset, setCaptchaReset] = useState(0)
+  const [honeypot, setHoneypot] = useState('')
 
   const handle = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const name = e.target.name as FieldName
@@ -228,17 +232,23 @@ export default function RegisterPage() {
       return
     }
 
+    if (TURNSTILE_SITE_KEY && !captchaToken) {
+      setServerError('Please complete the human verification below.')
+      return
+    }
+
     setLoading(true)
     setServerError('')
     try {
-      const { confirm_password, ...payload } = form
+      const { confirm_password, ...fields } = form
+      const payload = { ...fields, turnstile_token: captchaToken, website: honeypot }
       const res = await fetch('/api/auth/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       })
       const data = await res.json()
-      if (!res.ok) { setServerError(data.error); setLoading(false); return }
+      if (!res.ok) { setServerError(data.error); setCaptchaReset(n => n + 1); setLoading(false); return }
       setSuccess(true)
     } catch (e: any) {
       setServerError(e.message || 'Something went wrong. Please try again.')
@@ -394,6 +404,16 @@ export default function RegisterPage() {
               <strong style={{ color: 'var(--blue)' }}>Note:</strong> Registration is open to all students.
               NDC students can apply for Club Membership from their dashboard profile.
             </div>
+
+            {/* Honeypot: invisible to people, irresistible to bots. */}
+            <div aria-hidden="true" style={{ position: 'absolute', left: '-10000px', width: 1, height: 1, overflow: 'hidden' }}>
+              <label>Website
+                <input type="text" name="website" tabIndex={-1} autoComplete="off"
+                  value={honeypot} onChange={e => setHoneypot(e.target.value)} />
+              </label>
+            </div>
+
+            <TurnstileWidget onToken={setCaptchaToken} resetSignal={captchaReset} />
 
             <button
               type="submit"

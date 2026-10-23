@@ -4,8 +4,15 @@ import { checkRateLimit, isLocked } from './rateLimitCore'
 
 export { checkRateLimit, isLocked, recordFailure, clearFailures } from './rateLimitCore'
 
-/** Best-effort client IP from proxy headers (Vercel/Render set x-forwarded-for). */
+/**
+ * Best-effort client IP. ndscbd.net sits behind Cloudflare, so Vercel only sees
+ * Cloudflare's edge IPs in x-forwarded-for — the real visitor is in
+ * cf-connecting-ip. (Anyone who bypasses Cloudflare could forge this header, so
+ * treat per-IP limits as a speed bump; Turnstile is the real gate.)
+ */
 export function clientIp(req: NextRequest | Request): string {
+  const cf = req.headers.get('cf-connecting-ip')?.trim()
+  if (cf) return cf
   const xff = req.headers.get('x-forwarded-for')
   if (xff) {
     const first = xff.split(',')[0].trim()

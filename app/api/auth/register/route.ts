@@ -3,6 +3,10 @@ import { NextRequest } from 'next/server'
 import { apiError, apiOk } from '@/lib/api/response'
 import { createHash, randomBytes, randomUUID } from 'crypto'
 import { claimTeamRegistrations } from '@/lib/server/claimRegistrations'
+import { checkRateLimit } from '@/lib/api/rateLimitCore'
+import { clientIp, tooManyRequests } from '@/lib/api/rateLimit'
+import { verifyTurnstile } from '@/lib/api/turnstile'
+import { validateRegister, type RegisterInput } from '@/lib/api/registerValidation'
 
 // Member registration.
 //
@@ -33,22 +37,42 @@ function hashPasswordLocal(password: string, salt: string): string {
 
 export async function POST(req: NextRequest) {
   try {
-    const {
-      email,
-      password,
-      full_name,
-      institution,
-      education_level,
-      phone,
-    } = await req.json()
+    // 1) Cheapest checks first, so a flood costs us almost no CPU.
+    //    Blanket per-IP throttle (a whole classroom may share one IP, hence 20/h).
+    const ip = clientIp(req)
+    const t = checkRateLimit(`register:ip:${ip}`, 20, 60 * 60 * 1000)
+    if (!t.ok) return tooManyRequests(t.retryAfterSec, 'Too many sign-ups from your network. Please try again later.')
 
-    // Basic validation
-    if (!email || !password || !full_name || !institution || !education_level || !phone) {
-      return apiError('All fields are required.', 400)
+    // Reject oversized bodies before parsing them.
+    const declaredLen = Number(req.headers.get('content-length') || 0)
+    if (declaredLen > 8 * 1024) return apiError('Invalid request.', 413)
+
+    let body: any
+    try { body = await req.json() } catch { return apiError('Invalid request.', 400) }
+
+    // 2) Honeypot: the real form has a hidden "website" field humans never fill.
+    //    Pretend success so the bot doesn't learn anything and keeps wasting time.
+    if (typeof body?.website === 'string' && body.website.trim() !== '') {
+      return apiOk({ success: true, message: 'Registration successful! You can now log in to your account.' })
     }
 
-    if (password.length < 6) {
-      return apiError('Password must be at least 6 characters.', 400)
+    // 3) Validate + normalise every field (email lower-cased, lengths capped…).
+    const v = validateRegister(body)
+    if (!v.ok) return apiError(v.error || 'Invalid request.', 400)
+    const { email, password, full_name, institution, education_level, phone } = v.value as RegisterInput
+
+    // 4) Captcha — verified on the server with the secret key. Only now do we
+    //    touch Supabase, which is the expensive part.
+    const captcha = await verifyTurnstile(body.turnstile_token, ip)
+    if (!captcha.ok) {
+      if (captcha.reason === 'not_configured') {
+        process.stderr.write('[auth/register] TURNSTILE_SECRET_KEY is not set — refusing registrations\n')
+        return apiError('Registration is temporarily unavailable. Please try again later.', 503)
+      }
+      if (captcha.reason === 'unreachable') {
+        return apiError('Could not verify you are human right now. Please try again.', 503)
+      }
+      return apiError('Please complete the human verification and try again.', 400)
     }
 
     if (IS_LOCAL) {
