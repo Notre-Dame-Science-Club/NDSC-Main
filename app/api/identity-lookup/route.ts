@@ -1,6 +1,8 @@
 import { supabaseAdmin } from '@/lib/supabase'
 import { NextRequest } from 'next/server'
 import { apiOk } from '@/lib/api/response'
+import { checkRateLimitShared, clientIp, tooManyRequests } from '@/lib/api/rateLimit'
+import { getBearerFromAuthHeader } from '@/lib/localAuth'
 
 // Shared "have we seen this person before" lookup — searches members,
 // olympiad_registrations, and activity_registrations by email OR college
@@ -16,6 +18,9 @@ import { apiOk } from '@/lib/api/response'
 // registration they're doing; this just saves typing.
 
 export async function POST(req: NextRequest) {
+  const rl = await checkRateLimitShared(`identity-lookup:ip:${clientIp(req)}`, 20, 10 * 60 * 1000)
+  if (!rl.ok) return tooManyRequests(rl.retryAfterSec)
+
   const body = await req.json().catch(() => null)
   const query = (body?.query || '').trim()
   if (!query || query.length < 3) {
@@ -62,12 +67,17 @@ export async function POST(req: NextRequest) {
   candidates.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
   const best = candidates[0].data
 
+  // Anonymous callers must not get phone/email back (this endpoint is otherwise a PII oracle).
+  // Nothing in the app calls this route today, so there is no autofill consumer to mask for.
+  const token = getBearerFromAuthHeader(req.headers.get('authorization'))
+  const { data: u } = token ? await supabaseAdmin.auth.getUser(token) : { data: null }
+  const authed = !!u?.user
+
   return apiOk({
     found: true,
     info: {
       full_name: best.full_name,
-      phone: best.phone,
-      email: best.email,
+      ...(authed ? { phone: best.phone, email: best.email } : {}),
       college: best.college || 'Notre Dame College',
       college_roll: best.college_roll,
       hsc_session: best.hsc_session || best.batch || '',

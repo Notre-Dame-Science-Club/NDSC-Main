@@ -4,7 +4,7 @@ import { createHash, timingSafeEqual } from 'crypto'
 import { apiError, apiOk } from '@/lib/api/response'
 import { setSessionCookie, HOURS } from '@/lib/api/session-cookie'
 import { authCookies } from '@/lib/config/site'
-import { guardLogin, lockKey, recordFailure, clearFailures } from '@/lib/api/rateLimit'
+import { guardLoginShared, lockKey, recordFailure, clearFailures } from '@/lib/api/rateLimit'
 
 // Compare via SHA-256 digests so the buffers are always equal length
 // (timingSafeEqual throws on unequal lengths) and length isn't leaked.
@@ -28,7 +28,7 @@ export async function POST(req: NextRequest) {
   const email = typeof body?.email === 'string' ? body.email : ''
   const password = typeof body?.password === 'string' ? body.password : ''
 
-  const limited = guardLogin('admin-login', req, email)
+  const limited = await guardLoginShared('admin-login', req, email)
   if (limited) return limited
   const key = lockKey('admin-login', req, email)
 

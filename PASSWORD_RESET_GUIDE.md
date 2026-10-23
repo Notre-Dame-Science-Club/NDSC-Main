@@ -4,7 +4,19 @@
 
 A phone number-based password reset system has been added to the NDSC platform. Users who forget their email or password can now reset their password by verifying their phone number (the one they registered with).
 
-This feature is **enabled by default** and can be disabled via environment variable if needed.
+> **Update:** the phone-number flow below is now **OFF by default** (set `EASY_PASSWORD_RESET=true` to enable it; it is also what you use in local dev). The default reset is an **email link sent through our own mailer**:
+>
+> 1. `/forgot-password` -> email + Turnstile -> `POST /api/auth/request-reset` (rate-limited per IP and per email; always answers the same, so it can't reveal who has an account).
+> 2. The server makes a one-time recovery token with `auth.admin.generateLink` (sends nothing itself) and emails `https://ndscbd.net/reset-password?token_hash=...` through the Brevo account pool (`email_accounts`), falling back to Resend (`RESEND_API_KEY`) if Brevo can't send. Supabase's built-in email is testing-only and is NOT used.
+> 3. `/reset-password` -> new password (8-72 chars) -> `POST /api/auth/reset-with-token` verifies the token, sets the password and signs out all existing sessions.
+>
+> Needs: at least one active, in-quota Brevo account (Admin -> Emailing) or `RESEND_API_KEY`, plus the Turnstile keys. Not available with `SUPABASE_ENV=local` (no Supabase Auth).
+>
+> **Automatic fallback to the phone flow.** If the email can't be sent (no Brevo account with quota and no Resend, or the send errors), `request-reset` replies `{ fallback: 'phone', fallback_token }` and the page switches to the phone-number reset for that address. `fallback_token` is HMAC-signed (SESSION_SECRET), bound to that email, valid 15 minutes, and is the only way `verify-phone` accepts a request while `EASY_PASSWORD_RESET` is off. Every fallback / email failure is logged with a red `🚨` banner (`EMAIL DOWN`, `EMAIL FAILED`, `PASSWORD RESET`). Turn the fallback off with `EASY_PASSWORD_RESET_FALLBACK=false`.
+>
+> **Anti-spam.** One recipient per send (the requested address, only if it has an account), fixed template, Turnstile, 10/h per IP, 3/day + 60 s cooldown per address, and a global cap of `RESET_EMAIL_DAILY_CAP` (default 100) reset emails per day. When the cap is hit users see "temporarily unavailable" (and an `POSSIBLE ABUSE` alert is logged); it deliberately does NOT trigger the phone fallback, so flooding the endpoint can't force the weaker flow on. Welcome emails are separately capped at 3 per recipient per day.
+
+This feature (phone flow) can be enabled via environment variable.
 
 ---
 

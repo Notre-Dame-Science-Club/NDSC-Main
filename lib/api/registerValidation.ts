@@ -37,7 +37,7 @@ export function validateRegister(body: any): RegisterResult {
 
   // bcrypt (used by Supabase Auth) only looks at the first 72 bytes; a huge
   // password is just a cheap way to burn CPU.
-  if ((password as string).length < 6) return { ok: false, error: 'Password must be at least 6 characters.' }
+  if ((password as string).length < 8) return { ok: false, error: 'Password must be at least 8 characters.' }
   if ((password as string).length > 72) return { ok: false, error: 'Password must be at most 72 characters.' }
 
   const name = (full_name as string).trim().replace(/\s+/g, ' ')
@@ -51,7 +51,8 @@ export function validateRegister(body: any): RegisterResult {
   }
 
   const cleanPhone = (phone as string).replace(/[\s-]/g, '')
-  if (!/^\+?\d{10,15}$/.test(cleanPhone)) return { ok: false, error: 'Enter a valid phone number.' }
+  // Bangladeshi mobile: 01[3-9]xxxxxxxx, optionally prefixed with 88 / +88.
+  if (!/^(\+?88)?01[3-9]\d{8}$/.test(cleanPhone)) return { ok: false, error: 'Enter a valid phone number.' }
 
   return {
     ok: true,

@@ -1,17 +1,15 @@
 import { supabaseAdmin } from '@/lib/supabase'
 import { NextRequest } from 'next/server'
-import { apiError, apiOk } from '@/lib/api/response'
+import { apiError, apiOk, apiUnauthorized } from '@/lib/api/response'
+import { getCallerId } from '@/lib/server/requireUser'
 
-// GET /api/member-tasks?member_id=xxx
-// Fetch tasks assigned to a specific member
+// GET /api/member-tasks
+// Fetch tasks assigned to the signed-in member (identity comes from the bearer token only;
+// any member_id query param is ignored).
 export async function GET(req: NextRequest) {
   try {
-    const { searchParams } = new URL(req.url)
-    const memberId = searchParams.get('member_id')
-
-    if (!memberId) {
-      return apiError('member_id is required', 400)
-    }
+    const memberId = await getCallerId(req)
+    if (!memberId) return apiUnauthorized()
 
     // Fetch task assignments for this member with task details
     const { data: assignments, error } = await supabaseAdmin
@@ -74,8 +72,11 @@ export async function GET(req: NextRequest) {
 // Update task assignment status (mark as complete, etc.)
 export async function PATCH(req: NextRequest) {
   try {
+    const memberId = await getCallerId(req)
+    if (!memberId) return apiUnauthorized()
+
     const body = await req.json()
-    const { assignment_id, status, member_id } = body
+    const { assignment_id, status } = body
 
     if (!assignment_id || !status) {
       return apiError('assignment_id and status are required', 400)
@@ -92,7 +93,7 @@ export async function PATCH(req: NextRequest) {
       .from('task_assignments')
       .update(updates)
       .eq('id', assignment_id)
-      .eq('member_id', member_id) // Ensure member can only update their own assignments
+      .eq('member_id', memberId) // Ensure member can only update their own assignments (id from the token)
       .select()
       .single()
 

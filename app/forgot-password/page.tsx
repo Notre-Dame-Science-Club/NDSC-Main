@@ -1,12 +1,13 @@
 'use client'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import Image from 'next/image'
 import { Eye, EyeOff, Loader2, KeyRound, ArrowLeft, CheckCircle } from 'lucide-react'
 import Input from '@/components/ui/Input'
+import TurnstileWidget, { TURNSTILE_SITE_KEY } from '@/components/auth/TurnstileWidget'
 
-type Step = 'verify' | 'reset' | 'success'
+type Step = 'verify' | 'reset' | 'success' | 'emailLink' | 'emailSent'
 
 export default function ForgotPasswordPage() {
   const router = useRouter()
@@ -20,6 +21,67 @@ export default function ForgotPasswordPage() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [resetToken, setResetToken] = useState('')
+  // null = still asking the server whether phone-based reset (EASY_PASSWORD_RESET) is on.
+  const [easyReset, setEasyReset] = useState<boolean | null>(null)
+  const [captchaToken, setCaptchaToken] = useState('')
+  // Set when the server could not send the reset email and switched us to the phone flow.
+  const [fallbackToken, setFallbackToken] = useState('')
+  const [captchaReset, setCaptchaReset] = useState(0)
+
+  useEffect(() => {
+    let cancelled = false
+    fetch('/api/auth/verify-phone')
+      .then(r => r.json())
+      .then(d => {
+        if (cancelled) return
+        const on = !!d?.enabled
+        setEasyReset(on)
+        if (!on) setStep('emailLink')
+      })
+      .catch(() => { if (!cancelled) { setEasyReset(false); setStep('emailLink') } })
+    return () => { cancelled = true }
+  }, [])
+
+  // Email reset link. Sent by OUR mailer via /api/auth/request-reset (Supabase's built-in email is
+  // testing-only). The server answers the same way whether or not the email has an account, so the
+  // form can't be used to find out who is registered.
+  const handleEmailLink = async () => {
+    if (!email.trim()) {
+      setError('Email is required.')
+      return
+    }
+    if (TURNSTILE_SITE_KEY && !captchaToken) {
+      setError('Please complete the human verification below.')
+      return
+    }
+    setLoading(true)
+    setError('')
+    try {
+      const res = await fetch('/api/auth/request-reset', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: email.trim(), turnstile_token: captchaToken }),
+      })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) {
+        setError(data?.error || 'Something went wrong. Please try again.')
+        setCaptchaReset(n => n + 1)
+        return
+      }
+      if (data?.fallback === 'phone' && data?.fallback_token) {
+        // Email couldn't be sent: continue automatically with the phone-number reset.
+        setFallbackToken(data.fallback_token)
+        setStep('verify')
+        return
+      }
+      setStep('emailSent')
+    } catch {
+      setError('Network error. Please try again.')
+      setCaptchaReset(n => n + 1)
+    } finally {
+      setLoading(false)
+    }
+  }
 
   const handleVerify = async () => {
     if (!email || !phone) {
@@ -34,7 +96,7 @@ export default function ForgotPasswordPage() {
       const res = await fetch('/api/auth/verify-phone', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, phone }),
+        body: JSON.stringify({ email, phone, fallback_token: fallbackToken || undefined }),
       })
 
       const data = await res.json()
@@ -61,8 +123,8 @@ export default function ForgotPasswordPage() {
       return
     }
 
-    if (newPassword.length < 6) {
-      setError('Password must be at least 6 characters.')
+    if (newPassword.length < 8) {
+      setError('Password must be at least 8 characters.')
       return
     }
 
@@ -123,6 +185,78 @@ export default function ForgotPasswordPage() {
       {showConfirmPassword ? <EyeOff size={16} /> : <Eye size={16} />}
     </button>
   )
+
+  // Waiting for the server to say which reset flow is enabled
+  if (easyReset === null) {
+    return (
+      <div className="min-h-screen flex items-center justify-center" style={{ background: 'var(--bg)' }}>
+        <Loader2 size={24} className="animate-spin" style={{ color: 'var(--muted)' }} />
+      </div>
+    )
+  }
+
+  // Email reset-link flow (used when phone-based reset is disabled)
+  if (step === 'emailLink' || step === 'emailSent') {
+    return (
+      <div className="min-h-screen flex items-center justify-center py-12" style={{ background: 'var(--bg)' }}>
+        <div className="fixed inset-0 grid-bg opacity-30 pointer-events-none" />
+        <div className="relative w-full max-w-md mx-4">
+          <div className="relative rounded-2xl p-8 border"
+            style={{ background: 'var(--bg2)', borderColor: 'var(--border)' }}>
+            <div className="text-center mb-8">
+              <div className="inline-flex items-center justify-center w-16 h-16 rounded-full mb-4"
+                style={{ background: 'rgba(var(--blue-rgb), 0.1)', border: '1px solid rgba(var(--blue-rgb), 0.3)' }}>
+                <KeyRound size={28} style={{ color: 'var(--blue)' }} />
+              </div>
+              <h1 className="text-2xl font-black mb-1.5" style={{ fontFamily: 'var(--font-heading)', color: 'var(--white)' }}>
+                {step === 'emailSent' ? 'Check your email' : 'Forgot Password?'}
+              </h1>
+              <p className="text-sm" style={{ color: 'var(--muted)' }}>
+                {step === 'emailSent'
+                  ? 'If an account exists for that email, we have sent a link to reset your password.'
+                  : 'Enter your email and we will send you a link to reset your password'}
+              </p>
+            </div>
+
+            {error && (
+              <div role="alert" className="px-4 py-3 rounded-lg mb-5 text-sm border"
+                style={{ background: 'rgba(255,50,50,0.08)', borderColor: 'rgba(var(--danger-rgb), 0.3)', color: 'var(--danger-soft)' }}>
+                {error}
+              </div>
+            )}
+
+            {step === 'emailLink' && (
+              <form noValidate onSubmit={e => { e.preventDefault(); handleEmailLink() }} className="space-y-4">
+                <div>
+                  <label htmlFor="field-email" className="block text-xs font-medium mb-1.5 uppercase tracking-wider"
+                    style={{ color: 'var(--muted)' }}>Email</label>
+                  <Input
+                    id="field-email" name="email" type="email" autoComplete="email"
+                    value={email} onChange={e => setEmail(e.target.value)}
+                    placeholder="email@example.com" disabled={loading}
+                  />
+                </div>
+                <TurnstileWidget onToken={setCaptchaToken} resetSignal={captchaReset} />
+                <button
+                  type="submit" disabled={loading}
+                  className="btn-primary w-full py-2.5 rounded-lg font-semibold text-sm mt-2 flex items-center justify-center gap-2"
+                  style={{ opacity: loading ? 0.6 : 1, cursor: loading ? 'not-allowed' : 'pointer', fontFamily: 'inherit', letterSpacing: '0.05em' }}>
+                  {loading ? (<><Loader2 size={16} className="animate-spin" /> Sending…</>) : (<>Send reset link</>)}
+                </button>
+              </form>
+            )}
+
+            <div className="pt-4 mt-4 text-center" style={{ borderTop: '1px solid var(--border)' }}>
+              <Link href="/login" className="text-sm flex items-center justify-center gap-2 hover:text-white transition-colors"
+                style={{ color: 'var(--muted)' }}>
+                <ArrowLeft size={16} /> Back to Login
+              </Link>
+            </div>
+          </div>
+        </div>
+      </div>
+    )
+  }
 
   // Success view
   if (step === 'success') {
@@ -204,6 +338,13 @@ export default function ForgotPasswordPage() {
             </div>
           )}
 
+          {step === 'verify' && fallbackToken && (
+            <div role="status" className="px-4 py-3 rounded-lg mb-5 text-sm border"
+              style={{ background: 'rgba(var(--warning-rgb), 0.08)', borderColor: 'rgba(var(--warning-rgb), 0.3)', color: 'var(--warning)' }}>
+              We couldn't send the reset email right now, so verify with the phone number you registered with instead.
+            </div>
+          )}
+
           {step === 'verify' ? (
             <form noValidate onSubmit={e => { e.preventDefault(); handleVerify() }} className="space-y-4">
               <div>
@@ -262,7 +403,7 @@ export default function ForgotPasswordPage() {
                     id="field-new-password" name="new_password" type={showPassword ? 'text' : 'password'}
                     autoComplete="new-password"
                     value={newPassword} onChange={e => setNewPassword(e.target.value)}
-                    placeholder="Min. 6 characters" disabled={loading} className="pr-10"
+                    placeholder="Min. 8 characters" disabled={loading} className="pr-10"
                   />
                   {passwordToggle}
                 </div>

@@ -25,8 +25,10 @@ export async function POST(req: NextRequest) {
     return apiError('Missing val_id or tran_id.', 400)
   }
 
-  const storeId = process.env.SSLCOMMERZ_STORE_ID || 'testbox'
-  const storePassword = process.env.SSLCOMMERZ_STORE_PASSWORD || 'qwerty'
+  // Sandbox credentials are a non-production convenience only.
+  const storeId = process.env.SSLCOMMERZ_STORE_ID || (process.env.NODE_ENV !== 'production' ? 'testbox' : '')
+  const storePassword = process.env.SSLCOMMERZ_STORE_PASSWORD || (process.env.NODE_ENV !== 'production' ? 'qwerty' : '')
+  if (!storeId || !storePassword) return apiError('Payment is not configured.', 500)
   const isLive = process.env.SSLCOMMERZ_IS_LIVE === 'true'
   const apiBase = isLive ? 'https://securepay.sslcommerz.com' : 'https://sandbox.sslcommerz.com'
 

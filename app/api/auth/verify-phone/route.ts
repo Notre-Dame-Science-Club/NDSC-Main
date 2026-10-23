@@ -2,29 +2,37 @@ import { supabaseAdmin } from '@/lib/supabase'
 import { NextRequest } from 'next/server'
 import { apiError, apiOk } from '@/lib/api/response'
 import { signPayload } from '@/lib/api/sign'
-import { guardLogin, lockKey, recordFailure, clearFailures } from '@/lib/api/rateLimit'
+import { guardLoginShared, lockKey, recordFailure, clearFailures } from '@/lib/api/rateLimit'
+import { verifyFallbackToken } from '@/lib/api/resetFallback'
+
+// GET /api/auth/verify-phone -> { enabled } so the forgot-password page can pick the right flow
+export async function GET() {
+  return apiOk({ enabled: process.env.EASY_PASSWORD_RESET === 'true' })
+}
 
 // POST /api/auth/verify-phone
 // Verifies that a phone number matches the one registered with an email
 export async function POST(req: NextRequest) {
-  // Check if Easy_Password_reset is enabled (default: true)
-  const easyResetEnabled = process.env.EASY_PASSWORD_RESET !== 'false'
-
-  if (!easyResetEnabled) {
-    return apiError('Password reset via phone is disabled.', 403)
-  }
+  // Phone-based reset is OFF unless EASY_PASSWORD_RESET is explicitly 'true', OR the caller holds a
+  // signed fallback_token for this exact email (issued by /api/auth/request-reset only when the
+  // reset email could not be sent). Without either, refuse.
+  const easyResetEnabled = process.env.EASY_PASSWORD_RESET === 'true'
 
   try {
     const body = await req.json()
     const email = String(body.email || '').trim()
     const phone = String(body.phone || '').trim()
 
+    if (!easyResetEnabled && !verifyFallbackToken(body.fallback_token, email)) {
+      return apiError('Password reset via phone is disabled.', 403)
+    }
+
     if (!email || !phone) {
       return apiError('Email and phone number are required.', 400)
     }
 
     // Phone numbers are low-entropy, so brute-force protection matters here.
-    const limited = guardLogin('verify-phone', req, email)
+    const limited = await guardLoginShared('verify-phone', req, email)
     if (limited) return limited
     const failKey = lockKey('verify-phone', req, email)
 
@@ -60,6 +68,7 @@ export async function POST(req: NextRequest) {
     // reset-password route verifies it with verifyPayload().
     const expiresAt = new Date(Date.now() + 15 * 60 * 1000).toISOString()
     const tokenData = signPayload({
+      purpose: 'phone-reset',
       id: account.id,
       email: account.email,
       source: 'users',

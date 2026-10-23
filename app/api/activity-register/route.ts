@@ -2,6 +2,7 @@ import { supabaseAdmin } from '@/lib/supabase'
 import { NextRequest } from 'next/server'
 import { validateCollegeRoll } from '@/lib/validation'
 import { apiError, apiOk } from '@/lib/api/response'
+import { checkRateLimitShared, clientIp, tooManyRequests } from '@/lib/api/rateLimit'
 import { resolveRegistrationIdentity, denyResponse } from '@/lib/server/registrationAccess'
 import { normalizeEmail, normalizePhone, normalizeRoll } from '@/lib/identity'
 
@@ -138,6 +139,9 @@ export async function GET(req: NextRequest) {
 // uniqueness (same normalization as everywhere else), email is stored lowercased,
 // and the edit window is enforced server-side.
 export async function PUT(req: NextRequest) {
+  const rl = await checkRateLimitShared(`activity-register:ip:${clientIp(req)}`, 20, 10 * 60 * 1000)
+  if (!rl.ok) return tooManyRequests(rl.retryAfterSec)
+
   const body = await req.json().catch(() => null)
   if (!body || !body.id) return apiError('A registration id is required.', 400)
 

@@ -154,7 +154,10 @@ export default function DashboardPage() {
   const loadTasks = async (memberId: string) => {
     setTasksLoading(true)
     try {
-      const res = await fetch(`/api/member-tasks?member_id=${memberId}`)
+      const { data: { session } } = await supabase.auth.getSession()
+      const res = await fetch('/api/member-tasks', {
+        headers: session ? { Authorization: `Bearer ${session.access_token}` } : {},
+      })
       if (res.ok) {
         const data = await res.json()
         setTasks(data.categorized || { completed: [], going: [], passed: [] })
@@ -166,7 +169,10 @@ export default function DashboardPage() {
   const loadHistory = async (memberId: string) => {
     setHistoryLoading(true)
     try {
-      const res = await fetch(`/api/member-history?member_id=${memberId}`)
+      const { data: { session } } = await supabase.auth.getSession()
+      const res = await fetch('/api/member-history', {
+        headers: session ? { Authorization: `Bearer ${session.access_token}` } : {},
+      })
       if (res.ok) {
         const data = await res.json()
         setHistoryData({
@@ -180,10 +186,14 @@ export default function DashboardPage() {
 
   const markTaskComplete = async (assignmentId: string) => {
     try {
+      const { data: { session } } = await supabase.auth.getSession()
       const res = await fetch('/api/member-tasks', {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ assignment_id: assignmentId, status: 'completed', member_id: member?.id }),
+        headers: {
+          'Content-Type': 'application/json',
+          ...(session ? { Authorization: `Bearer ${session.access_token}` } : {}),
+        },
+        body: JSON.stringify({ assignment_id: assignmentId, status: 'completed' }),
       })
       if (res.ok && member?.id) {
         loadTasks(member.id)

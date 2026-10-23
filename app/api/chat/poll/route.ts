@@ -5,6 +5,9 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase";
+import { getCallerId } from "@/lib/server/requireUser";
+
+// Identity comes from the bearer token only; any member_id in the query/body is ignored.
 
 // ══════════════════════════════════════════════════════════════════════════
 // GET /api/chat/poll
@@ -15,12 +18,26 @@ export async function GET(req: NextRequest) {
   try {
     const supabase = supabaseAdmin;
     const { searchParams } = new URL(req.url);
-    const memberId = searchParams.get("member_id");
     const roomId = searchParams.get("room_id");
     const lastPoll = searchParams.get("last_poll"); // ISO timestamp
 
+    const memberId = await getCallerId(req);
     if (!memberId) {
-      return NextResponse.json({ error: "member_id required" }, { status: 400 });
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    // Typing indicators / new-message counts are room data: caller must be a participant
+    if (roomId) {
+      const { data: participant } = await supabase
+        .from("chat_room_participants")
+        .select("can_read")
+        .eq("room_id", roomId)
+        .eq("member_id", memberId)
+        .single();
+
+      if (!participant?.can_read) {
+        return NextResponse.json({ error: "Access denied" }, { status: 403 });
+      }
     }
 
     const updates: any = {
@@ -105,21 +122,39 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   try {
     const supabase = supabaseAdmin;
-    const body = await req.json();
-    const { room_id, member_id } = body;
 
-    if (!room_id || !member_id) {
+    const memberId = await getCallerId(req);
+    if (!memberId) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const body = await req.json();
+    const { room_id } = body;
+
+    if (!room_id) {
       return NextResponse.json(
-        { error: "room_id and member_id required" },
+        { error: "room_id required" },
         { status: 400 }
       );
+    }
+
+    // Only participants of the room can post typing indicators in it
+    const { data: participant } = await supabase
+      .from("chat_room_participants")
+      .select("can_read")
+      .eq("room_id", room_id)
+      .eq("member_id", memberId)
+      .single();
+
+    if (!participant) {
+      return NextResponse.json({ error: "Access denied" }, { status: 403 });
     }
 
     // Upsert typing indicator
     await supabase.from("chat_typing_indicators").upsert(
       {
         room_id,
-        member_id,
+        member_id: memberId,
         started_at: new Date().toISOString(),
       },
       {

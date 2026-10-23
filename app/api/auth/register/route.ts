@@ -3,10 +3,10 @@ import { NextRequest } from 'next/server'
 import { apiError, apiOk } from '@/lib/api/response'
 import { createHash, randomBytes, randomUUID } from 'crypto'
 import { claimTeamRegistrations } from '@/lib/server/claimRegistrations'
-import { checkRateLimit } from '@/lib/api/rateLimitCore'
-import { clientIp, tooManyRequests } from '@/lib/api/rateLimit'
+import { checkRateLimitShared, clientIp, tooManyRequests } from '@/lib/api/rateLimit'
 import { verifyTurnstile } from '@/lib/api/turnstile'
 import { validateRegister, type RegisterInput } from '@/lib/api/registerValidation'
+import { isDisposableEmail } from '@/lib/api/disposableEmail'
 
 // Member registration.
 //
@@ -38,10 +38,13 @@ function hashPasswordLocal(password: string, salt: string): string {
 export async function POST(req: NextRequest) {
   try {
     // 1) Cheapest checks first, so a flood costs us almost no CPU.
-    //    Blanket per-IP throttle (a whole classroom may share one IP, hence 20/h).
+    //    Blanket per-IP throttle (a whole classroom may share one IP, hence 20/h). Shared across
+    //    serverless instances and fail-closed: if the limiter store is down we refuse, not allow.
     const ip = clientIp(req)
-    const t = checkRateLimit(`register:ip:${ip}`, 20, 60 * 60 * 1000)
+    const t = await checkRateLimitShared(`register:ip:${ip}`, 20, 60 * 60 * 1000, true)
     if (!t.ok) return tooManyRequests(t.retryAfterSec, 'Too many sign-ups from your network. Please try again later.')
+    const tDay = await checkRateLimitShared(`register:ip:day:${ip}`, 60, 24 * 60 * 60 * 1000, true)
+    if (!tDay.ok) return tooManyRequests(tDay.retryAfterSec, 'Too many sign-ups from your network. Please try again later.')
 
     // Reject oversized bodies before parsing them.
     const declaredLen = Number(req.headers.get('content-length') || 0)
@@ -60,6 +63,7 @@ export async function POST(req: NextRequest) {
     const v = validateRegister(body)
     if (!v.ok) return apiError(v.error || 'Invalid request.', 400)
     const { email, password, full_name, institution, education_level, phone } = v.value as RegisterInput
+    if (isDisposableEmail(email)) return apiError('Please use a real email address.', 400)
 
     // 4) Captcha — verified on the server with the secret key. Only now do we
     //    touch Supabase, which is the expensive part.
@@ -74,6 +78,11 @@ export async function POST(req: NextRequest) {
       }
       return apiError('Please complete the human verification and try again.', 400)
     }
+
+    // 5) Per-email cap, only AFTER the captcha passes so a bot can't use up someone else's
+    //    allowance (3 attempts / 24h per address).
+    const tEmail = await checkRateLimitShared(`register:email:${email}`, 3, 24 * 60 * 60 * 1000, true)
+    if (!tEmail.ok) return tooManyRequests(tEmail.retryAfterSec)
 
     if (IS_LOCAL) {
       // Local dev: no GoTrue, write straight to users with a hashed
@@ -113,7 +122,7 @@ export async function POST(req: NextRequest) {
       .auth.admin.createUser({
         email,
         password,
-        email_confirm: true,
+        email_confirm: true, // TODO(PHASE 7): switch to false once real email verification (mailer + generateLink) is in place
       })
 
     if (authError) {

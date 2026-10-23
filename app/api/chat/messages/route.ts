@@ -4,6 +4,10 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase";
+import { getCallerId } from "@/lib/server/requireUser";
+
+// Identity always comes from the bearer token (getCallerId). member_id / sender_id sent by the
+// client in the query or body are ignored.
 
 // ══════════════════════════════════════════════════════════════════════════
 // GET /api/chat/messages
@@ -16,24 +20,26 @@ export async function GET(req: NextRequest) {
     const roomId = searchParams.get("room_id");
     const limit = parseInt(searchParams.get("limit") || "50");
     const before = searchParams.get("before"); // timestamp for pagination
-    const memberId = searchParams.get("member_id");
+
+    const memberId = await getCallerId(req);
+    if (!memberId) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
 
     if (!roomId) {
       return NextResponse.json({ error: "room_id required" }, { status: 400 });
     }
 
-    // Check if user has access to this room
-    if (memberId) {
-      const { data: participant } = await supabase
-        .from("chat_room_participants")
-        .select("can_read")
-        .eq("room_id", roomId)
-        .eq("member_id", memberId)
-        .single();
+    // The caller must be a participant of this room (always checked)
+    const { data: participant } = await supabase
+      .from("chat_room_participants")
+      .select("can_read")
+      .eq("room_id", roomId)
+      .eq("member_id", memberId)
+      .single();
 
-      if (!participant?.can_read) {
-        return NextResponse.json({ error: "Access denied" }, { status: 403 });
-      }
+    if (!participant?.can_read) {
+      return NextResponse.json({ error: "Access denied" }, { status: 403 });
     }
 
     // Build query
@@ -82,13 +88,11 @@ export async function GET(req: NextRequest) {
       .order("created_at", { ascending: false });
 
     // Update last_read_at for the user
-    if (memberId) {
-      await supabase
-        .from("chat_room_participants")
-        .update({ last_read_at: new Date().toISOString() })
-        .eq("room_id", roomId)
-        .eq("member_id", memberId);
-    }
+    await supabase
+      .from("chat_room_participants")
+      .update({ last_read_at: new Date().toISOString() })
+      .eq("room_id", roomId)
+      .eq("member_id", memberId);
 
     return NextResponse.json({
       messages: messages?.reverse() || [],
@@ -107,20 +111,25 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   try {
     const supabase = supabaseAdmin;
+
+    const sender_id = await getCallerId(req);
+    if (!sender_id) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     const body = await req.json();
 
     const {
       room_id,
-      sender_id,
       message,
       message_type = "text",
       is_important = false,
       reply_to_id,
     } = body;
 
-    if (!room_id || !sender_id || !message) {
+    if (!room_id || !message) {
       return NextResponse.json(
-        { error: "room_id, sender_id, and message required" },
+        { error: "room_id and message required" },
         { status: 400 }
       );
     }
@@ -195,13 +204,19 @@ export async function POST(req: NextRequest) {
 export async function PATCH(req: NextRequest) {
   try {
     const supabase = supabaseAdmin;
+
+    const memberId = await getCallerId(req);
+    if (!memberId) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     const body = await req.json();
 
-    const { message_id, member_id, ...updates } = body;
+    const { message_id, ...updates } = body;
 
-    if (!message_id || !member_id) {
+    if (!message_id) {
       return NextResponse.json(
-        { error: "message_id and member_id required" },
+        { error: "message_id required" },
         { status: 400 }
       );
     }
@@ -222,7 +237,7 @@ export async function PATCH(req: NextRequest) {
       .from("chat_room_participants")
       .select("role")
       .eq("room_id", message.room_id)
-      .eq("member_id", member_id)
+      .eq("member_id", memberId)
       .single();
 
     if (!participant) {
@@ -230,7 +245,7 @@ export async function PATCH(req: NextRequest) {
     }
 
     // Check permissions
-    const isMessageOwner = message.sender_id === member_id;
+    const isMessageOwner = message.sender_id === memberId;
     const canModerate = ["admin", "moderator"].includes(participant.role);
 
     // Only owner can edit message content
@@ -297,11 +312,15 @@ export async function DELETE(req: NextRequest) {
     const supabase = supabaseAdmin;
     const { searchParams } = new URL(req.url);
     const messageId = searchParams.get("message_id");
-    const memberId = searchParams.get("member_id");
 
-    if (!messageId || !memberId) {
+    const memberId = await getCallerId(req);
+    if (!memberId) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    if (!messageId) {
       return NextResponse.json(
-        { error: "message_id and member_id required" },
+        { error: "message_id required" },
         { status: 400 }
       );
     }

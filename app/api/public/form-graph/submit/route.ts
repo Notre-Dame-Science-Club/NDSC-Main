@@ -47,6 +47,7 @@ import { supabaseAdmin } from '@/lib/supabase'
 import { NextRequest } from 'next/server'
 import { validateCollegeRoll } from '@/lib/validation'
 import { apiError, apiOk } from '@/lib/api/response'
+import { checkRateLimitShared, clientIp, tooManyRequests } from '@/lib/api/rateLimit'
 import { normalizeBlocks, HARD_MINIMUM_KEYS, validateFieldFormat, type FormBlock } from '@/lib/formBlocks'
 import { validateAndPrepareTeam, isTeamResultOk, type ValidateTeamResult } from '@/lib/teamRegistration'
 import type { FormNode } from '@/lib/formGraph'
@@ -528,6 +529,9 @@ async function linkTeamMembersToAccounts(
 }
 
 export async function POST(req: NextRequest) {
+  const rl = await checkRateLimitShared(`form-graph-submit:ip:${clientIp(req)}`, 20, 10 * 60 * 1000)
+  if (!rl.ok) return tooManyRequests(rl.retryAfterSec)
+
   const body: SubmitBody = await req.json().catch(() => ({}))
   if (!body?.graph_id || !body?.node_id) {
     return apiError('graph_id and node_id are required.', 400)

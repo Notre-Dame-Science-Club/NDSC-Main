@@ -6,6 +6,16 @@
 
 import { useState, useEffect, useRef } from "react";
 import { MessageSquare, Send, Users, ThumbsUp, Pin, MoreVertical, CheckCircle2, Clock, TrendingUp, Edit2, Trash2 } from "lucide-react";
+import { supabase } from "@/lib/supabase";
+
+// Every /api/chat call proves who is calling with the account's bearer token. The server ignores
+// member_id / sender_id params (they may still be sent, they are not trusted).
+async function authFetch(url: string, init: RequestInit = {}) {
+  const { data: { session } } = await supabase.auth.getSession();
+  const headers = new Headers(init.headers);
+  if (session?.access_token) headers.set("Authorization", `Bearer ${session.access_token}`);
+  return fetch(url, { ...init, headers });
+}
 
 interface Room {
   id: string;
@@ -141,7 +151,7 @@ export default function ChatPage({ memberId }: { memberId: string }) {
     if (!selectedRoom) return;
 
     try {
-      await fetch("/api/chat/poll/typing", {
+      await authFetch("/api/chat/poll/typing", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -158,7 +168,7 @@ export default function ChatPage({ memberId }: { memberId: string }) {
     if (!selectedRoom) return;
 
     try {
-      const res = await fetch(
+      const res = await authFetch(
         `/api/chat/poll?member_id=${memberId}&room_id=${selectedRoom.id}&last_poll=${lastPollTime.current}`
       );
       const data = await res.json();
@@ -193,7 +203,7 @@ export default function ChatPage({ memberId }: { memberId: string }) {
 
   const fetchRooms = async () => {
     try {
-      const res = await fetch(`/api/chat/rooms?member_id=${memberId}`);
+      const res = await authFetch(`/api/chat/rooms?member_id=${memberId}`);
       const data = await res.json();
       setRooms(data.rooms || []);
     } catch (error) {
@@ -205,7 +215,7 @@ export default function ChatPage({ memberId }: { memberId: string }) {
 
   const fetchMessages = async (roomId: string) => {
     try {
-      const res = await fetch(`/api/chat/messages?room_id=${roomId}&member_id=${memberId}`);
+      const res = await authFetch(`/api/chat/messages?room_id=${roomId}&member_id=${memberId}`);
       const data = await res.json();
       setMessages(data.messages || []);
       setPinnedMessages(data.pinned_messages || []);
@@ -216,7 +226,7 @@ export default function ChatPage({ memberId }: { memberId: string }) {
 
   const fetchVoteResults = async (roomId: string) => {
     try {
-      const res = await fetch(`/api/chat/votes?room_id=${roomId}&member_id=${memberId}`);
+      const res = await authFetch(`/api/chat/votes?room_id=${roomId}&member_id=${memberId}`);
       const data = await res.json();
       setVoteResults(data);
 
@@ -236,7 +246,7 @@ export default function ChatPage({ memberId }: { memberId: string }) {
     setNewMessage(""); // Clear immediately for better UX
 
     try {
-      const res = await fetch("/api/chat/messages", {
+      const res = await authFetch("/api/chat/messages", {
         method: editingMessage ? "PATCH" : "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(
@@ -281,7 +291,7 @@ export default function ChatPage({ memberId }: { memberId: string }) {
     if (!confirm("Delete this message?")) return;
 
     try {
-      const res = await fetch(
+      const res = await authFetch(
         `/api/chat/messages?message_id=${messageId}&member_id=${memberId}`,
         { method: "DELETE" }
       );
@@ -296,7 +306,7 @@ export default function ChatPage({ memberId }: { memberId: string }) {
 
   const handleReaction = async (messageId: string, emoji: string) => {
     try {
-      await fetch("/api/chat/reactions", {
+      await authFetch("/api/chat/reactions", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -319,7 +329,7 @@ export default function ChatPage({ memberId }: { memberId: string }) {
 
     try {
       for (const optionIndex of selectedVotes) {
-        await fetch("/api/chat/votes", {
+        await authFetch("/api/chat/votes", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -584,7 +594,7 @@ export default function ChatPage({ memberId }: { memberId: string }) {
                         <button
                           onClick={async () => {
                             try {
-                              await fetch(
+                              await authFetch(
                                 `/api/chat/votes?room_id=${selectedRoom.id}&member_id=${memberId}`,
                                 { method: "DELETE" }
                               );

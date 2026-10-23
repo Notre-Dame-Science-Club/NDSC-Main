@@ -2,6 +2,7 @@ import { supabaseAdmin } from '@/lib/supabase'
 import { NextRequest } from 'next/server'
 import { validateCollegeRoll } from '@/lib/validation'
 import { apiError, apiOk } from '@/lib/api/response'
+import { checkRateLimitShared, clientIp, tooManyRequests } from '@/lib/api/rateLimit'
 import { checkWindow } from '@/lib/segmentAccess'
 
 // GET is used to resume a student's session after a page refresh or closed
@@ -42,6 +43,9 @@ export async function GET(req: NextRequest) {
 }
 
 export async function PUT(req: NextRequest) {
+  const rl = await checkRateLimitShared(`olympiad-register:ip:${clientIp(req)}`, 20, 10 * 60 * 1000)
+  if (!rl.ok) return tooManyRequests(rl.retryAfterSec)
+
   const body = await req.json()
   const { id, ...rest } = body
   if (!id) return apiError('Missing id', 400)

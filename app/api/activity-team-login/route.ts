@@ -4,7 +4,7 @@ import { verifyPassword } from '@/lib/password'
 import { apiError, apiOk } from '@/lib/api/response'
 import { issueTeamToken } from '@/lib/api/teamToken'
 import { normalizeEmail } from '@/lib/identity'
-import { guardLogin, lockKey, recordFailure, clearFailures } from '@/lib/api/rateLimit'
+import { guardLoginShared, lockKey, recordFailure, clearFailures } from '@/lib/api/rateLimit'
 
 // Team members aren't real Supabase Auth users — their credentials live
 // inside their leader's registration row (team_members jsonb array), set by
@@ -21,7 +21,7 @@ export async function POST(req: NextRequest) {
     return apiError('Email and password are required.', 400)
   }
 
-  const limited = guardLogin('team-login', req, String(email))
+  const limited = await guardLoginShared('team-login', req, String(email))
   if (limited) return limited
   const failKey = lockKey('team-login', req, String(email))
 

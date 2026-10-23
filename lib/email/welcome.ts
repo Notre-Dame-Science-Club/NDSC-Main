@@ -30,6 +30,7 @@
 import { supabaseAdmin } from '@/lib/supabase'
 import { decrypt } from '@/lib/crypto'
 import { sendBrevoBatch } from './brevo'
+import { checkRateLimitShared } from '@/lib/api/rateLimit'
 
 type WelcomeTable = 'activity_registrations' | 'olympiad_registrations'
 
@@ -92,6 +93,17 @@ export async function sendWelcomeEmailIfEnabled(table: WelcomeTable, registratio
     if (!reg) return
     if ((reg as any).welcome_email_sent_at) return // already sent — idempotent
     if (!reg.email) return // nothing to send to
+
+    // Anti-abuse: the registrant (anonymous) chooses the address, so cap automated mail per
+    // recipient. Stops anyone using registrations to bomb one inbox / burn the Brevo quota.
+    const cap = await checkRateLimitShared(`autoemail:to:${String(reg.email).trim().toLowerCase()}`, 3, 24 * 60 * 60 * 1000)
+    if (!cap.ok) {
+      await supabaseAdmin
+        .from(table)
+        .update({ welcome_email_error: 'Skipped: too many automated emails to this address today.' })
+        .eq('id', registrationId)
+      return
+    }
 
     const eventTable = isOlympiad ? 'olympiads' : 'activity_sessions'
     const eventId = isOlympiad ? (reg as any).olympiad_id : (reg as any).activity_session_id

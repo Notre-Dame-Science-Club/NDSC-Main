@@ -1,7 +1,7 @@
 import { NextRequest } from 'next/server'
 import { normalizeUploadUrl } from '@/lib/uploadUrl'
 import { apiError, apiOk } from '@/lib/api/response'
-import { checkRateLimit, clientIp, tooManyRequests } from '@/lib/api/rateLimit'
+import { checkRateLimitShared, clientIp, tooManyRequests } from '@/lib/api/rateLimit'
 import { sniffImageType, declaredFamily } from '@/lib/api/imageSniff'
 
 // Public route — used by the membership sign-up form (payment slip photo)
@@ -17,12 +17,12 @@ const MAX_SIZE = 10 * 1024 * 1024 // 10MB
 const ALLOWED_TYPES = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/heic', 'image/heif']
 const ALLOWED_FOLDERS = ['membership-slips', 'achievements'] as const
 
-// Anonymous endpoint: looser than login, but not unlimited (per IP, per instance).
-const RATE_LIMIT = 20
+// Anonymous endpoint: looser than login, but not unlimited (per IP, shared across instances).
+const RATE_LIMIT = 30
 const RATE_WINDOW_MS = 10 * 60 * 1000
 
 export async function POST(req: NextRequest) {
-  const rl = checkRateLimit(`member-upload:${clientIp(req)}`, RATE_LIMIT, RATE_WINDOW_MS)
+  const rl = await checkRateLimitShared(`member-upload:ip:${clientIp(req)}`, RATE_LIMIT, RATE_WINDOW_MS)
   if (!rl.ok) return tooManyRequests(rl.retryAfterSec, 'Too many uploads. Please try again later.')
 
   let formData: FormData

@@ -3,7 +3,7 @@ import { supabaseAdmin } from '@/lib/supabase'
 import { apiError, apiOk } from '@/lib/api/response'
 import { setSessionCookie, HOURS } from '@/lib/api/session-cookie'
 import { authCookies } from '@/lib/config/site'
-import { guardLogin, lockKey, recordFailure, clearFailures } from '@/lib/api/rateLimit'
+import { guardLoginShared, lockKey, recordFailure, clearFailures } from '@/lib/api/rateLimit'
 
 // Organizer auth is fully server-side now.
 // Previously the client fetched ALL olympiads + their plaintext organizer_password
@@ -26,7 +26,7 @@ export async function POST(req: NextRequest) {
   }
   const uname = typeof username === 'string' ? username.trim() : ''
 
-  const limited = guardLogin('organizer-login', req, uname)
+  const limited = await guardLoginShared('organizer-login', req, uname)
   if (limited) return limited
   const failKey = lockKey('organizer-login', req, uname)
 

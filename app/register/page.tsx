@@ -188,7 +188,7 @@ export default function RegisterPage() {
       case 'password': {
         const pwd = form[name]
         if (!pwd) return 'Please choose a password.'
-        return pwd.length >= 6 ? undefined : 'Password must be at least 6 characters.'
+        return pwd.length >= 8 ? undefined : 'Password must be at least 8 characters.'
       }
       case 'confirm_password': {
         const pwd = form.password
@@ -387,7 +387,7 @@ export default function RegisterPage() {
               <div className="space-y-4">
                 <FieldRow
                   name="password" label="Password" required type={showPassword ? 'text' : 'password'}
-                  autoComplete="new-password" placeholder="Min. 6 characters" value={form.password}
+                  autoComplete="new-password" placeholder="Min. 8 characters" value={form.password}
                   onChange={handle} onBlur={handleBlur} disabled={loading}
                   error={fieldErrors.password} rightSlot={passwordToggle}
                 />

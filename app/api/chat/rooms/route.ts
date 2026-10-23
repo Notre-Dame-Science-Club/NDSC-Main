@@ -5,6 +5,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase";
 import { requireAdmin } from "@/lib/api/admin-auth";
+import { getCallerId } from "@/lib/server/requireUser";
 
 // ══════════════════════════════════════════════════════════════════════════
 // GET /api/chat/rooms
@@ -14,11 +15,12 @@ export async function GET(req: NextRequest) {
   try {
     const supabase = supabaseAdmin;
     const { searchParams } = new URL(req.url);
-    const memberId = searchParams.get("member_id");
     const roomType = searchParams.get("type"); // 'chat' | 'voting'
 
+    // Identity comes from the bearer token only; any member_id in the query is ignored.
+    const memberId = await getCallerId(req);
     if (!memberId) {
-      return NextResponse.json({ error: "member_id required" }, { status: 400 });
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     // Get member info

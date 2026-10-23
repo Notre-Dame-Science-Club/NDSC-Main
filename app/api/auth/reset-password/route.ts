@@ -2,24 +2,20 @@ import { supabaseAdmin } from '@/lib/supabase'
 import { NextRequest } from 'next/server'
 import { apiError, apiOk } from '@/lib/api/response'
 import { verifyPayload } from '@/lib/api/sign'
-import { guardLogin } from '@/lib/api/rateLimit'
+import { guardLoginShared } from '@/lib/api/rateLimit'
 import { createHash, randomBytes } from 'crypto'
 
 // POST /api/auth/reset-password
 // Resets password using a verified reset token
 export async function POST(req: NextRequest) {
-  // Check if Easy_Password_reset is enabled (default: true)
-  const easyResetEnabled = process.env.EASY_PASSWORD_RESET !== 'false'
-
-  if (!easyResetEnabled) {
-    return apiError('Password reset via phone is disabled.', 403)
-  }
+  // No env gate here: the signed reset_token (purpose 'phone-reset') can only be obtained from
+  // /api/auth/verify-phone, which itself requires EASY_PASSWORD_RESET=true or a fallback token.
 
   const IS_LOCAL = (process.env.SUPABASE_ENV || '').toLowerCase() === 'local'
 
   // Per-IP throttle (no identifier: the token is signed, so guessing is moot,
   // but this stops hammering the endpoint).
-  const limited = guardLogin('reset-password', req, '', { limit: 20 })
+  const limited = await guardLoginShared('reset-password', req, '', { limit: 20 })
   if (limited) return limited
 
   try {
@@ -29,15 +25,18 @@ export async function POST(req: NextRequest) {
       return apiError('Reset token and new password are required.', 400)
     }
 
-    if (new_password.length < 6) {
-      return apiError('Password must be at least 6 characters.', 400)
+    if (typeof new_password !== 'string' || new_password.length < 8) {
+      return apiError('Password must be at least 8 characters.', 400)
+    }
+    if (new_password.length > 72) {
+      return apiError('Password must be at most 72 characters.', 400)
     }
 
     // Verify the reset token's signature (returns null if unsigned, tampered or malformed)
     const tokenData = typeof reset_token === 'string'
-      ? verifyPayload<{ id?: string; email?: string; source?: string; exp?: string }>(reset_token)
+      ? verifyPayload<{ purpose?: string; id?: string; email?: string; source?: string; exp?: string }>(reset_token)
       : null
-    if (!tokenData) {
+    if (!tokenData || tokenData.purpose !== 'phone-reset' || !tokenData.id) {
       return apiError('Invalid reset token.', 401)
     }
 

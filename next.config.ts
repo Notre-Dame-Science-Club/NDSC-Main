@@ -7,6 +7,7 @@ import type { NextConfig } from "next";
 // Hostinger image hosts) need confirming in production before enforcing. Watch
 // the browser console / a report endpoint, tighten, then rename the header to
 // "Content-Security-Policy".
+// TODO: enforce after a week of clean reports; drop 'unsafe-eval' if Next build allows
 const workerOrigin = (() => {
   try { return process.env.NEXT_PUBLIC_WORKER_URL ? new URL(process.env.NEXT_PUBLIC_WORKER_URL).origin : "" } catch { return "" }
 })();

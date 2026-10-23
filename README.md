@@ -48,6 +48,18 @@ docs/
 
 See `docs/SUPABASE_SETUP.md` for the RLS policies and admin bootstrap steps.
 
+### Security-related environment variables
+
+| Variable | Purpose |
+| --- | --- |
+| `TURNSTILE_SECRET_KEY` | Cloudflare Turnstile secret. Required in production: sign-up is refused without it. |
+| `NEXT_PUBLIC_TURNSTILE_SITE_KEY` | Cloudflare Turnstile site key for the sign-up form (`/register`). |
+| `EASY_PASSWORD_RESET` | Phone-number password reset. **Off unless exactly `true`** (default `false`). |
+| `SESSION_SECRET` | Signs admin / organizer / team session cookies (32+ random chars). |
+
+Run `db/43_migration_rate_limits.sql` before deploying: the shared rate limiter
+(`checkRateLimitShared`) stores its counters in the `rate_limits` table.
+
 ## Scripts
 
 One-off data export/import/migration tooling lives in `scripts/` and is run

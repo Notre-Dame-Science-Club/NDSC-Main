@@ -1,4 +1,5 @@
 // Pure in-memory counters (no framework imports so they can be unit-tested).
+// In-memory fallback only; use checkRateLimitShared (rateLimit.ts) for anything abuse-sensitive.
 // See rateLimit.ts for the request-aware helpers used by routes.
 
 // In-memory rate limiting for auth-style endpoints.

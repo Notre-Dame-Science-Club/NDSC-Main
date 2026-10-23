@@ -4,6 +4,24 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase";
+import { getCallerId } from "@/lib/server/requireUser";
+
+// Identity comes from the bearer token only; any member_id in the query/body is ignored.
+
+// The caller must be a participant of the room. Returns an error response, or null if allowed.
+async function requireRoomParticipant(roomId: string, memberId: string) {
+  const { data: participant } = await supabaseAdmin
+    .from("chat_room_participants")
+    .select("can_read")
+    .eq("room_id", roomId)
+    .eq("member_id", memberId)
+    .single();
+
+  if (!participant?.can_read) {
+    return NextResponse.json({ error: "Access denied" }, { status: 403 });
+  }
+  return null;
+}
 
 // ══════════════════════════════════════════════════════════════════════════
 // GET /api/chat/votes
@@ -14,11 +32,18 @@ export async function GET(req: NextRequest) {
     const supabase = supabaseAdmin;
     const { searchParams } = new URL(req.url);
     const roomId = searchParams.get("room_id");
-    const memberId = searchParams.get("member_id");
+
+    const memberId = await getCallerId(req);
+    if (!memberId) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
 
     if (!roomId) {
       return NextResponse.json({ error: "room_id required" }, { status: 400 });
     }
+
+    const denied = await requireRoomParticipant(roomId, memberId);
+    if (denied) return denied;
 
     // Get room voting settings
     const { data: room } = await supabase
@@ -62,17 +87,14 @@ export async function GET(req: NextRequest) {
       }
     });
 
-    // Get user's vote if memberId provided
-    let myVote = null;
-    if (memberId) {
-      const { data: userVote } = await supabase
-        .from("chat_votes")
-        .select("*")
-        .eq("room_id", roomId)
-        .eq("member_id", memberId);
+    // Get the caller's own vote
+    const { data: userVote } = await supabase
+      .from("chat_votes")
+      .select("*")
+      .eq("room_id", roomId)
+      .eq("member_id", memberId);
 
-      myVote = userVote || [];
-    }
+    const myVote = userVote || [];
 
     // Check if user can see results
     const canSeeResults = room.show_results ||
@@ -107,13 +129,19 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   try {
     const supabase = supabaseAdmin;
+
+    const member_id = await getCallerId(req);
+    if (!member_id) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     const body = await req.json();
 
-    const { room_id, member_id, option_index, option_text } = body;
+    const { room_id, option_index, option_text } = body;
 
-    if (!room_id || !member_id || option_index === undefined) {
+    if (!room_id || option_index === undefined) {
       return NextResponse.json(
-        { error: "room_id, member_id, and option_index required" },
+        { error: "room_id and option_index required" },
         { status: 400 }
       );
     }
@@ -204,15 +232,22 @@ export async function DELETE(req: NextRequest) {
     const supabase = supabaseAdmin;
     const { searchParams } = new URL(req.url);
     const roomId = searchParams.get("room_id");
-    const memberId = searchParams.get("member_id");
     const optionIndex = searchParams.get("option_index");
 
-    if (!roomId || !memberId) {
+    const memberId = await getCallerId(req);
+    if (!memberId) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    if (!roomId) {
       return NextResponse.json(
-        { error: "room_id and member_id required" },
+        { error: "room_id required" },
         { status: 400 }
       );
     }
+
+    const denied = await requireRoomParticipant(roomId, memberId);
+    if (denied) return denied;
 
     // Check if voting has ended
     const { data: room } = await supabase

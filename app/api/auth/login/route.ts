@@ -2,7 +2,7 @@ import { supabase, supabaseAdmin } from '@/lib/supabase'
 import { NextRequest } from 'next/server'
 import { apiOk } from '@/lib/api/response'
 import { signLocalToken } from '@/lib/localAuth'
-import { guardLogin, lockKey, recordFailure, clearFailures } from '@/lib/api/rateLimit'
+import { guardLoginShared, lockKey, recordFailure, clearFailures } from '@/lib/api/rateLimit'
 
 // Member login.
 //
@@ -51,7 +51,7 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    const limited = guardLogin('auth-login', req, String(email))
+    const limited = await guardLoginShared('auth-login', req, String(email))
     if (limited) return limited
     const failKey = lockKey('auth-login', req, String(email))
 

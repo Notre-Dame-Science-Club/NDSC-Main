@@ -1,7 +1,6 @@
 'use client'
 import { useState, useEffect, useRef } from 'react'
-import { CheckCircle, Upload, X, AlertTriangle, ExternalLink, Users, Info } from 'lucide-react'
-import Link from 'next/link'
+import { CheckCircle, Upload, X, AlertTriangle, Info } from 'lucide-react'
 import { FormBlock, normalizeBlocks, BuiltinFieldKey, HARD_MINIMUM_KEYS, validateFieldFormat } from '@/lib/formBlocks'
 import { validateCollegeRoll } from '@/lib/validation'
 
@@ -53,8 +52,8 @@ export type FieldsRendererProps = {
 }
 
 export type UniqueMatch = {
-  type: 'leader' | 'team_member'
-  registration_id: string
+  type: 'leader' | 'team_member' | 'taken'
+  registration_id?: string
   member_id?: string
   existing_name?: string
   added_by_name?: string
@@ -115,7 +114,8 @@ export default function FieldsRenderer({
       if (!res.ok) throw new Error('lookup failed')
       const data = await res.json()
       if (reqSeq.current[key] !== seq) return // stale
-      const match = data?.match || null
+      // The API only says whether the value is taken (it no longer reveals who registered).
+      const match = data?.taken ? { type: 'taken' as const } : null
       const status = match ? 'taken' : 'free'
       setUniqueState(prev => ({ ...prev, [key]: { status, match, value: trimmed } }))
       onUniqueMatch?.(key, match ? { ...match, field_label: field.label || key, field_value: trimmed } : null)
@@ -572,45 +572,19 @@ function UniqueStateBadge({ state, fieldLabel, eventSlug }: {
   }
 
   if (state.status === 'taken') {
-    const m = state.match
-    if (m?.type === 'team_member') {
-      // "You were added by X to Y" — the value belongs to a team member of
-      // some leader's registration. Offer a link into the team dashboard.
-      const dashHref = eventSlug ? `/activities/${eventSlug}/dashboard?reg=${m.registration_id}` : '#'
-      return (
-        <div className="mt-1.5 p-2.5 rounded-lg flex items-start gap-2 text-xs"
-          style={{ background: 'rgba(var(--blue-rgb), 0.08)', border: '1px solid rgba(var(--blue-rgb), 0.3)', color: 'var(--blue)' }}>
-          <Users size={13} className="shrink-0 mt-0.5" />
-          <div className="flex-1">
-            <p className="font-semibold" style={{ color: 'var(--white)' }}>
-              {m.existing_name ? `${m.existing_name}, you've been added` : "You've been added"} to this event by <strong>{m.added_by_name || 'someone'}</strong> as a team member.
-            </p>
-            <p className="mt-0.5" style={{ color: 'var(--muted)' }}>Open your team dashboard instead of re-registering.</p>
-            {eventSlug && (
-              <Link href={dashHref} className="inline-flex items-center gap-1 mt-1.5 font-semibold underline" style={{ color: 'var(--blue)' }}>
-                Open team dashboard <ExternalLink size={10} />
-              </Link>
-            )}
-          </div>
-        </div>
-      )
-    }
-    // Leader match — they themselves are the registrant on an existing row.
-    const dashHref = eventSlug ? `/activities/${eventSlug}/dashboard?reg=${m.registration_id}` : '#'
+    // The server only tells us the value is already used in this event (no names / links, so
+    // the public form can't be used to look up who registered).
     return (
       <div className="mt-1.5 p-2.5 rounded-lg flex items-start gap-2 text-xs"
         style={{ background: 'rgba(var(--warning-rgb), 0.08)', border: '1px solid rgba(var(--warning-rgb), 0.3)', color: 'var(--warning)' }}>
         <AlertTriangle size={13} className="shrink-0 mt-0.5" />
         <div className="flex-1">
           <p className="font-semibold" style={{ color: 'var(--white)' }}>
-            You're already registered{m.existing_name ? ` as ${m.existing_name}` : ''}.
+            This {fieldLabel.toLowerCase()} is already registered for this event.
           </p>
-          <p className="mt-0.5" style={{ color: 'var(--muted)' }}>Pick a different {fieldLabel.toLowerCase()} or open your existing dashboard.</p>
-          {eventSlug && (
-            <Link href={dashHref} className="inline-flex items-center gap-1 mt-1.5 font-semibold underline" style={{ color: 'var(--warning)' }}>
-              Open my dashboard <ExternalLink size={10} />
-            </Link>
-          )}
+          <p className="mt-0.5" style={{ color: 'var(--muted)' }}>
+            Use a different {fieldLabel.toLowerCase()}, or log in to open your existing registration.
+          </p>
         </div>
       </div>
     )

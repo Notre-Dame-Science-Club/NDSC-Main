@@ -9,8 +9,8 @@ import { apiError, apiOk } from '@/lib/api/response'
 //
 // Env vars (sandbox defaults match SSLCommerz's publicly documented test
 // credentials, so this works out of the box before a real store is set up):
-//   SSLCOMMERZ_STORE_ID       (default: 'testbox')
-//   SSLCOMMERZ_STORE_PASSWORD (default: 'qwerty')
+//   SSLCOMMERZ_STORE_ID       (REQUIRED in production; sandbox default 'testbox' only when NODE_ENV !== 'production')
+//   SSLCOMMERZ_STORE_PASSWORD (REQUIRED in production; sandbox default 'qwerty' only when NODE_ENV !== 'production')
 //   SSLCOMMERZ_IS_LIVE        ('true' for production, anything else = sandbox)
 //   NEXT_PUBLIC_SITE_URL      (used to build the success/fail/cancel/ipn callback URLs)
 
@@ -39,8 +39,10 @@ export async function POST(req: NextRequest) {
     return apiError('No payment amount set for this registration.', 400)
   }
 
-  const storeId = process.env.SSLCOMMERZ_STORE_ID || 'testbox'
-  const storePassword = process.env.SSLCOMMERZ_STORE_PASSWORD || 'qwerty'
+  // Sandbox credentials are a non-production convenience only.
+  const storeId = process.env.SSLCOMMERZ_STORE_ID || (process.env.NODE_ENV !== 'production' ? 'testbox' : '')
+  const storePassword = process.env.SSLCOMMERZ_STORE_PASSWORD || (process.env.NODE_ENV !== 'production' ? 'qwerty' : '')
+  if (!storeId || !storePassword) return apiError('Payment is not configured.', 503)
   const isLive = process.env.SSLCOMMERZ_IS_LIVE === 'true'
   const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || `https://${req.headers.get('host')}`
   const apiBase = isLive ? 'https://securepay.sslcommerz.com' : 'https://sandbox.sslcommerz.com'

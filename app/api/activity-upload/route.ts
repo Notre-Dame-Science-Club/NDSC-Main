@@ -1,6 +1,8 @@
 import { NextRequest } from 'next/server'
 import { normalizeUploadUrl } from '@/lib/uploadUrl'
 import { apiError, apiOk } from '@/lib/api/response'
+import { checkRateLimitShared, clientIp, tooManyRequests } from '@/lib/api/rateLimit'
+import { sniffImageType, declaredFamily } from '@/lib/api/imageSniff'
 import { authorizeSegmentAccess, denyResponse } from '@/lib/server/registrationAccess'
 
 // S5: two modes.
@@ -48,20 +50,13 @@ const EXT_MIME_MAP: Record<string, string[]> = {
 const FOLDER = 'activity-registrations'
 const HARD_MAX_MB = 100
 
-// Best-effort per-IP limiter for anonymous form-mode uploads (in-memory, so it
-// is per server instance; it slows abuse, it is not a hard guarantee).
-const hits = new Map<string, number[]>()
-function rateLimited(req: NextRequest): boolean {
-  const ip = (req.headers.get('x-forwarded-for') || '').split(',')[0].trim() || 'unknown'
-  const now = Date.now(), windowMs = 10 * 60 * 1000, max = 30
-  const arr = (hits.get(ip) || []).filter(t => now - t < windowMs)
-  arr.push(now)
-  hits.set(ip, arr)
-  if (hits.size > 5000) for (const [k, v] of hits) if (!v.some(t => now - t < windowMs)) hits.delete(k)
-  return arr.length > max
-}
+// Image extensions whose real file signature we verify (magic bytes), even in submission mode.
+const IMAGE_EXTS = ['jpg', 'jpeg', 'png', 'webp', 'heic', 'heif']
 
 export async function POST(req: NextRequest) {
+  const rl = await checkRateLimitShared(`activity-upload:ip:${clientIp(req)}`, 60, 10 * 60 * 1000)
+  if (!rl.ok) return tooManyRequests(rl.retryAfterSec, 'Too many uploads. Please wait a few minutes and try again.')
+
   let formData: FormData
   try {
     formData = await req.formData()
@@ -92,8 +87,6 @@ export async function POST(req: NextRequest) {
     exts = cfgExts.length ? cfgExts : null
     const cfgMb = Number(field.max_file_size_mb)
     if (cfgMb > 0) maxSize = Math.min(cfgMb, HARD_MAX_MB) * 1024 * 1024
-  } else {
-    if (rateLimited(req)) return apiError('Too many uploads. Please wait a few minutes and try again.', 429)
   }
 
   if (file.size > maxSize) {
@@ -113,6 +106,18 @@ export async function POST(req: NextRequest) {
     // Photo fields (and submission fields with no configured types): images only.
     if (file.type && !IMAGE_TYPES.includes(file.type)) {
       return apiError('Invalid file type. Please upload a JPG, PNG, WEBP, or HEIC image.', 400)
+    }
+  }
+
+  // Don't trust the declared MIME type for images: check the real file signature and require it
+  // to agree with what the client claimed. Applies to photo fields and image-typed submissions.
+  const upExt = file.name.split('.').pop()?.toLowerCase() || ''
+  if (!exts || IMAGE_EXTS.includes(upExt)) {
+    const head = new Uint8Array(await file.slice(0, 32).arrayBuffer())
+    const actual = sniffImageType(head)
+    const claimed = file.type ? declaredFamily(file.type) : null
+    if (!actual || (file.type && claimed !== actual)) {
+      return apiError('Invalid file. Please upload a real JPG, PNG, WEBP, or HEIC image.', 400)
     }
   }
 

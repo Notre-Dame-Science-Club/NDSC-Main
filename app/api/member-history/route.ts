@@ -1,17 +1,15 @@
 import { supabaseAdmin } from '@/lib/supabase'
 import { NextRequest } from 'next/server'
-import { apiError, apiOk } from '@/lib/api/response'
+import { apiError, apiOk, apiUnauthorized } from '@/lib/api/response'
+import { getCallerId } from '@/lib/server/requireUser'
 
-// GET /api/member-history?member_id=xxx
-// Fetch history data for a specific member
+// GET /api/member-history
+// Fetch history data for the signed-in member (identity comes from the bearer token only;
+// any member_id query param is ignored).
 export async function GET(req: NextRequest) {
   try {
-    const { searchParams } = new URL(req.url)
-    const memberId = searchParams.get('member_id')
-
-    if (!memberId) {
-      return apiError('member_id is required', 400)
-    }
+    const memberId = await getCallerId(req)
+    if (!memberId) return apiUnauthorized()
 
     // Get member email first
     const { data: member, error: memberError } = await supabaseAdmin

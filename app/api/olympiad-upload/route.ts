@@ -1,6 +1,8 @@
 import { NextRequest } from 'next/server'
 import { normalizeUploadUrl } from '@/lib/uploadUrl'
 import { apiError, apiOk } from '@/lib/api/response'
+import { checkRateLimitShared, clientIp, tooManyRequests } from '@/lib/api/rateLimit'
+import { sniffImageType, declaredFamily } from '@/lib/api/imageSniff'
 
 // Public route — anyone registering for an olympiad needs this, so there is
 // intentionally NO auth cookie check here (unlike /api/admin/upload).
@@ -20,6 +22,9 @@ const ALLOWED_TYPES = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'im
 const FOLDER = 'olympiad-answers'
 
 export async function POST(req: NextRequest) {
+  const rl = await checkRateLimitShared(`olympiad-upload:ip:${clientIp(req)}`, 30, 10 * 60 * 1000)
+  if (!rl.ok) return tooManyRequests(rl.retryAfterSec, 'Too many uploads. Please try again later.')
+
   let formData: FormData
   try {
     formData = await req.formData()
@@ -43,6 +48,18 @@ export async function POST(req: NextRequest) {
   if (file.type && !ALLOWED_TYPES.includes(file.type)) {
     return apiOk(
       { error: 'Invalid file type. Please upload a JPG, PNG, WEBP, or HEIC image.' },
+      { status: 400 }
+    )
+  }
+
+  // Don't trust the declared MIME type: check the real file signature, and
+  // require it to agree with what the client claimed.
+  const head = new Uint8Array(await file.slice(0, 32).arrayBuffer())
+  const actual = sniffImageType(head)
+  const claimed = file.type ? declaredFamily(file.type) : null
+  if (!actual || (file.type && claimed !== actual)) {
+    return apiOk(
+      { error: 'Invalid file. Please upload a real JPG, PNG, WEBP, or HEIC image.' },
       { status: 400 }
     )
   }
