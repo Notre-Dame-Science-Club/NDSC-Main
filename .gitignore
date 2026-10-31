@@ -15,7 +15,7 @@ dev
 scripts
 test
 
-# scripts/ — migration tooling output & its own deps, not source
+# scripts/ — migration tooling output & its own deps, not sourc
 scripts/node_modules
 scripts/supabase-export
 scripts/storage-export
