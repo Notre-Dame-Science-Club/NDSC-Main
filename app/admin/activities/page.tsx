@@ -2,6 +2,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { X, Pencil, Trash2, FileText, Images, CalendarClock, ClipboardCheck, Play } from "lucide-react";
 import { ActivityIcon, ACTIVITY_ICON_OPTIONS } from "@/lib/activityIcons";
+import { normalizeUploadUrl } from "@/lib/uploadUrl";
 
 type ActivityType = {
   id: string; name: string; slug: string; icon: string;
@@ -58,13 +59,91 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
 const inputCls = "w-full rounded-lg px-3 py-2 text-sm outline-none focus:ring-1";
 const inputStyle = { background: "var(--bg2)", border: `1px solid ${S.border}`, color: S.text } as React.CSSProperties;
 
+/**
+ * Parses a fetch Response as JSON, but fails with a readable message instead
+ * of crashing when the body isn't actually JSON. That happens whenever
+ * something in front of our own API routes — Vercel's platform (body-size
+ * limits, rate limiting / Firewall challenges), a proxy, or a timeout —
+ * returns its own HTML/plain-text error page instead of reaching our route
+ * handler at all. Those responses start with "<!DOCTYPE ..." or similar, and
+ * `res.json()` on them throws a raw "Unexpected token '<'" SyntaxError that's
+ * meaningless to anyone looking at it. This turns that into e.g. "Request
+ * failed (413 Payload Too Large): file is too large for this server" so the
+ * on-screen error actually says what happened.
+ */
+async function parseApiResponse(res: Response): Promise<any> {
+  const text = await res.text();
+  try {
+    return text ? JSON.parse(text) : {};
+  } catch {
+    const snippet = text.replace(/\s+/g, " ").trim().slice(0, 160);
+    const reason =
+      res.status === 413 ? "the file is too large for this server to accept"
+      : res.status === 429 ? "too many requests right now — wait a moment and try again"
+      : res.status >= 500 ? "the server hit an error"
+      : "the server didn't return a usable response";
+    throw new Error(
+      `Request failed (${res.status} ${res.statusText || ""}): ${reason}.` +
+      (snippet ? ` [${snippet}]` : "")
+    );
+  }
+}
+
+/**
+ * Uploads straight from the browser to the Hostinger upload endpoint,
+ * bypassing our own `/api/admin/upload` route entirely. That route runs as a
+ * Vercel serverless function, and Vercel caps a function's request body at
+ * roughly 4.5MB regardless of our own 200MB check in that route — anything
+ * bigger never reaches our code, Vercel's platform returns its own error
+ * page for it (the 413s this was all about). Going direct to Hostinger skips
+ * that limit altogether.
+ *
+ * `/api/admin/upload-token` (already admin-gated) hands out the upload URL
+ * and secret for exactly this. Throws on any failure so the caller can fall
+ * back to the proxied route — e.g. if Hostinger's upload.php doesn't send
+ * CORS headers for this origin, the browser will refuse the direct request
+ * outright and we want that to fail fast rather than silently hang.
+ */
+async function uploadFileDirect(file: File, folder: string): Promise<string> {
+  const tokenRes = await fetch("/api/admin/upload-token");
+  const token = await parseApiResponse(tokenRes);
+  if (!tokenRes.ok || !token.uploadUrl || !token.secret) {
+    throw new Error(token.error || "Could not get an upload token");
+  }
+
+  const fd = new FormData();
+  fd.append("file", file);
+  fd.append("folder", folder);
+
+  const res = await fetch(token.uploadUrl, {
+    method: "POST",
+    headers: { "X-Upload-Secret": token.secret },
+    body: fd,
+  });
+  const data = await parseApiResponse(res);
+  if (!res.ok || !data.success || !data.url) {
+    throw new Error(data.error || "Direct upload failed");
+  }
+  return normalizeUploadUrl(data.url);
+}
+
 async function uploadFile(file: File, folder: string): Promise<string> {
+  // Try the direct-to-Hostinger path first so large files don't hit
+  // Vercel's body-size limit. If that can't be reached for any reason
+  // (CORS, network, misconfiguration), fall back to the original proxied
+  // route — same behavior as before for anything under ~4.5MB.
+  try {
+    return await uploadFileDirect(file, folder);
+  } catch (directErr) {
+    console.warn("Direct upload failed, falling back to proxied upload:", directErr);
+  }
+
   const fd = new FormData();
   fd.append("file", file);
   fd.append("folder", folder);
   const res = await fetch("/api/admin/upload", { method: "POST", body: fd });
-  const data = await res.json();
-  if (!data.url) throw new Error(data.error || "Upload failed");
+  const data = await parseApiResponse(res);
+  if (!res.ok || !data.url) throw new Error(data.error || "Upload failed");
   return data.url;
 }
 
@@ -88,7 +167,7 @@ function TypeForm({ initial, onSave, onClose }: {
       const res = await fetch("/api/admin/activity-types", {
         method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(body)
       });
-      const data = await res.json();
+      const data = await parseApiResponse(res);
       if (!res.ok) throw new Error(data.error);
       onSave();
     } catch (e: any) { setErr(e.message); }
@@ -175,7 +254,7 @@ function VersionForm({ typeId, initial, onSave, onClose }: {
       const res = await fetch("/api/admin/activity-versions", {
         method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(body)
       });
-      const data = await res.json();
+      const data = await parseApiResponse(res);
       if (!res.ok) throw new Error(data.error);
       onSave();
     } catch (e: any) { setErr(e.message); }
@@ -328,7 +407,7 @@ function SessionForm({ typeId, versionId, versions, initial, onSave, onClose }: 
       const res = await fetch("/api/admin/activity-sessions", {
         method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload)
       });
-      const data = await res.json();
+      const data = await parseApiResponse(res);
       if (!res.ok) throw new Error(data.error);
       onSave();
     } catch (e: any) { setErr(e.message); }
