@@ -164,7 +164,7 @@ export default async function SessionDetailPage({
           {session.reg_deadline && (
             <span className="px-3 py-1 rounded-full text-xs font-bold inline-flex items-center gap-1.5"
               style={{ background: 'rgba(var(--blue-rgb), 0.06)', color: '#6a9fbf', border: '1px solid rgba(var(--blue-rgb), 0.15)' }}>
-              <CalendarDays size={12} /> Deadline: {new Date(session.reg_deadline).toLocaleString('en-BD', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}
+              <CalendarDays size={12} /> Deadline: {new Date(session.reg_deadline).toLocaleString('en-BD', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', timeZone: 'Asia/Dhaka' })}
             </span>
           )}
         </div>
@@ -178,13 +178,13 @@ export default async function SessionDetailPage({
           {session.event_dates && session.event_dates.length > 0 ? (
             <span className="inline-flex items-center gap-1.5">
               <CalendarDays size={14} /> {session.event_dates.map((d: string) =>
-                new Date(d).toLocaleDateString('en-BD', { month: 'short', day: 'numeric' })
+                new Date(d).toLocaleDateString('en-BD', { month: 'short', day: 'numeric', timeZone: 'Asia/Dhaka' })
               ).join(' · ')}
               {session.event_dates.length > 1 && ` (${session.event_dates.length}-day event)`}
             </span>
           ) : session.session_date && (
             <span className="inline-flex items-center gap-1.5"><CalendarDays size={14} /> {new Date(session.session_date).toLocaleDateString('en-BD', {
-              weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
+              weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', timeZone: 'Asia/Dhaka'
             })}</span>
           )}
           {session.location && <span className="inline-flex items-center gap-1.5"><MapPin size={14} /> {session.location}</span>}
@@ -232,7 +232,7 @@ export default async function SessionDetailPage({
                   <div className="flex items-baseline justify-between gap-3 mb-1">
                     <p className="font-bold text-sm" style={{ color: 'var(--white)' }}>{u.title}</p>
                     <span className="text-xs whitespace-nowrap" style={{ color: 'var(--muted)' }}>
-                      {new Date(u.created_at).toLocaleDateString('en-BD', { month: 'short', day: 'numeric' })}
+                      {new Date(u.created_at).toLocaleDateString('en-BD', { month: 'short', day: 'numeric', timeZone: 'Asia/Dhaka' })}
                     </span>
                   </div>
                   {u.body && <p className="text-sm" style={{ color: '#a0b4c8' }}>{u.body}</p>}
