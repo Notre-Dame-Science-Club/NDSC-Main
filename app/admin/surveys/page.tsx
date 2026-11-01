@@ -46,6 +46,19 @@ type SurveyResponse = {
 
 const uid = () => Math.random().toString(36).slice(2, 9)
 
+// Convert a stored UTC ISO timestamp into the "YYYY-MM-DDTHH:mm" format a
+// <input type="datetime-local"> needs, expressed in the browser's LOCAL time.
+// Slicing the raw ISO string instead shows the UTC clock time as if it were
+// local (e.g. a window closing at 11:59 PM local would display as 5:59 in
+// Dhaka, UTC+6) — this matches it back up with how onChange saves the value
+// (new Date(value).toISOString(), which treats the typed value as local).
+function toLocalDatetimeInputValue(isoString: string): string {
+  const d = new Date(isoString)
+  if (isNaN(d.getTime())) return ''
+  const pad = (n: number) => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
+}
+
 const BLANK: Partial<Survey> = {
   title: '', description: '', questions: [], is_active: true, allow_multiple_responses: false,
   show_notification: false, send_email: false, audience_type: 'all', audience_config: {},
@@ -559,13 +572,13 @@ export default function AdminSurveysPage() {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
             <div>
               <label className="block text-xs mb-1" style={{ color: 'var(--muted)' }}>Opens (optional)</label>
-              <input type="datetime-local" value={editing.starts_at ? editing.starts_at.slice(0, 16) : ''}
+              <input type="datetime-local" value={editing.starts_at ? toLocalDatetimeInputValue(editing.starts_at) : ''}
                 onChange={e => setEditing(p => ({ ...p, starts_at: e.target.value ? new Date(e.target.value).toISOString() : null }))}
                 className={inputClass} style={inputStyle} />
             </div>
             <div>
               <label className="block text-xs mb-1" style={{ color: 'var(--muted)' }}>Closes (optional)</label>
-              <input type="datetime-local" value={editing.ends_at ? editing.ends_at.slice(0, 16) : ''}
+              <input type="datetime-local" value={editing.ends_at ? toLocalDatetimeInputValue(editing.ends_at) : ''}
                 onChange={e => setEditing(p => ({ ...p, ends_at: e.target.value ? new Date(e.target.value).toISOString() : null }))}
                 className={inputClass} style={inputStyle} />
             </div>

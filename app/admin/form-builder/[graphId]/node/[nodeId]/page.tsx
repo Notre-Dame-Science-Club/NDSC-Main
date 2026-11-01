@@ -13,6 +13,24 @@ import { FORM_NODE_KIND_LABEL } from '@/lib/formGraph'
 const inputCls = 'w-full px-3 py-2 rounded-lg text-sm outline-none border'
 const inputStyle = { background: 'var(--surface)', borderColor: 'var(--border)', color: 'var(--white)' }
 
+// datetime-local inputs give/take a naive "YYYY-MM-DDTHH:mm" string with no
+// timezone attached. opens_at/closes_at are meant to be real ISO timestamps
+// (lib/formGraph.ts) checked against `new Date()` both server-side
+// (lib/segmentAccess.ts) and client-side (FormRunner.tsx) — saving the naive
+// string as-is let the server (UTC) and the browser (Dhaka, UTC+6) interpret
+// the same stored value as two different instants, 6 hours apart. Every
+// admin here works in Bangladesh, so make Dhaka-local time explicit on both
+// sides of the round trip instead, same as the olympiads admin page does.
+const DHAKA_OFFSET_MS = 6 * 60 * 60 * 1000
+function dhakaLocalToISO(value?: string | null): string | null {
+  if (!value) return null
+  return new Date(new Date(`${value}:00Z`).getTime() - DHAKA_OFFSET_MS).toISOString()
+}
+function isoToDhakaLocal(value?: string | null): string {
+  if (!value) return ''
+  return new Date(new Date(value).getTime() + DHAKA_OFFSET_MS).toISOString().slice(0, 16)
+}
+
 // Node editor — one page per form_node. Three panels:
 //   1. Fields: edit the FormBlock list (reuses the existing FormBlocksBuilder).
 //   2. Appearance: per-node title, subtitle, cover, theme, font, contact persons.
@@ -600,14 +618,14 @@ export default function NodeEditorPage() {
                     className={inputCls} style={inputStyle} />
                 </Field>
                 <div className="grid grid-cols-2 gap-2">
-                  <Field label="Opens at (ISO timestamp)">
-                    <input type="datetime-local" value={node.behavior.submission?.opens_at || ''}
-                      onChange={e => patchBehavior({ submission: { ...node.behavior.submission, opens_at: e.target.value || null } })}
+                  <Field label="Opens at (Dhaka time)">
+                    <input type="datetime-local" value={isoToDhakaLocal(node.behavior.submission?.opens_at)}
+                      onChange={e => patchBehavior({ submission: { ...node.behavior.submission, opens_at: dhakaLocalToISO(e.target.value) } })}
                       className={inputCls} style={inputStyle} />
                   </Field>
-                  <Field label="Closes at (ISO timestamp)">
-                    <input type="datetime-local" value={node.behavior.submission?.closes_at || ''}
-                      onChange={e => patchBehavior({ submission: { ...node.behavior.submission, closes_at: e.target.value || null } })}
+                  <Field label="Closes at (Dhaka time)">
+                    <input type="datetime-local" value={isoToDhakaLocal(node.behavior.submission?.closes_at)}
+                      onChange={e => patchBehavior({ submission: { ...node.behavior.submission, closes_at: dhakaLocalToISO(e.target.value) } })}
                       className={inputCls} style={inputStyle} />
                   </Field>
                 </div>

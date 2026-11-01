@@ -432,7 +432,13 @@ function NewCampaignTab() {
           body_html: bodyHtml,
           audience_source: audienceSource,
           audience_filters: filters,
-          scheduled_at: sendNow ? undefined : scheduledAt,
+          // scheduledAt is a naive "YYYY-MM-DDTHH:mm" string from the datetime-local
+          // input with no timezone attached. The campaign runner compares scheduled_at
+          // against server time (lib/email/campaign-runner.ts), so sending it as-is
+          // would have the campaign fire ~6 hours later than intended (the UTC server
+          // would read "23:59" as already UTC instead of Dhaka local). Convert it to a
+          // real UTC instant based on the admin's own local clock before sending.
+          scheduled_at: sendNow ? undefined : (scheduledAt ? new Date(scheduledAt).toISOString() : undefined),
           send_now: sendNow,
         }),
       })

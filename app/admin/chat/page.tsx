@@ -104,6 +104,12 @@ export default function AdminChatPage() {
         ...formData,
         created_by: adminData.admin.id,
         voting_enabled: formData.room_type === "voting",
+        // formData.voting_ends_at is a naive "YYYY-MM-DDTHH:mm" string from the
+        // datetime-local input with no timezone attached. Sent as-is, the server
+        // (running in UTC) and Postgres would store/interpret it as if it were
+        // already UTC, closing voting 6 hours later than the admin actually set.
+        // Convert it to a real UTC instant based on the admin's own local clock.
+        voting_ends_at: formData.voting_ends_at ? new Date(formData.voting_ends_at).toISOString() : null,
         participants: formData.access_level === "custom"
           ? formData.selectedMembers.map(memberId => ({
               member_id: memberId,
