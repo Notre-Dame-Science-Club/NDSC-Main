@@ -28,6 +28,18 @@ type ActivitySession = {
 const S = { background: "var(--bg2)", border: "var(--border)", card: "var(--surface-deep)",
   accent: "var(--blue)", text: "var(--white)", muted: "var(--muted)", danger: "var(--danger-soft)" };
 
+// Convert a stored UTC ISO timestamp (e.g. "2026-01-01T17:59:00.000Z") into the
+// "YYYY-MM-DDTHH:mm" format a <input type="datetime-local"> needs, expressed in the
+// browser's LOCAL time. Using .slice(0, 16) on the raw ISO string instead shows the
+// UTC clock time as if it were local, which is why a deadline saved as 11:59 PM
+// (local) was displaying as 5:59 (its UTC value) when the form reopened.
+function toLocalDatetimeInputValue(isoString: string): string {
+  const d = new Date(isoString);
+  if (isNaN(d.getTime())) return "";
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
 const ICON_OPTIONS = ACTIVITY_ICON_OPTIONS;
 
 function Modal({ title, onClose, children }: { title: string; onClose: () => void; children: React.ReactNode }) {
@@ -338,7 +350,7 @@ function SessionForm({ typeId, versionId, versions, initial, onSave, onClose }: 
     event_dates: initial?.event_dates || [] as string[],
     image_display_mode: initial?.image_display_mode || "cover",
     reg_status: initial?.reg_status || "",
-    reg_deadline: initial?.reg_deadline ? initial.reg_deadline.slice(0, 16) : "",
+    reg_deadline: initial?.reg_deadline ? toLocalDatetimeInputValue(initial.reg_deadline) : "",
     notify_publicly: initial?.notify_publicly ?? false,
     welcome_email_enabled: initial?.welcome_email_enabled ?? false,
     welcome_email_subject: initial?.welcome_email_subject || "",
